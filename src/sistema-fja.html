@@ -337,6 +337,7 @@ table.list.esp small{display:block;color:var(--faint);font-size:12px}
 .et-mi-nova .mono{color:var(--muted)!important}.et-mi-nova b{color:var(--brand,#8e1b1b)}
 .et-nsig[hidden],.et-ml[hidden]{display:none!important}
 .et-nsig{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}.et-nsig-g{display:flex;gap:10px;flex-wrap:wrap}.et-nsig-g .fl{min-width:110px}
+#etNT[hidden]{display:none}
 .et-mi.sel{background:var(--hover,#f4f3f0);box-shadow:inset 3px 0 0 var(--brand,#8e1b1b)}
 .et-mi>.mono{min-width:66px;font-weight:600;color:var(--brand,#8e1b1b)}
 .et-mi-d{display:flex;flex-direction:column;gap:2px}.et-mi-d small{color:var(--muted)}
@@ -4609,8 +4610,8 @@ const desatEs=e=>{const b=espbDe(e);return !!(b&&e.baseEm&&b.textoEm&&b.textoEm>
 const nomeGrupoKn=(pref,tab)=>siglaEt(pref)?.nome||KN_NOMES[pref]||(tab&&tab!=='Materiais'?tab:pref);
 const linha1=t=>String(t||'').replace(/[\t\r\n]+/g,' ').replace(/\s{2,}/g,' ').trim();
 function descCurta(t){const s=linha1(t); if(!s) return ''; let c=s.split(/(?<=\S)[,.;](?=\s)| - /)[0]; if(c.length>90) c=c.slice(0,88).replace(/\s+\S*$/,'')+'…'; return c.replace(/[.;,:]+$/,'')}
-/* ---- siglas de keynote: 2 letras = material · 3 letras = elemento ou família ---- */
-const TIPOS_ET={material:'Material',elemento:'Elemento / família'};
+/* ---- siglas de keynote: 2 letras = material · 3 letras = composição ou elemento/família ---- */
+const TIPOS_ET={material:'Material',sistema:'Composição (sistema)',elemento:'Elemento / família'};
 const SIGLAS_PADRAO=[
   ['AL','Painéis de alumínio composto (ACM)','material','Materiais',['AL']],['EV','Elementos vazados','material','Materiais',['COB','CO']],['BL','Blocos','material','Materiais',['BL']],
   ['CH','Chapas metálicas','material','Materiais',['CH']],['CA','Concreto aparente','material','Materiais',['CL']],['CR','Capachos e carpetes','material','Materiais',['CR']],
@@ -4620,7 +4621,7 @@ const SIGLAS_PADRAO=[
   ['PC','Placas cimentícias','material','Materiais',['PC']],['PI','Pinturas e texturas','material','Materiais',['PI']],['PN','Painéis acústicos','material','Materiais',['PN']],
   ['PO','Porcelanatos e cerâmicas','material','Materiais',['PO']],['RS','Resinas','material','Materiais',['RS']],['RA','Revestimentos acústicos','material','Materiais',['RVA']],
   ['TM','Telhas e coberturas','material','Materiais',['TM']],['VN','Pisos vinílicos','material','Materiais',['VN']],
-  ['PIN','Pinturas aplicadas','elemento','Diversos',[]],['DRY','Paredes em drywall','elemento','Drywall',['DW']],
+  ['PIN','Pinturas aplicadas','sistema','Diversos',[]],['DRY','Paredes em drywall','sistema','Drywall',['DW']],
   ['CPM','Chapins','elemento','Chapim',['CPM']],['COR','Corrimãos','elemento','Corrimão e guarda-corpo',['COR']],['GCO','Guarda-corpos','elemento','Corrimão e guarda-corpo',['GCO']],
   ['PNL','Painéis e divisórias','elemento','Divisórias',['PNL']],['ESQ','Esquadrias','elemento','Esquadrias',['ESQ']],['GRD','Gradis e portões','elemento','Gradis',['GD']],
   ['JAN','Janelas','elemento','Janelas',['JA']],['ALZ','Alizares e vãos','elemento','Portas',['AG']],['PAL','Portas de alumínio','elemento','Portas',['PA']],
@@ -4637,7 +4638,7 @@ const SIGLAS_PADRAO=[
   ['CAR','Carrinhos','elemento','Mobiliário',['CAR']],['CBD','Cabides','elemento','Mobiliário',['CBD']],['DEC','Decoração','elemento','Mobiliário',['DEC']]
 ].map(([sigla,nome,tipo,tabela,origens])=>({sigla,nome,tipo,tabela,origens}));
 const etsigColl=()=>db.collection('etsig');
-function siglasEt(){const m=new Map(SIGLAS_PADRAO.map(x=>[x.sigla,{...x,padrao:true}])); for(const x of (S.etsig||new Map()).values()){if(x.del) m.delete(x.sigla); else m.set(x.sigla,{...(m.get(x.sigla)||{}),...x,tipo:x.tipo==='sistema'?'elemento':(x.tipo||m.get(x.sigla)?.tipo),padrao:false})}
+function siglasEt(){const m=new Map(SIGLAS_PADRAO.map(x=>[x.sigla,{...x,padrao:true}])); for(const x of (S.etsig||new Map()).values()){if(x.del) m.delete(x.sigla); else m.set(x.sigla,{...(m.get(x.sigla)||{}),...x,padrao:false})}
   return [...m.values()].sort((a,b)=>(a.tipo==='material'?0:1)-(b.tipo==='material'?0:1)||a.sigla.localeCompare(b.sigla))}
 // a sigla É a tabela: cada sigla agrupa seus itens (PMD · Portas de madeira)
 const ordSig=sg=>{const i=siglasEt().findIndex(x=>x.sigla===sg);return i<0?999:i};
@@ -4645,7 +4646,7 @@ const rotSig=sg=>sg?sg+' · '+(siglaEt(sg)?.nome||'sigla não cadastrada'):'';
 const tabEs=e=>rotSig(knPref(e?.kn));
 const sigB=b=>b?.sigla||(b?usosEspb(b.id).map(x=>knPref(x.kn)).find(Boolean):'')||'';
 const siglaEt=s=>siglasEt().find(x=>x.sigla===s);
-const tipoEt=b=>(t=>t==='sistema'?'elemento':t)(siglaEt(b?.sigla||(b?.id?sigB(b):''))?.tipo||b?.tipo||(b?.tabela==='Materiais'?'material':'elemento'));
+const tipoEt=b=>siglaEt(b?.sigla||(b?.id?sigB(b):''))?.tipo||b?.tipo||(b?.tabela==='Materiais'?'material':'elemento');
 const tipoEtOld=b=>b?.tipo||siglaEt(b?.sigla)?.tipo||(b?.tabela==='Materiais'?'material':'elemento');
 const fmtKnOk=(kn,tipo)=>(tipo==='material'?/^[A-Z]{2}\.\d{2}$/:/^[A-Z]{3}\.\d{2}$/).test(String(kn||''));
 const regraKn=t=>t==='material'?'2 letras, ponto e 2 dígitos (ex.: PI.01)':'3 letras, ponto e 2 dígitos (ex.: PIN.01)';
@@ -4747,7 +4748,7 @@ function telaEspItem(h,v){
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="et-del">${IC.trash}Excluir</button><button class="btn pri" data-act="et-salvar">Salvar alterações</button></div>`;
   return h;
 }
-function knLivre(pid,kn,id){const k=knChave(kn); if(!k) return 'Informe o keynote'; const ln=S.espec.get(id)||S.qdraft, t=tipoEt(espbDe(ln)); if(!fmtKnOk(k,t)) return `Keynote de ${t==='material'?'material':'elemento ou família'}: ${regraKn(t)}`; const d=espDe(pid).find(x=>x.id!==id&&knChave(x.kn)===k); return d?`O keynote ${kn} já é usado por “${d.desc||'outro item'}”`:''}
+function knLivre(pid,kn,id){const k=knChave(kn); if(!k) return 'Informe o keynote'; const ln=S.espec.get(id)||S.qdraft, t=tipoEt(espbDe(ln)); if(!fmtKnOk(k,t)) return `Keynote de ${t==='material'?'material':'composição ou elemento'}: ${regraKn(t)}`; const d=espDe(pid).find(x=>x.id!==id&&knChave(x.kn)===k); return d?`O keynote ${kn} já é usado por “${d.desc||'outro item'}”`:''}
 async function salvarEs(){
   const e=S.qdraft; if(!e) return true;
   const body={...e}; delete body.id; body.kn=String(body.kn||'').trim().toUpperCase();
@@ -4765,7 +4766,7 @@ function escolherSigla({pid,tipo,sugerida,titulo='Sigla do keynote',sub=''}){ret
     <form class="et-nsig" id="etSN" hidden><div class="et-nsig-g"><label class="fl">Sigla<input class="fld mono" id="etNS" maxlength="3" autocomplete="off" placeholder="${tipo==='material'?'PO':tipo?'PMD':'PO / PMD'}"></label><label class="fl" style="flex:1">Nome da tabela<input class="fld" id="etNN" autocomplete="off" placeholder="ex.: Porcelanatos e cerâmicas"></label>
 
 </div>
-      <p class="muted" style="font-size:12px;margin:6px 0 0">Tipo: <b id="etNTx"></b> (2 letras = material · 3 letras = elemento ou família)</p><p class="pc-msg" id="etNM"></p><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn sm ghost" id="etNC">Voltar à lista</button><button type="submit" class="btn sm pri">Criar sigla e usar</button></div></form>
+      <div class="et-nsig-g" style="margin-top:8px;align-items:center"><span class="muted" style="font-size:12.5px">Tipo: <b id="etNTx"></b></span><select class="fld" id="etNT" style="width:auto" hidden><option value="sistema">Composição (sistema)</option><option value="elemento">Elemento / família</option></select></div><p class="pc-msg" id="etNM"></p><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn sm ghost" id="etNC">Voltar à lista</button><button type="submit" class="btn sm pri">Criar sigla e usar</button></div></form>
     <div class="pc-acts"><span class="muted" style="font-size:12px;margin-right:auto">O número é o próximo livre da sigla neste projeto.</span>${S.ro?'':`<button type="button" class="btn ghost" id="etSNb">${IC.plus}Nova sigla</button>`}<button type="button" class="btn ghost" id="etSC">Cancelar</button></div></div>`;
   document.body.appendChild(d); let sel=0, L=[];
   const lista=()=>{const q=semAc($('etSQ').value);
@@ -4778,7 +4779,7 @@ function escolherSigla({pid,tipo,sugerida,titulo='Sigla do keynote',sub=''}){ret
   const abrirNova=v=>{$('etSN').hidden=false; $('etSL').hidden=true; $('etSQ').closest('.search').style.display='none'; $('etSNb')&&($('etSNb').style.display='none');
     if(v) $('etNS').value=v; ajNT(); setTimeout(()=>($('etNS').value?$('etNN'):$('etNS')).focus(),20)};
   const fecharNova=()=>{$('etSN').hidden=true; $('etSL').hidden=false; $('etSQ').closest('.search').style.display=''; $('etSNb')&&($('etSNb').style.display=''); $('etSQ').focus()};
-  const ajNT=()=>{const n=$('etNS').value.length; $('etNTx').textContent=n===2?'Material':n===3?'Elemento / família':''};
+  const ajNT=()=>{const n=$('etNS').value.length, sel=$('etNT'); sel.hidden=n!==3; $('etNTx').textContent=n===2?'Material':n===3?'':'2 letras = material · 3 letras = composição ou elemento/família'; if(n===3&&tipo&&tipo!=='material') sel.value=tipo};
   const fim=v=>{d.remove();document.removeEventListener('keydown',tec,true);ok(v)};
   const tec=ev=>{if(ev.key==='Escape'){ev.stopPropagation();fim(null)}
     else if(!$('etSN').hidden) return;
@@ -4789,9 +4790,9 @@ function escolherSigla({pid,tipo,sugerida,titulo='Sigla do keynote',sub=''}){ret
   $('etSL').onclick=ev=>{const x=ev.target.closest('.et-mi'); if(!x) return; if(x.dataset.nova) abrirNova(x.dataset.nova); else fim(x.dataset.sg)};
   if($('etSNb')) $('etSNb').onclick=()=>abrirNova($('etSQ').value.trim().toUpperCase().replace(/[^A-Z]/g,'').slice(0,3));
   $('etNC').onclick=fecharNova; $('etNS').oninput=()=>{$('etNS').value=$('etNS').value.toUpperCase().replace(/[^A-Z]/g,''); ajNT()};
-  $('etSN').onsubmit=async ev=>{ev.preventDefault(); const sg=$('etNS').value, t=sg.length===2?'material':'elemento', m=$('etNM'), erro=x=>{m.textContent=x;m.className='pc-msg err'};
+  $('etSN').onsubmit=async ev=>{ev.preventDefault(); const sg=$('etNS').value, t=sg.length===2?'material':$('etNT').value, m=$('etNM'), erro=x=>{m.textContent=x;m.className='pc-msg err'};
     if(!/^[A-Z]{2,3}$/.test(sg)) return erro('Use 2 ou 3 letras.');
-    if(tipo&&(tipo==='material')!==(sg.length===2)) return erro(tipo==='material'?'Este item é material: a sigla tem 2 letras.':'Este item é elemento ou família: a sigla tem 3 letras.');
+    if(tipo&&(tipo==='material')!==(sg.length===2)) return erro(tipo==='material'?'Este item é material: a sigla tem 2 letras.':'Este item não é material: a sigla tem 3 letras.');
     if(siglaEt(sg)) return erro(`A sigla ${sg} já existe.`);
     if(!$('etNN').value.trim()) return erro('Dê um nome à tabela.');
     await gravarSigla(sg,{sigla:sg,nome:$('etNN').value.trim(),tipo:t,tabela:t==='material'?'Materiais':'Diversos',origens:[]}); if(siglaEt(sg)) fim(sg)};
@@ -4926,7 +4927,7 @@ async function importarEt(pid){
   }
   const antigos=espDe(pid).filter(e=>e.origem?.planilha===id);
   const porTab=[...new Set(linhas.map(e=>e.tabelaOrig))].map(t=>`${t}: ${linhas.filter(e=>e.tabelaOrig===t).length}`).join(' · ')+`\n\nTabelas (siglas) resultantes: ${new Set(linhas.map(e=>e.sigla)).size}`;
-  if(!await confirmar(`Importar ${linhas.length} itens de ${abas.length} abas?\n\n${porTab}\n\nOs keynotes são renumerados no padrão do escritório (material PI.01, elemento/família PMD.01), conforme a tabela de siglas da Biblioteca; o código original fica guardado como código de origem. Itens iguais que só mudam de dimensão viram um só. Cada keynote ganha um item novo no banco central (FJ-…).${antigos.length?`\n\nEste projeto já tem ${antigos.length} itens importados desta planilha: eles serão substituídos (os itens centrais que só eles usavam também saem).`:''}`,{ok:antigos.length?'Substituir e importar':'Importar'})) return;
+  if(!await confirmar(`Importar ${linhas.length} itens de ${abas.length} abas?\n\n${porTab}\n\nOs keynotes são renumerados no padrão do escritório (material PI.01, composição DRY.01, elemento/família PMD.01), conforme a tabela de siglas da Biblioteca; o código original fica guardado como código de origem. Itens iguais que só mudam de dimensão viram um só. Cada keynote ganha um item novo no banco central (FJ-…).${antigos.length?`\n\nEste projeto já tem ${antigos.length} itens importados desta planilha: eles serão substituídos (os itens centrais que só eles usavam também saem).`:''}`,{ok:antigos.length?'Substituir e importar':'Importar'})) return;
   let feitos=0, falhas=0;
   if(antigos.length){toast(`Removendo ${antigos.length} itens da importação anterior…`);
     for(const x of antigos){try{await espColl().doc(x.id).delete(); S.espec.delete(x.id); const c=S.espb.get(x.item); if(c&&c.origem?.projeto===pid&&!usosEspb(c.id).length){await espbColl().doc(c.id).delete(); S.espb.delete(c.id)}}catch(err){if(err?.code==='invalid_argument'){toast('Você não tem permissão para editar');return}}}}
@@ -4975,7 +4976,7 @@ function telaEspbItem(h,v){
   <section class="sheet"><div class="sheet-h"><h2>Item central</h2><span class="hint">o código FJA não muda</span></div><div class="grid">
     <label class="fl">Código FJA<input class="fld mono" value="${esc(b.fja)}" disabled></label>${fld('nbr','Classe NBR 15965 (tabela 3R)')}
     <label class="fl" for="b_sigla">Tabela (sigla)<select class="fld" id="b_sigla" data-eb="sigla" ${dis}><option value="">—</option>${siglasEt().map(x=>`<option value="${esc(x.sigla)}" ${x.sigla===sigB(b)?'selected':''}>${esc(rotSig(x.sigla))}</option>`).join('')}</select></label>
-    <label class="fl">Tipo<input class="fld" value="${esc(TIPOS_ET[tipoEt(b)])}" disabled title="Vem da sigla: 2 letras = material, 3 letras = elemento ou família"></label>
+    <label class="fl">Tipo<input class="fld" value="${esc(TIPOS_ET[tipoEt(b)])}" disabled title="Vem do cadastro da sigla"></label>
     ${fld('desc','Descrição simplificada','text','wide')}${fld('texto','Especificação base','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
     <datalist id="dlNbr">${[...new Set([...S.espb.values()].map(x=>x.nbr).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist></section>
   <section class="sheet"><div class="sheet-h"><h2>Uso nos projetos</h2><span class="cnt">${us.length}</span></div>${us.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th style="width:170px">Projeto</th><th style="width:90px">Keynote</th><th>Descrição no projeto</th></tr></thead><tbody>${us.map(x=>{const p=S.itens.get(x.projeto);return `<tr data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}"><td>${esc((p?.campos?.codigo?p.campos.codigo+' ':'')+(p?.nome||''))}</td><td class="mono"><b>${esc(x.kn)}</b>${desatEs(x)?' <span class="et-dot" title="Texto central alterado depois">●</span>':''}</td><td>${esc(x.desc||'')}</td></tr>`}).join('')}</tbody></table></div>`:`<p class="pad muted">Ainda não usado em nenhum projeto.</p>`}</section>
@@ -5001,12 +5002,14 @@ function telaEtSig(h){
   const uso=s=>[...S.espec.values()].filter(e=>knPref(e.kn)===s).length;
   h+=`<div class="page wide"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="espb">Especificação técnica</button><span>/</span><span>Siglas de keynote</span></div>
   <h1>Especificação técnica</h1><div class="seg" style="margin:-4px 0 14px"><button data-act="espb">Banco central</button><button class="on">Siglas de keynote</button></div>
-  <p class="lead">Cada sigla é uma tabela da especificação: os itens se agrupam por ela. Keynotes de <b>material</b> usam 2 letras (PI.01) e vão no campo Keynote do material no Revit. <b>Elementos e famílias</b> (inclusive sistemas compostos, como paredes e pisos) usam 3 letras (PIN.01, PMD.01) e vão no parâmetro Keynote do tipo. A numeração recomeça em cada projeto.</p>
+  <p class="lead">Cada sigla é uma tabela da especificação: os itens se agrupam por ela. <b>Materiais</b> usam 2 letras (PI.01) e vão no campo Keynote do material no Revit. <b>Composições</b> (paredes, pisos, forros, coberturas: tipos com camadas) e <b>elementos/famílias</b> (portas, louças, mobiliário…) usam 3 letras (DRY.01, PMD.01) e vão no parâmetro Keynote do tipo. A numeração recomeça em cada projeto.</p>
   ${S.ro?'':`<div class="esp-bar"><span class="sp"></span><button class="btn pri" data-act="et-sig-novo">${IC.plus}Nova sigla</button></div>`}
-  <section class="sheet"><div class="tablewrap"><table class="list esp et-sig"><thead><tr><th style="width:90px">Sigla</th><th>Nome da tabela</th><th style="width:70px" class="r">Em uso</th><th style="width:44px"></th></tr></thead><tbody>`;
+  <section class="sheet"><div class="tablewrap"><table class="list esp et-sig"><thead><tr><th style="width:90px">Sigla</th><th>Nome da tabela</th><th style="width:200px">Tipo</th><th style="width:70px" class="r">Em uso</th><th style="width:44px"></th></tr></thead><tbody>`;
   let tp=null;
-  for(const x of L){ if(x.tipo!==tp&&(x.tipo==='material'||tp==='material'||tp==null)){tp=x.tipo; h+=`<tr class="grp"><td colspan="5">${x.tipo==='material'?'Materiais · 2 letras':'Elementos e famílias · 3 letras'}</td></tr>`}
+  L.sort((a,b)=>Object.keys(TIPOS_ET).indexOf(a.tipo)-Object.keys(TIPOS_ET).indexOf(b.tipo)||a.sigla.localeCompare(b.sigla));
+  for(const x of L){ if(x.tipo!==tp){tp=x.tipo; h+=`<tr class="grp"><td colspan="5">${({material:'Materiais · 2 letras',sistema:'Composições · 3 letras',elemento:'Elementos e famílias · 3 letras'})[x.tipo]||esc(x.tipo)}</td></tr>`}
     h+=`<tr data-sig="${esc(x.sigla)}"><td class="mono"><b>${esc(x.sigla)}</b></td><td><input class="fld sm" data-sg="nome" value="${esc(x.nome||'')}" ${dis}></td>
+    <td>${x.sigla.length===2?'<span class="muted">Material</span>':`<select class="fld sm" data-sg="tipo" ${dis||(uso(x.sigla)?'title="Já usada em projetos: mudar o tipo muda a regra dos itens dela"':'')}><option value="sistema" ${x.tipo==='sistema'?'selected':''}>Composição (sistema)</option><option value="elemento" ${x.tipo==='elemento'?'selected':''}>Elemento / família</option></select>`}</td>
 
 <td class="r mono">${uso(x.sigla)||''}</td>
     <td>${S.ro||uso(x.sigla)?'':`<button class="icb" data-act="et-sig-del" title="Excluir sigla">${IC.trash}</button>`}</td></tr>`}
@@ -5037,7 +5040,7 @@ async function esAcao(a,b){
     try{const id=await criarLinhaEs(pid,x,{},sg); toast(`${x.fja} entrou no projeto como ${S.espec.get(id).kn}`); S.qdraft=null; ir({t:'espi',id:pid,eid:id})}catch{toast('Não foi possível adicionar.')}
     return}
   if(a==='et-novo'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
-    const sg=await escolherSigla({pid,titulo:'Novo item · escolha a sigla',sub:'2 letras = material · 3 letras = elemento ou família'}); if(!sg) return;
+    const sg=await escolherSigla({pid,titulo:'Novo item · escolha a sigla',sub:'2 letras = material · 3 letras = composição ou elemento/família'}); if(!sg) return;
     try{const sx=siglaEt(sg); const x=await novoEsCentral({sigla:sg,tipo:sx?.tipo||(sg.length===2?'material':'elemento')}); const id=await criarLinhaEs(pid,x,{desc:''},sg); S.qdraft=null; ir({t:'espi',id:pid,eid:id}); setTimeout(()=>{const n=$('q_desc'); n?.focus()},60); toast(`Item central ${x.fja} criado`)}catch{toast('Não foi possível criar.')}
     return}
   if(a==='et-salvar'){if(await salvarEs()) render();return}
@@ -5058,11 +5061,11 @@ async function esAcao(a,b){
     const x=await escolherCentral({titulo:'Vincular a outro item central',pid:e.projeto}); if(!x) return;
     e.item=x.id; e.baseEm=Date.now(); S.dirty=true; if(await salvarEs()) render(); return}
   if(a==='et-b-novo'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
-    const sg=await escolherSigla({pid:null,titulo:'Novo item central · escolha a tabela (sigla)',sub:'2 letras = material · 3 letras = elemento ou família'}); if(!sg) return;
+    const sg=await escolherSigla({pid:null,titulo:'Novo item central · escolha a tabela (sigla)',sub:'2 letras = material · 3 letras = composição ou elemento/família'}); if(!sg) return;
     try{const x=await novoEsCentral({sigla:sg,tipo:siglaEt(sg)?.tipo||(sg.length===2?'material':'elemento')}); S.edraft=null; ir({t:'espbi',bid:x.id}); setTimeout(()=>{const n=$('b_desc'); n?.focus(); n?.select()},60)}catch{toast('Não foi possível criar.')}
     return}
   if(a==='et-b-salvar'){if(await salvarEspb()) render();return}
-  if(a==='et-sig-novo'){const v=await pedirNome({titulo:'Nova sigla de keynote',rotulo:'Sigla (2 letras para material, 3 para elemento ou família)',ok:'Criar'}); if(!v) return;
+  if(a==='et-sig-novo'){const v=await pedirNome({titulo:'Nova sigla de keynote',rotulo:'Sigla (2 letras para material, 3 para composição ou elemento/família)',ok:'Criar'}); if(!v) return;
     const sg=v.toUpperCase().replace(/[^A-Z]/g,''); if(sg.length<2||sg.length>3){toast('Use 2 ou 3 letras');return} if(siglaEt(sg)){toast(`A sigla ${sg} já existe`);return}
     await gravarSigla(sg,{sigla:sg,nome:'',tipo:sg.length===2?'material':'elemento',tabela:sg.length===2?'Materiais':'Diversos',origens:[]}); render(); setTimeout(()=>document.querySelector(`tr[data-sig="${sg}"] [data-sg=nome]`)?.focus(),60); return}
   if(a==='et-sig-del'){const sg=b.closest('tr')?.dataset.sig; if(!sg) return;
