@@ -5628,6 +5628,7 @@ document.addEventListener('click',async ev=>{
   if(a.startsWith('cq-')){await cqAcao(a,b);return}
   if(a.startsWith('cp-')){await cpAcao(a,b);return}
   if(a==='rv-publicar'){await rvPublicar('tudo');return}
+  if(a==='rv-pedidos'){await rvPedidos(true);return}
   if(a.startsWith('et-')||a==='espb'){await esAcao(a,b);return}
   if(a==='croqs'){S.abertas.add('i:'+b.dataset.id);ir({t:'croqs',id:b.dataset.id});return}
   if(a==='atas'){S.abertas.add('i:'+b.dataset.id);ir({t:'atas',id:b.dataset.id});return}
@@ -6845,7 +6846,8 @@ async function baixarConexaoPC(){
 // O conector do Drive não reescreve conteúdo: cada publicação cria o arquivo novo e manda o anterior para a lixeira.
 // Estado em config/revit: {arquivos:{<nome>:{id,hash,em,por}}, erro}
 const RVP={pasta:AMB==='dev'?'18ga9uZxZs0yFTs0xgTdmeXleAJLBfG0f':'10c0Ebbm2ubHoM_LrXGZ40dbw3HP-xgkw',
-  caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT'+(AMB==='dev'?'\\DEV':''),rodando:false,st:null,timer:null,ult:0};
+  caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT'+(AMB==='dev'?'\\DEV':''),rodando:false,st:null,timer:null,ult:0,
+  pedidos:AMB==='dev'?'1uYMM0omRerTOC6xSrLjQPtEmGN5mUm8w':'1cneCDb1Z8PjkwQcRrif7iQhdpqPSyOC_',procPed:false,ped:null};
 const hashTxt=s=>{let h=0x811c9dc5; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,0x01000193)} return (h>>>0).toString(16)};
 const rvCod=it=>String(it?.campos?.codigo||'').trim();
 const rvNomeProj=it=>`projeto-${(rvCod(it)||it.id).replace(/[\\/:*?"<>|\s]+/g,'_')}.json`;
@@ -6855,13 +6857,13 @@ function rvMontar(){
   const projs=[...S.itens.values()].filter(i=>i.secao==='projetos'&&espDe(i.id).length).sort((a,b)=>rvCod(a).localeCompare(rvCod(b),'pt',{numeric:true}));
   const bib={...base,tipo:'biblioteca',
     siglas:siglasEt().map(x=>({sigla:x.sigla,nome:x.nome||'',tipo:x.tipo,...(x.rvCat?{rvCat:x.rvCat}:{}),...(x.papel?{papel:x.papel}:{})})),
-    itens:[...S.espb.values()].sort((a,b)=>fjaNum(a)-fjaNum(b)).map(b=>{const t=tipoEt(b), o={id:b.id,fja:b.fja||'',sigla:sigB(b)||'',tipo:t,desc:b.desc||'',texto:b.texto||'',nbr:b.nbr||'',fabricante:b.fabricante||''};
+    itens:[...S.espb.values()].sort((a,b)=>fjaNum(a)-fjaNum(b)).map(b=>{const t=tipoEt(b), o={id:b.id,fja:b.fja||'',sigla:sigB(b)||'',tipo:t,desc:b.desc||'',texto:b.texto||'',nbr:b.nbr||'',fabricante:b.fabricante||'',...(b.pedido?{pedido:b.pedido}:{})};
       if(t==='sistema'){o.rvCat=b.rvCat||siglaEt(sigB(b))?.rvCat||''; o.papel=cpPapel(b); o.camadas=cpCamadas(b).map(c=>({funcao:c.fn,funcaoRevit:fnRv(c.fn),material:c.mat||'',esp:+c.esp||0})); o.espTotal=cpTotal(b)}
       return o}),
     projetos:projs.map(i=>({id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||'',arquivo:rvNomeProj(i)}))};
   const arqs=[{nome:'biblioteca.json',obj:bib}];
   for(const i of projs) arqs.push({nome:rvNomeProj(i),obj:{...base,tipo:'projeto',projeto:{id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||''},
-    itens:espDe(i.id).sort(ordEs).map(e=>({id:e.id,item:e.item||'',kn:e.kn||'',sigla:knPref(e.kn),desc:e.desc||'',texto:e.texto||''}))}});
+    itens:espDe(i.id).sort(ordEs).map(e=>({id:e.id,item:e.item||'',kn:e.kn||'',sigla:knPref(e.kn),desc:e.desc||'',texto:e.texto||'',...(e.pedido?{pedido:e.pedido}:{})}))}});
   return arqs;
 }
 async function rvPublicar(manual){
@@ -6907,6 +6909,72 @@ async function rvLimpar(manual){
   if(manual&&n) toast(`${n} cópia${n>1?'s':''} antiga${n>1?'s':''} enviada${n>1?'s':''} para a lixeira`);
   return n;
 }
+/* ---- pedidos do Revit (pasta REVIT\pedidos): itens criados ou incluídos a partir da aba Ferramentas FJA ----
+   pedido = {fja:'pedido',formato:1,id,acao:'novo-item'|'incluir-no-projeto',criadoEm,autor,modelo,projeto:{id,codigo},
+             item:{id} (incluir) ou {sigla,rvCat,papel,desc,texto,fabricante,nbr,camadas:[{funcao,material,esp}]} (novo),
+             reservas:{fja,kn,materiais:{<id do material>:kn}}}
+   O pyRevit já criou o tipo no modelo com as reservas; aqui elas viram definitivas (ou são trocadas, se já estiverem em uso).
+   Registro em config/revitPedidos.log. Cada pedido processado vai para a lixeira; reprocessar é seguro (procura pelo id do pedido). */
+const fnPt=f=>(CP_FN.find(x=>x[1]===f||x[0]===f)||CP_FN[3])[0];
+async function rvIncluir(pid,b,knRes,pedId,msgs){
+  const id=await criarLinhaEs(pid,b,{pedido:pedId},knRes?knPref(knRes):undefined);
+  const e=S.espec.get(id);
+  if(knRes&&knChave(knRes)!==knChave(e.kn)){
+    if(!knLivre(pid,knRes,id)){await espColl().doc(id).update({kn:knChave(knRes)}); S.espec.set(id,{...e,kn:knChave(knRes)})}
+    else msgs.push(`${knRes} já estava em uso: ficou ${e.kn}`)}
+  return S.espec.get(id).kn;
+}
+async function rvAplicarPedido(p){
+  if(!p||p.fja!=='pedido'||!p.id) throw new Error('pedido inválido');
+  const pid=p.projeto?.id; if(pid&&!S.itens.get(pid)) throw new Error('projeto não encontrado no sistema');
+  const msgs=[]; let b=null;
+  if(p.acao==='novo-item'){
+    b=[...S.espb.values()].find(x=>x.pedido===p.id);
+    if(!b){
+      const i=p.item||{}, sg=String(i.sigla||'').toUpperCase(), sx=siglaEt(sg);
+      if(!sx||sx.tipo!=='sistema') throw new Error(`a sigla ${sg||'(vazia)'} não é de composição`);
+      const camadas=(i.camadas||[]).map(c=>({fn:fnPt(c.funcao),mat:c.material||'',esp:+c.esp||0}));
+      let fja=p.reservas?.fja; if(!fja||[...S.espb.values()].some(x=>x.fja===fja)){const f2=proxFja(); if(fja) msgs.push(`${fja} já existia: criado como ${f2}`); fja=f2}
+      b=await novoEsCentral({fja,sigla:sg,tipo:'sistema',tabela:sx.tabela||'Diversos',desc:String(i.desc||'').trim()||'Sem descrição',texto:i.texto||'',fabricante:i.fabricante||'',nbr:i.nbr||'',
+        rvCat:i.rvCat||sx.rvCat||'',papel:i.papel||sx.papel||'',camadas,pedido:p.id,obs:`Criado pelo Revit (${p.autor||'?'}${p.modelo?', '+p.modelo:''}).`});
+      msgs.push(`${b.fja} criado na biblioteca`);
+    }
+  }else if(p.acao==='incluir-no-projeto'){
+    b=S.espb.get(p.item?.id); if(!b) throw new Error('item central não encontrado');
+  }else throw new Error('ação desconhecida: '+p.acao);
+  if(pid){
+    if(!espDe(pid).some(x=>x.item===b.id)) msgs.push(`${await rvIncluir(pid,b,p.reservas?.kn,p.id,msgs)} no projeto ${rvCod(S.itens.get(pid))}`);
+    for(const c of cpCamadas(b)){const m=S.espb.get(c.mat); if(!m||espDe(pid).some(x=>x.item===m.id)) continue; msgs.push(`${await rvIncluir(pid,m,p.reservas?.materiais?.[m.id],p.id,msgs)} (material)`)}
+  }
+  return {ok:true,fja:b.fja,item:b.id,msg:msgs.join(' · ')||'nada a fazer (já processado)'};
+}
+async function rvPedidos(manual){
+  if(RVP.procPed||S.ro||!mcp||S.publico||!S.carregado||!db) return 0;
+  RVP.procPed=true; let n=0; if(manual) rvUI();
+  try{
+    const r=await mcp.callTool('Google Drive','search_files',{query:`parentId = '${RVP.pedidos}' and trashed = false`,excludeContentSnippets:true,pageSize:100},{cache:false});
+    const fs=((r?.payload||r||{}).files||[]).filter(f=>/\.json$/i.test(f.title||'')).sort((a,b)=>String(a.createdTime||'').localeCompare(String(b.createdTime||'')));
+    if(!fs.length){if(manual) toast('Nenhum pedido do Revit esperando'); return 0}
+    const ref=db.doc('config/revitPedidos'), g=await ref.get(), st=structuredClone(g.exists?g.data():{}); st.log=[...(st.log||[])];
+    for(const f of fs){
+      let ped=null, res;
+      try{
+        const d=await mcp.callTool('Google Drive','download_file_content',{fileId:f.id},{cache:false});
+        const b64=achaB64(d?.payload??d?.content?.[0]?.text); if(!b64) throw new Error('arquivo vazio');
+        ped=JSON.parse(new TextDecoder('utf-8').decode(deB64(b64)).replace(/^\uFEFF/,''));
+        res=await rvAplicarPedido(ped);
+      }catch(e){console.warn('pedido',f.title,e); res={ok:false,msg:String(e?.message||e).slice(0,200)}}
+      st.log.unshift({id:ped?.id||f.title,acao:ped?.acao||'?',autor:ped?.autor||'',modelo:ped?.modelo||'',projeto:ped?.projeto?.codigo||'',em:Date.now(),...res});
+      try{await mcp.callTool('Google Drive','trash_file',{fileId:f.id},{cache:false})}catch(e){console.warn('pedido: lixeira',e)}
+      n++;
+    }
+    st.log=st.log.slice(0,60); await ref.set(st); RVP.ped=st;
+    toast(`${n} pedido${n>1?'s':''} do Revit processado${n>1?'s':''}`);
+    rvAgendar();
+  }catch(e){console.warn('pedidos',e); if(manual) toast('Não foi possível ler os pedidos do Revit: '+(e?.message||e))}
+  finally{RVP.procPed=false; rvUI()}
+  return n;
+}
 function rvAgendar(){if(S.ro||S.publico) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
 function rvUI(){if(S.view?.t==='ferr'&&S.view.f==='revit'&&!S.dirty) renderMain()}
 function telaRevit(h){
@@ -6917,6 +6985,8 @@ function telaRevit(h){
   <section class="sheet"><div class="sheet-h"><h2>Arquivos publicados</h2><span class="hint">${AMB==='dev'?'desenvolvimento: pasta DEV':''}</span><span class="sp"></span>${S.ro?'':`<button class="btn sm${RVP.rodando?'':' pri'}" data-act="rv-publicar" ${RVP.rodando||!mcp?'disabled':''}>${RVP.rodando?'Publicando…':'Publicar agora'}</button>`}</div>
   ${A.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th>Arquivo</th><th style="width:160px">Atualizado</th><th style="width:180px">Por</th></tr></thead><tbody>${A.map(([n,a])=>`<tr><td class="mono">${a.id?`<a href="https://drive.google.com/file/d/${esc(a.id)}/view" target="_blank" rel="noopener">${esc(n)}</a>`:esc(n)}</td><td class="mono">${a.em?fmt(a.em):''}</td><td>${esc(a.por||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="pad muted">Nada publicado ainda.</p>`}
   ${st.erro?`<p class="pad" style="color:var(--danger);margin:0">Última falha (${fmt(st.erro.em)}): ${esc(st.erro.msg||'')}</p>`:''}${st.erroLixeira?`<p class="pad" style="color:var(--warn);margin:0">A versão anterior de ${esc(st.erroLixeira.arquivo)} não foi para a lixeira (${fmt(st.erroLixeira.em)}): ${esc(st.erroLixeira.msg||'')}</p>`:''}</section>
+  <section class="sheet"><div class="sheet-h"><h2>Pedidos do Revit</h2><span class="hint">itens criados ou incluídos pelo botão Nova composição · lidos a cada 90 s</span><span class="sp"></span>${S.ro?'':`<button class="btn sm" data-act="rv-pedidos" ${RVP.procPed||!mcp?'disabled':''}>${RVP.procPed?'Lendo…':'Ler pedidos agora'}</button>`}</div>
+  ${(RVP.ped?.log||[]).length?`<div class="tablewrap"><table class="list esp"><thead><tr><th style="width:130px">Quando</th><th style="width:130px">Quem</th><th style="width:70px">Projeto</th><th>Resultado</th></tr></thead><tbody>${RVP.ped.log.slice(0,20).map(x=>`<tr><td class="mono">${fmt(x.em)}</td><td>${esc(x.autor||'')}</td><td class="mono">${esc(x.projeto||'')}</td><td${x.ok?'':' style="color:var(--danger)"'}>${x.item?`<button class="chip link mono" data-act="et-b-abrir" data-bid="${esc(x.item)}">${esc(x.fja||'')}</button> `:''}${esc(x.msg||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="pad muted">Nenhum pedido processado ainda.</p>`}</section>
   <section class="sheet"><div class="sheet-h"><h2>Composições</h2></div><div class="pad ferr-pad"><p>${nComp.length} ${nComp.length===1?'item':'itens'} de sigla Composição na biblioteca${sem?` · <b>${sem} sem camadas</b> (não podem virar tipo no Revit até as camadas serem definidas na ficha do item)`:''}.</p></div></section>
   <section class="sheet"><div class="sheet-h"><h2>Pasta</h2></div><div class="pad ferr-pad"><p><span class="mono">${esc(RVP.caminho)}</span> · <a href="https://drive.google.com/drive/folders/${RVP.pasta}" target="_blank" rel="noopener">abrir no Drive</a></p>
   <p class="muted">Cada publicação cria o arquivo de novo e manda a versão anterior para a lixeira do Drive (o conector não reescreve arquivos). O pyRevit usa sempre o arquivo mais recente com o mesmo nome.</p></div></section></div>`;
@@ -6928,6 +6998,8 @@ function telaRevit(h){
     if(!S.carregado||!db) return; clearInterval(t);
     if(!FERRAMENTAS.some(x=>x.id==='revit')) FERRAMENTAS.push({id:'revit',nome:'Conexão com o Revit',resumo:'Publica a especificação técnica no G: para a aba Ferramentas FJA do pyRevit.'});
     db.doc('config/revit').onSnapshot(s=>{RVP.st=s.exists?s.data():null; rvUI()},()=>{});
+    db.doc('config/revitPedidos').onSnapshot(s=>{RVP.ped=s.exists?s.data():null; rvUI()},()=>{});
+    setTimeout(()=>rvPedidos(false).catch(()=>{}),25e3); setInterval(()=>rvPedidos(false).catch(()=>{}),90e3);
     setTimeout(()=>rvPublicar(false).then(()=>{if(!RVP.rodando) return rvLimpar(false)}).catch(()=>{}),20e3); setInterval(()=>{if(Date.now()-RVP.ult>55e3) rvPublicar(false)},60e3);
   },1000);
 })();
