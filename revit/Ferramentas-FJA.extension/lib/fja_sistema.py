@@ -1,0 +1,418 @@
+# -*- coding: utf-8 -*-
+"""Integração Revit × Sistema FJA: leitura dos dados publicados no G: e criação de
+tipos de composição (paredes, pisos, forros, coberturas) e materiais.
+
+Os dados vêm de G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT
+(desenvolvimento: REVIT\\DEV), publicados pelo sistema: biblioteca.json e
+projeto-<código>.json. Ver docs/revit-tipos-sincronizados.md no repositório.
+
+Compatível com IronPython 2.7/3.4 (pyRevit). Sem dependência do pyRevit: as
+funções recebem o documento, para poderem ser testadas fora dele.
+"""
+import io
+import json
+import os
+import re
+import time
+
+import System
+from Autodesk.Revit import DB
+from Autodesk.Revit.DB.ExtensibleStorage import Schema, SchemaBuilder, Entity, AccessLevel
+from System.Collections.Generic import List
+
+PASTA_REVIT = u"G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT"
+PASTA_DEV = os.path.join(PASTA_REVIT, u"DEV")
+
+MM_POR_PE = 304.8
+
+FUNCOES = {
+    "Finish1": DB.MaterialFunctionAssignment.Finish1,
+    "Finish2": DB.MaterialFunctionAssignment.Finish2,
+    "Substrate": DB.MaterialFunctionAssignment.Substrate,
+    "Structure": DB.MaterialFunctionAssignment.Structure,
+    "Insulation": DB.MaterialFunctionAssignment.Insulation,
+    "Membrane": DB.MaterialFunctionAssignment.Membrane,
+}
+
+# cor de sombreamento dos materiais criados sem material-base, por sigla de 2 letras
+CORES_SIGLA = {
+    "GE": (236, 236, 230), "PI": (245, 245, 240), "BL": (175, 175, 170), "EM": (205, 198, 186),
+    "IS": (240, 220, 140), "PO": (210, 210, 205), "CC": (190, 190, 185), "CA": (160, 160, 155),
+    "MD": (190, 150, 110), "GN": (200, 200, 200), "VN": (215, 205, 190), "PC": (185, 185, 180),
+}
+COR_PADRAO = (200, 200, 200)
+
+
+# ------------------------------------------------------------------ dados publicados
+def _mais_recente(pasta, prefixo):
+    """'biblioteca.json', 'biblioteca (3).json'… → o mais recente (o Drive para
+    Desktop renomeia quando o anterior ainda está na pasta)."""
+    if not os.path.isdir(pasta):
+        return None
+    achados = []
+    rx = re.compile(r"^" + re.escape(prefixo) + r"( \(\d+\))?\.json$", re.I)
+    for n in os.listdir(pasta):
+        if rx.match(n):
+            p = os.path.join(pasta, n)
+            achados.append((os.path.getmtime(p), p))
+    if not achados:
+        return None
+    achados.sort()
+    return achados[-1][1]
+
+
+def _norm(s):
+    import unicodedata
+    s = unicodedata.normalize("NFKD", u"{}".format(s or u""))
+    s = u"".join(c for c in s if not unicodedata.combining(c)).upper()
+    return re.sub(r"[^A-Z0-9]+", u" ", s).strip()
+
+
+def _ler_json(caminho):
+    with io.open(caminho, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+class Dados(object):
+    """Biblioteca central + especificação de um projeto, como publicados pelo sistema."""
+
+    def __init__(self, dev=False):
+        self.dev = dev
+        self.pasta = PASTA_DEV if dev else PASTA_REVIT
+        arq = _mais_recente(self.pasta, "biblioteca")
+        if not arq:
+            raise IOError(u"Não encontrei biblioteca.json em {}".format(self.pasta))
+        self.arquivo = arq
+        self.bib = _ler_json(arq)
+        self.geradoEm = self.bib.get("geradoEm", "")
+        self.itens = dict((x["id"], x) for x in self.bib.get("itens", []))
+        self.siglas = dict((s["sigla"], s) for s in self.bib.get("siglas", []))
+        self.projetos = self.bib.get("projetos", [])
+        self.projeto = None
+        self.espec = []          # itens da especificação do projeto
+        self.porItem = {}        # id do item central → linha da especificação
+
+    def composicoes(self):
+        return [x for x in self.bib.get("itens", []) if x.get("tipo") == "sistema"]
+
+    def projeto_do_documento(self, titulo):
+        """'131-MO-0001-R00' → projeto de código 131; senão, projeto cujo nome
+        aparece no título do arquivo ('FJA-PROJETO TESTE' → 'Projeto Teste')."""
+        m = re.match(r"^\s*([A-Za-z0-9]+)[-_ ]", titulo or "")
+        cod = m.group(1) if m else ""
+        for p in self.projetos:
+            if cod and p.get("codigo") == cod:
+                return p
+        tit = _norm(titulo)
+        for p in self.projetos:
+            n = _norm(p.get("nome"))
+            if len(n) >= 5 and n in tit:
+                return p
+        return None
+
+    def carregar_projeto(self, proj):
+        self.projeto = proj
+        self.espec, self.porItem = [], {}
+        if not proj:
+            return
+        nome = os.path.splitext(proj.get("arquivo") or ("projeto-" + proj["codigo"] + ".json"))[0]
+        arq = _mais_recente(self.pasta, nome)
+        if not arq:
+            raise IOError(u"Não encontrei {}.json em {}".format(nome, self.pasta))
+        dados = _ler_json(arq)
+        self.espec = dados.get("itens", [])
+        for e in self.espec:
+            if e.get("item"):
+                self.porItem.setdefault(e["item"], e)
+
+    def linha_projeto(self, item_id):
+        return self.porItem.get(item_id)
+
+
+# ------------------------------------------------------------------ nomes
+def limpar_nome(s):
+    s = (s or u"").replace(u">=", u"\u2265").replace(u"<=", u"\u2264")
+    s = re.sub(r"[\\:{}\[\]|;<>?`~]", "-", s or "")
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def nome_tipo(kn, desc, variacao_mm=None):
+    n = u"{} - {}".format(kn, (desc or u"").upper())
+    if variacao_mm:
+        n += u" E={}".format(int(round(variacao_mm)))
+    return limpar_nome(n)
+
+
+def fmt_mm(v):
+    v = round(float(v or 0), 1)
+    return (u"%g" % v).replace(".", ",")
+
+
+# ------------------------------------------------------------------ vínculo (Extensible Storage)
+SCHEMA_GUID = System.Guid("3c6f1d2a-9b84-4e57-a1f0-6d2e8b4c7a15")
+CAMPOS = ("fja", "itemCentral", "itemProjeto", "projeto", "variacao", "pedido", "sincronizadoEm")
+
+
+def esquema():
+    sc = Schema.Lookup(SCHEMA_GUID)
+    if sc is not None:
+        return sc
+    sb = SchemaBuilder(SCHEMA_GUID)
+    sb.SetSchemaName("FJA_SistemaTipo")
+    sb.SetReadAccessLevel(AccessLevel.Public)
+    sb.SetWriteAccessLevel(AccessLevel.Public)
+    sb.SetDocumentation("Vinculo do tipo/material com o Sistema FJA")
+    for c in CAMPOS:
+        sb.AddSimpleField(c, System.String)
+    return sb.Finish()
+
+
+def gravar_vinculo(elem, **valores):
+    sc = esquema()
+    ent = Entity(sc)
+    valores.setdefault("sincronizadoEm", time.strftime("%Y-%m-%dT%H:%M:%S"))
+    for c in CAMPOS:
+        ent.Set[System.String](c, u"{}".format(valores.get(c) or u""))
+    elem.SetEntity(ent)
+
+
+def ler_vinculo(elem):
+    sc = Schema.Lookup(SCHEMA_GUID)
+    if sc is None:
+        return None
+    try:
+        ent = elem.GetEntity(sc)
+        if ent is None or not ent.IsValid():
+            return None
+        return dict((c, ent.Get[System.String](c)) for c in CAMPOS)
+    except Exception:
+        return None
+
+
+# ------------------------------------------------------------------ parâmetros
+def _set(elem, bip, valor):
+    try:
+        p = elem.get_Parameter(bip)
+        if p is not None and not p.IsReadOnly:
+            p.Set(valor)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def nome_elem(e):
+    return DB.Element.Name.__get__(e)
+
+
+# ------------------------------------------------------------------ materiais
+def _sigla_kn(s):
+    m = re.match(r"^\.?([A-Za-z]+)", s or "")
+    return m.group(1).upper() if m else ""
+
+
+def plano_material(doc, dados, mat_id):
+    """Como o material da camada ficará no modelo: existente (vinculado ou com o
+    mesmo nome) ou a criar. Devolve dict com nome, kn, desc, existente (Material|None)."""
+    item = dados.itens.get(mat_id) or {}
+    linha = dados.linha_projeto(mat_id)
+    kn = (linha or {}).get("kn") or u""
+    desc = ((linha or {}).get("desc") or item.get("desc") or u"").upper()
+    codigo = kn or item.get("fja") or u"?"
+    nome = limpar_nome(u"{} - {}".format(codigo, desc))
+    existente = None
+    for m in DB.FilteredElementCollector(doc).OfClass(DB.Material):
+        v = ler_vinculo(m)
+        if v and v.get("itemCentral") == mat_id and (not dados.projeto or v.get("projeto") in ("", dados.projeto["id"])):
+            existente = m
+            break
+    if existente is None:
+        for m in DB.FilteredElementCollector(doc).OfClass(DB.Material):
+            if nome_elem(m) == nome:
+                existente = m
+                break
+    return {"id": mat_id, "item": item, "linha": linha, "kn": kn, "desc": desc, "nome": nome,
+            "existente": existente, "sigla": item.get("sigla") or _sigla_kn(kn)}
+
+
+def garantir_material(doc, dados, plano):
+    """Cria (ou reaproveita) o material e grava keynote, descrição e vínculo."""
+    m = plano["existente"]
+    if m is None:
+        mid = DB.Material.Create(doc, plano["nome"])
+        m = doc.GetElement(mid)
+        cor = CORES_SIGLA.get(plano["sigla"], COR_PADRAO)
+        try:
+            m.Color = DB.Color(cor[0], cor[1], cor[2])
+            m.UseRenderAppearanceForShading = False
+        except Exception:
+            pass
+    if plano["kn"]:
+        _set(m, DB.BuiltInParameter.KEYNOTE_PARAM, plano["kn"])
+        _set(m, DB.BuiltInParameter.ALL_MODEL_MARK, plano["kn"])
+    _set(m, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION, plano["desc"])
+    gravar_vinculo(m, fja=plano["item"].get("fja"), itemCentral=plano["id"],
+                   itemProjeto=(plano["linha"] or {}).get("id"),
+                   projeto=dados.projeto["id"] if dados.projeto else "")
+    return m
+
+
+# ------------------------------------------------------------------ tipos
+CATEGORIAS = {
+    "Parede": u"Paredes",
+    "Piso": u"Pisos",
+    "Forro": u"Forros",
+    "Cobertura": u"Coberturas",
+}
+
+
+def _tem_camadas(t):
+    try:
+        return t.GetCompoundStructure() is not None
+    except Exception:
+        return False
+
+
+def tipo_base(doc, cat):
+    """Tipo de sistema com camadas, para duplicar."""
+    if cat == "Parede":
+        tipos = [t for t in DB.FilteredElementCollector(doc).OfClass(DB.WallType) if t.Kind == DB.WallKind.Basic]
+    elif cat == "Piso":
+        tipos = [t for t in DB.FilteredElementCollector(doc).OfClass(DB.FloorType)
+                 if not getattr(t, "IsFoundationSlab", False) and _tem_camadas(t)]
+    elif cat == "Forro":
+        tipos = [t for t in DB.FilteredElementCollector(doc).OfClass(DB.CeilingType) if _tem_camadas(t)]
+    elif cat == "Cobertura":
+        tipos = [t for t in DB.FilteredElementCollector(doc).OfClass(DB.RoofType) if _tem_camadas(t)]
+    else:
+        tipos = []
+    return tipos[0] if tipos else None
+
+
+def tipos_da_categoria(doc, cat):
+    cls = {"Parede": DB.WallType, "Piso": DB.FloorType, "Forro": DB.CeilingType, "Cobertura": DB.RoofType}.get(cat)
+    return list(DB.FilteredElementCollector(doc).OfClass(cls)) if cls else []
+
+
+def tipos_vinculados(doc):
+    """{id do item central: [tipos do modelo vinculados]} em todas as categorias."""
+    res = {}
+    for cat in CATEGORIAS:
+        for t in tipos_da_categoria(doc, cat):
+            v = ler_vinculo(t)
+            if v and v.get("itemCentral"):
+                res.setdefault(v["itemCentral"], []).append(t)
+    return res
+
+
+def estrutura(doc, camadas, mats, base_cs=None):
+    """Monta a CompoundStructure. camadas: lista do biblioteca.json; mats: {id material: Material}.
+    Parte da estrutura do tipo (base_cs), trocando só as camadas, para manter as configurações
+    próprias de cada categoria (ex.: EndCap dos pisos). Núcleo: camadas de Estrutura; sem
+    estrutura, Substrato; sem os dois, todas."""
+    minimo = DB.CompoundStructure.GetMinimumLayerThickness()
+    avisos = []
+    lista = List[DB.CompoundStructureLayer]()
+    funcoes = []
+    for c in camadas:
+        fn = c.get("funcaoRevit") or "Structure"
+        esp_mm = float(c.get("esp") or 0)
+        larg = esp_mm / MM_POR_PE
+        if fn == "Membrane":
+            larg = 0.0
+        elif larg < minimo:
+            avisos.append(u"{} com {} mm é mais fina que o mínimo do Revit ({} mm): usado o mínimo.".format(
+                c.get("funcao"), fmt_mm(esp_mm), fmt_mm(minimo * MM_POR_PE)))
+            larg = minimo
+        m = mats.get(c.get("material"))
+        mid = m.Id if m is not None else DB.ElementId.InvalidElementId
+        lista.Add(DB.CompoundStructureLayer(larg, FUNCOES.get(fn, DB.MaterialFunctionAssignment.Structure), mid))
+        funcoes.append(fn)
+    if base_cs is not None:
+        cs = base_cs
+        cs.SetLayers(lista)
+    else:
+        cs = DB.CompoundStructure.CreateSimpleCompoundStructure(lista)
+    n = len(funcoes)
+    nucleo = [i for i, f in enumerate(funcoes) if f == "Structure"] or \
+             [i for i, f in enumerate(funcoes) if f == "Substrate"] or list(range(n))
+    cs.SetNumberOfShellLayers(DB.ShellLayerType.Exterior, nucleo[0])
+    cs.SetNumberOfShellLayers(DB.ShellLayerType.Interior, n - 1 - nucleo[-1])
+    try:
+        est = [i for i, f in enumerate(funcoes) if f == "Structure"]
+        if est:
+            cs.StructuralMaterialIndex = est[0]
+    except Exception:
+        pass
+    return cs, avisos
+
+
+def plano_tipo(doc, dados, item):
+    """O que acontecerá ao criar o tipo do item no modelo (sem alterar nada)."""
+    linha = dados.linha_projeto(item["id"])
+    kn = (linha or {}).get("kn") or u""
+    desc = (linha or {}).get("desc") or item.get("desc") or u""
+    cat = item.get("rvCat") or ""
+    p = {"item": item, "linha": linha, "kn": kn, "desc": desc, "cat": cat, "problemas": [], "avisos": []}
+    if not item.get("camadas"):
+        p["problemas"].append(u"O item não tem camadas: defina-as no sistema (ficha do item na biblioteca).")
+    if cat not in CATEGORIAS:
+        p["problemas"].append(u"O item não tem categoria do Revit definida no sistema.")
+    if not dados.projeto:
+        p["problemas"].append(u"O modelo não está ligado a um projeto publicado pelo sistema.")
+    elif not linha:
+        p["problemas"].append(u"O item não está na especificação do projeto {}: inclua-o pelo sistema "
+                              u"(Especificação técnica › Puxar da biblioteca).".format(dados.projeto["codigo"]))
+    p["nome"] = nome_tipo(kn or item.get("fja"), desc)
+    p["materiais"] = []
+    vistos = set()
+    for c in item.get("camadas", []):
+        mid = c.get("material")
+        if not mid or mid in vistos:
+            continue
+        vistos.add(mid)
+        pm = plano_material(doc, dados, mid)
+        if not pm["kn"]:
+            p["avisos"].append(u"Material {} ainda não está na especificação do projeto: será criado com o "
+                               u"código FJ no nome e sem keynote.".format(pm["item"].get("fja") or mid))
+        p["materiais"].append(pm)
+    # tipo existente (vinculado ao item, ou com o mesmo nome)
+    p["existente"] = None
+    if cat in CATEGORIAS:
+        for t in tipos_da_categoria(doc, cat):
+            v = ler_vinculo(t)
+            if (v and v.get("itemCentral") == item["id"]) or nome_elem(t) == p["nome"]:
+                p["existente"] = t
+                break
+        if p["existente"] is None and tipo_base(doc, cat) is None:
+            p["problemas"].append(u"Não há no modelo um tipo de {} com camadas para servir de base.".format(
+                CATEGORIAS[cat].lower()))
+    return p
+
+
+def criar_tipo(doc, dados, p):
+    """Cria (ou atualiza, se já existir) o tipo planejado. Precisa de transação aberta.
+    Devolve (tipo, avisos)."""
+    item, avisos = p["item"], list(p["avisos"])
+    mats = {}
+    for pm in p["materiais"]:
+        mats[pm["id"]] = garantir_material(doc, dados, pm)
+    t = p["existente"]
+    if t is None:
+        t = tipo_base(doc, p["cat"]).Duplicate(p["nome"])
+    elif nome_elem(t) != p["nome"]:
+        try:
+            t.Name = p["nome"]
+        except Exception:
+            avisos.append(u"Não foi possível renomear o tipo existente para '{}'.".format(p["nome"]))
+    cs, av = estrutura(doc, item.get("camadas", []), mats, t.GetCompoundStructure())
+    avisos += av
+    t.SetCompoundStructure(cs)
+    _set(t, DB.BuiltInParameter.ALL_MODEL_TYPE_MARK, p["kn"])
+    _set(t, DB.BuiltInParameter.KEYNOTE_PARAM, p["kn"])
+    _set(t, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION, (p["desc"] or u"").upper())
+    _set(t, DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS,
+         u"{} · {}".format(item.get("fja", ""), item.get("papel") or item.get("sigla") or ""))
+    gravar_vinculo(t, fja=item.get("fja"), itemCentral=item["id"], itemProjeto=(p["linha"] or {}).get("id"),
+                   projeto=dados.projeto["id"] if dados.projeto else "")
+    return t, avisos

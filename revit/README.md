@@ -4,10 +4,11 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (v1.1.5)
+## Conteúdo atual (v1.2.0)
 - Legendas › **Legenda LUM** — legenda de luminárias.
 - Legendas › **Legenda ELE** — legenda de pontos elétricos.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
+- Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
 
 Origem: cópia de `%APPDATA%\pyRevit\Extensions\Ferramentas-FJA.extension` de um computador do escritório (03/11/2026).
 
@@ -27,3 +28,8 @@ Cada publicação cria o arquivo novo e manda o anterior para a lixeira do Drive
 - IronPython (pyRevit), `# -*- coding: utf-8 -*-`, textos em português.
 - `bundle.yaml` com `title`/`tooltip` em `pt_br`.
 - Elementos criados por uma ferramenta são marcados com Extensible Storage (ex.: `FJA_LegendaELE`); os tipos ligados ao sistema usarão o esquema `FJA_SistemaTipo`.
+
+## Observações de implementação
+- `lib/fja_sistema.py` não depende do pyRevit (recebe o documento): dá para testar pelo conector do Revit com `sys.path` apontando para a pasta `lib`.
+- Para trocar camadas, parte-se da estrutura do tipo-base (`GetCompoundStructure` + `SetLayers`): criar a estrutura do zero falha em pisos ("wrong EndCap condition").
+- Ao enviar arquivos para o G: pela ponte do Claude, usar um nome de origem novo a cada envio (reenviar pelo mesmo caminho não substituiu o conteúdo).
