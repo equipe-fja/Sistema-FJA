@@ -6610,6 +6610,7 @@ async function baixarConexaoPC(){
   catch(e){toast(e?.code==='declined'?'Download cancelado':'Não foi possível baixar o pacote')}
 }
 function telaFerr(h,v){
+  if(v.f==='bkp') return telaBkp(h);
   const f=FERRAMENTAS.find(x=>x.id===v.f);
   if(!f){
     h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><span>Ferramentas</span></div>
@@ -6636,6 +6637,94 @@ function telaFerr(h,v){
   </div></section></div>`;
   return h;
 }
+
+/* ---------- backup completo do banco (Drive) ---------- */
+const BKP={pasta:'1uRdXSx8JnBNegGSD4y59klSfSyLB9HuC',caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\BACKUP',st:null,rodando:false};
+const BKP_ROT={itens:'Projetos e catálogos',espec:'Especificações',espb:'Especificações (biblioteca)',equip:'Equipamentos',coment:'Comentários',pend:'Pendências',rdoc:'Relação de documentos',ata:'Atas',croq:'Croquis',crono:'Cronograma',sugest:'Sugestões',config:'Configurações'};
+const BKP_COLS=()=>[['itens',coll],['espec',espColl],['espb',espbColl],['equip',eqColl],['coment',comColl],['pend',pendColl],['rdoc',rdColl],['ata',ataColl],['croq',croqColl],['crono',croColl],['sugest',sugColl]];
+const bkpHoje=()=>new Date().toLocaleDateString('sv-SE');
+function bkpLer(ref){
+  if(typeof ref.get==='function') return ref.get();
+  return new Promise((ok,er)=>{let un=null,feito=false; un=ref.onSnapshot(s=>{if(feito)return;feito=true;ok(s);setTimeout(()=>{try{if(typeof un==='function')un()}catch{}},0)},e=>{if(!feito){feito=true;er(e)}})});
+}
+async function bkpMontar(){
+  const colecoes={},contagem={}; let total=0;
+  for(const [nome,fn] of BKP_COLS()){
+    let ref; try{ref=fn()}catch{continue}
+    const s=await bkpLer(ref), m={};
+    for(const d of (s.docs||[])) m[d.id]=d.data();
+    colecoes[nome]=m; contagem[nome]=Object.keys(m).length; total+=contagem[nome];
+  }
+  const rdb=await claude.use('db'), config={};
+  try{const s=await bkpLer(rdb.collection('config')); for(const d of (s.docs||[])) config[d.id]=d.data()}catch{}
+  for(const k of ['schema','espelhos']) if(!config[k]){try{const g=await rdb.doc('config/'+k).get(); if(g.exists) config[k]=g.data()}catch{}}
+  delete config.backup;
+  contagem.config=Object.keys(config).length; total+=contagem.config;
+  return {sistema:'Sistema FJA',formato:1,ambiente:AMB,geradoEm:new Date().toISOString(),geradoPor:S.meuNome||me||'',total,contagem,colecoes,config};
+}
+async function bkpGravar(obj){
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  const nome=`${AMB==='dev'?'DEV-':''}SISTEMA-FJA_BACKUP_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}h${p(d.getMinutes())}.json`;
+  const txt=JSON.stringify(obj);
+  const r=await mcp.callTool('Google Drive','create_file',{title:nome,parentId:BKP.pasta,textContent:txt,contentMimeType:'application/json',disableConversionToGoogleType:true});
+  const f=r?.payload||r||{};
+  return {nome,id:f.id||'',url:f.viewUrl||(f.id?`https://drive.google.com/file/d/${f.id}/view`:''),bytes:new Blob([txt]).size};
+}
+async function bkpExecutar(manual){
+  if(BKP.rodando) return;
+  if(!db||!mcp){if(manual) toast('Backup indisponível: o Google Drive não está conectado');return}
+  if(S.ro){if(manual) toast('Somente leitura: sem permissão para gravar o backup');return}
+  const rdb=await claude.use('db'), ref=rdb.doc('config/backup');
+  BKP.rodando=true; if(manual) bkpUI();
+  try{
+    if(!manual){
+      const g=await ref.get(), v=g.exists?g.data():{};
+      if(v.ultimoDia===bkpHoje()) return;
+      if(v.executando&&Date.now()-(v.executando.em||0)<10*60e3) return;
+      await ref.set({...v,executando:{por:me||'',em:Date.now()}});
+      await new Promise(r=>setTimeout(r,4000+Math.random()*3000));
+      const g2=await ref.get(), v2=g2.exists?g2.data():{};
+      if(v2.ultimoDia===bkpHoje()||(v2.executando?.por||'')!==(me||'')) return;
+    }
+    const obj=await bkpMontar(), arq=await bkpGravar(obj);
+    const st={ultimoDia:bkpHoje(),ultimoEm:Date.now(),ultimoPor:obj.geradoPor,arquivo:arq.nome,arquivoId:arq.id,url:arq.url,bytes:arq.bytes,total:obj.total,contagem:obj.contagem,manual:!!manual,ambiente:AMB,executando:null,erro:null};
+    await ref.set(st); BKP.st=st;
+    if(manual) toast(`Backup gravado no Drive (${obj.total} registros)`);
+  }catch(e){
+    console.warn('backup',e); const msg=String(e?.message||e?.code||e).slice(0,300);
+    try{const g=await ref.get(), v=g.exists?g.data():{}; await ref.set({...v,executando:null,erro:{em:Date.now(),msg}})}catch{}
+    if(manual) toast('Não foi possível gravar o backup: '+msg);
+  }finally{BKP.rodando=false; bkpUI()}
+}
+function bkpUI(){if(S.view?.f==='bkp'&&!S.dirty) renderMain()}
+function telaBkp(h){
+  const s=BKP.st||{}, auto=AMB==='oficial', fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+  const cont=s.contagem?Object.entries(s.contagem).map(([k,n])=>`${esc(BKP_ROT[k]||k)}: <b>${n}</b>`).join(' · '):'';
+  h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="ferr">Ferramentas</button><span>/</span><span>Backup do sistema</span></div>
+  <h1>Backup do sistema</h1><p class="lead">Cópia completa do banco de dados (todos os projetos, módulos, catálogos e configurações) gravada como arquivo .json na pasta BACKUP do Drive.</p>
+  <section class="sheet"><div class="sheet-h"><h2>Último backup</h2>${auto?'<span class="hint">automático, 1 vez por dia</span>':'<span class="hint">desenvolvimento: só manual</span>'}</div><div class="pad ferr-pad">
+    ${s.ultimoEm?`<p><b>${fmt(s.ultimoEm)}</b> · ${s.total} registros · ${((s.bytes||0)/1048576).toFixed(2)} MB${s.ultimoPor?' · por '+esc(s.ultimoPor):''}${s.manual?' · manual':' · automático'}</p>
+    <p class="mono">${esc(s.arquivo||'')}</p><p class="muted">${cont}</p>
+    ${s.url?`<div><a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">Abrir o arquivo no Drive</a></div>`:''}`:'<p class="muted">Nenhum backup registrado ainda.</p>'}
+    ${s.erro?`<p style="color:var(--danger)">Última falha (${fmt(s.erro.em)}): ${esc(s.erro.msg||'')}</p>`:''}
+    <div><button class="btn pri" data-act="bkp-agora"${BKP.rodando||S.ro||!mcp?' disabled':''}>${BKP.rodando?'Gravando backup…':'Fazer backup agora'}</button></div>
+  </div></section>
+  <section class="sheet"><div class="sheet-h"><h2>Como funciona</h2></div><div class="pad ferr-pad">
+    <p class="muted">${auto?'Todo dia, a primeira pessoa com permissão de edição que abrir o sistema dispara o backup em segundo plano (cerca de 45 s depois de abrir; quem deixa o sistema aberto passa a meia-noite e também dispara). Um registro no banco evita que duas pessoas gravem o mesmo dia. ':'No ambiente de desenvolvimento o backup só é feito pelo botão, e o arquivo começa com DEV-. '}Os arquivos não são apagados: cada dia fica guardado com data e hora no nome. Imagens (capas, fotos, croquis) não entram no arquivo; os originais dos croquis já ficam no Drive.</p>
+    <p>Pasta: <span class="mono">${esc(BKP.caminho)}</span> · <a href="https://drive.google.com/drive/folders/${BKP.pasta}" target="_blank" rel="noopener">abrir no Drive</a></p>
+  </div></section></div>`;
+  return h;
+}
+document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="bkp-agora"]'); if(!b) return; ev.stopPropagation(); if(!b.disabled) bkpExecutar(true)},true);
+(function bkpIniciar(){
+  const t=setInterval(()=>{
+    if(S.publico){clearInterval(t);return}
+    if(!S.carregado||!db) return; clearInterval(t);
+    if(!FERRAMENTAS.some(x=>x.id==='bkp')) FERRAMENTAS.push({id:'bkp',nome:'Backup do sistema',resumo:'Cópia completa e diária do banco de dados na pasta BACKUP do Drive.'});
+    claude.use('db').then(rdb=>rdb.doc('config/backup').onSnapshot(s=>{BKP.st=s.exists?s.data():null; bkpUI()},()=>{})).catch(()=>{});
+    if(AMB==='oficial'){setTimeout(()=>bkpExecutar(false),45e3); setInterval(()=>bkpExecutar(false),30*60e3)}
+  },1000);
+})();
 
 /* ---------- sugestões para o sistema ---------- */
 const sugColl=()=>db.collection('sugest');
