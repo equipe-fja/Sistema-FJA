@@ -6,6 +6,7 @@ Documento de projeto (versão 3 — 03/11/2026).
 | Fase | Situação |
 |---|---|
 | 1. Fundação | **Publicada na dev em 03/11/2026 (~15h35, versão `1793730938-caf4`, commit do merge em `main`).** Inclui camadas nos itens de composição, a categoria padrão do Revit na sigla, a composição em leitura no projeto (com "Incluir no projeto" para os materiais sem keynote) e Ferramentas › **Conexão com o Revit** (publicação no G:). Capacidade `trash_file` declarada na dev. A extensão já está no repositório (`revit/`) e copiada para o G:. |
+| Papel Vedação / Acabamento | **Código pronto na branch `revit-papel`, não publicado** (esta sessão sem rede). Os dados de exemplo já estão na dev. |
 | 2–5 | Não iniciadas. |
 
 Teste em 03/11: a publicação automática rodou ~15 s depois de publicar (dev aberta por alguém) e criou em `SISTEMA FJA\REVIT\DEV`: `biblioteca.json` (66 siglas, 344 itens, 4 de composição — DRY FJ-0093/0094/0095 e ALV FJ-0344 —, todos ainda **sem camadas**), `projeto-000.json` e `projeto-123.json`. Falta testar o botão **Publicar agora** (recria tudo e manda os anteriores para a lixeira; na primeira vez o Google Drive pede permissão para `trash_file`).
@@ -17,6 +18,8 @@ Teste em 03/11: a publicação automática rodou ~15 s depois de publicar (dev a
 - A republicação automática gerou o `biblioteca.json` novo em segundos. Observação: quando o arquivo anterior ainda está no G: no momento da criação, o Drive para Desktop nomeia o novo como `biblioteca (1).json` — o pyRevit deve sempre pegar o `biblioteca*.json` mais recente.
 - Pintura com 0,5 mm: conferir na fase 2 se o Revit aceita (senão, 1 mm).
 - Dado a corrigir: FJ-0020 (gesso acartonado liso) tem no texto-base a especificação de um espelho.
+
+**Exemplos refeitos com vedação e acabamento separados (03/11, ~15h55):** FJ-0093/0094/0095 (drywall) e FJ-0344 (ALV, agora só o bloco 140 mm) são **vedação**; FJ-0350 PIN "revestimento em argamassa com pintura" (20,5 mm) e FJ-0351 PIN "pintura sobre drywall" (1 mm) são **acabamentos de parede**; FJ-0349 PIS é acabamento de piso; FJ-0348 FOR (forro) sem papel definido. Siglas: DRY e ALV = Vedação; PIN (Revit: Parede) e PIS = Acabamento.
 
 Ao levar para a oficial: declarar `trash_file` também na oficial.
 
@@ -60,6 +63,7 @@ Usar o Sistema FJA como fonte única dos tipos do Revit, para padronizar os mode
 | D7 | Sincronização | Um botão **Sincronizar tipos geral**, para todas as categorias. |
 | D8 | Numeração | O pyRevit reserva o próximo FJ e o próximo keynote a partir dos dados do sistema; o sistema confirma (ver §6.3). |
 | D9 | O que pode virar tipo com camadas | **Qualquer item cuja sigla seja do tipo Composição.** Não há lista fixa de siglas de parede ou piso: criar uma sigla de composição no sistema já a torna disponível no Revit. |
+| D11 | Vedação e acabamento | **As composições se dividem em vedação e acabamento.** A vedação (alvenaria, drywall) é um elemento; cada face acabada recebe uma **parede aninhada** própria com tudo o que é preciso para aquele acabamento (chapisco, emboço, pintura, cerâmica…). Campo `papel` no item (padrão pela sigla). Camadas de um acabamento: da face acabada para a vedação. |
 | D10 | Categoria do Revit | Fica no **item** (Parede, Piso, Forro, Cobertura), porque a mesma sigla pode servir a mais de uma (ex.: PIN em parede e em forro). A sigla pode ter uma categoria padrão, sugerida ao criar o item. |
 
 ## 4. Ferramentas no Revit
@@ -81,6 +85,10 @@ Painel **Tipos** na aba Ferramentas FJA:
 - Se o item já tiver no projeto variações de espessura, escolher a variação ou criar uma nova (→ `E=`).
 - Itens de composição **sem camadas** cadastradas aparecem na lista com aviso e o botão **Definir camadas…**, que abre o formulário do §4.2 já preenchido. Assim, qualquer item de composição que já está no sistema pode virar tipo.
 - Botões: **Nova composição…** (§4.2), Cancelar, **Criar no modelo**.
+
+Com a separação vedação/acabamento (D11), a janela ganha o filtro **Vedação / Acabamento**, e entra no plano uma terceira ferramenta:
+
+- **Aplicar acabamento**: selecionadas paredes de vedação no modelo, escolhe-se a face (interna, externa ou as duas) e uma composição de acabamento. A ferramenta cria a parede de acabamento encostada na face, com a mesma base, topo e extensão, e a une (Join) à vedação para que portas e janelas cortem as duas. Usa a mesma regra de keynote e nome. Detalhes a confirmar com a equipe (§11).
 
 Ao criar:
 1. Se o item ainda não está na especificação do projeto, ele entra com o próximo keynote livre da sigla (como o "Puxar da biblioteca").
@@ -215,6 +223,7 @@ Isso permite renomear sem perder o vínculo, saber o que veio do sistema e mostr
 3. Pasta de distribuição da extensão: proposta `SISTEMA FJA\REVIT\pyRevit` (cópia já feita); falta confirmar e apontar o pyRevit de cada computador.
 4. Quem mantém o `materiais-base.rvt` e a lista inicial de materiais-base.
 5. A Legenda LUM deve passar a usar o keynote do sistema em vez de gerar códigos próprios?
+6. Vedação/acabamento: como a equipe modela hoje a parede de acabamento (linha de localização, altura — até o forro ou até a laje —, união com a vedação para os vãos de portas e janelas, rodapé)? O mesmo princípio vale para pisos (laje = vedação/estrutura, piso = acabamento) e forros?
 
 ## 12. Fases sugeridas
 
