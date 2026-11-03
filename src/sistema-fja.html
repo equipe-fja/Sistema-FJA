@@ -6870,19 +6870,21 @@ async function rvPublicar(manual){
   RVP.rodando=true; RVP.ult=Date.now(); if(manual) rvUI();
   const ref=db.doc('config/revit'); let n=0;
   try{
-    const g=await ref.get(), st=g.exists?g.data():{}; st.arquivos=st.arquivos||{};
+    // o banco devolve objetos somente leitura: copiar antes de alterar
+    const g=await ref.get(), st=structuredClone(g.exists?g.data():{}); st.arquivos={...(st.arquivos||{})};
     for(const a of rvMontar()){
       const h=hashTxt(JSON.stringify(a.obj)), at=st.arquivos[a.nome]; if(at&&at.hash===h&&!(manual==='tudo')) continue;
+      if(!manual&&at&&Date.now()-(at.em||0)<30e3) continue;
       const txt=JSON.stringify({...a.obj,geradoEm:new Date().toISOString(),geradoPor:S.meuNome||''},null,1);
       const r=await mcp.callTool('Google Drive','create_file',{title:a.nome,parentId:RVP.pasta,textContent:txt,contentMimeType:'application/json',disableConversionToGoogleType:true},{cache:false});
       const f=r?.payload||r||{}, id=f.id||f.file?.id; if(!id) throw new Error('O Drive não devolveu o arquivo criado');
-      if(at?.id&&at.id!==id){try{await mcp.callTool('Google Drive','trash_file',{fileId:at.id},{cache:false})}catch(e){console.warn('revit: lixeira',e)}}
+      if(at?.id&&at.id!==id){try{await mcp.callTool('Google Drive','trash_file',{fileId:at.id},{cache:false})}catch(e){console.warn('revit: lixeira',e); st.erroLixeira={em:Date.now(),arquivo:a.nome,msg:String(e?.message||e?.code||e).slice(0,200)}}}
       st.arquivos[a.nome]={id,hash:h,em:Date.now(),por:S.meuNome||me||''}; st.erro=null; n++;
       await ref.set(st); RVP.st=st;
     }
     if(manual) toast(n?`${n} arquivo${n>1?'s':''} publicado${n>1?'s':''} para o Revit`:'Os arquivos do Revit já estavam atualizados');
   }catch(e){console.warn('revit',e); const msg=String(e?.message||e?.code||e).slice(0,300);
-    try{const g=await ref.get(), v=g.exists?g.data():{}; await ref.set({...v,erro:{em:Date.now(),msg}})}catch{}
+    try{const g=await ref.get(), v=structuredClone(g.exists?g.data():{}); await ref.set({...v,erro:{em:Date.now(),msg}})}catch{}
     if(manual) toast('Não foi possível publicar para o Revit: '+msg)}
   finally{RVP.rodando=false; rvUI()}
 }
@@ -6895,7 +6897,7 @@ function telaRevit(h){
   <h1>Conexão com o Revit</h1><p class="lead">A especificação técnica (biblioteca central, siglas e especificação de cada projeto) é publicada como arquivos .json numa pasta do G:, lida pela aba <b>Ferramentas FJA</b> do pyRevit. A publicação é automática alguns segundos depois de qualquer alteração, por quem estiver com o sistema aberto.</p>
   <section class="sheet"><div class="sheet-h"><h2>Arquivos publicados</h2><span class="hint">${AMB==='dev'?'desenvolvimento: pasta DEV':''}</span><span class="sp"></span>${S.ro?'':`<button class="btn sm${RVP.rodando?'':' pri'}" data-act="rv-publicar" ${RVP.rodando||!mcp?'disabled':''}>${RVP.rodando?'Publicando…':'Publicar agora'}</button>`}</div>
   ${A.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th>Arquivo</th><th style="width:160px">Atualizado</th><th style="width:180px">Por</th></tr></thead><tbody>${A.map(([n,a])=>`<tr><td class="mono">${a.id?`<a href="https://drive.google.com/file/d/${esc(a.id)}/view" target="_blank" rel="noopener">${esc(n)}</a>`:esc(n)}</td><td class="mono">${a.em?fmt(a.em):''}</td><td>${esc(a.por||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="pad muted">Nada publicado ainda.</p>`}
-  ${st.erro?`<p class="pad" style="color:var(--danger);margin:0">Última falha (${fmt(st.erro.em)}): ${esc(st.erro.msg||'')}</p>`:''}</section>
+  ${st.erro?`<p class="pad" style="color:var(--danger);margin:0">Última falha (${fmt(st.erro.em)}): ${esc(st.erro.msg||'')}</p>`:''}${st.erroLixeira?`<p class="pad" style="color:var(--warn);margin:0">A versão anterior de ${esc(st.erroLixeira.arquivo)} não foi para a lixeira (${fmt(st.erroLixeira.em)}): ${esc(st.erroLixeira.msg||'')}</p>`:''}</section>
   <section class="sheet"><div class="sheet-h"><h2>Composições</h2></div><div class="pad ferr-pad"><p>${nComp.length} ${nComp.length===1?'item':'itens'} de sigla Composição na biblioteca${sem?` · <b>${sem} sem camadas</b> (não podem virar tipo no Revit até as camadas serem definidas na ficha do item)`:''}.</p></div></section>
   <section class="sheet"><div class="sheet-h"><h2>Pasta</h2></div><div class="pad ferr-pad"><p><span class="mono">${esc(RVP.caminho)}</span> · <a href="https://drive.google.com/drive/folders/${RVP.pasta}" target="_blank" rel="noopener">abrir no Drive</a></p>
   <p class="muted">Cada publicação cria o arquivo de novo e manda a versão anterior para a lixeira do Drive (o conector não reescreve arquivos). O pyRevit usa sempre o arquivo mais recente com o mesmo nome.</p></div></section></div>`;
