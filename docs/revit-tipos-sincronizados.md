@@ -8,7 +8,8 @@ Documento de projeto (versão 3 — 03/11/2026).
 | 1. Fundação | **Publicada na dev em 03/11/2026 (~15h35, versão `1793730938-caf4`, commit do merge em `main`).** Inclui camadas nos itens de composição, a categoria padrão do Revit na sigla, a composição em leitura no projeto (com "Incluir no projeto" para os materiais sem keynote) e Ferramentas › **Conexão com o Revit** (publicação no G:). Capacidade `trash_file` declarada na dev. A extensão já está no repositório (`revit/`) e copiada para o G:. |
 | Papel Vedação/Acabamento + correção da publicação | Publicados na dev em 03/11 (~16h15). A correção: o objeto devolvido pelo banco é somente leitura e `config/revit` nunca era atualizado, então a dev republicava a cada minuto sem mandar os anteriores para a lixeira; agora copia antes de alterar, não regrava arquivo publicado há menos de 30 s e limpa cópias antigas. Pasta `REVIT\DEV` limpa (um arquivo de cada). |
 | 2. Nova composição | **Pronta para teste (03/11)** — extensão v1.2.0 em `revit/` e na cópia do G: (`REVIT\pyRevit`). Painel **Tipos › Nova composição**: lista as composições publicadas (filtros categoria, papel, busca, só do projeto), liga o modelo ao projeto pelo código ou pelo nome do arquivo, mostra camadas/materiais/problemas e cria ou atualiza o tipo (camadas, materiais com keynote do projeto, Type Mark, Keynote, Descrição, Comentários de tipo = `FJ · papel`, vínculo `FJA_SistemaTipo`). Escolha Oficial/Desenvolvimento lembrada por usuário. Testado no Revit 2027 (transação desfeita): paredes de vedação e de acabamento, piso e forro. Só cria itens que já estão na especificação do projeto; materiais fora do projeto entram com o código FJ no nome e sem keynote (aviso). Camadas abaixo do mínimo do Revit (0,79 mm) sobem para o mínimo (aviso). Ainda sem materiais-base (cor por sigla). |
-| 3–5 | Não iniciadas. |
+| 3. Criar a partir do Revit (pedidos) | **Pronta, falta publicar o lado do sistema (branch `revit-pedidos`).** Extensão v1.3.0 (G: e `revit/`): botão **+ Nova composição…** na janela (formulário com sigla, categoria, papel, descrição, especificação e camadas); itens fora do projeto também podem ser criados. O pyRevit reserva o próximo FJ e os keynotes (do item e dos materiais que faltam no projeto), cria o tipo na hora e grava um pedido em `REVIT\pedidos` (dev: `REVIT\DEV\pedidos`). O sistema lê os pedidos ao abrir e a cada 90 s, cria o item na biblioteca e inclui item e materiais na especificação do projeto (troca a reserva se já estiver em uso), registra em `config/revitPedidos` (seção Pedidos do Revit na tela Conexão com o Revit) e manda o pedido para a lixeira. O id do pedido vai para os arquivos publicados; a janela liga o tipo ao item definitivo (botão Atualizar). Testado: sistema com banco simulado; Revit 2027 com pedidos numa pasta temporária e transação desfeita. Teste do formulário no Revit ficou pendente (o Revit parou de responder no teste). |
+| 4–5 | Não iniciadas. |
 
 Teste em 03/11: a publicação automática rodou ~15 s depois de publicar (dev aberta por alguém) e criou em `SISTEMA FJA\REVIT\DEV`: `biblioteca.json` (66 siglas, 344 itens, 4 de composição — DRY FJ-0093/0094/0095 e ALV FJ-0344 —, todos ainda **sem camadas**), `projeto-000.json` e `projeto-123.json`. Falta testar o botão **Publicar agora** (recria tudo e manda os anteriores para a lixeira; na primeira vez o Google Drive pede permissão para `trash_file`).
 
@@ -149,8 +150,8 @@ REVIT\
   projeto-<código>.json      ← o sistema escreve (especificação de cada projeto)
   DEV\                       ← os mesmos arquivos, gerados pela dev
   pyRevit\                   ← cópia de uso da extensão Ferramentas FJA
-  pedidos\                   ← o pyRevit escreve; o sistema lê, processa e apaga/arquiva
-  respostas\                 ← o sistema escreve; o pyRevit lê
+  pedidos\                   ← o pyRevit escreve; o sistema lê, processa e manda para a lixeira
+                               (não há pasta de respostas: o resultado volta nos arquivos publicados, pelo id do pedido)
   materiais-base.rvt         ← materiais-base por sigla (§7)
 ```
 
