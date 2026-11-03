@@ -5003,12 +5003,16 @@ async function salvarEspb(){
 document.addEventListener('input',ev=>{const el=ev.target;
   if(el.id==='etBBusca'){ET_B.busca=el.value; const p=el.selectionStart; renderMain(); const n=$('etBBusca'); if(n){n.focus();try{n.setSelectionRange(p,p)}catch{}} return}
   if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'&&el.tagName!=='SELECT'){S.edraft[el.dataset.eb]=el.value; marcaSujo()}});
-document.addEventListener('change',ev=>{const el=ev.target; if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'){S.edraft[el.dataset.eb]=el.value; if(el.dataset.eb==='sigla'){const x=siglaEt(el.value); if(x) S.edraft.tipo=x.tipo; marcaSujo(); renderMain(); return} marcaSujo(); if(el.dataset.eb==='rvCat') renderMain()}});
+document.addEventListener('change',ev=>{const el=ev.target; if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'){S.edraft[el.dataset.eb]=el.value; if(el.dataset.eb==='sigla'){const x=siglaEt(el.value); if(x) S.edraft.tipo=x.tipo; marcaSujo(); renderMain(); return} marcaSujo(); if(el.dataset.eb==='rvCat'||el.dataset.eb==='papel') renderMain()}});
 
 /* ---------- composição (camadas) dos itens de sigla Composição → tipos do Revit ---------- */
 // item central (espb): rvCat ('Parede'|'Piso'|'Forro'|'Cobertura') e camadas [{fn, mat:<id espb do material>, esp:<mm>}]
 // ordem das camadas: de fora para dentro (paredes) · de cima para baixo (pisos, forros, coberturas)
 const RV_CATS=['Parede','Piso','Forro','Cobertura'];
+// papel: Vedação (alvenaria, drywall, laje…) ou Acabamento (tudo o que é preciso para o acabamento de uma face, modelado como elemento à parte junto à vedação)
+const CP_PAPEIS=['Vedação','Acabamento'];
+const cpPapel=b=>b?.papel||siglaEt(sigB(b))?.papel||'';
+const cpOrdem=b=>cpPapel(b)==='Acabamento'?'camadas da face acabada para a vedação':(b?.rvCat==='Parede'||!b?.rvCat)?'camadas de fora para dentro':'camadas de cima para baixo';
 const CP_FN=[['Acabamento 1','Finish1'],['Acabamento 2','Finish2'],['Substrato','Substrate'],['Estrutura','Structure'],['Isolamento','Insulation'],['Membrana','Membrane']];
 const CP_COR={'Acabamento 1':'#cfe0ee','Acabamento 2':'#e6d8ef','Substrato':'#e4dfd5','Estrutura':'#c7c1b6','Isolamento':'#f3e3a8','Membrana':'#4a4a48'};
 const ehComp=b=>tipoEt(b)==='sistema';
@@ -5030,9 +5034,11 @@ function cpLegenda(){return `<div class="cp-leg">${CP_FN.map(([f])=>`<span><i st
 function cpEditorHTML(b){
   const dis=S.ro?'disabled':'', L=cpCamadas(b), mats=cpMateriais();
   if(b.rvCat==null&&siglaEt(sigB(b))?.rvCat) b.rvCat=siglaEt(sigB(b)).rvCat;
+  if(b.papel==null&&siglaEt(sigB(b))?.papel) b.papel=siglaEt(sigB(b)).papel;
   const optMat=sel=>{let g=null,o='<option value="">— escolha o material —</option>'; for(const m of mats){const s=sigB(m)||'?'; if(s!==g){if(g!==null) o+='</optgroup>'; o+=`<optgroup label="${esc(rotSig(s)||s)}">`; g=s} o+=`<option value="${esc(m.id)}" ${m.id===sel?'selected':''}>${esc(m.fja+' · '+(m.desc||'sem descrição'))}</option>`} if(g!==null) o+='</optgroup>'; if(sel&&!S.espb.get(sel)) o+=`<option value="${esc(sel)}" selected>(material excluído)</option>`; return o};
-  let h=`<section class="sheet" id="cpEd"><div class="sheet-h"><h2>Composição no Revit</h2><span class="hint">${b.rvCat==='Parede'||!b.rvCat?'camadas de fora para dentro':'camadas de cima para baixo'}</span></div><div class="pad">
+  let h=`<section class="sheet" id="cpEd"><div class="sheet-h"><h2>Composição no Revit</h2><span class="hint">${cpOrdem(b)}</span></div><div class="pad">
     <div class="cp-topo"><label class="fl" style="max-width:220px">Categoria do Revit<select class="fld" data-eb="rvCat" ${dis}><option value="">—</option>${RV_CATS.map(c=>`<option ${c===b.rvCat?'selected':''}>${c}</option>`).join('')}</select></label>
+    <label class="fl" style="max-width:200px" title="Vedação: alvenaria, drywall, laje. Acabamento: tudo o que é preciso para o acabamento de uma face, modelado à parte junto à vedação.">Papel<select class="fld" data-eb="papel" ${dis}><option value="">—</option>${CP_PAPEIS.map(c=>`<option ${c===b.papel?'selected':''}>${c}</option>`).join('')}</select></label>
     <div class="cp-tot"><span class="muted">Espessura total</span><b class="mono" id="cpTot">${fmtMm(cpTotal(b))} mm</b></div><div style="flex:1;min-width:160px">${cpSecao(b)}</div></div>`;
   if(!mats.length) h+=`<p class="muted" style="margin:8px 0">Não há itens de material (siglas de 2 letras) na biblioteca para usar nas camadas.</p>`;
   h+=`<table class="list cp-tab"><thead><tr><th style="width:34px">#</th><th style="width:190px">Função</th><th>Material (biblioteca)</th><th style="width:110px" class="r">mm</th><th style="width:112px"></th></tr></thead><tbody>`;
@@ -5051,7 +5057,7 @@ function cpProjetoHTML(e,b){
   const L=cpCamadas(b), pid=e.projeto;
   if(!L.length) return `<section class="sheet"><div class="sheet-h"><h2>Composição no Revit</h2></div><div class="pad"><p class="muted" style="margin:0 0 10px">As camadas deste item ainda não foram definidas na biblioteca central. Sem elas, ele não pode virar tipo no Revit.</p><button class="btn sm" data-act="et-b-abrir" data-bid="${esc(b.id)}">Definir camadas na biblioteca</button></div></section>`;
   const falta=[...new Set(L.map(c=>c.mat).filter(m=>m&&S.espb.get(m)&&!knNoProjeto(pid,m)))];
-  let h=`<section class="sheet"><div class="sheet-h"><h2>Composição no Revit</h2><span class="hint">${esc(b.rvCat||'categoria não definida')} · ${fmtMm(cpTotal(b))} mm · definida na biblioteca (${esc(b.fja)})</span></div><div class="pad">
+  let h=`<section class="sheet"><div class="sheet-h"><h2>Composição no Revit</h2><span class="hint">${esc(b.rvCat||'categoria não definida')}${cpPapel(b)?' · '+esc(cpPapel(b)):''} · ${fmtMm(cpTotal(b))} mm · definida na biblioteca (${esc(b.fja)})</span></div><div class="pad">
     <div class="cp-topo"><div style="flex:1;min-width:200px">${cpSecao(b)}</div></div>
     <p class="cp-nome"><span class="muted">Tipo no Revit:</span> <span class="mono">${esc(nomeTipoRv(e.kn,e.desc))}</span></p>
     <table class="list cp-tab"><thead><tr><th style="width:28px">#</th><th style="width:120px">Função</th><th style="width:70px">Keynote</th><th>Material</th><th style="width:56px" class="r">mm</th></tr></thead><tbody>`;
@@ -5092,7 +5098,7 @@ function telaEtSig(h){
   L.sort((a,b)=>Object.keys(TIPOS_ET).indexOf(a.tipo)-Object.keys(TIPOS_ET).indexOf(b.tipo)||a.sigla.localeCompare(b.sigla));
   for(const x of L){ if(x.tipo!==tp){tp=x.tipo; h+=`<tr class="grp"><td colspan="5">${({material:'Materiais · 2 letras',sistema:'Composições · 3 letras',elemento:'Elementos e famílias · 3 letras'})[x.tipo]||esc(x.tipo)}</td></tr>`}
     h+=`<tr data-sig="${esc(x.sigla)}"><td class="mono"><b>${esc(x.sigla)}</b></td><td><input class="fld sm" data-sg="nome" value="${esc(x.nome||'')}" ${dis}></td>
-    <td>${x.sigla.length===2?'<span class="muted">Material</span>':`<select class="fld sm" data-sg="tipo" ${dis||(uso(x.sigla)?'title="Já usada em projetos: mudar o tipo muda a regra dos itens dela"':'')}><option value="sistema" ${x.tipo==='sistema'?'selected':''}>Composição (sistema)</option><option value="elemento" ${x.tipo==='elemento'?'selected':''}>Elemento / família</option></select>${x.tipo==='sistema'?`<select class="fld sm" data-sg="rvCat" title="Categoria do Revit sugerida ao criar itens desta sigla" style="margin-top:4px" ${dis}><option value="">Categoria Revit: —</option>${RV_CATS.map(c=>`<option value="${c}" ${x.rvCat===c?'selected':''}>Revit: ${c}</option>`).join('')}</select>`:''}`}</td>
+    <td>${x.sigla.length===2?'<span class="muted">Material</span>':`<select class="fld sm" data-sg="tipo" ${dis||(uso(x.sigla)?'title="Já usada em projetos: mudar o tipo muda a regra dos itens dela"':'')}><option value="sistema" ${x.tipo==='sistema'?'selected':''}>Composição (sistema)</option><option value="elemento" ${x.tipo==='elemento'?'selected':''}>Elemento / família</option></select>${x.tipo==='sistema'?`<select class="fld sm" data-sg="rvCat" title="Categoria do Revit sugerida ao criar itens desta sigla" style="margin-top:4px" ${dis}><option value="">Categoria Revit: —</option>${RV_CATS.map(c=>`<option value="${c}" ${x.rvCat===c?'selected':''}>Revit: ${c}</option>`).join('')}</select><select class="fld sm" data-sg="papel" title="Papel padrão dos itens desta sigla" style="margin-top:4px" ${dis}><option value="">Papel: —</option>${CP_PAPEIS.map(c=>`<option value="${c}" ${x.papel===c?'selected':''}>Papel: ${c}</option>`).join('')}</select>`:''}`}</td>
 
 <td class="r mono">${uso(x.sigla)||''}</td>
     <td>${S.ro||uso(x.sigla)?'':`<button class="icb" data-act="et-sig-del" title="Excluir sigla">${IC.trash}</button>`}</td></tr>`}
@@ -6848,9 +6854,9 @@ function rvMontar(){
   const fnRv=f=>(CP_FN.find(x=>x[0]===f)||CP_FN[3])[1];
   const projs=[...S.itens.values()].filter(i=>i.secao==='projetos'&&espDe(i.id).length).sort((a,b)=>rvCod(a).localeCompare(rvCod(b),'pt',{numeric:true}));
   const bib={...base,tipo:'biblioteca',
-    siglas:siglasEt().map(x=>({sigla:x.sigla,nome:x.nome||'',tipo:x.tipo,...(x.rvCat?{rvCat:x.rvCat}:{})})),
+    siglas:siglasEt().map(x=>({sigla:x.sigla,nome:x.nome||'',tipo:x.tipo,...(x.rvCat?{rvCat:x.rvCat}:{}),...(x.papel?{papel:x.papel}:{})})),
     itens:[...S.espb.values()].sort((a,b)=>fjaNum(a)-fjaNum(b)).map(b=>{const t=tipoEt(b), o={id:b.id,fja:b.fja||'',sigla:sigB(b)||'',tipo:t,desc:b.desc||'',texto:b.texto||'',nbr:b.nbr||'',fabricante:b.fabricante||''};
-      if(t==='sistema'){o.rvCat=b.rvCat||siglaEt(sigB(b))?.rvCat||''; o.camadas=cpCamadas(b).map(c=>({funcao:c.fn,funcaoRevit:fnRv(c.fn),material:c.mat||'',esp:+c.esp||0})); o.espTotal=cpTotal(b)}
+      if(t==='sistema'){o.rvCat=b.rvCat||siglaEt(sigB(b))?.rvCat||''; o.papel=cpPapel(b); o.camadas=cpCamadas(b).map(c=>({funcao:c.fn,funcaoRevit:fnRv(c.fn),material:c.mat||'',esp:+c.esp||0})); o.espTotal=cpTotal(b)}
       return o}),
     projetos:projs.map(i=>({id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||'',arquivo:rvNomeProj(i)}))};
   const arqs=[{nome:'biblioteca.json',obj:bib}];
@@ -6864,21 +6870,40 @@ async function rvPublicar(manual){
   RVP.rodando=true; RVP.ult=Date.now(); if(manual) rvUI();
   const ref=db.doc('config/revit'); let n=0;
   try{
-    const g=await ref.get(), st=g.exists?g.data():{}; st.arquivos=st.arquivos||{};
+    // o banco devolve objetos somente leitura: copiar antes de alterar
+    const g=await ref.get(), st=structuredClone(g.exists?g.data():{}); st.arquivos={...(st.arquivos||{})};
     for(const a of rvMontar()){
       const h=hashTxt(JSON.stringify(a.obj)), at=st.arquivos[a.nome]; if(at&&at.hash===h&&!(manual==='tudo')) continue;
+      if(!manual&&at&&Date.now()-(at.em||0)<30e3) continue;
       const txt=JSON.stringify({...a.obj,geradoEm:new Date().toISOString(),geradoPor:S.meuNome||''},null,1);
       const r=await mcp.callTool('Google Drive','create_file',{title:a.nome,parentId:RVP.pasta,textContent:txt,contentMimeType:'application/json',disableConversionToGoogleType:true},{cache:false});
       const f=r?.payload||r||{}, id=f.id||f.file?.id; if(!id) throw new Error('O Drive não devolveu o arquivo criado');
-      if(at?.id&&at.id!==id){try{await mcp.callTool('Google Drive','trash_file',{fileId:at.id},{cache:false})}catch(e){console.warn('revit: lixeira',e)}}
+      if(at?.id&&at.id!==id){try{await mcp.callTool('Google Drive','trash_file',{fileId:at.id},{cache:false})}catch(e){console.warn('revit: lixeira',e); st.erroLixeira={em:Date.now(),arquivo:a.nome,msg:String(e?.message||e?.code||e).slice(0,200)}}}
       st.arquivos[a.nome]={id,hash:h,em:Date.now(),por:S.meuNome||me||''}; st.erro=null; n++;
       await ref.set(st); RVP.st=st;
     }
     if(manual) toast(n?`${n} arquivo${n>1?'s':''} publicado${n>1?'s':''} para o Revit`:'Os arquivos do Revit já estavam atualizados');
+    if(manual) await rvLimpar(true);
   }catch(e){console.warn('revit',e); const msg=String(e?.message||e?.code||e).slice(0,300);
-    try{const g=await ref.get(), v=g.exists?g.data():{}; await ref.set({...v,erro:{em:Date.now(),msg}})}catch{}
+    try{const g=await ref.get(), v=structuredClone(g.exists?g.data():{}); await ref.set({...v,erro:{em:Date.now(),msg}})}catch{}
     if(manual) toast('Não foi possível publicar para o Revit: '+msg)}
   finally{RVP.rodando=false; rvUI()}
+}
+// limpa cópias antigas dos arquivos publicados (deixa só o arquivo registrado em config/revit)
+async function rvLimpar(manual){
+  if(S.ro||!mcp) return 0;
+  const g=await db.doc('config/revit').get(), st=g.exists?g.data():{}, atuais=new Map(Object.entries(st.arquivos||{}).map(([n,a])=>[n,a?.id]));
+  if(!atuais.size) return 0;
+  let tok=null, lixo=[], n=0;
+  for(let pag=0;pag<40;pag++){
+    const r=await mcp.callTool('Google Drive','search_files',{query:`parentId = '${RVP.pasta}' and trashed = false`,excludeContentSnippets:true,pageSize:100,...(tok?{pageToken:tok}:{})},{cache:false});
+    const pl=r?.payload||r||{};
+    for(const f of (pl.files||[])) if(atuais.has(f.title)&&f.id!==atuais.get(f.title)&&f.mimeType!=='application/vnd.google-apps.folder') lixo.push(f.id);
+    tok=pl.nextPageToken; if(!tok||!(pl.files||[]).length) break;
+  }
+  for(const id of lixo){try{await mcp.callTool('Google Drive','trash_file',{fileId:id},{cache:false}); n++}catch(e){console.warn('revit: limpar',e)}}
+  if(manual&&n) toast(`${n} cópia${n>1?'s':''} antiga${n>1?'s':''} enviada${n>1?'s':''} para a lixeira`);
+  return n;
 }
 function rvAgendar(){if(S.ro||S.publico) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
 function rvUI(){if(S.view?.t==='ferr'&&S.view.f==='revit'&&!S.dirty) renderMain()}
@@ -6889,7 +6914,7 @@ function telaRevit(h){
   <h1>Conexão com o Revit</h1><p class="lead">A especificação técnica (biblioteca central, siglas e especificação de cada projeto) é publicada como arquivos .json numa pasta do G:, lida pela aba <b>Ferramentas FJA</b> do pyRevit. A publicação é automática alguns segundos depois de qualquer alteração, por quem estiver com o sistema aberto.</p>
   <section class="sheet"><div class="sheet-h"><h2>Arquivos publicados</h2><span class="hint">${AMB==='dev'?'desenvolvimento: pasta DEV':''}</span><span class="sp"></span>${S.ro?'':`<button class="btn sm${RVP.rodando?'':' pri'}" data-act="rv-publicar" ${RVP.rodando||!mcp?'disabled':''}>${RVP.rodando?'Publicando…':'Publicar agora'}</button>`}</div>
   ${A.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th>Arquivo</th><th style="width:160px">Atualizado</th><th style="width:180px">Por</th></tr></thead><tbody>${A.map(([n,a])=>`<tr><td class="mono">${a.id?`<a href="https://drive.google.com/file/d/${esc(a.id)}/view" target="_blank" rel="noopener">${esc(n)}</a>`:esc(n)}</td><td class="mono">${a.em?fmt(a.em):''}</td><td>${esc(a.por||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="pad muted">Nada publicado ainda.</p>`}
-  ${st.erro?`<p class="pad" style="color:var(--danger);margin:0">Última falha (${fmt(st.erro.em)}): ${esc(st.erro.msg||'')}</p>`:''}</section>
+  ${st.erro?`<p class="pad" style="color:var(--danger);margin:0">Última falha (${fmt(st.erro.em)}): ${esc(st.erro.msg||'')}</p>`:''}${st.erroLixeira?`<p class="pad" style="color:var(--warn);margin:0">A versão anterior de ${esc(st.erroLixeira.arquivo)} não foi para a lixeira (${fmt(st.erroLixeira.em)}): ${esc(st.erroLixeira.msg||'')}</p>`:''}</section>
   <section class="sheet"><div class="sheet-h"><h2>Composições</h2></div><div class="pad ferr-pad"><p>${nComp.length} ${nComp.length===1?'item':'itens'} de sigla Composição na biblioteca${sem?` · <b>${sem} sem camadas</b> (não podem virar tipo no Revit até as camadas serem definidas na ficha do item)`:''}.</p></div></section>
   <section class="sheet"><div class="sheet-h"><h2>Pasta</h2></div><div class="pad ferr-pad"><p><span class="mono">${esc(RVP.caminho)}</span> · <a href="https://drive.google.com/drive/folders/${RVP.pasta}" target="_blank" rel="noopener">abrir no Drive</a></p>
   <p class="muted">Cada publicação cria o arquivo de novo e manda a versão anterior para a lixeira do Drive (o conector não reescreve arquivos). O pyRevit usa sempre o arquivo mais recente com o mesmo nome.</p></div></section></div>`;
@@ -6901,7 +6926,7 @@ function telaRevit(h){
     if(!S.carregado||!db) return; clearInterval(t);
     if(!FERRAMENTAS.some(x=>x.id==='revit')) FERRAMENTAS.push({id:'revit',nome:'Conexão com o Revit',resumo:'Publica a especificação técnica no G: para a aba Ferramentas FJA do pyRevit.'});
     db.doc('config/revit').onSnapshot(s=>{RVP.st=s.exists?s.data():null; rvUI()},()=>{});
-    setTimeout(()=>rvPublicar(false),20e3); setInterval(()=>{if(Date.now()-RVP.ult>55e3) rvPublicar(false)},60e3);
+    setTimeout(()=>rvPublicar(false).then(()=>rvLimpar(false)).catch(()=>{}),20e3); setInterval(()=>{if(Date.now()-RVP.ult>55e3) rvPublicar(false)},60e3);
   },1000);
 })();
 
