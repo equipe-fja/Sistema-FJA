@@ -5,14 +5,12 @@ Documento de projeto (versão 3 — 03/11/2026).
 ## Situação da implementação
 | Fase | Situação |
 |---|---|
-| 1. Fundação | **Código pronto na branch `revit-fase1`, ainda não publicado na dev** (a sessão de 03/11 estava sem acesso de rede). Inclui camadas nos itens de composição, a categoria padrão do Revit na sigla, a composição em leitura no projeto (com "Incluir no projeto" para os materiais sem keynote) e Ferramentas › **Conexão com o Revit** (publicação no G:). A extensão já está no repositório (`revit/`) e copiada para o G:. |
+| 1. Fundação | **Publicada na dev em 03/11/2026 (~15h35, versão `1793730938-caf4`, commit do merge em `main`).** Inclui camadas nos itens de composição, a categoria padrão do Revit na sigla, a composição em leitura no projeto (com "Incluir no projeto" para os materiais sem keynote) e Ferramentas › **Conexão com o Revit** (publicação no G:). Capacidade `trash_file` declarada na dev. A extensão já está no repositório (`revit/`) e copiada para o G:. |
 | 2–5 | Não iniciadas. |
 
-Para publicar a fase 1 na dev, numa sessão com acesso de rede:
-1. `declare_capabilities` na dev, acrescentando `trash_file` ao Google Drive (manter as demais).
-2. Fazer o merge de `revit-fase1` em `main` e rodar `./scripts/gerar.sh`.
-3. `publish_files` de `dist/dev.html`.
-4. Abrir Biblioteca › Ferramentas › Conexão com o Revit › **Publicar agora** e conferir os arquivos em `SISTEMA FJA\REVIT\DEV`.
+Teste em 03/11: a publicação automática rodou ~15 s depois de publicar (dev aberta por alguém) e criou em `SISTEMA FJA\REVIT\DEV`: `biblioteca.json` (66 siglas, 344 itens, 4 de composição — DRY FJ-0093/0094/0095 e ALV FJ-0344 —, todos ainda **sem camadas**), `projeto-000.json` e `projeto-123.json`. Falta testar o botão **Publicar agora** (recria tudo e manda os anteriores para a lixeira; na primeira vez o Google Drive pede permissão para `trash_file`).
+
+Ao levar para a oficial: declarar `trash_file` também na oficial.
 
 ## 1. Objetivo
 
