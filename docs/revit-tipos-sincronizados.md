@@ -10,6 +10,14 @@ Documento de projeto (versão 3 — 03/11/2026).
 
 Teste em 03/11: a publicação automática rodou ~15 s depois de publicar (dev aberta por alguém) e criou em `SISTEMA FJA\REVIT\DEV`: `biblioteca.json` (66 siglas, 344 itens, 4 de composição — DRY FJ-0093/0094/0095 e ALV FJ-0344 —, todos ainda **sem camadas**), `projeto-000.json` e `projeto-123.json`. Falta testar o botão **Publicar agora** (recria tudo e manda os anteriores para a lixeira; na primeira vez o Google Drive pede permissão para `trash_file`).
 
+**Exemplos na dev (03/11, ~15h45)** — criados para testar a fase 2, todos com "Exemplo…" nas observações:
+- Siglas: **IS** (material, isolamentos), **PIS** (composição, Revit: Piso), **FOR** (composição, Revit: Forro); DRY e ALV com Revit: Parede.
+- Materiais: FJ-0345 lã de vidro (IS), FJ-0346 bloco de concreto 14cm (BL), FJ-0347 contrapiso (EM).
+- Composições com camadas: FJ-0093/0094/0095 (drywalls, 83/96/140 mm), FJ-0344 ALV alvenaria de bloco 14cm com reboco e pintura (181 mm), FJ-0348 FOR forro de gesso com pintura (13 mm), FJ-0349 PIS porcelanato sobre contrapiso (50 mm).
+- A republicação automática gerou o `biblioteca.json` novo em segundos. Observação: quando o arquivo anterior ainda está no G: no momento da criação, o Drive para Desktop nomeia o novo como `biblioteca (1).json` — o pyRevit deve sempre pegar o `biblioteca*.json` mais recente.
+- Pintura com 0,5 mm: conferir na fase 2 se o Revit aceita (senão, 1 mm).
+- Dado a corrigir: FJ-0020 (gesso acartonado liso) tem no texto-base a especificação de um espelho.
+
 Ao levar para a oficial: declarar `trash_file` também na oficial.
 
 ## 1. Objetivo
