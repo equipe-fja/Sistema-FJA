@@ -221,7 +221,7 @@ Isso permite renomear sem perder o vínculo, saber o que veio do sistema e mostr
 
 1. ~~Siglas de composição~~ — resolvido com o tipo Composição (sistema) no cadastro de siglas. Falta só cadastrar as siglas que a equipe já usa (hoje: DRY e PIN).
 2. Nas famílias carregáveis, o nome do tipo também deve seguir "Type Mark - Descrição"? (Para portas e esquadrias o nome às vezes carrega dimensões.)
-3. Pasta de distribuição da extensão: proposta `SISTEMA FJA\REVIT\pyRevit` (cópia já feita); falta confirmar e apontar o pyRevit de cada computador.
+3. ~~Pasta de distribuição~~ — `SISTEMA FJA\REVIT\pyRevit`. Em 03/11 o primeiro computador foi apontado para ela (`userextensions` no `pyRevit_config.ini`, backup do ini ao lado; cópia local movida para `%APPDATA%\pyRevit\_backup-extensoes`). Falta fazer o mesmo nos outros computadores.
 4. Quem mantém o `materiais-base.rvt` e a lista inicial de materiais-base.
 5. A Legenda LUM deve passar a usar o keynote do sistema em vez de gerar códigos próprios?
 6. Vedação/acabamento: como a equipe modela hoje a parede de acabamento (linha de localização, altura — até o forro ou até a laje —, união com a vedação para os vãos de portas e janelas, rodapé)? O mesmo princípio vale para pisos (laje = vedação/estrutura, piso = acabamento) e forros?
