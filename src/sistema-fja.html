@@ -338,6 +338,12 @@ table.list.esp small{display:block;color:var(--faint);font-size:12px}
 .et-nsig[hidden],.et-ml[hidden]{display:none!important}
 .et-nsig{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}.et-nsig-g{display:flex;gap:10px;flex-wrap:wrap}.et-nsig-g .fl{min-width:110px}
 #etNT[hidden]{display:none}
+.cp-topo{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}.cp-tot{display:flex;flex-direction:column;gap:2px;font-size:12px}.cp-tot b{font-size:16px}
+.cp-sec{display:flex;border:1px solid var(--line-strong);border-radius:4px;overflow:hidden;background:#fff}.cp-sec.v{flex-direction:column}.cp-ly{display:block;border-left:1px solid rgba(0,0,0,.18)}.cp-sec.v .cp-ly{border-left:0;border-top:1px solid rgba(0,0,0,.18)}.cp-ly:first-child{border:0}
+.cp-tab td{vertical-align:middle}.cp-tab .fld.sm{width:100%}.cp-fnw{display:flex;align-items:center;gap:0}.cp-acts{display:inline-flex;gap:2px;white-space:nowrap}.cp-acts .icb{display:inline-flex}.cp-pt{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
+.cp-err td{background:var(--danger-bg)}.cp-msg{color:var(--danger);font-size:11.5px;margin-top:2px}.cp-falta{color:var(--warn)}.cp-nome{margin:0 0 10px;font-size:13px}
+.cp-leg{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}.cp-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
+
 .et-mi.sel{background:var(--hover,#f4f3f0);box-shadow:inset 3px 0 0 var(--brand,#8e1b1b)}
 .et-mi>.mono{min-width:66px;font-weight:600;color:var(--brand,#8e1b1b)}
 .et-mi-d{display:flex;flex-direction:column;gap:2px}.et-mi-d small{color:var(--muted)}
@@ -4743,6 +4749,7 @@ function telaEspItem(h,v){
       <dl class="et-dl"><dt>Descrição simplificada</dt><dd>${esc(b.desc||'—')}</dd><dt>Classe NBR 15965</dt><dd class="mono">${esc(b.nbr||'—')}</dd><dt>Especificação base</dt><dd class="et-pre">${esc(b.texto||'—')}</dd>${outros.length||usosEspb(b.id).some(x=>x.projeto!==e.projeto)?`<dt>Também usado em</dt><dd>${usosEspb(b.id).filter(x=>x.projeto!==e.projeto).map(x=>{const p=S.itens.get(x.projeto);return `<button class="chip link" data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}">${esc((p?.campos?.codigo||'?')+' · '+(x.kn||''))}</button>`}).join(' ')||'—'}</dd>`:''}</dl>
       ${S.ro?'':`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn sm" data-act="et-enviar" title="Grava a descrição e a especificação deste projeto como texto base do item central">Enviar este texto ao banco central</button><button class="btn sm ghost" data-act="et-trocar">Vincular a outro item central</button></div>`}</div></section>`}
   else h+=`<section class="sheet"><div class="pad"><p class="muted">Este item não está ligado ao banco central.</p>${S.ro?'':`<button class="btn sm" data-act="et-trocar">Vincular a um item central</button>`}</div></section>`;
+  h+=cpProjetoHTML(e,b);
   if(e.origem) h+=`<div class="banner pub eq-origem"><span class="sp">Importado da linha <b>${esc(e.origem.linha)}</b> da aba <b>${esc(e.origem.aba)}</b>.</span>${e.origem.planilha?`<a class="btn sm" href="https://docs.google.com/spreadsheets/d/${esc(e.origem.planilha)}/edit" target="_blank" rel="noopener">Abrir planilha</a>`:''}</div>`;
   h+=`<div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="et-del">${IC.trash}Excluir</button><button class="btn pri" data-act="et-salvar">Salvar alterações</button></div>`;
@@ -4979,6 +4986,7 @@ function telaEspbItem(h,v){
     <label class="fl">Tipo<input class="fld" value="${esc(TIPOS_ET[tipoEt(b)])}" disabled title="Vem do cadastro da sigla"></label>
     ${fld('desc','Descrição simplificada','text','wide')}${fld('texto','Especificação base','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
     <datalist id="dlNbr">${[...new Set([...S.espb.values()].map(x=>x.nbr).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist></section>
+  ${ehComp(b)?cpEditorHTML(b):''}
   <section class="sheet"><div class="sheet-h"><h2>Uso nos projetos</h2><span class="cnt">${us.length}</span></div>${us.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th style="width:170px">Projeto</th><th style="width:90px">Keynote</th><th>Descrição no projeto</th></tr></thead><tbody>${us.map(x=>{const p=S.itens.get(x.projeto);return `<tr data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}"><td>${esc((p?.campos?.codigo?p.campos.codigo+' ':'')+(p?.nome||''))}</td><td class="mono"><b>${esc(x.kn)}</b>${desatEs(x)?' <span class="et-dot" title="Texto central alterado depois">●</span>':''}</td><td>${esc(x.desc||'')}</td></tr>`}).join('')}</tbody></table></div>`:`<p class="pad muted">Ainda não usado em nenhum projeto.</p>`}</section>
   <div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="et-b-del">${IC.trash}Excluir</button><button class="btn pri" data-act="et-b-salvar">Salvar alterações</button></div>`;
@@ -4995,7 +5003,82 @@ async function salvarEspb(){
 document.addEventListener('input',ev=>{const el=ev.target;
   if(el.id==='etBBusca'){ET_B.busca=el.value; const p=el.selectionStart; renderMain(); const n=$('etBBusca'); if(n){n.focus();try{n.setSelectionRange(p,p)}catch{}} return}
   if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'&&el.tagName!=='SELECT'){S.edraft[el.dataset.eb]=el.value; marcaSujo()}});
-document.addEventListener('change',ev=>{const el=ev.target; if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'){S.edraft[el.dataset.eb]=el.value; if(el.dataset.eb==='sigla'){const x=siglaEt(el.value); if(x) S.edraft.tipo=x.tipo; marcaSujo(); renderMain(); return} marcaSujo()}});
+document.addEventListener('change',ev=>{const el=ev.target; if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'){S.edraft[el.dataset.eb]=el.value; if(el.dataset.eb==='sigla'){const x=siglaEt(el.value); if(x) S.edraft.tipo=x.tipo; marcaSujo(); renderMain(); return} marcaSujo(); if(el.dataset.eb==='rvCat') renderMain()}});
+
+/* ---------- composição (camadas) dos itens de sigla Composição → tipos do Revit ---------- */
+// item central (espb): rvCat ('Parede'|'Piso'|'Forro'|'Cobertura') e camadas [{fn, mat:<id espb do material>, esp:<mm>}]
+// ordem das camadas: de fora para dentro (paredes) · de cima para baixo (pisos, forros, coberturas)
+const RV_CATS=['Parede','Piso','Forro','Cobertura'];
+const CP_FN=[['Acabamento 1','Finish1'],['Acabamento 2','Finish2'],['Substrato','Substrate'],['Estrutura','Structure'],['Isolamento','Insulation'],['Membrana','Membrane']];
+const CP_COR={'Acabamento 1':'#cfe0ee','Acabamento 2':'#e6d8ef','Substrato':'#e4dfd5','Estrutura':'#c7c1b6','Isolamento':'#f3e3a8','Membrana':'#4a4a48'};
+const ehComp=b=>tipoEt(b)==='sistema';
+const cpCamadas=b=>Array.isArray(b?.camadas)?b.camadas:[];
+const cpTotal=b=>cpCamadas(b).reduce((s,c)=>s+(+c.esp||0),0);
+const fmtMm=v=>{const n=Math.round((+v||0)*10)/10; return String(n).replace('.',',')};
+const cpMateriais=()=>[...S.espb.values()].filter(x=>tipoEt(x)==='material').sort((a,b)=>sigB(a).localeCompare(sigB(b))||fjaNum(a)-fjaNum(b));
+const cpErro=c=>!c.mat?'Escolha o material':!S.espb.get(c.mat)?'Material excluído da biblioteca':(c.fn!=='Membrana'&&!(+c.esp>0))?'Informe a espessura':'';
+const knNoProjeto=(pid,matId)=>espDe(pid).find(x=>x.item===matId);
+const nomeTipoRv=(kn,desc,e)=>`${kn||'?'} - ${String(desc||'').toUpperCase()}${e?` E=${Math.round(e)}`:''}`.replace(/[\\:{}\[\]|;<>?`~]/g,'-').trim();
+function cpSecao(b,{alt=34}={}){
+  const L=cpCamadas(b), tot=cpTotal(b)||1, vert=b.rvCat&&b.rvCat!=='Parede';
+  if(!L.length) return '';
+  const fat=L.map(c=>{const m=S.espb.get(c.mat); return `<span class="cp-ly" style="flex:${c.fn==='Membrana'&&!(+c.esp)?'0 0 3px':((+c.esp||0)/tot*1000).toFixed(1)+' 0 0'};min-${vert?'height':'width'}:4px;background:${CP_COR[c.fn]||'#ddd'}" title="${esc(c.fn+' · '+(m?.desc||'?')+' · '+fmtMm(c.esp)+' mm')}"></span>`}).join('');
+  return `<div class="cp-sec ${vert?'v':'h'}" style="${vert?'width:150px;height:'+Math.max(60,Math.min(160,L.length*26))+'px':'height:'+alt+'px'}">${fat}</div>`;
+}
+function cpLegenda(){return `<div class="cp-leg">${CP_FN.map(([f])=>`<span><i style="background:${CP_COR[f]}"></i>${esc(f)}</span>`).join('')}</div>`}
+// editor (ficha do item central)
+function cpEditorHTML(b){
+  const dis=S.ro?'disabled':'', L=cpCamadas(b), mats=cpMateriais();
+  if(b.rvCat==null&&siglaEt(sigB(b))?.rvCat) b.rvCat=siglaEt(sigB(b)).rvCat;
+  const optMat=sel=>{let g=null,o='<option value="">— escolha o material —</option>'; for(const m of mats){const s=sigB(m)||'?'; if(s!==g){if(g!==null) o+='</optgroup>'; o+=`<optgroup label="${esc(rotSig(s)||s)}">`; g=s} o+=`<option value="${esc(m.id)}" ${m.id===sel?'selected':''}>${esc(m.fja+' · '+(m.desc||'sem descrição'))}</option>`} if(g!==null) o+='</optgroup>'; if(sel&&!S.espb.get(sel)) o+=`<option value="${esc(sel)}" selected>(material excluído)</option>`; return o};
+  let h=`<section class="sheet" id="cpEd"><div class="sheet-h"><h2>Composição no Revit</h2><span class="hint">${b.rvCat==='Parede'||!b.rvCat?'camadas de fora para dentro':'camadas de cima para baixo'}</span></div><div class="pad">
+    <div class="cp-topo"><label class="fl" style="max-width:220px">Categoria do Revit<select class="fld" data-eb="rvCat" ${dis}><option value="">—</option>${RV_CATS.map(c=>`<option ${c===b.rvCat?'selected':''}>${c}</option>`).join('')}</select></label>
+    <div class="cp-tot"><span class="muted">Espessura total</span><b class="mono" id="cpTot">${fmtMm(cpTotal(b))} mm</b></div><div style="flex:1;min-width:160px">${cpSecao(b)}</div></div>`;
+  if(!mats.length) h+=`<p class="muted" style="margin:8px 0">Não há itens de material (siglas de 2 letras) na biblioteca para usar nas camadas.</p>`;
+  h+=`<table class="list cp-tab"><thead><tr><th style="width:34px">#</th><th style="width:190px">Função</th><th>Material (biblioteca)</th><th style="width:110px" class="r">mm</th><th style="width:112px"></th></tr></thead><tbody>`;
+  L.forEach((c,i)=>{const er=cpErro(c);
+    h+=`<tr class="${er?'cp-err':''}"><td class="mono muted">${i+1}</td><td><div class="cp-fnw"><span class="cp-pt" style="background:${CP_COR[c.fn]||'#ddd'}"></span><select class="fld sm" data-cp="fn" data-i="${i}" ${dis}>${CP_FN.map(([f])=>`<option ${f===c.fn?'selected':''}>${f}</option>`).join('')}</select></div></td>
+      <td><select class="fld sm" data-cp="mat" data-i="${i}" ${dis}>${optMat(c.mat)}</select>${er?`<div class="cp-msg">${esc(er)}</div>`:''}</td>
+      <td class="r"><input class="fld sm mono r" data-cp="esp" data-i="${i}" inputmode="decimal" value="${c.esp==null?'':esc(fmtMm(c.esp))}" ${dis}></td>
+      <td class="r"><span class="cp-acts">${S.ro?'':`<button class="icb" data-act="cp-up" data-i="${i}" aria-label="Subir camada" ${i?'':'disabled'}>${IC.up}</button><button class="icb" data-act="cp-down" data-i="${i}" aria-label="Descer camada" ${i<L.length-1?'':'disabled'}>${IC.down}</button><button class="icb del" data-act="cp-del" data-i="${i}" aria-label="Remover camada">${IC.trash}</button>`}</span></td></tr>`});
+  if(!L.length) h+=`<tr><td colspan="5" class="muted" style="padding:14px">Nenhuma camada. Este item ainda não pode virar tipo no Revit.</td></tr>`;
+  h+=`</tbody></table>${S.ro?'':`<div style="display:flex;gap:8px;margin-top:10px;align-items:center"><button class="btn sm" data-act="cp-add">${IC.plus}Adicionar camada</button><span class="sp"></span>${cpLegenda()}</div>`}</div></section>`;
+  return h;
+}
+// leitura (ficha do item no projeto)
+function cpProjetoHTML(e,b){
+  if(!b||!ehComp(b)) return '';
+  const L=cpCamadas(b), pid=e.projeto;
+  if(!L.length) return `<section class="sheet"><div class="sheet-h"><h2>Composição no Revit</h2></div><div class="pad"><p class="muted" style="margin:0 0 10px">As camadas deste item ainda não foram definidas na biblioteca central. Sem elas, ele não pode virar tipo no Revit.</p><button class="btn sm" data-act="et-b-abrir" data-bid="${esc(b.id)}">Definir camadas na biblioteca</button></div></section>`;
+  const falta=[...new Set(L.map(c=>c.mat).filter(m=>m&&S.espb.get(m)&&!knNoProjeto(pid,m)))];
+  let h=`<section class="sheet"><div class="sheet-h"><h2>Composição no Revit</h2><span class="hint">${esc(b.rvCat||'categoria não definida')} · ${fmtMm(cpTotal(b))} mm · definida na biblioteca (${esc(b.fja)})</span></div><div class="pad">
+    <div class="cp-topo"><div style="flex:1;min-width:200px">${cpSecao(b)}</div></div>
+    <p class="cp-nome"><span class="muted">Tipo no Revit:</span> <span class="mono">${esc(nomeTipoRv(e.kn,e.desc))}</span></p>
+    <table class="list cp-tab"><thead><tr><th style="width:28px">#</th><th style="width:120px">Função</th><th style="width:70px">Keynote</th><th>Material</th><th style="width:56px" class="r">mm</th></tr></thead><tbody>`;
+  L.forEach((c,i)=>{const m=S.espb.get(c.mat), p=c.mat?knNoProjeto(pid,c.mat):null;
+    h+=`<tr${p?` data-act="et-abrir" data-id="${esc(pid)}" data-eid="${esc(p.id)}"`:''}><td class="mono muted">${i+1}</td><td style="white-space:nowrap"><span class="cp-pt" style="background:${CP_COR[c.fn]||'#ddd'}"></span>${esc(c.fn)}</td><td class="mono">${p?`<b>${esc(p.kn)}</b>`:`<span class="cp-falta" title="Material ainda não está na especificação deste projeto">—</span>`}</td><td title="${esc(m?m.fja+' · '+(m.desc||''):'')}">${esc(p?.desc||m?.desc||'(material excluído)')}</td><td class="r mono">${esc(fmtMm(c.esp))}</td></tr>`});
+  h+=`</tbody></table>`;
+  if(falta.length) h+=`<div class="banner" style="margin:12px 0 0"><span class="sp">${falta.length===1?'1 material desta composição ainda não está':falta.length+' materiais desta composição ainda não estão'} na especificação do projeto (sem keynote no projeto).</span>${S.ro?'':`<button class="btn sm" data-act="cp-incluir" data-id="${esc(pid)}" data-bid="${esc(b.id)}">Incluir no projeto</button>`}</div>`;
+  return h+`</div></section>`;
+}
+function cpMudou(re){marcaSujo(); if(re){const fc=document.activeElement; const sel=fc?.dataset?.cp?`[data-cp="${fc.dataset.cp}"][data-i="${fc.dataset.i}"]`:null; renderMain(); if(sel) document.querySelector(sel)?.focus()}}
+document.addEventListener('input',ev=>{const el=ev.target; if(el.dataset?.cp!=='esp'||S.view.t!=='espbi'||!S.edraft||S.ro) return;
+  const c=cpCamadas(S.edraft)[+el.dataset.i]; if(!c) return; const n=numBr(el.value); c.esp=n==null?null:Math.max(0,n); const t=$('cpTot'); if(t) t.textContent=fmtMm(cpTotal(S.edraft))+' mm'; marcaSujo()});
+document.addEventListener('change',ev=>{const el=ev.target, k=el.dataset?.cp; if(!k||S.view.t!=='espbi'||!S.edraft||S.ro) return;
+  const c=cpCamadas(S.edraft)[+el.dataset.i]; if(!c) return; if(k==='esp'){const n=numBr(el.value); c.esp=n==null?null:Math.max(0,n)} else c[k]=el.value; cpMudou(true)});
+async function cpAcao(a,b){
+  if(a==='cp-incluir'){const pid=b.dataset.id, cb=S.espb.get(b.dataset.bid); if(!cb||S.ro) return;
+    const falta=[...new Set(cpCamadas(cb).map(c=>c.mat).filter(m=>m&&S.espb.get(m)&&!knNoProjeto(pid,m)))]; if(!falta.length) return;
+    b.disabled=true; let n=0; for(const m of falta){try{await criarLinhaEs(pid,S.espb.get(m)); n++}catch(e){console.warn(e)}}
+    toast(n?`${n} ${n>1?'materiais incluídos':'material incluído'} na especificação do projeto`:'Não foi possível incluir'); renderTree(); renderMain(); return}
+  if(S.view.t!=='espbi'||!S.edraft||S.ro) return;
+  const L=S.edraft.camadas=cpCamadas(S.edraft).slice(), i=+b.dataset.i;
+  if(a==='cp-add'){L.push({fn:L.length?'Acabamento 1':'Estrutura',mat:'',esp:null}); cpMudou(true); setTimeout(()=>document.querySelector(`[data-cp="mat"][data-i="${L.length-1}"]`)?.focus(),30); return}
+  if(a==='cp-del'){L.splice(i,1)}
+  else if(a==='cp-up'&&i>0){[L[i-1],L[i]]=[L[i],L[i-1]]}
+  else if(a==='cp-down'&&i<L.length-1){[L[i+1],L[i]]=[L[i],L[i+1]]}
+  cpMudou(true);
+}
 
 function telaEtSig(h){
   const L=siglasEt(), dis=S.ro?'disabled':'';
@@ -5009,7 +5092,7 @@ function telaEtSig(h){
   L.sort((a,b)=>Object.keys(TIPOS_ET).indexOf(a.tipo)-Object.keys(TIPOS_ET).indexOf(b.tipo)||a.sigla.localeCompare(b.sigla));
   for(const x of L){ if(x.tipo!==tp){tp=x.tipo; h+=`<tr class="grp"><td colspan="5">${({material:'Materiais · 2 letras',sistema:'Composições · 3 letras',elemento:'Elementos e famílias · 3 letras'})[x.tipo]||esc(x.tipo)}</td></tr>`}
     h+=`<tr data-sig="${esc(x.sigla)}"><td class="mono"><b>${esc(x.sigla)}</b></td><td><input class="fld sm" data-sg="nome" value="${esc(x.nome||'')}" ${dis}></td>
-    <td>${x.sigla.length===2?'<span class="muted">Material</span>':`<select class="fld sm" data-sg="tipo" ${dis||(uso(x.sigla)?'title="Já usada em projetos: mudar o tipo muda a regra dos itens dela"':'')}><option value="sistema" ${x.tipo==='sistema'?'selected':''}>Composição (sistema)</option><option value="elemento" ${x.tipo==='elemento'?'selected':''}>Elemento / família</option></select>`}</td>
+    <td>${x.sigla.length===2?'<span class="muted">Material</span>':`<select class="fld sm" data-sg="tipo" ${dis||(uso(x.sigla)?'title="Já usada em projetos: mudar o tipo muda a regra dos itens dela"':'')}><option value="sistema" ${x.tipo==='sistema'?'selected':''}>Composição (sistema)</option><option value="elemento" ${x.tipo==='elemento'?'selected':''}>Elemento / família</option></select>${x.tipo==='sistema'?`<select class="fld sm" data-sg="rvCat" title="Categoria do Revit sugerida ao criar itens desta sigla" style="margin-top:4px" ${dis}><option value="">Categoria Revit: —</option>${RV_CATS.map(c=>`<option value="${c}" ${x.rvCat===c?'selected':''}>Revit: ${c}</option>`).join('')}</select>`:''}`}</td>
 
 <td class="r mono">${uso(x.sigla)||''}</td>
     <td>${S.ro||uso(x.sigla)?'':`<button class="icb" data-act="et-sig-del" title="Excluir sigla">${IC.trash}</button>`}</td></tr>`}
@@ -5537,6 +5620,8 @@ document.addEventListener('click',async ev=>{
   if(a.startsWith('pdfl-')){await pdflAcao(a,b);return}
   if(a.startsWith('ata-')){await ataAcao(a,b);return}
   if(a.startsWith('cq-')){await cqAcao(a,b);return}
+  if(a.startsWith('cp-')){await cpAcao(a,b);return}
+  if(a==='rv-publicar'){await rvPublicar('tudo');return}
   if(a.startsWith('et-')||a==='espb'){await esAcao(a,b);return}
   if(a==='croqs'){S.abertas.add('i:'+b.dataset.id);ir({t:'croqs',id:b.dataset.id});return}
   if(a==='atas'){S.abertas.add('i:'+b.dataset.id);ir({t:'atas',id:b.dataset.id});return}
@@ -6749,7 +6834,79 @@ async function baixarConexaoPC(){
   try{const r=await downloads.save({filename:'FJA-ConexaoPC.zip',data:z}); if(r) toast('Pacote salvo. Extraia e rode instalar.cmd')}
   catch(e){toast(e?.code==='declined'?'Download cancelado':'Não foi possível baixar o pacote')}
 }
+/* ---------- conexão com o Revit: publicação da especificação no G: (pasta SISTEMA FJA\REVIT) ---------- */
+// O pyRevit (aba Ferramentas FJA) lê esses arquivos pelo Google Drive para Desktop.
+// O conector do Drive não reescreve conteúdo: cada publicação cria o arquivo novo e manda o anterior para a lixeira.
+// Estado em config/revit: {arquivos:{<nome>:{id,hash,em,por}}, erro}
+const RVP={pasta:AMB==='dev'?'18ga9uZxZs0yFTs0xgTdmeXleAJLBfG0f':'10c0Ebbm2ubHoM_LrXGZ40dbw3HP-xgkw',
+  caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT'+(AMB==='dev'?'\\DEV':''),rodando:false,st:null,timer:null,ult:0};
+const hashTxt=s=>{let h=0x811c9dc5; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,0x01000193)} return (h>>>0).toString(16)};
+const rvCod=it=>String(it?.campos?.codigo||'').trim();
+const rvNomeProj=it=>`projeto-${(rvCod(it)||it.id).replace(/[\\/:*?"<>|\s]+/g,'_')}.json`;
+function rvMontar(){
+  const base={sistema:'Sistema FJA',formato:1,ambiente:AMB};
+  const fnRv=f=>(CP_FN.find(x=>x[0]===f)||CP_FN[3])[1];
+  const projs=[...S.itens.values()].filter(i=>i.secao==='projetos'&&espDe(i.id).length).sort((a,b)=>rvCod(a).localeCompare(rvCod(b),'pt',{numeric:true}));
+  const bib={...base,tipo:'biblioteca',
+    siglas:siglasEt().map(x=>({sigla:x.sigla,nome:x.nome||'',tipo:x.tipo,...(x.rvCat?{rvCat:x.rvCat}:{})})),
+    itens:[...S.espb.values()].sort((a,b)=>fjaNum(a)-fjaNum(b)).map(b=>{const t=tipoEt(b), o={id:b.id,fja:b.fja||'',sigla:sigB(b)||'',tipo:t,desc:b.desc||'',texto:b.texto||'',nbr:b.nbr||'',fabricante:b.fabricante||''};
+      if(t==='sistema'){o.rvCat=b.rvCat||siglaEt(sigB(b))?.rvCat||''; o.camadas=cpCamadas(b).map(c=>({funcao:c.fn,funcaoRevit:fnRv(c.fn),material:c.mat||'',esp:+c.esp||0})); o.espTotal=cpTotal(b)}
+      return o}),
+    projetos:projs.map(i=>({id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||'',arquivo:rvNomeProj(i)}))};
+  const arqs=[{nome:'biblioteca.json',obj:bib}];
+  for(const i of projs) arqs.push({nome:rvNomeProj(i),obj:{...base,tipo:'projeto',projeto:{id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||''},
+    itens:espDe(i.id).sort(ordEs).map(e=>({id:e.id,item:e.item||'',kn:e.kn||'',sigla:knPref(e.kn),desc:e.desc||'',texto:e.texto||''}))}});
+  return arqs;
+}
+async function rvPublicar(manual){
+  if(RVP.rodando||S.publico||!S.carregado||!db) return;
+  if(S.ro||!mcp){if(manual) toast(S.ro?'Somente leitura: sem permissão para publicar':'Sem conexão com o Google Drive');return}
+  RVP.rodando=true; RVP.ult=Date.now(); if(manual) rvUI();
+  const ref=db.doc('config/revit'); let n=0;
+  try{
+    const g=await ref.get(), st=g.exists?g.data():{}; st.arquivos=st.arquivos||{};
+    for(const a of rvMontar()){
+      const h=hashTxt(JSON.stringify(a.obj)), at=st.arquivos[a.nome]; if(at&&at.hash===h&&!(manual==='tudo')) continue;
+      const txt=JSON.stringify({...a.obj,geradoEm:new Date().toISOString(),geradoPor:S.meuNome||''},null,1);
+      const r=await mcp.callTool('Google Drive','create_file',{title:a.nome,parentId:RVP.pasta,textContent:txt,contentMimeType:'application/json',disableConversionToGoogleType:true},{cache:false});
+      const f=r?.payload||r||{}, id=f.id||f.file?.id; if(!id) throw new Error('O Drive não devolveu o arquivo criado');
+      if(at?.id&&at.id!==id){try{await mcp.callTool('Google Drive','trash_file',{fileId:at.id},{cache:false})}catch(e){console.warn('revit: lixeira',e)}}
+      st.arquivos[a.nome]={id,hash:h,em:Date.now(),por:S.meuNome||me||''}; st.erro=null; n++;
+      await ref.set(st); RVP.st=st;
+    }
+    if(manual) toast(n?`${n} arquivo${n>1?'s':''} publicado${n>1?'s':''} para o Revit`:'Os arquivos do Revit já estavam atualizados');
+  }catch(e){console.warn('revit',e); const msg=String(e?.message||e?.code||e).slice(0,300);
+    try{const g=await ref.get(), v=g.exists?g.data():{}; await ref.set({...v,erro:{em:Date.now(),msg}})}catch{}
+    if(manual) toast('Não foi possível publicar para o Revit: '+msg)}
+  finally{RVP.rodando=false; rvUI()}
+}
+function rvAgendar(){if(S.ro||S.publico) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
+function rvUI(){if(S.view?.t==='ferr'&&S.view.f==='revit'&&!S.dirty) renderMain()}
+function telaRevit(h){
+  const st=RVP.st||{}, A=Object.entries(st.arquivos||{}).sort((a,b)=>a[0]==='biblioteca.json'?-1:b[0]==='biblioteca.json'?1:a[0].localeCompare(b[0],'pt',{numeric:true}));
+  const fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}), nComp=[...S.espb.values()].filter(ehComp), sem=nComp.filter(b=>!cpCamadas(b).length).length;
+  h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="ferr">Ferramentas</button><span>/</span><span>Conexão com o Revit</span></div>
+  <h1>Conexão com o Revit</h1><p class="lead">A especificação técnica (biblioteca central, siglas e especificação de cada projeto) é publicada como arquivos .json numa pasta do G:, lida pela aba <b>Ferramentas FJA</b> do pyRevit. A publicação é automática alguns segundos depois de qualquer alteração, por quem estiver com o sistema aberto.</p>
+  <section class="sheet"><div class="sheet-h"><h2>Arquivos publicados</h2><span class="hint">${AMB==='dev'?'desenvolvimento: pasta DEV':''}</span><span class="sp"></span>${S.ro?'':`<button class="btn sm${RVP.rodando?'':' pri'}" data-act="rv-publicar" ${RVP.rodando||!mcp?'disabled':''}>${RVP.rodando?'Publicando…':'Publicar agora'}</button>`}</div>
+  ${A.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th>Arquivo</th><th style="width:160px">Atualizado</th><th style="width:180px">Por</th></tr></thead><tbody>${A.map(([n,a])=>`<tr><td class="mono">${a.id?`<a href="https://drive.google.com/file/d/${esc(a.id)}/view" target="_blank" rel="noopener">${esc(n)}</a>`:esc(n)}</td><td class="mono">${a.em?fmt(a.em):''}</td><td>${esc(a.por||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="pad muted">Nada publicado ainda.</p>`}
+  ${st.erro?`<p class="pad" style="color:var(--danger);margin:0">Última falha (${fmt(st.erro.em)}): ${esc(st.erro.msg||'')}</p>`:''}</section>
+  <section class="sheet"><div class="sheet-h"><h2>Composições</h2></div><div class="pad ferr-pad"><p>${nComp.length} ${nComp.length===1?'item':'itens'} de sigla Composição na biblioteca${sem?` · <b>${sem} sem camadas</b> (não podem virar tipo no Revit até as camadas serem definidas na ficha do item)`:''}.</p></div></section>
+  <section class="sheet"><div class="sheet-h"><h2>Pasta</h2></div><div class="pad ferr-pad"><p><span class="mono">${esc(RVP.caminho)}</span> · <a href="https://drive.google.com/drive/folders/${RVP.pasta}" target="_blank" rel="noopener">abrir no Drive</a></p>
+  <p class="muted">Cada publicação cria o arquivo de novo e manda a versão anterior para a lixeira do Drive (o conector não reescreve arquivos). O pyRevit usa sempre o arquivo mais recente com o mesmo nome.</p></div></section></div>`;
+  return h;
+}
+(function rvIniciar(){
+  const t=setInterval(()=>{
+    if(S.publico){clearInterval(t);return}
+    if(!S.carregado||!db) return; clearInterval(t);
+    if(!FERRAMENTAS.some(x=>x.id==='revit')) FERRAMENTAS.push({id:'revit',nome:'Conexão com o Revit',resumo:'Publica a especificação técnica no G: para a aba Ferramentas FJA do pyRevit.'});
+    db.doc('config/revit').onSnapshot(s=>{RVP.st=s.exists?s.data():null; rvUI()},()=>{});
+    setTimeout(()=>rvPublicar(false),20e3); setInterval(()=>{if(Date.now()-RVP.ult>55e3) rvPublicar(false)},60e3);
+  },1000);
+})();
+
 function telaFerr(h,v){
+  if(v.f==='revit') return telaRevit(h);
   const f=FERRAMENTAS.find(x=>x.id===v.f);
   if(!f){
     h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><span>Ferramentas</span></div>
@@ -6932,14 +7089,14 @@ async function modoPublico(){
     if(S.qdraft&&!S.dirty&&S.view.t==='comi'){const n=m.get(S.qdraft.id); if(n) S.qdraft=structuredClone(n)}
     if(S.carregado){if(S.dirty) renderTree(); else render()}
   },()=>{});
-  etsigColl().onSnapshot(snap=>{const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.sigla) m.set(d.id,{...v,id:d.id})} S.etsig=m; if(S.carregado&&!S.dirty) render()},()=>{});
-  espbColl().onSnapshot(snap=>{
+  etsigColl().onSnapshot(snap=>{rvAgendar();const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.sigla) m.set(d.id,{...v,id:d.id})} S.etsig=m; if(S.carregado&&!S.dirty) render()},()=>{});
+  espbColl().onSnapshot(snap=>{rvAgendar();
     const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.fja) m.set(d.id,{...structuredClone(v),id:d.id})}
     S.espb=m;
     if(S.edraft&&!S.dirty&&S.view.t==='espbi'){const n=m.get(S.edraft.id); if(n) S.edraft=structuredClone(n)}
     if(S.carregado){if(S.dirty) renderTree(); else render()}
   },()=>{});
-  espColl().onSnapshot(snap=>{
+  espColl().onSnapshot(snap=>{rvAgendar();
     const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.projeto) m.set(d.id,{...structuredClone(v),id:d.id})}
     S.espec=m;
     if(S.qdraft&&!S.dirty&&S.view.t==='espi'){const n=m.get(S.qdraft.id); if(n) S.qdraft=structuredClone(n)}
