@@ -6883,10 +6883,27 @@ async function rvPublicar(manual){
       await ref.set(st); RVP.st=st;
     }
     if(manual) toast(n?`${n} arquivo${n>1?'s':''} publicado${n>1?'s':''} para o Revit`:'Os arquivos do Revit já estavam atualizados');
+    if(manual) await rvLimpar(true);
   }catch(e){console.warn('revit',e); const msg=String(e?.message||e?.code||e).slice(0,300);
     try{const g=await ref.get(), v=structuredClone(g.exists?g.data():{}); await ref.set({...v,erro:{em:Date.now(),msg}})}catch{}
     if(manual) toast('Não foi possível publicar para o Revit: '+msg)}
   finally{RVP.rodando=false; rvUI()}
+}
+// limpa cópias antigas dos arquivos publicados (deixa só o arquivo registrado em config/revit)
+async function rvLimpar(manual){
+  if(S.ro||!mcp) return 0;
+  const g=await db.doc('config/revit').get(), st=g.exists?g.data():{}, atuais=new Map(Object.entries(st.arquivos||{}).map(([n,a])=>[n,a?.id]));
+  if(!atuais.size) return 0;
+  let tok=null, lixo=[], n=0;
+  for(let pag=0;pag<40;pag++){
+    const r=await mcp.callTool('Google Drive','search_files',{query:`parentId = '${RVP.pasta}' and trashed = false`,excludeContentSnippets:true,pageSize:100,...(tok?{pageToken:tok}:{})},{cache:false});
+    const pl=r?.payload||r||{};
+    for(const f of (pl.files||[])) if(atuais.has(f.title)&&f.id!==atuais.get(f.title)&&f.mimeType!=='application/vnd.google-apps.folder') lixo.push(f.id);
+    tok=pl.nextPageToken; if(!tok||!(pl.files||[]).length) break;
+  }
+  for(const id of lixo){try{await mcp.callTool('Google Drive','trash_file',{fileId:id},{cache:false}); n++}catch(e){console.warn('revit: limpar',e)}}
+  if(manual&&n) toast(`${n} cópia${n>1?'s':''} antiga${n>1?'s':''} enviada${n>1?'s':''} para a lixeira`);
+  return n;
 }
 function rvAgendar(){if(S.ro||S.publico) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
 function rvUI(){if(S.view?.t==='ferr'&&S.view.f==='revit'&&!S.dirty) renderMain()}
@@ -6909,7 +6926,7 @@ function telaRevit(h){
     if(!S.carregado||!db) return; clearInterval(t);
     if(!FERRAMENTAS.some(x=>x.id==='revit')) FERRAMENTAS.push({id:'revit',nome:'Conexão com o Revit',resumo:'Publica a especificação técnica no G: para a aba Ferramentas FJA do pyRevit.'});
     db.doc('config/revit').onSnapshot(s=>{RVP.st=s.exists?s.data():null; rvUI()},()=>{});
-    setTimeout(()=>rvPublicar(false),20e3); setInterval(()=>{if(Date.now()-RVP.ult>55e3) rvPublicar(false)},60e3);
+    setTimeout(()=>rvPublicar(false).then(()=>rvLimpar(false)).catch(()=>{}),20e3); setInterval(()=>{if(Date.now()-RVP.ult>55e3) rvPublicar(false)},60e3);
   },1000);
 })();
 
