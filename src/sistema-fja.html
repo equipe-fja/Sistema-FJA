@@ -324,6 +324,8 @@ table.list.esp tr.grp .mono{color:var(--accent);margin-right:6px}
 table.list.esp small{display:block;color:var(--faint);font-size:12px}
 .esp-th{width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid var(--line);display:block;background:var(--bg)}
 .esp-th.vazio{background:repeating-linear-gradient(135deg,var(--side) 0 6px,var(--bg) 6px 12px)}
+.et-fora{color:#b4231b;text-decoration:underline dotted}
+.et-sig .fld.sm{height:30px;padding:3px 8px;font-size:13px}
 .et-dot{color:#d08a1a;font-size:10px;vertical-align:1px}
 .et-txt{-webkit-line-clamp:3}
 .et-res{cursor:default}
@@ -332,6 +334,10 @@ table.list.esp small{display:block;color:var(--faint);font-size:12px}
 .et-mi{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;padding:9px 12px;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer;font:inherit;color:var(--ink)}
 .et-mi:hover:not(:disabled){background:var(--hover,#f4f3f0)}
 .et-mi:disabled{opacity:.5;cursor:default}
+.et-mi-nova .mono{color:var(--muted)!important}.et-mi-nova b{color:var(--brand,#8e1b1b)}
+.et-nsig[hidden],.et-ml[hidden]{display:none!important}
+.et-nsig{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}.et-nsig-g{display:flex;gap:10px;flex-wrap:wrap}.et-nsig-g .fl{min-width:110px}
+.et-mi.sel{background:var(--hover,#f4f3f0);box-shadow:inset 3px 0 0 var(--brand,#8e1b1b)}
 .et-mi>.mono{min-width:66px;font-weight:600;color:var(--brand,#8e1b1b)}
 .et-mi-d{display:flex;flex-direction:column;gap:2px}.et-mi-d small{color:var(--muted)}
 .et-dl{display:grid;grid-template-columns:170px minmax(0,1fr);gap:8px 16px;margin:0}.et-dl dt{color:var(--muted);font-size:12.5px}.et-dl dd{margin:0}
@@ -1086,7 +1092,7 @@ const DEFAULT_SCHEMA = {
   ]
 };
 
-const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), crono:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
+const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), crono:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), etsig:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
   view:{t:'home'}, fx:new Set(), fechadas:new Set((()=>{try{return JSON.parse(localStorage.getItem('fja.fechadas')||'[]')}catch{return []}})()), abertas:new Set(['s:projetos','g:biblioteca','s:familias','s:templates','s:representacao','s:disciplinas','s:parceiros','s:manuais']), busca:'', draft:null, dirty:false, schemaDraft:null, pend:null, ro:false};
 let db=null, user=null, me=null, assets=null, mcp=null, downloads=null;
 
@@ -1169,7 +1175,7 @@ function renderTree(){
     const n=g.filhos.reduce((a,f)=>a+itensDe(f).length,0);
     h+=`<div class="secline"><button class="row sec-h ${S.view.t==='grupo'&&S.view.g===t?'sel':''}" data-act="grupo" data-g="${t}" data-tk="${kG}" aria-expanded="${abG}">${chev(abG)}${IC[t]}<span class="lbl">${esc(g.nome)}</span><span class="cnt">${n||''}</span></button></div>`;
     if(abG) for(const f of g.filhos) h+=secTree(SEC[f],1);
-    if(abG&&t==='biblioteca') h+=`<div class="secline sub"><button class="row sub-h ${S.view.t==='espb'||S.view.t==='espbi'?'sel':''}" style="padding-left:28px" data-act="espb"><span class="chev"></span>${IC.manuais}<span class="lbl">Especificação técnica</span><span class="cnt">${S.espb.size||''}</span></button></div>`;
+    if(abG&&t==='biblioteca') h+=`<div class="secline sub"><button class="row sub-h ${S.view.t==='espb'||S.view.t==='espbi'||S.view.t==='etsig'?'sel':''}" style="padding-left:28px" data-act="espb"><span class="chev"></span>${IC.manuais}<span class="lbl">Especificação técnica</span><span class="cnt">${S.espb.size||''}</span></button></div>`;
     if(abG&&t==='biblioteca'){const kF='s:ferramentas', abF=S.abertas.has(kF)||(S.view.t==='ferr'&&!!S.view.f&&!S.fx.has(kF)), selF=S.view.t==='ferr'&&!S.view.f;
       h+=`<div class="secline sub"><button class="row sub-h ${selF?'sel':''}" style="padding-left:28px" data-act="ferr" data-tk="${kF}" aria-expanded="${abF}">${chev(abF)}${IC.ferr}<span class="lbl">Ferramentas</span><span class="cnt">${FERRAMENTAS.length}</span></button></div>`;
       if(abF) for(const x of FERRAMENTAS) h+=`<button class="row item ${S.view.t==='ferr'&&S.view.f===x.id?'sel':''}" style="padding-left:64px" data-act="ferr" data-f="${x.id}"><span class="lbl">${esc(x.nome)}</span>${x.id==='pc'&&pcAtivo()?'<span class="dot t-ok" title="Ativa neste computador"></span>':''}</button>`}
@@ -1218,6 +1224,7 @@ function renderMain(){
   else if(v.t==='espi') h=telaSplit(h,v,'esp',telaEsp,telaEspItem);
   else if(v.t==='espb') h=telaEspb(h);
   else if(v.t==='espbi') h=telaEspbItem(h,v);
+  else if(v.t==='etsig') h=telaEtSig(h);
   else if(v.t==='eq') h=telaEq(h,v);
   else if(v.t==='eqi') h=telaSplit(h,v,'eq',telaEq,telaEqItem);
   else if(v.t==='com') h=telaCm(h,v);
@@ -4596,24 +4603,68 @@ const knPref=kn=>(/^\.?([A-Za-z]+)/.exec(String(kn||''))?.[1]||'').toUpperCase()
 const knNum=kn=>{const m=/(\d+)/.exec(String(kn||''));return m?+m[1]:0};
 const knChave=kn=>String(kn||'').trim().toUpperCase();
 const ordKn=(a,b)=>String(a.kn||'').replace(/^\./,'').localeCompare(String(b.kn||'').replace(/^\./,''),'pt',{numeric:true});
-const ordEs=(a,b)=>ordTabEt(a.tabela)-ordTabEt(b.tabela)||ordKn(a,b);
+const ordEs=(a,b)=>ordSig(knPref(a.kn))-ordSig(knPref(b.kn))||ordKn(a,b);
 const usosEspb=id=>[...S.espec.values()].filter(e=>e.item===id);
 const desatEs=e=>{const b=espbDe(e);return !!(b&&e.baseEm&&b.textoEm&&b.textoEm>e.baseEm)};
-const nomeGrupoKn=(pref,tab)=>KN_NOMES[pref]||(tab&&tab!=='Materiais'?tab:pref);
+const nomeGrupoKn=(pref,tab)=>siglaEt(pref)?.nome||KN_NOMES[pref]||(tab&&tab!=='Materiais'?tab:pref);
 const linha1=t=>String(t||'').replace(/[\t\r\n]+/g,' ').replace(/\s{2,}/g,' ').trim();
 function descCurta(t){const s=linha1(t); if(!s) return ''; let c=s.split(/(?<=\S)[,.;](?=\s)| - /)[0]; if(c.length>90) c=c.slice(0,88).replace(/\s+\S*$/,'')+'…'; return c.replace(/[.;,:]+$/,'')}
-function proxKn(pid,pref,modelo){
-  const L=espDe(pid).filter(e=>knPref(e.kn)===pref);
-  const n=L.reduce((m,e)=>Math.max(m,knNum(e.kn)),0)+1, ex=L.sort(ordKn).at(-1)?.kn||modelo||'';
-  const ponto=/^\./.test(ex), sep=/^\.?[A-Za-z]+\./.test(ex)?'.':(ex?'':'.'), pad=/[A-Za-z]\.?0\d/.test(ex)?2:1;
-  let k=(ponto?'.':'')+pref+sep+String(n).padStart(pad,'0'), i=n;
-  while(espDe(pid).some(e=>knChave(e.kn)===knChave(k))){i++;k=(ponto?'.':'')+pref+sep+String(i).padStart(pad,'0')}
-  return k;
+/* ---- siglas de keynote: 2 letras = material · 3 letras = elemento ou família ---- */
+const TIPOS_ET={material:'Material',elemento:'Elemento / família'};
+const SIGLAS_PADRAO=[
+  ['AL','Painéis de alumínio composto (ACM)','material','Materiais',['AL']],['EV','Elementos vazados','material','Materiais',['COB','CO']],['BL','Blocos','material','Materiais',['BL']],
+  ['CH','Chapas metálicas','material','Materiais',['CH']],['CA','Concreto aparente','material','Materiais',['CL']],['CR','Capachos e carpetes','material','Materiais',['CR']],
+  ['CC','Pisos e lajes em concreto','material','Materiais',['CS']],['EM','Argamassas','material','Materiais',['EM']],['ES','Espelhos','material','Materiais',['ESP']],
+  ['FM','Forros minerais','material','Materiais',['FM']],['GE','Gesso acartonado','material','Materiais',['GE']],['GM','Forrações vegetais','material','Materiais',['GM']],
+  ['GN','Granitos e granilites','material','Materiais',['GN']],['IT','Pisos intertravados','material','Materiais',['IT']],['MD','Madeiras','material','Materiais',['MD']],
+  ['PC','Placas cimentícias','material','Materiais',['PC']],['PI','Pinturas e texturas','material','Materiais',['PI']],['PN','Painéis acústicos','material','Materiais',['PN']],
+  ['PO','Porcelanatos e cerâmicas','material','Materiais',['PO']],['RS','Resinas','material','Materiais',['RS']],['RA','Revestimentos acústicos','material','Materiais',['RVA']],
+  ['TM','Telhas e coberturas','material','Materiais',['TM']],['VN','Pisos vinílicos','material','Materiais',['VN']],
+  ['PIN','Pinturas aplicadas','elemento','Diversos',[]],['DRY','Paredes em drywall','elemento','Drywall',['DW']],
+  ['CPM','Chapins','elemento','Chapim',['CPM']],['COR','Corrimãos','elemento','Corrimão e guarda-corpo',['COR']],['GCO','Guarda-corpos','elemento','Corrimão e guarda-corpo',['GCO']],
+  ['PNL','Painéis e divisórias','elemento','Divisórias',['PNL']],['ESQ','Esquadrias','elemento','Esquadrias',['ESQ']],['GRD','Gradis e portões','elemento','Gradis',['GD']],
+  ['JAN','Janelas','elemento','Janelas',['JA']],['ALZ','Alizares e vãos','elemento','Portas',['AG']],['PAL','Portas de alumínio','elemento','Portas',['PA']],
+  ['PAC','Portas acústicas','elemento','Portas',['PAC']],['PCF','Portas corta-fogo','elemento','Portas',['PCF']],['PFE','Portas de ferro','elemento','Portas',['PF']],
+  ['PIV','Portas pivotantes','elemento','Portas',['PIV']],['PMD','Portas de madeira','elemento','Portas',['PM']],['TIN','Tampas de inspeção','elemento','Portas',['TI']],
+  ['ROD','Rodapés','elemento','Rodapés',['RP']],['MAR','Marcenarias','elemento','Marcenarias',['MAR']],
+  ['ACS','Acabamentos de registros e válvulas','elemento','Louças e metais',['ACS']],['AQU','Aquecedores','elemento','Louças e metais',['AQU']],['BAC','Bacias sanitárias','elemento','Louças e metais',['BAC']],
+  ['BAR','Barras de apoio','elemento','Louças e metais',['BAR']],['CHU','Chuveiros','elemento','Louças e metais',['CHU']],['CUB','Cubas','elemento','Louças e metais',['CUB']],
+  ['DUC','Duchas higiênicas','elemento','Louças e metais',['DUC']],['LAV','Lavatórios','elemento','Louças e metais',['LAV']],['LVM','Lava-mãos','elemento','Louças e metais',['LVM']],
+  ['MIC','Mictórios','elemento','Louças e metais',['MIC']],['RAL','Ralos','elemento','Louças e metais',['RAL']],['TNQ','Tanques','elemento','Louças e metais',['TNQ']],
+  ['TOR','Torneiras','elemento','Louças e metais',['TOR']],['VAL','Válvulas','elemento','Louças e metais',['VAL']],
+  ['ARM','Armários e estantes','elemento','Mobiliário',['ARM']],['BAB','Bancos de banho e trocadores','elemento','Mobiliário',['BAB']],['BIC','Bicicletários','elemento','Mobiliário',['BIC']],
+  ['BCO','Bancos fixos','elemento','Mobiliário',['BCO']],['BMB','Biombos','elemento','Mobiliário',['BMB']],['CAD','Cadeiras, poltronas e bancos','elemento','Mobiliário',['CAD']],
+  ['CAR','Carrinhos','elemento','Mobiliário',['CAR']],['CBD','Cabides','elemento','Mobiliário',['CBD']],['DEC','Decoração','elemento','Mobiliário',['DEC']]
+].map(([sigla,nome,tipo,tabela,origens])=>({sigla,nome,tipo,tabela,origens}));
+const etsigColl=()=>db.collection('etsig');
+function siglasEt(){const m=new Map(SIGLAS_PADRAO.map(x=>[x.sigla,{...x,padrao:true}])); for(const x of (S.etsig||new Map()).values()){if(x.del) m.delete(x.sigla); else m.set(x.sigla,{...(m.get(x.sigla)||{}),...x,tipo:x.tipo==='sistema'?'elemento':(x.tipo||m.get(x.sigla)?.tipo),padrao:false})}
+  return [...m.values()].sort((a,b)=>(a.tipo==='material'?0:1)-(b.tipo==='material'?0:1)||a.sigla.localeCompare(b.sigla))}
+// a sigla É a tabela: cada sigla agrupa seus itens (PMD · Portas de madeira)
+const ordSig=sg=>{const i=siglasEt().findIndex(x=>x.sigla===sg);return i<0?999:i};
+const rotSig=sg=>sg?sg+' · '+(siglaEt(sg)?.nome||'sigla não cadastrada'):'';
+const tabEs=e=>rotSig(knPref(e?.kn));
+const sigB=b=>b?.sigla||(b?usosEspb(b.id).map(x=>knPref(x.kn)).find(Boolean):'')||'';
+const siglaEt=s=>siglasEt().find(x=>x.sigla===s);
+const tipoEt=b=>(t=>t==='sistema'?'elemento':t)(siglaEt(b?.sigla||(b?.id?sigB(b):''))?.tipo||b?.tipo||(b?.tabela==='Materiais'?'material':'elemento'));
+const tipoEtOld=b=>b?.tipo||siglaEt(b?.sigla)?.tipo||(b?.tabela==='Materiais'?'material':'elemento');
+const fmtKnOk=(kn,tipo)=>(tipo==='material'?/^[A-Z]{2}\.\d{2}$/:/^[A-Z]{3}\.\d{2}$/).test(String(kn||''));
+const regraKn=t=>t==='material'?'2 letras, ponto e 2 dígitos (ex.: PI.01)':'3 letras, ponto e 2 dígitos (ex.: PIN.01)';
+function siglaNova(oldPref,tabela,tipo){
+  const L=siglasEt(); const o=String(oldPref||'').toUpperCase();
+  return L.find(x=>x.tipo===tipo&&(x.origens||[]).includes(o))?.sigla||L.find(x=>(x.origens||[]).includes(o)&&(tipo==='material')===(x.tipo==='material'))?.sigla
+    ||(tipo==='material'?o.slice(0,2):(o.length>=3?o.slice(0,3):(o+'X').slice(0,3))).padEnd(tipo==='material'?2:3,'X');
+}
+function proxKn(pid,pref){
+  pref=String(pref||'').toUpperCase(); let i=espDe(pid).filter(e=>knPref(e.kn)===pref).reduce((m,e)=>Math.max(m,knNum(e.kn)),0)+1, k;
+  do{k=pref+'.'+String(i).padStart(2,'0'); i++}while(espDe(pid).some(e=>knChave(e.kn)===k)); return k;
 }
 function prefSugerido(pid,b){
-  for(const e of usosEspb(b.id)){const p=knPref(e.kn); if(p) return [p,e.kn]}
-  const x=espDe(pid).filter(e=>e.tabela===b.tabela).sort(ordKn).at(-1); if(x&&b.tabela!=='Materiais') return [knPref(x.kn),x.kn];
-  return [(semAc(b.desc||b.tabela||'dv').replace(/[^a-z]/g,'').slice(0,2)||'dv').toUpperCase(),''];
+  const t=tipoEt(b);
+  for(const e of usosEspb(b.id)){if(fmtKnOk(e.kn,t)) return [knPref(e.kn)]}
+  if(b.sigla&&siglaEt(b.sigla)) return [b.sigla];
+  const L=siglasEt().filter(x=>x.tipo===t||(t!=='material'&&x.tipo!=='material'));
+  const x=L.find(x=>x.tabela===b.tabela); if(x) return [x.sigla];
+  const w=semAc(b.desc||'').replace(/[^a-z]/g,'').toUpperCase(); return [(w||'XXX').slice(0,t==='material'?2:3).padEnd(t==='material'?2:3,'X')];
 }
 const normTxtEt=t=>semAc(linha1(t)).replace(/[^a-z0-9]/g,'');
 function duplicadosEspb(){const m=new Map(); for(const b of S.espb.values()){const k=normTxtEt(b.texto); if(k.length<12) continue; if(!m.has(k)) m.set(k,[]); m.get(k).push(b.id)}
@@ -4623,8 +4674,10 @@ function duplicadosEspb(){const m=new Map(); for(const b of S.espb.values()){con
 const celEdEs=(e,k,html)=>S.ro?html:`<span class="cel-ed" data-act="et-cel" data-k="${k}" data-eid="${esc(e.id)}" title="Clique para editar">${html||'<span class="cel-vz">—</span>'}</span>`;
 const fjaCel=e=>{const b=espbDe(e); if(!b) return '<span class="muted">—</span>'; return `<span class="mono muted">${esc(b.fja||'')}</span>${desatEs(e)?' <span class="et-dot" title="O texto do banco central mudou depois que este item foi especificado">●</span>':''}`};
 const ES_TCOLS=[
-  ['tabela','Tabela',1,e=>celEdEs(e,'tabela',esc(e.tabela||'')),''],
-  ['kn','Keynote',2,e=>celEdEs(e,'kn',`<b class="mono">${esc(e.kn||'')}</b>`),'mono'],
+  ['tabela','Tabela',1,e=>`<span class="mono">${esc(knPref(e.kn))}</span> <span class="muted">${esc(siglaEt(knPref(e.kn))?.nome||'')}</span>`,''],
+  ['kn','Keynote',2,e=>celEdEs(e,'kn',`<b class="mono${fmtKnOk(e.kn,tipoEt(espbDe(e)))?'':' et-fora'}" ${fmtKnOk(e.kn,tipoEt(espbDe(e)))?'':`title="Fora do padrão: ${regraKn(tipoEt(espbDe(e)))}"`}>${esc(e.kn||'')}</b>`),'mono'],
+  ['tipo','Tipo',0,e=>esc(TIPOS_ET[tipoEt(espbDe(e))]||''),''],
+  ['orig','Código de origem',0,e=>`<span class="mono muted">${esc((e.var?.length?e.var.map(v=>v.kn):[e.knOrig]).filter(Boolean).join(', '))}</span>`,'mono'],
   ['desc','Descrição',1,e=>celEdEs(e,'desc',`<span class="cm-txt">${esc(e.desc||'')}</span>`),'wide'],
   ['texto','Especificação no projeto',1,e=>celEdEs(e,'texto',`<span class="cm-txt et-txt">${esc(e.texto||'')}</span>`),'wide'],
   ['fja','Item central',1,e=>fjaCel(e),'mono'],
@@ -4635,11 +4688,11 @@ const ES_TCOLS=[
 const numBr=v=>{const t=String(v??'').trim(); if(!t) return null; const n=+t.replace(/\./g,'').replace(',','.'); return isNaN(n)?null:n};
 iniciarMod({id:'es',lk:'fja.es.',T:ES_TCOLS,padrao:ES_TCOLS.filter(c=>c[2]).map(c=>c[0]),de:id=>espDe(id),mapa:()=>S.espec,coll:()=>espColl(),ord:ordEs,
   num:{kn:null},
-  semFiltro:new Set(['texto','desc','obs','ferragens','kn']),grupos:{tabela:'tabela',fja:'item central'},
-  val:{fja:e=>espbDe(e)?.fja||'',nbr:e=>espbDe(e)?.nbr||''},
-  ordGrupo:{tabela:ordTabEt},
+  semFiltro:new Set(['texto','desc','obs','ferragens','kn','orig']),grupos:{tabela:'tabela',fja:'item central',tipo:'tipo'},
+  val:{tabela:e=>tabEs(e),fja:e=>espbDe(e)?.fja||'',nbr:e=>espbDe(e)?.nbr||'',tipo:e=>TIPOS_ET[tipoEt(espbDe(e))]||'',orig:e=>(e.var?.length?e.var.map(v=>v.kn):[e.knOrig]).filter(Boolean).join(', ')},
+  ordGrupo:{tabela:v=>ordSig(String(v).split(' · ')[0])},
   rotGrupo(k,v){return v?esc(v):'Sem '+(k==='tabela'?'tabela':'item central')},
-  busca:e=>[e.kn,e.desc,e.texto,e.tabela,e.ferragens,e.obs,espbDe(e)?.fja,espbDe(e)?.nbr,espbDe(e)?.desc].join(' '),
+  busca:e=>[e.kn,e.desc,e.texto,tabEs(e),e.ferragens,e.obs,espbDe(e)?.fja,espbDe(e)?.nbr,espbDe(e)?.desc].join(' '),
   abrir:'et-abrir',nenhum:'Nenhum item corresponde aos filtros.',
   vazio:pid=>`<div class="esp-vazio"><h2>Comece a especificação deste projeto</h2><p>Puxe itens do banco central da Biblioteca ou cadastre novos. Cada item recebe um keynote próprio do projeto (PO1, PA.1, ACS.01…), que vai para o arquivo de keynotes do Revit.</p>${S.ro?'':`<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn pri" data-act="et-puxar" data-id="${esc(pid)}">${IC.plus}Puxar da biblioteca</button><button class="btn" data-act="et-novo" data-id="${esc(pid)}">${IC.plus}Novo item</button><button class="btn" data-act="et-importar" data-id="${esc(pid)}">Importar planilha</button></div>`}</div>`,
   view:'esp',xVal:()=>undefined,
@@ -4647,13 +4700,13 @@ iniciarMod({id:'es',lk:'fja.es.',T:ES_TCOLS,padrao:ES_TCOLS.filter(c=>c[2]).map(
 });
 if(lsGet('fja.es.agrupar',null)==null) MODS.es.st.agrupar='tabela';
 PDFL_TIT.es='Especificação técnica'; PDFL_NOME.es='ESPECIFICACAO-TECNICA';
-PDFL_GRAF.es=[{tit:'Por tabela',val:e=>e.tabela||'Sem tabela',ordem:TABELAS_ET},{tit:'Por grupo de keynote',val:e=>knPref(e.kn)||'Sem keynote'}];
+PDFL_GRAF.es=[{tit:'Por tabela',val:e=>tabEs(e)||'Sem tabela'},{tit:'Por tipo',val:e=>TIPOS_ET[tipoEt(espbDe(e))]||'Sem tipo'}];
 
 function telaEsp(h,v){
   const it=S.itens.get(v.id); if(!it) return h+`<div class="page"><h1>Projeto não encontrado</h1></div>`;
   S.lastEsp={t:'esp',id:v.id};
   const nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome, todos=espDe(v.id);
-  const nTab=new Set(todos.map(e=>e.tabela)).size, nCen=new Set(todos.map(e=>e.item).filter(Boolean)).size, nDes=todos.filter(desatEs).length;
+  const nTab=new Set(todos.map(e=>knPref(e.kn))).size, nCen=new Set(todos.map(e=>e.item).filter(Boolean)).size, nDes=todos.filter(desatEs).length;
   h+=`<div class="page wide"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><span>Especificação técnica</span></div>
   <h1 class="h1-exp">Especificação técnica${todos.length?btnPdfLista():''}</h1>
   <div class="esp-sub"><button class="card" data-act="eq" data-id="${esc(it.id)}">${IC.familias}<span class="k" style="color:var(--ink);font-weight:500">Equipamentos</span><span class="k">${eqDe(it.id).length} na lista</span></button>
@@ -4673,15 +4726,16 @@ function telaEspItem(h,v){
   const e=S.qdraft, nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome, b=espbDe(e), dis=S.ro?'disabled':'';
   S.eqLock=false;
   h+=`<div class="page"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><button data-act="esp" data-id="${esc(it.id)}">Especificação técnica</button><span>/</span><span class="mono">${esc(e.kn||'')}</span></div>
-  <h1 style="margin-bottom:6px"><span class="mono">${esc(e.kn||'')}</span> · ${esc(e.desc||'Item')}</h1><p class="lead" style="margin-bottom:14px">${esc(e.tabela||'')}${b?` · item central <button class="chip link mono" data-act="et-b-abrir" data-bid="${esc(b.id)}">${esc(b.fja)}</button>`:''}</p>`;
-  h+=`<section class="sheet"><div class="sheet-h"><h2>No projeto</h2><span class="hint">keynote único neste projeto</span></div><div class="grid">
+  <h1 style="margin-bottom:6px"><span class="mono">${esc(e.kn||'')}</span> · ${esc(e.desc||'Item')}</h1><p class="lead" style="margin-bottom:14px">${esc(tabEs(e))}${b?` · item central <button class="chip link mono" data-act="et-b-abrir" data-bid="${esc(b.id)}">${esc(b.fja)}</button>`:''}</p>`;
+  h+=`<section class="sheet"><div class="sheet-h"><h2>No projeto</h2><span class="hint">keynote único neste projeto · ${esc(TIPOS_ET[tipoEt(b)])}: ${esc(regraKn(tipoEt(b)))}</span></div><div class="grid">
     <label class="fl" for="q_kn">Keynote<input class="fld mono" id="q_kn" data-q="kn" value="${esc(e.kn||'')}" ${dis}></label>
-    <label class="fl" for="q_tabela">Tabela<select class="fld" id="q_tabela" data-q="tabela" ${dis}>${[...new Set([...TABELAS_ET,e.tabela].filter(Boolean))].map(t=>`<option ${t===e.tabela?'selected':''}>${esc(t)}</option>`).join('')}</select></label>
+    <label class="fl">Tabela<input class="fld" value="${esc(tabEs(e))}" disabled title="A tabela é a sigla do keynote"></label>
     ${eqCampoHTML(['desc','Descrição no projeto','text','wide'],e.desc)}
     ${eqCampoHTML(['texto','Especificação no projeto','longtext'],e.texto).replace('rows="3"','rows="9"')}
-    ${e.ferragens||['Portas','Esquadrias','Janelas','Gradis'].includes(e.tabela)?eqCampoHTML(['ferragens','Ferragens','longtext'],e.ferragens):''}
+    ${e.ferragens||tipoEt(b)==='elemento'?eqCampoHTML(['ferragens','Ferragens','longtext'],e.ferragens):''}
     ${eqCampoHTML(['obs','Observações','longtext'],e.obs)}</div></section>`;
   if(e.var?.length>1) h+=`<p class="muted" style="margin:-6px 0 16px;font-size:12.5px">Agrupa ${e.var.length} códigos da planilha de origem com a mesma especificação: <span class="mono">${esc(e.var.map(v=>v.kn).join(', '))}</span></p>`;
+  else if(e.knOrig&&e.knOrig!==e.kn) h+=`<p class="muted" style="margin:-6px 0 16px;font-size:12.5px">Código na planilha de origem: <span class="mono">${esc(e.knOrig)}</span></p>`;
   if(b){const outros=usosEspb(b.id).filter(x=>x.id!==e.id);
     h+=`<section class="sheet et-central"><div class="sheet-h"><h2>Banco central · <span class="mono">${esc(b.fja)}</span></h2><span class="sp"></span><button class="btn sm ghost" data-act="et-b-abrir" data-bid="${esc(b.id)}">Abrir na biblioteca</button></div>
       <div class="pad">${desatEs(e)?`<div class="banner" style="margin:0 0 12px"><span class="sp">O texto do banco central foi alterado em ${esc(fmtData(b.textoEm))}, depois que este item foi especificado. O texto do projeto não muda sozinho.</span>${S.ro?'':`<button class="btn sm" data-act="et-trazer">Trazer o texto central</button><button class="btn sm ghost" data-act="et-ciente">Manter o do projeto</button>`}</div>`:''}
@@ -4693,7 +4747,7 @@ function telaEspItem(h,v){
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="et-del">${IC.trash}Excluir</button><button class="btn pri" data-act="et-salvar">Salvar alterações</button></div>`;
   return h;
 }
-function knLivre(pid,kn,id){const k=knChave(kn); if(!k) return 'Informe o keynote'; const d=espDe(pid).find(x=>x.id!==id&&knChave(x.kn)===k); return d?`O keynote ${kn} já é usado por “${d.desc||'outro item'}”`:''}
+function knLivre(pid,kn,id){const k=knChave(kn); if(!k) return 'Informe o keynote'; const ln=S.espec.get(id)||S.qdraft, t=tipoEt(espbDe(ln)); if(!fmtKnOk(k,t)) return `Keynote de ${t==='material'?'material':'elemento ou família'}: ${regraKn(t)}`; const d=espDe(pid).find(x=>x.id!==id&&knChave(x.kn)===k); return d?`O keynote ${kn} já é usado por “${d.desc||'outro item'}”`:''}
 async function salvarEs(){
   const e=S.qdraft; if(!e) return true;
   const body={...e}; delete body.id; body.kn=String(body.kn||'').trim().toUpperCase();
@@ -4703,13 +4757,54 @@ async function salvarEs(){
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
 const proxLinhaEs=pid=>espDe(pid).reduce((m,e)=>Math.max(m,+e.linha||0),0)+1;
-async function criarLinhaEs(pid,b,extra={}){
-  const [pref,mod]=prefSugerido(pid,b);
-  const body={projeto:pid,item:b.id,kn:proxKn(pid,pref,mod),tabela:b.tabela||'Materiais',desc:b.desc||'',texto:b.texto||'',linha:proxLinhaEs(pid),baseEm:Date.now(),criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{}),...extra};
+function escolherSigla({pid,tipo,sugerida,titulo='Sigla do keynote',sub=''}){return new Promise(ok=>{
+  $('etModal')?.remove(); const d=document.createElement('div'); d.id='etModal'; d.className='pc-modal';
+  d.innerHTML=`<div class="pc-caixa et-caixa" role="dialog" aria-modal="true" aria-labelledby="etST"><h2 id="etST">${esc(titulo)}</h2>${sub?`<p class="muted" style="font-size:12.5px;margin:-4px 0 10px">${esc(sub)}</p>`:''}
+    <div class="search" style="margin:0 0 10px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="etSQ" type="search" placeholder="Buscar sigla ou nome (ex.: PO, porcelanato, porta…)" autocomplete="off"></div>
+    <div class="et-ml" id="etSL"></div>
+    <form class="et-nsig" id="etSN" hidden><div class="et-nsig-g"><label class="fl">Sigla<input class="fld mono" id="etNS" maxlength="3" autocomplete="off" placeholder="${tipo==='material'?'PO':tipo?'PMD':'PO / PMD'}"></label><label class="fl" style="flex:1">Nome da tabela<input class="fld" id="etNN" autocomplete="off" placeholder="ex.: Porcelanatos e cerâmicas"></label>
+
+</div>
+      <p class="muted" style="font-size:12px;margin:6px 0 0">Tipo: <b id="etNTx"></b> (2 letras = material · 3 letras = elemento ou família)</p><p class="pc-msg" id="etNM"></p><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn sm ghost" id="etNC">Voltar à lista</button><button type="submit" class="btn sm pri">Criar sigla e usar</button></div></form>
+    <div class="pc-acts"><span class="muted" style="font-size:12px;margin-right:auto">O número é o próximo livre da sigla neste projeto.</span>${S.ro?'':`<button type="button" class="btn ghost" id="etSNb">${IC.plus}Nova sigla</button>`}<button type="button" class="btn ghost" id="etSC">Cancelar</button></div></div>`;
+  document.body.appendChild(d); let sel=0, L=[];
+  const lista=()=>{const q=semAc($('etSQ').value);
+    L=siglasEt().filter(x=>!tipo||(tipo==='material')===(x.tipo==='material')).filter(x=>!q||semAc([x.sigla,x.nome,TIPOS_ET[x.tipo]].join(' ')).includes(q));
+    if(!q&&sugerida){const i=L.findIndex(x=>x.sigla===sugerida); if(i>0) L.unshift(...L.splice(i,1))}
+    sel=Math.min(sel,Math.max(0,L.length-1));
+    $('etSL').innerHTML=L.length?L.map((x,i)=>`<button class="et-mi${i===sel?' sel':''}" data-sg="${esc(x.sigla)}"><span class="mono">${esc(pid?proxKn(pid,x.sigla):x.sigla)}</span><span class="et-mi-d"><b>${esc(x.nome||x.sigla)}</b><small>${esc(TIPOS_ET[x.tipo]||'')}${x.sigla===sugerida?' · sugerida':''}</small></span></button>`).join(''):`<p class="muted" style="padding:10px">Nenhuma sigla encontrada. Cadastre novas em Biblioteca › Especificação técnica › Siglas de keynote.</p>`;
+    $('etSL').querySelector('.sel')?.scrollIntoView({block:'nearest'});
+    const qq=$('etSQ').value.trim().toUpperCase(); if(/^[A-Z]{2,3}$/.test(qq)&&!siglaEt(qq)&&!S.ro) $('etSL').insertAdjacentHTML('beforeend',`<button class="et-mi et-mi-nova" data-nova="${qq}"><span class="mono">${esc(qq)}.01</span><span class="et-mi-d"><b>Criar a sigla ${esc(qq)}</b><small>${qq.length===2?'Material':'Elemento ou família'} · nova na tabela de siglas</small></span></button>`)};
+  const abrirNova=v=>{$('etSN').hidden=false; $('etSL').hidden=true; $('etSQ').closest('.search').style.display='none'; $('etSNb')&&($('etSNb').style.display='none');
+    if(v) $('etNS').value=v; ajNT(); setTimeout(()=>($('etNS').value?$('etNN'):$('etNS')).focus(),20)};
+  const fecharNova=()=>{$('etSN').hidden=true; $('etSL').hidden=false; $('etSQ').closest('.search').style.display=''; $('etSNb')&&($('etSNb').style.display=''); $('etSQ').focus()};
+  const ajNT=()=>{const n=$('etNS').value.length; $('etNTx').textContent=n===2?'Material':n===3?'Elemento / família':''};
+  const fim=v=>{d.remove();document.removeEventListener('keydown',tec,true);ok(v)};
+  const tec=ev=>{if(ev.key==='Escape'){ev.stopPropagation();fim(null)}
+    else if(!$('etSN').hidden) return;
+    else if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ev.preventDefault();sel=Math.max(0,Math.min(L.length-1,sel+(ev.key==='ArrowDown'?1:-1)));lista()}
+    else if(ev.key==='Enter'){ev.preventDefault(); if(L[sel]) fim(L[sel].sigla); else{const nv=$('etSL').querySelector('[data-nova]'); if(nv) abrirNova(nv.dataset.nova)}}};
+  document.addEventListener('keydown',tec,true);
+  $('etSQ').oninput=()=>{sel=0;lista()}; $('etSC').onclick=()=>fim(null);
+  $('etSL').onclick=ev=>{const x=ev.target.closest('.et-mi'); if(!x) return; if(x.dataset.nova) abrirNova(x.dataset.nova); else fim(x.dataset.sg)};
+  if($('etSNb')) $('etSNb').onclick=()=>abrirNova($('etSQ').value.trim().toUpperCase().replace(/[^A-Z]/g,'').slice(0,3));
+  $('etNC').onclick=fecharNova; $('etNS').oninput=()=>{$('etNS').value=$('etNS').value.toUpperCase().replace(/[^A-Z]/g,''); ajNT()};
+  $('etSN').onsubmit=async ev=>{ev.preventDefault(); const sg=$('etNS').value, t=sg.length===2?'material':'elemento', m=$('etNM'), erro=x=>{m.textContent=x;m.className='pc-msg err'};
+    if(!/^[A-Z]{2,3}$/.test(sg)) return erro('Use 2 ou 3 letras.');
+    if(tipo&&(tipo==='material')!==(sg.length===2)) return erro(tipo==='material'?'Este item é material: a sigla tem 2 letras.':'Este item é elemento ou família: a sigla tem 3 letras.');
+    if(siglaEt(sg)) return erro(`A sigla ${sg} já existe.`);
+    if(!$('etNN').value.trim()) return erro('Dê um nome à tabela.');
+    await gravarSigla(sg,{sigla:sg,nome:$('etNN').value.trim(),tipo:t,tabela:t==='material'?'Materiais':'Diversos',origens:[]}); if(siglaEt(sg)) fim(sg)};
+  lista(); setTimeout(()=>$('etSQ')?.focus(),30);
+})}
+async function criarLinhaEs(pid,b,extra={},sigla){
+  const pref=sigla||prefSugerido(pid,b)[0];
+  if(!b.sigla&&pref){b.sigla=pref; espbColl().doc(b.id).update({sigla:pref}).catch(()=>{})}
+  const body={projeto:pid,item:b.id,kn:proxKn(pid,pref),tabela:siglaEt(pref)?.nome||'',desc:b.desc||'',texto:b.texto||'',linha:proxLinhaEs(pid),baseEm:Date.now(),criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{}),...extra};
   const ref=espColl().doc(); await ref.set(body); S.espec.set(ref.id,{...body,id:ref.id}); return ref.id;
 }
 async function novoEsCentral(dados){
-  const body={fja:proxFja(),nbr:'',tabela:'Materiais',desc:'Novo item',texto:'',fabricante:'',obs:'',criadoEm:Date.now(),atualizadoEm:Date.now(),textoEm:Date.now(),...(me?{criadoPor:me}:{}),...dados};
+  const body={fja:proxFja(),nbr:'',sigla:'',tipo:'material',desc:'Novo item',texto:'',fabricante:'',obs:'',criadoEm:Date.now(),atualizadoEm:Date.now(),textoEm:Date.now(),...(me?{criadoPor:me}:{}),...dados};
   const ref=espbColl().doc(); await ref.set(body); S.espb.set(ref.id,{...body,id:ref.id}); return S.espb.get(ref.id);
 }
 
@@ -4719,8 +4814,7 @@ function abrirCelEs(alvo){
   const p=document.createElement('div'); p.id='celPop'; p.className='cel-pop rd-pop et-pop'; p.dataset.k=k; p.dataset.eid=e.id;
   const lab=(ES_TCOLS.find(c=>c[0]===k)||[,k])[1];
   let c;
-  if(k==='tabela') c=TABELAS_ET.map(t=>`<button class="ml-b${t===e.tabela?' sel':''}" data-act="et-cel-set" data-v="${esc(t)}">${esc(t)}</button>`).join('');
-  else c=`${['texto','desc','obs','ferragens'].includes(k)?`<textarea class="fld" id="etCelTxt" rows="${k==='texto'?8:3}">${esc(e[k]||'')}</textarea>`:`<input class="fld${k==='kn'?' mono':''}" id="etCelTxt" value="${esc(e[k]||'')}">`}<p class="pc-msg" id="etCelMsg"></p><div class="cel-pop-b"><span class="muted" style="font-size:11.5px;margin-right:auto">Enter aplica · Esc cancela</span><button class="btn sm pri" data-act="et-cel-ok">Aplicar</button></div>`;
+  c=`${['texto','desc','obs','ferragens'].includes(k)?`<textarea class="fld" id="etCelTxt" rows="${k==='texto'?8:3}">${esc(e[k]||'')}</textarea>`:`<input class="fld${k==='kn'?' mono':''}" id="etCelTxt" value="${esc(e[k]||'')}">`}<p class="pc-msg" id="etCelMsg"></p><div class="cel-pop-b"><span class="muted" style="font-size:11.5px;margin-right:auto">Enter aplica · Esc cancela</span><button class="btn sm pri" data-act="et-cel-ok">Aplicar</button></div>`;
   p.innerHTML=`<div class="rd-pop-h">${esc(lab)} · <span class="mono">${esc(e.kn||'')}</span></div>`+c; if(k==='texto') p.style.width='min(560px,92vw)';
   document.body.appendChild(p);
   const r=alvo.getBoundingClientRect(), w=p.offsetWidth, hg=p.offsetHeight;
@@ -4747,8 +4841,8 @@ function escolherCentral({titulo,pid,excluirUsados=true}){return new Promise(ok=
     <div class="search" style="margin:0 0 10px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="etMQ" type="search" placeholder="Buscar por FJ, descrição, especificação, classe NBR…" autocomplete="off"></div>
     <div class="et-ml" id="etML"></div><div class="pc-acts"><span class="muted" style="font-size:12px;margin-right:auto">Um item central entra uma única vez em cada projeto.</span><button type="button" class="btn ghost" id="etMC">Cancelar</button></div></div>`;
   document.body.appendChild(d);
-  const lista=()=>{const q=semAc($('etMQ').value), L=[...S.espb.values()].filter(b=>!q||semAc([b.fja,b.desc,b.texto,b.nbr,b.tabela,b.fabricante].join(' ')).includes(q)).sort((a,b)=>ordTabEt(a.tabela)-ordTabEt(b.tabela)||fjaNum(a)-fjaNum(b));
-    $('etML').innerHTML=L.length?L.slice(0,150).map(b=>{const u=usados.get(b.id);return `<button class="et-mi" data-bid="${esc(b.id)}" ${u&&excluirUsados?'disabled':''}><span class="mono">${esc(b.fja)}</span><span class="et-mi-d"><b>${esc(b.desc||'Sem descrição')}</b><small>${esc(b.tabela||'')}${b.nbr?' · '+esc(b.nbr):''}${u?` · já no projeto como <span class="mono">${esc(u)}</span>`:''}</small></span></button>`}).join('')+(L.length>150?`<p class="muted" style="padding:8px">Mais ${L.length-150} itens — refine a busca.</p>`:''):`<p class="muted" style="padding:10px">${S.espb.size?'Nenhum item encontrado.':'O banco central está vazio. Cadastre itens na Biblioteca ou importe a planilha de um projeto.'}</p>`};
+  const lista=()=>{const q=semAc($('etMQ').value), L=[...S.espb.values()].filter(b=>!q||semAc([b.fja,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q)).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
+    $('etML').innerHTML=L.length?L.slice(0,150).map(b=>{const u=usados.get(b.id);return `<button class="et-mi" data-bid="${esc(b.id)}" ${u&&excluirUsados?'disabled':''}><span class="mono">${esc(b.fja)}</span><span class="et-mi-d"><b>${esc(b.desc||'Sem descrição')}</b><small>${esc(rotSig(sigB(b))||TIPOS_ET[tipoEt(b)])}${b.nbr?' · '+esc(b.nbr):''}${u?` · já no projeto como <span class="mono">${esc(u)}</span>`:''}</small></span></button>`}).join('')+(L.length>150?`<p class="muted" style="padding:8px">Mais ${L.length-150} itens — refine a busca.</p>`:''):`<p class="muted" style="padding:10px">${S.espb.size?'Nenhum item encontrado.':'O banco central está vazio. Cadastre itens na Biblioteca ou importe a planilha de um projeto.'}</p>`};
   const fim=v=>{d.remove();document.removeEventListener('keydown',tec,true);ok(v)};
   const tec=ev=>{if(ev.key==='Escape'){ev.stopPropagation();fim(null)}};
   document.addEventListener('keydown',tec,true);
@@ -4822,19 +4916,28 @@ async function importarEt(pid){
   const linhas=[];
   for(const aba of abas){try{const r=await mcp.callTool(GS,'get_values',{spreadsheetId:id,range:`'${aba.replace(/'/g,"''")}'!A1:Z3000`},{cache:false}); const v=r?.payload?.values||r?.structuredContent?.values||[]; for(const e of lerAbaEt(v,aba)){e.origem={planilha:id,aba,linha:e.linha};linhas.push(e)}}catch(e){toast(`Não consegui ler a aba ${aba}`)}}
   if(!linhas.length){toast('Nenhum item encontrado nas abas');return}
-  const exist=new Map(espDe(pid).map(e=>[knChave(e.kn),e]));
-  const novos=linhas.filter(e=>!exist.has(knChave(e.kn))), atual=linhas.filter(e=>exist.has(knChave(e.kn)));
-  const porTab=[...new Set(linhas.map(e=>e.tabela))].map(t=>`${t}: ${linhas.filter(e=>e.tabela===t).length}`).join(' · ');
-  if(!await confirmar(`Importar ${linhas.length} itens de ${abas.length} abas?\n\n${porTab}\n\n${novos.length} keynotes novos serão criados no projeto, cada um com um item novo no banco central (FJ-…).${atual.length?` ${atual.length} keynotes já existem no projeto e terão o texto atualizado.`:''} A aba de ambientes é ignorada.`,{ok:'Importar'})) return;
-  let feitos=0, falhas=0; toast(`Importando ${linhas.length} itens…`);
-  const campos=['tabela','desc','texto','ferragens','obs','var'];
+  // renumera no padrão do escritório: sigla nova (tabela de siglas) + número sequencial na ordem da planilha
+  const ordO=(a,b)=>knPref(a.kn).localeCompare(knPref(b.kn))||knNum(a.kn)-knNum(b.kn)||String(a.kn).localeCompare(String(b.kn),'pt',{numeric:true});
+  const cont=new Map();
+  for(const e of linhas.slice().sort((a,b)=>ordTabEt(a.tabela)-ordTabEt(b.tabela)||ordO(a,b))){
+    e.tipo=e.tabela==='Materiais'?'material':(siglaEt(siglaNova(knPref(e.kn),e.tabela,'elemento'))?.tipo||'elemento');
+    const sg=siglaNova(knPref(e.kn),e.tabela,e.tipo), n=(cont.get(sg)||0)+1; cont.set(sg,n);
+    e.knOrig=e.kn; e.kn=sg+'.'+String(n).padStart(2,'0'); e.sigla=sg; e.tabelaOrig=e.tabela; e.tabela=siglaEt(sg)?.nome||e.tabela;
+  }
+  const antigos=espDe(pid).filter(e=>e.origem?.planilha===id);
+  const porTab=[...new Set(linhas.map(e=>e.tabelaOrig))].map(t=>`${t}: ${linhas.filter(e=>e.tabelaOrig===t).length}`).join(' · ')+`\n\nTabelas (siglas) resultantes: ${new Set(linhas.map(e=>e.sigla)).size}`;
+  if(!await confirmar(`Importar ${linhas.length} itens de ${abas.length} abas?\n\n${porTab}\n\nOs keynotes são renumerados no padrão do escritório (material PI.01, elemento/família PMD.01), conforme a tabela de siglas da Biblioteca; o código original fica guardado como código de origem. Itens iguais que só mudam de dimensão viram um só. Cada keynote ganha um item novo no banco central (FJ-…).${antigos.length?`\n\nEste projeto já tem ${antigos.length} itens importados desta planilha: eles serão substituídos (os itens centrais que só eles usavam também saem).`:''}`,{ok:antigos.length?'Substituir e importar':'Importar'})) return;
+  let feitos=0, falhas=0;
+  if(antigos.length){toast(`Removendo ${antigos.length} itens da importação anterior…`);
+    for(const x of antigos){try{await espColl().doc(x.id).delete(); S.espec.delete(x.id); const c=S.espb.get(x.item); if(c&&c.origem?.projeto===pid&&!usosEspb(c.id).length){await espbColl().doc(c.id).delete(); S.espb.delete(c.id)}}catch(err){if(err?.code==='invalid_argument'){toast('Você não tem permissão para editar');return}}}}
+  toast(`Importando ${linhas.length} itens…`);
+  const campos=['tabela','desc','texto','ferragens','obs','var','knOrig'];
   for(const e of linhas){
     try{
-      const x=exist.get(knChave(e.kn)), dados=Object.fromEntries(campos.map(k=>[k,k==='var'?(e.var||null):e[k]||'']));
-      if(x){const upd={...dados,origem:e.origem,atualizadoEm:Date.now()}; await espColl().doc(x.id).update(upd); Object.assign(x,upd)}
-      else{const b=await novoEsCentral({tabela:e.tabela,desc:e.desc,texto:e.texto,origem:{projeto:pid,kn:e.kn}});
-        const body={projeto:pid,item:b.id,kn:e.kn,...dados,linha:e.linha+ordTabEt(e.tabela)*10000,origem:e.origem,baseEm:Date.now(),criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
-        const ref=espColl().doc(); await ref.set(body); S.espec.set(ref.id,{...body,id:ref.id}); exist.set(knChave(e.kn),S.espec.get(ref.id))}
+      const dados=Object.fromEntries(campos.map(k=>[k,k==='var'?(e.var||null):e[k]||'']));
+      const b=await novoEsCentral({sigla:e.sigla,tipo:e.tipo,desc:e.desc,texto:e.texto,origem:{projeto:pid,kn:e.knOrig}});
+      const body={projeto:pid,item:b.id,kn:e.kn,...dados,linha:e.linha+ordTabEt(e.tabelaOrig)*10000,origem:e.origem,baseEm:Date.now(),criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
+      const ref=espColl().doc(); await ref.set(body); S.espec.set(ref.id,{...body,id:ref.id});
       feitos++; if(feitos%25===0) toast(`${feitos} de ${linhas.length} importados…`);
     }catch(err){falhas++; if(err?.code==='invalid_argument'){toast('Você não tem permissão para editar');break}}
   }
@@ -4845,19 +4948,19 @@ async function importarEt(pid){
 const ET_B={busca:'',tab:''};
 function telaEspb(h){
   const L=[...S.espb.values()], dup=duplicadosEspb();
-  const q=semAc(ET_B.busca), F=L.filter(b=>(!ET_B.tab||b.tabela===ET_B.tab)&&(!q||semAc([b.fja,b.desc,b.texto,b.nbr,b.tabela,b.fabricante].join(' ')).includes(q))).sort((a,b)=>ordTabEt(a.tabela)-ordTabEt(b.tabela)||fjaNum(a)-fjaNum(b));
-  const tabs=[...new Set(L.map(b=>b.tabela))].sort((a,b)=>ordTabEt(a)-ordTabEt(b));
+  const q=semAc(ET_B.busca), F=L.filter(b=>(!ET_B.tab||tipoEt(b)===ET_B.tab)&&(!q||semAc([b.fja,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q))).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
+  const tabs=Object.keys(TIPOS_ET).filter(t=>L.some(b=>tipoEt(b)===t));
   h+=`<div class="page wide"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><span>Especificação técnica</span></div>
-  <h1>Especificação técnica</h1><p class="lead">Banco central de itens do escritório. Cada item tem um código FJA permanente e uma classe da ABNT NBR 15965; nos projetos, recebe o keynote e a descrição específica.</p>
+  <h1>Especificação técnica</h1><div class="seg" style="margin:-4px 0 14px"><button class="on">Banco central</button><button data-act="et-sig">Siglas de keynote</button></div><p class="lead">Banco central de itens do escritório. Cada item tem um código FJA permanente e uma classe da ABNT NBR 15965; nos projetos, recebe o keynote e a descrição específica.</p>
   <div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="etBBusca" type="search" placeholder="Buscar por FJ, descrição, especificação, classe NBR…" value="${esc(ET_B.busca)}" aria-label="Buscar no banco central"></div><span class="muted eq-count">${F.length===L.length?L.length+' itens':F.length+' de '+L.length+' itens'}</span>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div>`;
-  if(tabs.length>1) h+=`<div class="chips" style="padding:0 0 14px"><button class="chip link ${!ET_B.tab?'on':''}" data-act="et-b-tab" data-v="">Todas <span class="cnt">${L.length}</span></button>${tabs.map(t=>`<button class="chip link ${ET_B.tab===t?'on':''}" data-act="et-b-tab" data-v="${esc(t)}">${esc(t)} <span class="cnt">${L.filter(b=>b.tabela===t).length}</span></button>`).join('')}</div>`;
+  if(tabs.length>1) h+=`<div class="chips" style="padding:0 0 14px"><button class="chip link ${!ET_B.tab?'on':''}" data-act="et-b-tab" data-v="">Todas <span class="cnt">${L.length}</span></button>${tabs.map(t=>`<button class="chip link ${ET_B.tab===t?'on':''}" data-act="et-b-tab" data-v="${esc(t)}">${esc(TIPOS_ET[t])} <span class="cnt">${L.filter(b=>tipoEt(b)===t).length}</span></button>`).join('')}</div>`;
   if(!L.length) return h+`<section class="sheet"><div class="esp-vazio"><h2>O banco central está vazio</h2><p>Cadastre itens aqui ou importe a planilha de especificação de um projeto (na seção Especificação técnica do projeto): cada keynote importado gera um item central.</p>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div></section></div>`;
-  h+=`<section class="sheet"><div class="tablewrap"><table class="list esp et-bt"><thead><tr><th style="width:84px">FJA</th><th style="width:120px">Classe NBR</th><th>Descrição simplificada</th><th style="width:150px">Tabela</th><th style="width:220px">Usado em</th></tr></thead><tbody>`;
+  h+=`<section class="sheet"><div class="tablewrap"><table class="list esp et-bt"><thead><tr><th style="width:84px">FJA</th><th style="width:120px">Classe NBR</th><th>Descrição simplificada</th><th style="width:150px">Tipo</th><th style="width:220px">Usado em</th></tr></thead><tbody>`;
   let tab=null;
   for(const b of F){
-    if(b.tabela!==tab){tab=b.tabela; h+=`<tr class="grp"><td colspan="5">${esc(tab||'Sem tabela')} <span class="cnt">${F.filter(x=>x.tabela===tab).length}</span></td></tr>`}
+    if(sigB(b)!==tab){tab=sigB(b); h+=`<tr class="grp"><td colspan="5">${esc(rotSig(tab)||'Sem tabela')} <span class="cnt">${F.filter(x=>sigB(x)===tab).length}</span></td></tr>`}
     const us=usosEspb(b.id);
-    h+=`<tr data-act="et-b-abrir" data-bid="${esc(b.id)}"><td class="mono"><b>${esc(b.fja||'')}</b></td><td class="mono muted">${esc(b.nbr||'')}</td><td><b class="esp-nome">${esc(b.desc||'Sem descrição')}</b>${dup.has(b.id)?' <span class="st-cm st-warn" title="Há outro item central com a mesma especificação">possível duplicado</span>':''}<small class="et-clip">${esc(linha1(b.texto).slice(0,180))}</small></td><td>${esc(b.tabela||'')}</td><td>${us.map(x=>`<span class="chip mono" title="${esc(S.itens.get(x.projeto)?.nome||'')}">${esc((S.itens.get(x.projeto)?.campos?.codigo||'?')+' · '+x.kn)}</span>`).join(' ')||'<span class="muted">—</span>'}</td></tr>`;
+    h+=`<tr data-act="et-b-abrir" data-bid="${esc(b.id)}"><td class="mono"><b>${esc(b.fja||'')}</b></td><td class="mono muted">${esc(b.nbr||'')}</td><td><b class="esp-nome">${esc(b.desc||'Sem descrição')}</b>${dup.has(b.id)?' <span class="st-cm st-warn" title="Há outro item central com a mesma especificação">possível duplicado</span>':''}<small class="et-clip">${esc(linha1(b.texto).slice(0,180))}</small></td><td>${esc(TIPOS_ET[tipoEt(b)])}</td><td>${us.map(x=>`<span class="chip mono" title="${esc(S.itens.get(x.projeto)?.nome||'')}">${esc((S.itens.get(x.projeto)?.campos?.codigo||'?')+' · '+x.kn)}</span>`).join(' ')||'<span class="muted">—</span>'}</td></tr>`;
   }
   return h+'</tbody></table></div></section></div>';
 }
@@ -4867,11 +4970,12 @@ function telaEspbItem(h,v){
   const b=S.edraft, dis=S.ro?'disabled':'', us=usosEspb(b.id), dup=duplicadosEspb().get(b.id)||[];
   const fld=(k,l,t='text',x='')=>t==='longtext'?`<label class="fl wide" for="b_${k}">${l}<textarea class="fld" id="b_${k}" data-eb="${k}" rows="9" ${dis}>${esc(b[k]||'')}</textarea></label>`:`<label class="fl ${x}" for="b_${k}">${l}<input class="fld ${k==='nbr'?'mono':''}" id="b_${k}" data-eb="${k}" value="${esc(b[k]||'')}" ${k==='nbr'?'placeholder="ex.: 3R 09 30 10" list="dlNbr"':''} ${dis}></label>`;
   h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="espb">Especificação técnica</button><span>/</span><span class="mono">${esc(b.fja)}</span></div>
-  <h1 style="margin-bottom:6px"><span class="mono">${esc(b.fja)}</span> · ${esc(b.desc||'Item')}</h1><p class="lead">${esc(b.tabela||'')}${b.nbr?' · <span class="mono">'+esc(b.nbr)+'</span>':''}</p>
+  <h1 style="margin-bottom:6px"><span class="mono">${esc(b.fja)}</span> · ${esc(b.desc||'Item')}</h1><p class="lead">${esc(rotSig(sigB(b))||'Sem tabela')}${b.nbr?' · <span class="mono">'+esc(b.nbr)+'</span>':''}</p>
   ${dup.length?`<div class="banner" style="margin:0 0 14px"><span class="sp">Possível duplicado: ${dup.map(id=>{const o=S.espb.get(id);return `<button class="chip link mono" data-act="et-b-abrir" data-bid="${esc(id)}">${esc(o?.fja||'')}</button>`}).join(' ')} tem a mesma especificação.</span></div>`:''}
   <section class="sheet"><div class="sheet-h"><h2>Item central</h2><span class="hint">o código FJA não muda</span></div><div class="grid">
     <label class="fl">Código FJA<input class="fld mono" value="${esc(b.fja)}" disabled></label>${fld('nbr','Classe NBR 15965 (tabela 3R)')}
-    <label class="fl" for="b_tabela">Tabela<select class="fld" id="b_tabela" data-eb="tabela" ${dis}>${[...new Set([...TABELAS_ET,b.tabela].filter(Boolean))].map(t=>`<option ${t===b.tabela?'selected':''}>${esc(t)}</option>`).join('')}</select></label>
+    <label class="fl" for="b_sigla">Tabela (sigla)<select class="fld" id="b_sigla" data-eb="sigla" ${dis}><option value="">—</option>${siglasEt().map(x=>`<option value="${esc(x.sigla)}" ${x.sigla===sigB(b)?'selected':''}>${esc(rotSig(x.sigla))}</option>`).join('')}</select></label>
+    <label class="fl">Tipo<input class="fld" value="${esc(TIPOS_ET[tipoEt(b)])}" disabled title="Vem da sigla: 2 letras = material, 3 letras = elemento ou família"></label>
     ${fld('desc','Descrição simplificada','text','wide')}${fld('texto','Especificação base','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
     <datalist id="dlNbr">${[...new Set([...S.espb.values()].map(x=>x.nbr).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist></section>
   <section class="sheet"><div class="sheet-h"><h2>Uso nos projetos</h2><span class="cnt">${us.length}</span></div>${us.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th style="width:170px">Projeto</th><th style="width:90px">Keynote</th><th>Descrição no projeto</th></tr></thead><tbody>${us.map(x=>{const p=S.itens.get(x.projeto);return `<tr data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}"><td>${esc((p?.campos?.codigo?p.campos.codigo+' ':'')+(p?.nome||''))}</td><td class="mono"><b>${esc(x.kn)}</b>${desatEs(x)?' <span class="et-dot" title="Texto central alterado depois">●</span>':''}</td><td>${esc(x.desc||'')}</td></tr>`}).join('')}</tbody></table></div>`:`<p class="pad muted">Ainda não usado em nenhum projeto.</p>`}</section>
@@ -4889,9 +4993,31 @@ async function salvarEspb(){
 }
 document.addEventListener('input',ev=>{const el=ev.target;
   if(el.id==='etBBusca'){ET_B.busca=el.value; const p=el.selectionStart; renderMain(); const n=$('etBBusca'); if(n){n.focus();try{n.setSelectionRange(p,p)}catch{}} return}
-  if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'){S.edraft[el.dataset.eb]=el.value; marcaSujo()}});
-document.addEventListener('change',ev=>{const el=ev.target; if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'){S.edraft[el.dataset.eb]=el.value; marcaSujo()}});
+  if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'&&el.tagName!=='SELECT'){S.edraft[el.dataset.eb]=el.value; marcaSujo()}});
+document.addEventListener('change',ev=>{const el=ev.target; if(el.dataset?.eb&&S.edraft&&S.view.t==='espbi'){S.edraft[el.dataset.eb]=el.value; if(el.dataset.eb==='sigla'){const x=siglaEt(el.value); if(x) S.edraft.tipo=x.tipo; marcaSujo(); renderMain(); return} marcaSujo()}});
 
+function telaEtSig(h){
+  const L=siglasEt(), dis=S.ro?'disabled':'';
+  const uso=s=>[...S.espec.values()].filter(e=>knPref(e.kn)===s).length;
+  h+=`<div class="page wide"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="espb">Especificação técnica</button><span>/</span><span>Siglas de keynote</span></div>
+  <h1>Especificação técnica</h1><div class="seg" style="margin:-4px 0 14px"><button data-act="espb">Banco central</button><button class="on">Siglas de keynote</button></div>
+  <p class="lead">Cada sigla é uma tabela da especificação: os itens se agrupam por ela. Keynotes de <b>material</b> usam 2 letras (PI.01) e vão no campo Keynote do material no Revit. <b>Elementos e famílias</b> (inclusive sistemas compostos, como paredes e pisos) usam 3 letras (PIN.01, PMD.01) e vão no parâmetro Keynote do tipo. A numeração recomeça em cada projeto.</p>
+  ${S.ro?'':`<div class="esp-bar"><span class="sp"></span><button class="btn pri" data-act="et-sig-novo">${IC.plus}Nova sigla</button></div>`}
+  <section class="sheet"><div class="tablewrap"><table class="list esp et-sig"><thead><tr><th style="width:90px">Sigla</th><th>Nome da tabela</th><th style="width:70px" class="r">Em uso</th><th style="width:44px"></th></tr></thead><tbody>`;
+  let tp=null;
+  for(const x of L){ if(x.tipo!==tp&&(x.tipo==='material'||tp==='material'||tp==null)){tp=x.tipo; h+=`<tr class="grp"><td colspan="5">${x.tipo==='material'?'Materiais · 2 letras':'Elementos e famílias · 3 letras'}</td></tr>`}
+    h+=`<tr data-sig="${esc(x.sigla)}"><td class="mono"><b>${esc(x.sigla)}</b></td><td><input class="fld sm" data-sg="nome" value="${esc(x.nome||'')}" ${dis}></td>
+
+<td class="r mono">${uso(x.sigla)||''}</td>
+    <td>${S.ro||uso(x.sigla)?'':`<button class="icb" data-act="et-sig-del" title="Excluir sigla">${IC.trash}</button>`}</td></tr>`}
+  return h+'</tbody></table></div></section></div>';
+}
+async function gravarSigla(sigla,upd){
+  const x={...(siglaEt(sigla)||{sigla}),...upd}; delete x.padrao;
+  try{await etsigColl().doc(sigla).set(x); S.etsig.set(sigla,{...x,id:sigla}); toast('Sigla salva')}catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
+}
+document.addEventListener('change',ev=>{const el=ev.target, k=el.dataset?.sg; if(!k||S.ro||S.view.t!=='etsig') return; const sg=el.closest('tr')?.dataset.sig; if(!sg) return;
+  const v=k==='origens'?el.value.split(/[,;\s]+/).map(x=>x.trim().toUpperCase().replace(/^\./,'')).filter(Boolean):el.value; gravarSigla(sg,{[k]:v})});
 async function esAcao(a,b){
   const pid=b.dataset.id||S.view.id;
   if(a==='et-abrir'){fecharMenuLinha?.();lembrarRolagemLista();ir({t:'espi',id:b.dataset.id,eid:b.dataset.eid});return}
@@ -4901,15 +5027,18 @@ async function esAcao(a,b){
   if(a==='et-keynotes'){exportarKeynotes(pid);return}
   if(a==='et-importar'){await importarEt(pid);return}
   if(a==='espb'){ir({t:'espb'});return}
+  if(a==='et-sig'){ir({t:'etsig'});return}
   if(a==='et-b-tab'){ET_B.tab=b.dataset.v;renderMain();return}
   if(a==='et-b-abrir'){ir({t:'espbi',bid:b.dataset.bid});return}
   if(S.ro) return;
   if(a==='et-puxar'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
     const x=await escolherCentral({titulo:'Puxar item do banco central',pid}); if(!x) return;
-    try{const id=await criarLinhaEs(pid,x); toast(`${x.fja} entrou no projeto como ${S.espec.get(id).kn}`); S.qdraft=null; ir({t:'espi',id:pid,eid:id})}catch{toast('Não foi possível adicionar.')}
+    const sg=await escolherSigla({pid,tipo:tipoEt(x),sugerida:prefSugerido(pid,x)[0],sub:`${x.fja} · ${x.desc||''} (${TIPOS_ET[tipoEt(x)]})`}); if(!sg) return;
+    try{const id=await criarLinhaEs(pid,x,{},sg); toast(`${x.fja} entrou no projeto como ${S.espec.get(id).kn}`); S.qdraft=null; ir({t:'espi',id:pid,eid:id})}catch{toast('Não foi possível adicionar.')}
     return}
   if(a==='et-novo'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
-    try{const tab=MS().filtros?.tabela?.[0]?.replace(/^=/,'')||'Materiais'; const x=await novoEsCentral({tabela:TABELAS_ET.includes(tab)?tab:'Materiais'}); const id=await criarLinhaEs(pid,x,{desc:''}); S.qdraft=null; ir({t:'espi',id:pid,eid:id}); setTimeout(()=>{const n=$('q_desc'); n?.focus()},60); toast(`Item central ${x.fja} criado`)}catch{toast('Não foi possível criar.')}
+    const sg=await escolherSigla({pid,titulo:'Novo item · escolha a sigla',sub:'2 letras = material · 3 letras = elemento ou família'}); if(!sg) return;
+    try{const sx=siglaEt(sg); const x=await novoEsCentral({sigla:sg,tipo:sx?.tipo||(sg.length===2?'material':'elemento')}); const id=await criarLinhaEs(pid,x,{desc:''},sg); S.qdraft=null; ir({t:'espi',id:pid,eid:id}); setTimeout(()=>{const n=$('q_desc'); n?.focus()},60); toast(`Item central ${x.fja} criado`)}catch{toast('Não foi possível criar.')}
     return}
   if(a==='et-salvar'){if(await salvarEs()) render();return}
   if(a==='et-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
@@ -4929,9 +5058,17 @@ async function esAcao(a,b){
     const x=await escolherCentral({titulo:'Vincular a outro item central',pid:e.projeto}); if(!x) return;
     e.item=x.id; e.baseEm=Date.now(); S.dirty=true; if(await salvarEs()) render(); return}
   if(a==='et-b-novo'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
-    try{const x=await novoEsCentral({tabela:ET_B.tab||'Materiais'}); S.edraft=null; ir({t:'espbi',bid:x.id}); setTimeout(()=>{const n=$('b_desc'); n?.focus(); n?.select()},60)}catch{toast('Não foi possível criar.')}
+    const sg=await escolherSigla({pid:null,titulo:'Novo item central · escolha a tabela (sigla)',sub:'2 letras = material · 3 letras = elemento ou família'}); if(!sg) return;
+    try{const x=await novoEsCentral({sigla:sg,tipo:siglaEt(sg)?.tipo||(sg.length===2?'material':'elemento')}); S.edraft=null; ir({t:'espbi',bid:x.id}); setTimeout(()=>{const n=$('b_desc'); n?.focus(); n?.select()},60)}catch{toast('Não foi possível criar.')}
     return}
   if(a==='et-b-salvar'){if(await salvarEspb()) render();return}
+  if(a==='et-sig-novo'){const v=await pedirNome({titulo:'Nova sigla de keynote',rotulo:'Sigla (2 letras para material, 3 para elemento ou família)',ok:'Criar'}); if(!v) return;
+    const sg=v.toUpperCase().replace(/[^A-Z]/g,''); if(sg.length<2||sg.length>3){toast('Use 2 ou 3 letras');return} if(siglaEt(sg)){toast(`A sigla ${sg} já existe`);return}
+    await gravarSigla(sg,{sigla:sg,nome:'',tipo:sg.length===2?'material':'elemento',tabela:sg.length===2?'Materiais':'Diversos',origens:[]}); render(); setTimeout(()=>document.querySelector(`tr[data-sig="${sg}"] [data-sg=nome]`)?.focus(),60); return}
+  if(a==='et-sig-del'){const sg=b.closest('tr')?.dataset.sig; if(!sg) return;
+    if(!b.classList.contains('armed')){b.classList.add('armed');b.title='Clique de novo para excluir';setTimeout(()=>b.classList.remove('armed'),4000);return}
+    try{if(SIGLAS_PADRAO.some(x=>x.sigla===sg)){await etsigColl().doc(sg).set({sigla:sg,del:true});S.etsig.set(sg,{sigla:sg,del:true})}else{await etsigColl().doc(sg).delete();S.etsig.delete(sg)} toast('Sigla excluída'); render()}catch{toast('Não foi possível excluir.')}
+    return}
   if(a==='et-b-del'){const x=S.edraft; if(!x) return; const n=usosEspb(x.id).length;
     if(n){toast(`${x.fja} é usado em ${n} keynote${n>1?'s':''} de projeto. Retire-o dos projetos antes de excluir.`);return}
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
@@ -5323,7 +5460,7 @@ function ir(view){
   if(view.t!=='item') S.draft=null;
   if(view.t!=='espbi') S.edraft=null;
   if(view.t!=='eqi'&&view.t!=='comi'&&view.t!=='peni'&&view.t!=='reli'&&view.t!=='espi') S.qdraft=null;
-  if(view.t==='espb'||view.t==='espbi') S.abertas.add('g:biblioteca');
+  if(view.t==='espb'||view.t==='espbi'||view.t==='etsig') S.abertas.add('g:biblioteca');
   if(view.t==='disc'||view.t==='discd'){S.abertas.add('s:projetos');S.abertas.add('i:'+view.id)}
   if(view.t==='pen'||view.t==='peni'||view.t==='rel'||view.t==='reli'||view.t==='atas'||view.t==='atai'||view.t==='croqs'||view.t==='croqi'||view.t==='cro'){S.abertas.add('s:projetos');S.abertas.add('i:'+view.id)}
   if(CRO.dr&&!(view.t==='cro'&&view.id===CRO.dr.projeto)){CRO.dr=null;croDrawer()}
@@ -6062,7 +6199,7 @@ async function croAcao(a,b,ev){
 
 /* ---------- desfazer (últimas ações desta sessão) ---------- */
 var DESF={pilha:[],refazer:[],grupo:null,t:0,rodando:false}; const SOMBRA={};
-const MAPA_COLL={sugest:()=>S.sugest,itens:()=>S.itens,coment:()=>S.coment,pend:()=>S.pends,rdoc:()=>S.rdocs,ata:()=>S.atas,croq:()=>S.croqs,equip:()=>S.equip,crono:()=>S.crono,espec:()=>S.espec,espb:()=>S.espb};
+const MAPA_COLL={sugest:()=>S.sugest,itens:()=>S.itens,coment:()=>S.coment,pend:()=>S.pends,rdoc:()=>S.rdocs,ata:()=>S.atas,croq:()=>S.croqs,equip:()=>S.equip,crono:()=>S.crono,espec:()=>S.espec,espb:()=>S.espb,etsig:()=>S.etsig};
 function sombraDe(n){return SOMBRA[n]||(SOMBRA[n]=new Map())}
 // campos de controle (vínculos e espelhos de planilhas) não entram no desfazer
 const SEM_DESF=new Set(['comEspelhoDev','pdEspelhoDev','equipEspelhoDev','comEspelhoOff','pdEspelhoOff','equipEspelhoOff','croEspelho','comEspelho','pdEspelho','rdEspelho','rdEspelhoDev','rdEspelhoOff','rdOrigem','rdExport','ataPasta','croqPasta','comOrigem','pdOrigem','equipOrigem','comExport','pdExport','equipExport']);
@@ -6710,6 +6847,7 @@ async function modoPublico(){
     if(snap.schema) S.schema=garantirCodCliente({...structuredClone(DEFAULT_SCHEMA),...snap.schema});
     S.espec=new Map(Object.entries(snap.espec||{}).map(([id,v])=>[id,{...v,id}]));
     S.espb=new Map(Object.entries(snap.espb||{}).map(([id,v])=>[id,{...v,id}]));
+    S.etsig=new Map(Object.entries(snap.etsig||{}).map(([id,v])=>[id,{...v,id}]));
     S.equip=new Map(Object.entries(snap.equip||{}).map(([id,v])=>[id,{...v,id}]));
     S.coment=new Map(Object.entries(snap.coment||{}).map(([id,v])=>[id,{...v,id}]));
     S.pends=new Map(Object.entries(snap.pend||{}).map(([id,v])=>[id,{...v,id}]));
@@ -6791,6 +6929,7 @@ async function modoPublico(){
     if(S.qdraft&&!S.dirty&&S.view.t==='comi'){const n=m.get(S.qdraft.id); if(n) S.qdraft=structuredClone(n)}
     if(S.carregado){if(S.dirty) renderTree(); else render()}
   },()=>{});
+  etsigColl().onSnapshot(snap=>{const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.sigla) m.set(d.id,{...v,id:d.id})} S.etsig=m; if(S.carregado&&!S.dirty) render()},()=>{});
   espbColl().onSnapshot(snap=>{
     const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.fja) m.set(d.id,{...structuredClone(v),id:d.id})}
     S.espb=m;
