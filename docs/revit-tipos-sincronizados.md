@@ -1,6 +1,18 @@
 # Revit × Sistema FJA — tipos sincronizados com a especificação técnica
 
-Documento de projeto (versão 2 — 03/11/2026: criação a partir de qualquer sigla de composição). Nada implementado ainda: este texto é para revisão antes da implementação.
+Documento de projeto (versão 3 — 03/11/2026).
+
+## Situação da implementação
+| Fase | Situação |
+|---|---|
+| 1. Fundação | **Código pronto na branch `revit-fase1`, ainda não publicado na dev** (a sessão de 03/11 estava sem acesso de rede). Inclui camadas nos itens de composição, a categoria padrão do Revit na sigla, a composição em leitura no projeto (com "Incluir no projeto" para os materiais sem keynote) e Ferramentas › **Conexão com o Revit** (publicação no G:). A extensão já está no repositório (`revit/`) e copiada para o G:. |
+| 2–5 | Não iniciadas. |
+
+Para publicar a fase 1 na dev, numa sessão com acesso de rede:
+1. `declare_capabilities` na dev, acrescentando `trash_file` ao Google Drive (manter as demais).
+2. Fazer o merge de `revit-fase1` em `main` e rodar `./scripts/gerar.sh`.
+3. `publish_files` de `dist/dev.html`.
+4. Abrir Biblioteca › Ferramentas › Conexão com o Revit › **Publicar agora** e conferir os arquivos em `SISTEMA FJA\REVIT\DEV`.
 
 ## 1. Objetivo
 
@@ -119,15 +131,18 @@ Pasta: `G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\`
 ```
 REVIT\
   biblioteca.json            ← o sistema escreve; o pyRevit lê
-  projetos\<id-projeto>.json ← o sistema escreve (especificação de cada projeto)
+  projeto-<código>.json      ← o sistema escreve (especificação de cada projeto)
+  DEV\                       ← os mesmos arquivos, gerados pela dev
+  pyRevit\                   ← cópia de uso da extensão Ferramentas FJA
   pedidos\                   ← o pyRevit escreve; o sistema lê, processa e apaga/arquiva
   respostas\                 ← o sistema escreve; o pyRevit lê
   materiais-base.rvt         ← materiais-base por sigla (§7)
 ```
 
 ### 6.1 Sistema → Revit (leitura)
-- O sistema reescreve `biblioteca.json` e o arquivo do projeto alguns segundos depois de qualquer alteração na biblioteca, na especificação ou nas siglas. Usa o mesmo mecanismo dos backups em planilha e os retoma quando há alguém conectado.
-- Exige incluir **`update_file`** (Google Drive) nas capacidades do sistema. Hoje há só `create_file`, e cada pessoa verá um novo pedido de permissão.
+- O sistema publica `biblioteca.json` e `projeto-<código>.json` 8 s depois de qualquer alteração na biblioteca, na especificação ou nas siglas, além de uma conferência a cada minuto. Só regrava os arquivos cujo conteúdo mudou (hash guardado em `config/revit`).
+- **O conector do Drive não reescreve conteúdo** (`update_file` só altera nome e metadados). Por isso, cada publicação cria o arquivo novo e manda o anterior para a lixeira (`trash_file`, capacidade nova; cada pessoa verá um pedido de permissão). O pyRevit usa o arquivo mais recente com o nome esperado.
+- Pastas: oficial `SISTEMA FJA\REVIT` (id `10c0Ebbm2ubHoM_LrXGZ40dbw3HP-xgkw`); dev `SISTEMA FJA\REVIT\DEV` (id `18ga9uZxZs0yFTs0xgTdmeXleAJLBfG0f`).
 - O pyRevit lê pelo Google Drive para Desktop: as janelas abrem na hora, mesmo sem ninguém com o sistema aberto. A defasagem é a da sincronização do Drive (segundos a um minuto).
 - Conteúdo: itens centrais, com camadas e variações; siglas; itens de material; e, por projeto, a especificação com keynotes e o código do projeto.
 
@@ -183,7 +198,7 @@ Isso permite renomear sem perder o vínculo, saber o que veio do sistema e mostr
 ## 10. Distribuição da extensão
 
 - A extensão **Ferramentas FJA** vai para o repositório do sistema (`revit/Ferramentas-FJA.extension`), com histórico.
-- A cópia de uso fica numa pasta do G:, por exemplo `BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit\`. Cada computador aponta o pyRevit para ela (configuração de extensões do usuário), uma vez só.
+- A cópia de uso fica em `BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit\` (copiada em 03/11/2026, ainda não em uso). Cada computador aponta o pyRevit para ela (configuração de extensões do usuário), uma vez só, e remove a cópia local de `%APPDATA%\pyRevit\Extensions`. Detalhes em `revit/README.md`.
 - Atualizar = copiar a versão nova para o G: e recarregar o pyRevit.
 - Compatibilidade: Revit 2024 e 2027 (pyRevit com IronPython), seguindo o estilo dos scripts atuais.
 
