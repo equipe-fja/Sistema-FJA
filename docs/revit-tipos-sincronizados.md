@@ -1,6 +1,6 @@
 # Revit × Sistema FJA — tipos sincronizados com a especificação técnica
 
-Documento de projeto (versão 1 — 03/11/2026). Nada implementado ainda: este texto é para revisão antes da implementação.
+Documento de projeto (versão 2 — 03/11/2026: criação a partir de qualquer sigla de composição). Nada implementado ainda: este texto é para revisão antes da implementação.
 
 ## 1. Objetivo
 
@@ -14,7 +14,11 @@ Usar o Sistema FJA como fonte única dos tipos do Revit, para padronizar os mode
 ### No sistema (especificação técnica, em desenvolvimento na dev)
 - **Biblioteca central** (`espb`): item com código permanente `FJ-NNNN`, classe NBR 15965, sigla, descrição, texto-base e fabricante.
 - **Especificação do projeto** (`espec`): item puxado da biblioteca com **keynote próprio do projeto** (`SIG.NN`), descrição e texto do projeto, dimensões e variações. Há aviso quando o texto central muda depois.
-- **Siglas** (`etsig` + lista padrão no código): 2 letras = material (GE, PI, BL, EM, PO, CC…), 3 letras = elemento ou família (DRY, PMD, ESQ…).
+- **Siglas** (`etsig` + lista padrão no código), em três tipos:
+  - **Material** — 2 letras (GE, PI, BL, EM, PO, CC…); vai no Keynote do material.
+  - **Composição (sistema)** — 3 letras (DRY, PIN…); tipos com camadas: paredes, pisos, forros, coberturas.
+  - **Elemento / família** — 3 letras (PMD, ESQ, LAV…); famílias carregáveis.
+  O tipo é escolhido no cadastro da sigla (Biblioteca › Especificação técnica › siglas).
 - **Já existe:** exportação do arquivo de keynotes (.txt) do projeto e importação das planilhas ET-.
 
 ### No Revit
@@ -37,6 +41,8 @@ Usar o Sistema FJA como fonte única dos tipos do Revit, para padronizar os mode
 | D6 | Materiais | Criados a partir de **materiais-base padrão por sigla**, ajustáveis depois. |
 | D7 | Sincronização | Um botão **Sincronizar tipos geral**, para todas as categorias. |
 | D8 | Numeração | O pyRevit reserva o próximo FJ e o próximo keynote a partir dos dados do sistema; o sistema confirma (ver §6.3). |
+| D9 | O que pode virar tipo com camadas | **Qualquer item cuja sigla seja do tipo Composição.** Não há lista fixa de siglas de parede ou piso: criar uma sigla de composição no sistema já a torna disponível no Revit. |
+| D10 | Categoria do Revit | Fica no **item** (Parede, Piso, Forro, Cobertura), porque a mesma sigla pode servir a mais de uma (ex.: PIN em parede e em forro). A sigla pode ter uma categoria padrão, sugerida ao criar o item. |
 
 ## 4. Ferramentas no Revit
 
@@ -44,26 +50,28 @@ Painel **Tipos** na aba Ferramentas FJA:
 
 | Botão | Faz |
 |---|---|
-| **Nova parede** · **Novo piso** · **Novo forro** · **Nova cobertura** | Abre a janela de escolha na biblioteca (§4.1) filtrada pela categoria. |
+| **Nova composição** | Abre a janela de escolha na biblioteca (§4.1) com **todos os itens de siglas de composição**, com filtro por categoria do Revit (Parede, Piso, Forro, Cobertura) e por sigla. |
 | **Sincronizar tipos** | Confere todos os tipos do modelo contra o sistema, em todas as categorias (§4.3). |
 
-### 4.1 Janela "Nova parede" (escolher na biblioteca)
-- Cabeçalho: categoria, projeto do modelo e data da última atualização dos dados do sistema.
-- Busca por FJ, keynote, descrição ou material; filtros **Todas / No projeto / No modelo**.
-- Lista dos itens centrais da categoria: código FJ, descrição, espessura total e etiqueta "no modelo · ALV.01" / "no projeto · ALV.02".
+### 4.1 Janela "Nova composição" (escolher na biblioteca)
+- Cabeçalho: projeto do modelo e data da última atualização dos dados do sistema.
+- Busca por FJ, keynote, descrição ou material; filtros por **categoria do Revit** (Parede, Piso, Forro, Cobertura), por **sigla** (todas as siglas de composição, agrupadas como no sistema) e **Todas / No projeto / No modelo**.
+- Se a janela for aberta com elementos selecionados no modelo, o filtro de categoria já vem com a categoria deles.
+- Lista dos itens centrais com sigla de composição: código FJ, descrição, espessura total e etiqueta "no modelo · ALV.01" / "no projeto · ALV.02".
 - Painel do item selecionado: desenho da seção em camadas; tabela de camadas (função, keynote do material, descrição, espessura) e total.
 - Prévia do resultado: keynote no projeto (o existente, ou o próximo livre da sigla), Type Mark, nome do tipo, materiais que já existem e os que serão criados.
 - Se o item já tiver no projeto variações de espessura, escolher a variação ou criar uma nova (→ `E=`).
-- Botões: **Nova parede…** (§4.2), Cancelar, **Criar no modelo**.
+- Itens de composição **sem camadas** cadastradas aparecem na lista com aviso e o botão **Definir camadas…**, que abre o formulário do §4.2 já preenchido. Assim, qualquer item de composição que já está no sistema pode virar tipo.
+- Botões: **Nova composição…** (§4.2), Cancelar, **Criar no modelo**.
 
 Ao criar:
 1. Se o item ainda não está na especificação do projeto, ele entra com o próximo keynote livre da sigla (como o "Puxar da biblioteca").
 2. Os materiais que faltam são criados (§7).
 3. O tipo é criado a partir de um tipo-base da família de sistema; recebe camadas, Type Mark, Keynote, Descrição, nome e o vínculo invisível (§8).
 
-### 4.2 Janela "Nova parede…" (criar na biblioteca)
+### 4.2 Janela "Nova composição…" (criar na biblioteca)
 É o mesmo formulário do sistema:
-- Sigla (lista das siglas de elemento da categoria); Descrição; Especificação (texto); Fabricante e classe NBR (opcionais).
+- Sigla (qualquer sigla de **composição**); categoria do Revit (sugerida pela sigla); Descrição; Especificação (texto); Fabricante e classe NBR (opcionais).
 - **Camadas:** função (Acabamento 1, Acabamento 2, Substrato, Estrutura, Isolamento, Membrana), material (itens de **material** da biblioteca, siglas de 2 letras) e espessura em mm. Inclui adicionar, remover e reordenar.
 - Prévia: FJ que será criado, keynote no projeto, nome do tipo e espessura total.
 - **Criar na biblioteca e no modelo:** grava o item central, a linha na especificação do projeto e o tipo no modelo.
@@ -165,11 +173,12 @@ Isso permite renomear sem perder o vínculo, saber o que veio do sistema e mostr
 
 ## 9. O que muda no sistema
 
-1. **Camadas no item central:** campo de composição (função, item de material, espessura) para itens de sigla de parede, piso, forro e cobertura. A especificação do projeto pode ter variações de espessura.
+1. **Camadas no item central:** campo de composição (categoria do Revit; camadas com função, item de material e espessura) em todo item cuja sigla seja do tipo Composição. Ficha do item com editor de camadas e desenho da seção, no sistema e no Revit. A especificação do projeto pode ter variações de espessura.
+   - No cadastro de siglas: **categoria padrão do Revit** para siglas de composição (opcional).
 2. **Publicação no G:** `biblioteca.json` e `projetos\<id>.json`, com a capacidade `update_file`.
 3. **Processamento de pedidos** e linha "Pedidos do Revit".
 4. **Indicação "no modelo"** nos itens da especificação do projeto, a partir dos pedidos `vincular`.
-5. Siglas de elemento para paredes, pisos, forros e coberturas (§11).
+5. ~~Siglas de composição~~ — feito: o tipo Composição (sistema) já existe no cadastro de siglas.
 
 ## 10. Distribuição da extensão
 
@@ -180,7 +189,7 @@ Isso permite renomear sem perder o vínculo, saber o que veio do sistema e mostr
 
 ## 11. Pontos a confirmar
 
-1. **Siglas de 3 letras** para paredes, pisos, forros e coberturas. O sistema ainda não as tem cadastradas: a lista padrão do código só tem DRY (drywall), e a coleção de siglas da dev está vazia. Precisamos da lista para cadastrar.
+1. ~~Siglas de composição~~ — resolvido com o tipo Composição (sistema) no cadastro de siglas. Falta só cadastrar as siglas que a equipe já usa (hoje: DRY e PIN).
 2. Nas famílias carregáveis, o nome do tipo também deve seguir "Type Mark - Descrição"? (Para portas e esquadrias o nome às vezes carrega dimensões.)
 3. Onde fica a pasta de distribuição da extensão no G:.
 4. Quem mantém o `materiais-base.rvt` e a lista inicial de materiais-base.
@@ -189,7 +198,7 @@ Isso permite renomear sem perder o vínculo, saber o que veio do sistema e mostr
 ## 12. Fases sugeridas
 
 1. **Fundação:** extensão no repositório e distribuição pelo G:; camadas e siglas no sistema; publicação de `biblioteca.json` e dos projetos.
-2. **Nova parede / piso / forro / cobertura:** escolha na biblioteca e criação no modelo, com materiais-base e vínculo.
+2. **Nova composição:** escolha na biblioteca (qualquer sigla de composição) e criação no modelo, com materiais-base e vínculo.
 3. **"Nova…" e pedidos:** criação de itens a partir do Revit, numeração reservada e processamento no sistema.
 4. **Sincronizar tipos:** categorias com camadas, depois famílias carregáveis e materiais.
 5. Ajustes: variações E=, Legenda LUM, paredes cortina.
