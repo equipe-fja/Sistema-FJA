@@ -5,7 +5,7 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - Especificações (projeto) e Especificações da biblioteca (`espec`, `espb`), entre outras mudanças feitas na dev depois da v99 — revisar o diff `oficial-v99..main` antes de promover.
 
-## oficial v99 = dev v74 — 30/10, ~18h30
+## oficial v99 = dev v74 — 30/10, ~18h30 — commit 7f4d3ac
 - Comentários × Relação de documentos: ligação pelo nome do arquivo (`chaveDoc`) ou explícita (`coment.rdoc`); coluna e seção de Comentários na RD.
 - Croquis (`croq`): lista com miniaturas, ficha com imagem, arquivos (arrastar, colar print, vincular do G: ou link), pasta no Drive, e-mail pelo Gmail.
 

@@ -31,10 +31,12 @@ CLAUDE.md              instruções de trabalho para o Claude
 2. `./scripts/gerar.sh`.
 3. Publicar `dist/dev.html` no artifact de desenvolvimento e testar.
 4. Commit descrevendo a mudança.
-5. Quando o Filipe pedir ("pode atualizar a oficial"): publicar `dist/oficial.html` no artifact oficial, registrar no `CHANGELOG.md` e criar a tag `oficial-vNN` (número da versão do artifact oficial).
+5. Quando o Filipe pedir ("pode atualizar a oficial"): publicar `dist/oficial.html` no artifact oficial, registrar no `CHANGELOG.md` (com o commit) e avançar a branch `oficial` para esse commit.
 
-## Tags
+## Branches
 
-- `oficial-vNN`: código exato publicado na oficial, versão NN.
+- `main`: desenvolvimento (o que está na dev).
+- `oficial`: sempre aponta para o código exato que está publicado na oficial.
 
-Para voltar o código a uma versão: `git checkout oficial-vNN -- src/sistema-fja.html`.
+O `CHANGELOG.md` registra, para cada versão da oficial, o commit correspondente. Para voltar o código a uma versão: `git checkout <commit> -- src/sistema-fja.html`.
+(As tags do git não puderam ser enviadas pelo acesso que o Claude usa; quem quiser pode criar tags/releases pela própria página do GitHub.)
