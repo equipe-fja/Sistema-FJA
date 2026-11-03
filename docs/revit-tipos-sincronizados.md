@@ -190,7 +190,7 @@ Isso permite renomear sem perder o vínculo, saber o que veio do sistema e mostr
 
 1. **Camadas no item central:** campo de composição (categoria do Revit; camadas com função, item de material e espessura) em todo item cuja sigla seja do tipo Composição. Ficha do item com editor de camadas e desenho da seção, no sistema e no Revit. A especificação do projeto pode ter variações de espessura.
    - No cadastro de siglas: **categoria padrão do Revit** para siglas de composição (opcional).
-2. **Publicação no G:** `biblioteca.json` e `projetos\<id>.json`, com a capacidade `update_file`.
+2. **Publicação no G:** `biblioteca.json` e `projeto-<código>.json` (Ferramentas › Conexão com o Revit), com a capacidade `trash_file`.
 3. **Processamento de pedidos** e linha "Pedidos do Revit".
 4. **Indicação "no modelo"** nos itens da especificação do projeto, a partir dos pedidos `vincular`.
 5. ~~Siglas de composição~~ — feito: o tipo Composição (sistema) já existe no cadastro de siglas.
@@ -206,7 +206,7 @@ Isso permite renomear sem perder o vínculo, saber o que veio do sistema e mostr
 
 1. ~~Siglas de composição~~ — resolvido com o tipo Composição (sistema) no cadastro de siglas. Falta só cadastrar as siglas que a equipe já usa (hoje: DRY e PIN).
 2. Nas famílias carregáveis, o nome do tipo também deve seguir "Type Mark - Descrição"? (Para portas e esquadrias o nome às vezes carrega dimensões.)
-3. Onde fica a pasta de distribuição da extensão no G:.
+3. Pasta de distribuição da extensão: proposta `SISTEMA FJA\REVIT\pyRevit` (cópia já feita); falta confirmar e apontar o pyRevit de cada computador.
 4. Quem mantém o `materiais-base.rvt` e a lista inicial de materiais-base.
 5. A Legenda LUM deve passar a usar o keynote do sistema em vez de gerar códigos próprios?
 
