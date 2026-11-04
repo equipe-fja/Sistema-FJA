@@ -188,6 +188,46 @@ class FormNova(forms.WPFWindow):
         del self.linhas[i]
         self.desenhar()
 
+    def _soltar(self, de, para):
+        if de == para or not (0 <= de < len(self.linhas)):
+            return
+        ln = self.linhas.pop(de)
+        self.linhas.insert(min(para, len(self.linhas)), ln)
+        self.desenhar()
+
+    def _arrastar(self, g, i):
+        from System.Windows import DragDrop, DragDropEffects, DataObject
+        try:
+            g.Opacity = 0.5
+            DragDrop.DoDragDrop(g, DataObject("fja-camada", str(i)), DragDropEffects.Move)
+        finally:
+            g.Opacity = 1.0
+
+    def _ligar_arraste(self, g, alca, i):
+        from System.Windows.Input import Cursors
+        alca.Cursor = Cursors.SizeAll
+        alca.ToolTip = u"Arraste para mudar a ordem (camada {})".format(i + 1)
+        alca.MouseLeftButtonDown += (lambda s, e, g=g, i=i: self._arrastar(g, i))
+        g.AllowDrop = True
+
+        def sobre(s, e, g=g):
+            if e.Data.GetDataPresent("fja-camada"):
+                g.Background = pincel((247, 236, 234))
+                e.Handled = True
+
+        def saiu(s, e, g=g):
+            g.Background = None
+
+        def soltou(s, e, i=i, g=g):
+            g.Background = None
+            if e.Data.GetDataPresent("fja-camada"):
+                self._soltar(int(e.Data.GetData("fja-camada")), i)
+                e.Handled = True
+
+        g.DragOver += sobre
+        g.DragLeave += saiu
+        g.Drop += soltou
+
     def _duplicar(self, i):
         self.linhas.insert(i + 1, dict(self.linhas[i]))
         self.desenhar()
@@ -274,9 +314,17 @@ class FormNova(forms.WPFWindow):
             q.CornerRadius = System_CornerRadius(3)
             q.Background = pincel(COR_FN.get(ln["funcaoRevit"], (220, 220, 220)))
             q.HorizontalAlignment = HorizontalAlignment.Left
-            q.ToolTip = u"Camada {}".format(i + 1)
+            q.Width = 14
+            q.Height = 22
+            q.CornerRadius = System_CornerRadius(3)
+            q.Child = TextBlock()
+            q.Child.Text = u"\u22EE"
+            q.Child.HorizontalAlignment = HorizontalAlignment.Center
+            q.Child.VerticalAlignment = VerticalAlignment.Center
+            q.Child.Foreground = pincel((90, 90, 90))
             Grid.SetColumn(q, 0)
             g.Children.Add(q)
+            self._ligar_arraste(g, q, i)
             cf = ComboBox()
             cf.Margin = Thickness(0, 0, 8, 0)
             for rot, cod in FN_OPC:
