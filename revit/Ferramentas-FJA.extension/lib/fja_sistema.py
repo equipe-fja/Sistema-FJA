@@ -665,6 +665,12 @@ def ler_familia(app, caminho):
         fdoc.Close(False)
 
 
+def _idv(eid):
+    """Número do ElementId (Revit 2024+ usa .Value; versões antigas, .IntegerValue)."""
+    v = getattr(eid, "Value", None)
+    return int(v) if v is not None else int(eid.IntegerValue)
+
+
 def familia_do_elemento(doc, elem):
     """Família de um elemento já inserido no modelo (instância ou tipo de família carregável)."""
     sim = None
@@ -682,7 +688,8 @@ def familia_do_elemento(doc, elem):
     for inst in DB.FilteredElementCollector(doc).OfClass(DB.FamilyInstance):
         try:
             if inst.Symbol.Family.Id == familia.Id:
-                cont[inst.Symbol.Id.IntegerValue] = cont.get(inst.Symbol.Id.IntegerValue, 0) + 1
+                k = _idv(inst.Symbol.Id)
+                cont[k] = cont.get(k, 0) + 1
         except Exception:
             pass
     vinc = ler_vinculo(sim) or {}
@@ -695,7 +702,7 @@ def familia_do_elemento(doc, elem):
     return {"modelo": True, "familia": familia, "simbolo": sim, "nome": familia.Name,
             "categoria": familia.FamilyCategory.Name if familia.FamilyCategory else u"",
             "tipos": [nome_elem(t) for t in tipos],
-            "instancias": dict((nome_elem(t), cont.get(t.Id.IntegerValue, 0)) for t in tipos),
+            "instancias": dict((nome_elem(t), cont.get(_idv(t.Id), 0)) for t in tipos),
             "vinculo": vinc, "knAtual": kn, "tipoAtual": nome_elem(sim)}
 
 
