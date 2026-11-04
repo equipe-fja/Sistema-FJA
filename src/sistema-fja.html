@@ -1111,7 +1111,7 @@ const DEFAULT_SCHEMA = {
 };
 
 const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), crono:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), etsig:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
-  view:{t:'home'}, fx:new Set(), fechadas:new Set((()=>{try{return JSON.parse(localStorage.getItem('fja.fechadas')||'[]')}catch{return []}})()), abertas:new Set(['s:projetos','g:biblioteca','s:familias','s:templates','s:representacao','s:disciplinas','s:parceiros','s:manuais']), busca:'', draft:null, dirty:false, schemaDraft:null, pend:null, ro:false};
+  view:{t:'home'}, fx:new Set(), fechadas:new Set((()=>{try{return JSON.parse(localStorage.getItem('fja.fechadas')||'[]')}catch{return []}})()), abertas:new Set((()=>{try{const v=JSON.parse(localStorage.getItem('fja.abertas')||'null'); if(Array.isArray(v)) return v}catch{} return ['s:projetos','g:biblioteca','s:familias','s:templates','s:representacao','s:disciplinas','s:parceiros','s:manuais']})()), busca:'', draft:null, dirty:false, schemaDraft:null, pend:null, ro:false};
 let db=null, user=null, me=null, assets=null, mcp=null, downloads=null;
 
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1204,6 +1204,7 @@ function renderTree(){
   {const nS=[...S.sugest.values()].filter(sugAberta).length;
    h+=`<div class="secline sug-line"><button class="row sec-h ${S.view.t==='sug'?'sel':''}" data-act="sug"><span class="chev"></span>${IC.sug}<span class="lbl">Sugestões</span><span class="cnt" title="Sugestões em aberto">${nS||''}</span></button></div>`}
   $('tree').innerHTML=h;
+  try{const v=JSON.stringify([...S.abertas]); if(v!==S._abSalvo){localStorage.setItem('fja.abertas',v); S._abSalvo=v}}catch{}
 }
 
 /* ---------- campos ---------- */
