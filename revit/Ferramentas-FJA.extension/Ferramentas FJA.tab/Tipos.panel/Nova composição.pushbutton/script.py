@@ -541,6 +541,12 @@ class Janela(forms.WPFWindow):
              "categoria": (u"Sem categoria", (251, 231, 229), (179, 38, 30)),
              "aguardando": (u"Aguardando", (248, 239, 217), (138, 93, 5))}
 
+    DICAS = {"projeto": u"Já está na especificação técnica deste projeto, com keynote.",
+             "tipo": u"Já existe um tipo criado a partir desta composição no modelo aberto.",
+             "camadas": u"A composição não tem camadas: não pode virar tipo até ser corrigida.",
+             "categoria": u"Falta definir a categoria (parede, piso, forro ou cobertura): não pode virar tipo até ser corrigida.",
+             "aguardando": u"Criada ou alterada pelo Revit; o sistema confirma os códigos quando alguém o abrir."}
+
     def _selos(self, it, linha):
         r = []
         if it.get("pendente"):
@@ -567,6 +573,7 @@ class Janela(forms.WPFWindow):
             b.Padding = Thickness(7, 1, 7, 1)
             b.Margin = Thickness(0, 1, 4, 1)
             b.Child = texto(rot, cor=pincel(cor), tam=11)
+            b.ToolTip = self.DICAS[k]
             wp.Children.Add(b)
         return wp
 
