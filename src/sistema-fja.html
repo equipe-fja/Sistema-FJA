@@ -4773,7 +4773,7 @@ function telaEspItem(h,v){
   h+=`<section class="sheet"><div class="sheet-h"><h2>No projeto</h2><span class="hint">keynote único neste projeto · ${esc(TIPOS_ET[tipoEt(b)])}: ${esc(regraKn(tipoEt(b)))}</span></div><div class="grid">
     <label class="fl" for="q_kn">Keynote<input class="fld mono" id="q_kn" data-q="kn" value="${esc(e.kn||'')}" ${dis}></label>
     <label class="fl">Tabela<input class="fld" value="${esc(tabEs(e))}" disabled title="A tabela é a sigla do keynote"></label>
-    ${eqCampoHTML(['desc','Descrição simplificada (texto do keynote)','text','wide'],e.desc).replace('<input ','<input list="dlDescVar" ')+`<datalist id="dlDescVar">${descsDe(espbDe(e)).map(v=>`<option value="${esc(v.t)}">${v.id===descPriId(espbDe(e))?'principal':'variação'}</option>`).join('')}</datalist>`}
+    ${descSelHTML(e)}
     ${eqCampoHTML(['texto','Especificação no projeto','longtext'],e.texto).replace('rows="3"','rows="9"')}
     ${e.ferragens||tipoEt(b)==='elemento'?eqCampoHTML(['ferragens','Ferragens','longtext'],e.ferragens):''}
     ${eqCampoHTML(['obs','Observações','longtext'],e.obs)}</div></section>`;
@@ -4818,6 +4818,7 @@ function diagCelEs(e){
   const st=descEstado(e); if(!st) return '<span class="muted">sem item central</span>'; const [rot,cls]=DESC_EST[st];
   const bt=(op,t,d)=>S.ro?'':`<button class="btn sm" data-act="et-dg" data-op="${op}" data-eid="${esc(e.id)}" title="${esc(d)}">${t}</button>`;
   const acoes=st==='mudou'?bt('atualizar','Usar a principal','Trocar pela descrição principal atual')+bt('variacao','Ficar com a variação','Continuar com esta descrição, que já é uma variação cadastrada')
+    :st==='var'?bt('atualizar','Usar a principal','Trocar esta variação pela descrição principal')
     :st==='fora'?bt('registrar','Registrar como variação','Cadastrar este texto como variação no banco central')+bt('atualizar','Usar a principal','Trocar pela descrição principal'):'';
   return `<span class="dg-b ${cls}" title="${esc(DESC_DICA[st])}${st==='mudou'||st==='fora'?' Principal: '+esc(descPri(espbDe(e))?.t||''):''}">${rot}</span>${acoes?`<span class="dg-ac">${acoes}</span>`:''}`;
 }
@@ -4835,6 +4836,14 @@ async function descAplicarLinha(body){
   const b=S.espb.get(body.item); if(!b) return;
   let v=descVarDe(b,body.desc); if(!v) v=await descRegistrar(b,body.desc);
   body.desc=v.t; body.descEsc=v.id===descPriId(b)?'auto':'manual'; body.descOk=null;
+}
+function descSelHTML(e){
+  const b=espbDe(e); if(!b) return eqCampoHTML(['desc','Descrição simplificada (texto do keynote)','text','wide'],e.desc);
+  const pri=descPriId(b), L=[...descsDe(b)].sort((x,y)=>(y.id===pri)-(x.id===pri)), fora=!descVarDe(b,e.desc)&&nTxt(e.desc);
+  return `<label class="fl wide" for="q_desc">Descrição simplificada (texto do keynote)<select class="fld" id="q_desc" data-q="desc" ${S.ro||S.eqLock?'disabled':''}>
+    ${L.map(v=>`<option value="${esc(v.t)}"${nTxt(v.t)===nTxt(e.desc)?' selected':''}>${v.id===pri?'Principal · ':'Variação · '}${esc(v.t)}</option>`).join('')}
+    ${fora?`<option value="${esc(e.desc)}" selected>Fora do central · ${esc(e.desc)}</option>`:''}
+    ${S.ro?'':'<option value="__nova">+ Nova variação…</option>'}</select></label>`;
 }
 function diagAlternar(){
   S.diagEs=!S.diagEs; const st=MODS.es.st; st.cols=st.cols.filter(c=>c!=='diag');
@@ -6042,6 +6051,8 @@ document.addEventListener('input',ev=>{
   if(el.type==='color'&&el.closest('.cor-fld')){const sp=el.parentNode.querySelector('.mono'); if(sp) sp.textContent=el.value}
   if(el.dataset.dccor!=null){const l=el.closest('.cor-am'); if(l) l.style.background=el.value; return}
   if(el.dataset.ev!=null && S.qdraft){pdGarantirArrays(); const x=S.qdraft.eventos[+el.dataset.ev]; if(x){x[el.dataset.evk]=el.dataset.evk==='data'?dBr(el.value):el.value} marcaSujo(); return}
+  if(el.dataset.q==='desc'&&el.value==='__nova'&&S.qdraft){const ant=S.qdraft.desc||''; el.value=ant;
+    pedirNome({titulo:'Nova variação da descrição',rotulo:'Texto do keynote (fica registrado no banco central ao salvar)',ok:'Usar',padrao:ant,bruto:true}).then(t=>{t=nTxt(t); if(!t) return; S.qdraft.desc=t; marcaSujo(); renderMain()}); return}
   if(el.dataset.q && S.qdraft){const k=el.dataset.q; let v=el.type==='checkbox'?el.checked:el.value;
     if(el.dataset.dt){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v); v=m?`${m[3]}/${m[2]}/${m[1]}`:''}
     S.qdraft[k]=v; if(k==='documento'&&S.view.t==='comi'){delete S.qdraft.rdoc; const d0=rdDeCm(S.qdraft); if(d0) S.qdraft.rdoc=d0.id}
