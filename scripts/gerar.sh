@@ -13,4 +13,5 @@ grep -q "<title>Sistema FJA</title>" "$SRC" || { echo "ERRO: a fonte precisa ter
 cp "$SRC" dist/oficial.html
 sed "s/const AMB='oficial'/const AMB='dev'/; s#<title>Sistema FJA</title>#<title>Sistema FJA – Desenvolvimento</title>#" "$SRC" > dist/dev.html
 
+python3 scripts/embutir-revit.py dist/oficial.html dist/dev.html
 echo "ok: dist/oficial.html ($(wc -c < dist/oficial.html) bytes)  dist/dev.html ($(wc -c < dist/dev.html) bytes)"

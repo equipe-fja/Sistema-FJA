@@ -5647,6 +5647,7 @@ document.addEventListener('click',async ev=>{
   if(a.startsWith('cq-')){await cqAcao(a,b);return}
   if(a.startsWith('cp-')){await cpAcao(a,b);return}
   if(a==='rv-publicar'){await rvPublicar('tudo');return}
+  if(a==='rv-ext'){await baixarExtRevit();return}
   if(a==='rv-pedidos'){await rvPedidos(true);return}
   if(a.startsWith('et-')||a==='espb'){await esAcao(a,b);return}
   if(a==='croqs'){S.abertas.add('i:'+b.dataset.id);ir({t:'croqs',id:b.dataset.id});return}
@@ -7010,11 +7011,24 @@ async function rvPedidos(manual){
 }
 function rvAgendar(){if(S.ro||S.publico) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
 function rvUI(){if(S.view?.t==='ferr'&&S.view.f==='revit'&&!S.dirty) renderMain()}
+/* extensão do pyRevit embutida na geração (scripts/gerar.sh troca o marcador pelos arquivos de revit/) */
+const EXT_REVIT=null/*EXT_REVIT*/;
+async function baixarExtRevit(){
+  if(!EXT_REVIT){toast('O pacote da extensão não foi incluído nesta versão.');return}
+  if(!downloads){toast('O download não está disponível nesta visualização.');return}
+  const bin=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0));
+  const z=zipArquivos(EXT_REVIT.arquivos.map(a=>({nome:a.nome,dados:bin(a.b64)})));
+  try{const r=await downloads.save({filename:`Ferramentas-FJA-v${EXT_REVIT.versao}.zip`,data:z}); if(r) toast('Extensão salva')}
+  catch(e){toast(e?.code==='declined'?'Download cancelado':'Não foi possível baixar a extensão')}
+}
 function telaRevit(h){
   const st=RVP.st||{}, A=Object.entries(st.arquivos||{}).sort((a,b)=>a[0]==='biblioteca.json'?-1:b[0]==='biblioteca.json'?1:a[0].localeCompare(b[0],'pt',{numeric:true}));
   const fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}), nComp=[...S.espb.values()].filter(ehComp), sem=nComp.filter(b=>!cpCamadas(b).length).length;
   h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="ferr">Ferramentas</button><span>/</span><span>Conexão com o Revit</span></div>
   <h1>Conexão com o Revit</h1><p class="lead">A especificação técnica (biblioteca central, siglas e especificação de cada projeto) é publicada como arquivos .json numa pasta do G:, lida pela aba <b>Ferramentas FJA</b> do pyRevit. A publicação é automática alguns segundos depois de qualquer alteração, por quem estiver com o sistema aberto.</p>
+  <section class="sheet"><div class="sheet-h"><h2>Extensão Ferramentas FJA</h2>${EXT_REVIT?`<span class="hint">versão ${esc(EXT_REVIT.versao)}</span>`:''}<span class="sp"></span><button class="btn sm pri" data-act="rv-ext"${EXT_REVIT?'':' disabled'}>Baixar a extensão</button></div><div class="pad ferr-pad">
+    <p class="muted">Aba <b>Ferramentas FJA</b> do pyRevit (Nova composição, Renomear tipos, Legendas). Para instalar num computador novo: extraia o .zip, copie a pasta <span class="mono">Ferramentas-FJA.extension</span> para uma pasta de extensões do pyRevit (no escritório: <span class="mono">G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit</span>, já cadastrada no pyRevit de quem usa) e, no Revit, clique em <b>pyRevit › Reload</b>. Num computador que ainda não lê essa pasta: pyRevit › Settings › Custom Extension Directories › adicionar a pasta.</p>
+  </div></section>
   <section class="sheet"><div class="sheet-h"><h2>Arquivos publicados</h2><span class="hint">${AMB==='dev'?'desenvolvimento: pasta DEV':''}</span><span class="sp"></span>${S.ro?'':`<button class="btn sm${RVP.rodando?'':' pri'}" data-act="rv-publicar" ${RVP.rodando||!mcp?'disabled':''}>${RVP.rodando?'Publicando…':'Publicar agora'}</button>`}</div>
   ${A.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th>Arquivo</th><th style="width:160px">Atualizado</th><th style="width:180px">Por</th></tr></thead><tbody>${A.map(([n,a])=>`<tr><td class="mono">${a.id?`<a href="https://drive.google.com/file/d/${esc(a.id)}/view" target="_blank" rel="noopener">${esc(n)}</a>`:esc(n)}</td><td class="mono">${a.em?fmt(a.em):''}</td><td>${esc(a.por||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="pad muted">Nada publicado ainda.</p>`}
   ${st.erro?`<p class="pad" style="color:var(--danger);margin:0">Última falha (${fmt(st.erro.em)}): ${esc(st.erro.msg||'')}</p>`:''}${st.erroLixeira?`<p class="pad" style="color:var(--warn);margin:0">A versão anterior de ${esc(st.erroLixeira.arquivo)} não foi para a lixeira (${fmt(st.erroLixeira.em)}): ${esc(st.erroLixeira.msg||'')}</p>`:''}</section>

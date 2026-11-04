@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""Troca o marcador null/*EXT_REVIT*/ pelos arquivos da extensão do pyRevit (revit/Ferramentas-FJA.extension)."""
+import base64, json, os, sys
+raiz = os.path.join(os.path.dirname(__file__), "..", "revit")
+ext = os.path.join(raiz, "Ferramentas-FJA.extension")
+versao = json.load(open(os.path.join(ext, "extension.json"), encoding="utf-8")).get("version", "?")
+arqs = []
+for d, _, fs in sorted(os.walk(ext)):
+    for f in sorted(fs):
+        if f.endswith((".pyc", ".log")) or f.startswith("."):
+            continue
+        cam = os.path.join(d, f)
+        arqs.append({"nome": os.path.relpath(cam, raiz).replace(os.sep, "/"),
+                     "b64": base64.b64encode(open(cam, "rb").read()).decode()})
+dados = json.dumps({"versao": versao, "arquivos": arqs}, ensure_ascii=False, separators=(",", ":"))
+for p in sys.argv[1:]:
+    s = open(p, encoding="utf-8").read()
+    assert s.count("null/*EXT_REVIT*/") == 1, p
+    open(p, "w", encoding="utf-8").write(s.replace("null/*EXT_REVIT*/", dados))
+print("extensão v{} embutida ({} arquivos)".format(versao, len(arqs)))
