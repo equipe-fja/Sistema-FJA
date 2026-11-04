@@ -626,6 +626,8 @@ tr.rd-sel>td:first-child{box-shadow:inset 3px 0 0 var(--accent,#8e1b1b)}
 .dg-b.dg-var{background:var(--info-bg);color:var(--info)}.dg-b.dg-mud{background:var(--warn-bg);color:var(--warn)}.dg-b.dg-fora{background:var(--danger-bg);color:var(--danger)}.dg-b.dg-ok{background:var(--ok-bg);color:var(--ok)}
 .cm-txt.dg-var{box-shadow:inset 3px 0 0 var(--info);padding-left:6px}.cm-txt.dg-mud{background:var(--warn-bg);box-shadow:inset 3px 0 0 var(--warn);padding-left:6px}.cm-txt.dg-fora{background:var(--danger-bg);box-shadow:inset 3px 0 0 var(--danger);padding-left:6px}
 .dg-vars{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow:auto;margin-bottom:4px}.dg-vars .ml-b{text-align:left;white-space:normal}
+.dgb{display:flex;flex-direction:column;gap:3px;margin-top:6px}.dgb-v{display:flex;align-items:center;gap:8px;font-size:13px}.dgb-v .btn.sm{height:24px;padding:0 8px;font-size:11.5px}
+.dgb-t{flex:1;min-width:0}.dgb-n{font-size:12px;white-space:nowrap}.dgb-v.pri .dgb-t{font-weight:500}.dgb-a{display:flex;gap:6px;margin-top:2px}
 .dg-ac{display:inline-flex;gap:4px;margin-left:6px;flex-wrap:wrap}.btn.on{border-color:var(--accent);background:var(--accent-weak);color:var(--accent-ink)}
 .knx-caixa{max-width:520px}.knx-lista{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
 .knx-it{display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line)}.knx-it:last-child{border-bottom:0}.knx-it .mono{min-width:44px;color:var(--muted)}
@@ -5099,14 +5101,25 @@ async function importarEt(pid){
 }
 
 /* ---- biblioteca: banco central ---- */
-const ET_B={busca:'',tab:''};
+const ET_B={busca:'',tab:'',diag:false,dg:''};
+/* diagnóstico do banco central: variações da descrição e situação nos projetos */
+function diagB(b){const us=usosEspb(b.id), est=us.map(descEstado); return {nVar:descsDe(b).length,fora:est.filter(x=>x==='fora').length,mudou:est.filter(x=>x==='mudou').length}}
+const DG_B=[['var','Com variações',b=>diagB(b).nVar>1],['pri','Só a principal',b=>diagB(b).nVar<=1],['fora','Projetos fora do central',b=>diagB(b).fora>0],['mud','Principal mudou em projetos',b=>diagB(b).mudou>0]];
+function diagBHTML(b){
+  const pri=descPriId(b), us=usosEspb(b.id), d=diagB(b);
+  return `<div class="dgb">${descsDe(b).map(v=>{const n=us.filter(e=>nTxt(e.desc)===nTxt(v.t)).length;
+    return `<div class="dgb-v${v.id===pri?' pri':''}">${v.id===pri?'<span class="dg-b dg-ok">principal</span>':S.ro?'<span class="dg-b">variação</span>':`<button class="btn sm" data-act="et-dpri" data-bid="${esc(b.id)}" data-v="${esc(v.id)}" title="Passa a ser a descrição dos projetos novos; os projetos existentes não mudam">Tornar principal</button>`}<span class="dgb-t">${esc(v.t)}</span><span class="muted dgb-n">${n} projeto${n===1?'':'s'}</span></div>`}).join('')}
+    ${d.fora||d.mudou?`<div class="dgb-a">${d.fora?`<span class="dg-b dg-fora">${d.fora} fora do central</span> `:''}${d.mudou?`<span class="dg-b dg-mud">${d.mudou} com principal antiga</span>`:''}</div>`:''}</div>`;
+}
 function telaEspb(h){
   const L=[...S.espb.values()], dup=duplicadosEspb();
-  const q=semAc(ET_B.busca), F=L.filter(b=>(!ET_B.tab||tipoEt(b)===ET_B.tab)&&(!q||semAc([b.fja,b.fjaAntigo,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q))).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
+  const fDg=ET_B.diag&&ET_B.dg?DG_B.find(x=>x[0]===ET_B.dg)?.[2]:null;
+  const q=semAc(ET_B.busca), F=L.filter(b=>(!ET_B.tab||tipoEt(b)===ET_B.tab)&&(!fDg||fDg(b))&&(!q||semAc([b.fja,b.fjaAntigo,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q))).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
   const tabs=Object.keys(TIPOS_ET).filter(t=>L.some(b=>tipoEt(b)===t));
   h+=`<div class="page wide"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><span>Especificação técnica</span></div>
   <h1>Especificação técnica</h1><div class="seg" style="margin:-4px 0 14px"><button class="on">Banco central</button><button data-act="et-sig">Siglas de keynote</button></div><p class="lead">Banco central de itens do escritório. Cada item tem um código FJA permanente e uma classe da ABNT NBR 15965; nos projetos, recebe o keynote e a descrição específica.</p>${!S.ro&&fjaAntigos().length?`<div class="banner"><span class="sp">${fjaAntigos().length} itens ainda usam o código antigo (FJ-NNNN). O padrão agora é FJ.SIGLA.NNNN, com numeração própria de cada sigla.</span><button class="btn sm" data-act="et-migrar">Converter códigos</button></div>`:''}
-  <div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="etBBusca" type="search" placeholder="Buscar por FJ, descrição, especificação, classe NBR…" value="${esc(ET_B.busca)}" aria-label="Buscar no banco central"></div><span class="muted eq-count">${F.length===L.length?L.length+' itens':F.length+' de '+L.length+' itens'}</span>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div>`;
+  <div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="etBBusca" type="search" placeholder="Buscar por FJ, descrição, especificação, classe NBR…" value="${esc(ET_B.busca)}" aria-label="Buscar no banco central"></div><span class="muted eq-count">${F.length===L.length?L.length+' itens':F.length+' de '+L.length+' itens'}</span><button class="btn${ET_B.diag?' on':''}" data-act="et-b-diag" aria-pressed="${ET_B.diag}" title="Mostra as variações da descrição de cada item, filtra por situação e permite trocar a principal">Diagnóstico${ET_B.diag?` <span class="cnt">${L.filter(b=>diagB(b).nVar>1).length}</span>`:''}</button>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div>`;
+  if(ET_B.diag) h+=`<div class="chips" style="padding:0 0 10px"><span class="muted" style="font-size:12.5px;align-self:center">Diagnóstico das descrições:</span><button class="chip link ${!ET_B.dg?'on':''}" data-act="et-b-dg" data-v="">Todos</button>${DG_B.map(([k,r,f])=>`<button class="chip link ${ET_B.dg===k?'on':''}" data-act="et-b-dg" data-v="${k}">${r} <span class="cnt">${L.filter(f).length}</span></button>`).join('')}</div>`;
   if(tabs.length>1) h+=`<div class="chips" style="padding:0 0 14px"><button class="chip link ${!ET_B.tab?'on':''}" data-act="et-b-tab" data-v="">Todas <span class="cnt">${L.length}</span></button>${tabs.map(t=>`<button class="chip link ${ET_B.tab===t?'on':''}" data-act="et-b-tab" data-v="${esc(t)}">${esc(TIPOS_ET[t])} <span class="cnt">${L.filter(b=>tipoEt(b)===t).length}</span></button>`).join('')}</div>`;
   if(!L.length) return h+`<section class="sheet"><div class="esp-vazio"><h2>O banco central está vazio</h2><p>Cadastre itens aqui ou importe a planilha de especificação de um projeto (na seção Especificação técnica do projeto): cada keynote importado gera um item central.</p>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div></section></div>`;
   h+=`<section class="sheet"><div class="tablewrap"><table class="list esp et-bt"><thead><tr><th style="width:84px">FJA</th><th style="width:120px">Classe NBR</th><th>Descrição simplificada</th><th style="width:150px">Tipo</th><th style="width:220px">Usado em</th></tr></thead><tbody>`;
@@ -5114,7 +5127,7 @@ function telaEspb(h){
   for(const b of F){
     if(sigB(b)!==tab){tab=sigB(b); h+=`<tr class="grp"><td colspan="5">${esc(rotSig(tab)||'Sem tabela')} <span class="cnt">${F.filter(x=>sigB(x)===tab).length}</span></td></tr>`}
     const us=usosEspb(b.id);
-    h+=`<tr data-act="et-b-abrir" data-bid="${esc(b.id)}"><td class="mono"><b>${esc(b.fja||'')}</b></td><td class="mono muted">${esc(b.nbr||'')}</td><td><b class="esp-nome">${esc(b.desc||'Sem descrição')}</b>${dup.has(b.id)?' <span class="st-cm st-warn" title="Há outro item central com a mesma especificação">possível duplicado</span>':''}<small class="et-clip">${esc(linha1(b.texto).slice(0,180))}</small></td><td>${esc(TIPOS_ET[tipoEt(b)])}</td><td>${us.map(x=>`<span class="chip mono" title="${esc(S.itens.get(x.projeto)?.nome||'')}">${esc((S.itens.get(x.projeto)?.campos?.codigo||'?')+' · '+x.kn)}</span>`).join(' ')||'<span class="muted">—</span>'}</td></tr>`;
+    h+=`<tr data-act="et-b-abrir" data-bid="${esc(b.id)}"><td class="mono"><b>${esc(b.fja||'')}</b></td><td class="mono muted">${esc(b.nbr||'')}</td><td><b class="esp-nome">${esc(b.desc||'Sem descrição')}</b>${dup.has(b.id)?' <span class="st-cm st-warn" title="Há outro item central com a mesma especificação">possível duplicado</span>':''}${ET_B.diag?diagBHTML(b):`<small class="et-clip">${esc(linha1(b.texto).slice(0,180))}</small>`}</td><td>${esc(TIPOS_ET[tipoEt(b)])}</td><td>${us.map(x=>`<span class="chip mono" title="${esc(S.itens.get(x.projeto)?.nome||'')}">${esc((S.itens.get(x.projeto)?.campos?.codigo||'?')+' · '+x.kn)}</span>`).join(' ')||'<span class="muted">—</span>'}</td></tr>`;
   }
   return h+'</tbody></table></div></section></div>';
 }
@@ -5273,6 +5286,8 @@ async function esAcao(a,b){
   if(a==='espb'){ir({t:'espb'});return}
   if(a==='et-sig'){ir({t:'etsig'});return}
   if(a==='et-migrar'){await migrarFja();return}
+  if(a==='et-b-diag'){ET_B.diag=!ET_B.diag; if(!ET_B.diag) ET_B.dg=''; render();return}
+  if(a==='et-b-dg'){ET_B.dg=b.dataset.v||''; render();return}
   if(a==='et-dg'){await diagAcao(b.dataset.op,b.dataset.eid);return}
   if(a==='et-diag'){diagAlternar();return}
   if(a==='et-dpri'){await descTornarPri(b.dataset.bid,b.dataset.v);return}
