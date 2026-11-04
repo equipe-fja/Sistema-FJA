@@ -695,7 +695,8 @@ def ler_familia(app, caminho):
         cat = fdoc.OwnerFamily.FamilyCategory
         tipos = [t.Name for t in fdoc.FamilyManager.Types if t.Name and t.Name.strip()]
         return {"caminho": caminho, "nome": os.path.splitext(os.path.basename(caminho))[0],
-                "categoria": cat.Name if cat else u"", "tipos": tipos}
+                "categoria": cat.Name if cat else u"", "tipos": tipos,
+                "tiposInfo": [{"nome": t, "id": None, "inst": None, "vinculo": {}, "kn": u""} for t in tipos]}
     finally:
         fdoc.Close(False)
 
@@ -734,7 +735,17 @@ def familia_do_elemento(doc, elem):
         kn = par.AsString() or u"" if par else u""
     except Exception:
         pass
-    return {"modelo": True, "familia": familia, "simbolo": sim, "nome": familia.Name,
+    info = []
+    for t in tipos:
+        kt = u""
+        try:
+            pr = t.get_Parameter(DB.BuiltInParameter.KEYNOTE_PARAM)
+            kt = (pr.AsString() or u"") if pr else u""
+        except Exception:
+            pass
+        info.append({"nome": nome_elem(t), "id": t.Id, "inst": cont.get(_idv(t.Id), 0),
+                     "vinculo": ler_vinculo(t) or {}, "kn": kt})
+    return {"modelo": True, "familia": familia, "simbolo": sim, "nome": familia.Name, "tiposInfo": info,
             "categoria": familia.FamilyCategory.Name if familia.FamilyCategory else u"",
             "tipos": [nome_elem(t) for t in tipos],
             "instancias": dict((nome_elem(t), cont.get(_idv(t.Id), 0)) for t in tipos),
@@ -847,4 +858,109 @@ def inserir_componente(doc, dados, p):
                        itemProjeto=(p["linha"] or {}).get("id"),
                        projeto=dados.projeto["id"] if dados.projeto else "",
                        pedido=pedido_id or (p["linha"] or {}).get("pendente") or u"")
+    return familia, avisos
+
+
+# ------------------------------------------------------------------ componentes: código por tipo
+def plano_codigo(doc, dados, cod, tambem):
+    """Plano de um código usado por um ou mais tipos. cod: {"item": item} (existente) ou
+    {"novo": {"sigla","desc","texto","siglaNova"}} (novo). tambem: keynotes/FJs já reservados neste lote."""
+    if cod.get("novo"):
+        f = cod["novo"]
+        sg = (f.get("sigla") or u"").upper()
+        if "item" not in cod:  # o item novo é criado uma vez e reutilizado por todos os tipos que o usam
+            pid = novo_id_pedido()
+            fja = dados.prox_fja(sg)
+            while fja in tambem:
+                n = int(fja.rsplit(".", 1)[1]) + 1
+                fja = u"FJ.%s.%04d" % (sg, n)
+            tambem.add(fja)
+            cod["item"] = {"id": u"pedido:" + pid, "pedido": pid, "pendente": True, "fja": fja, "sigla": sg,
+                           "tipo": "elemento", "desc": f.get("desc") or u"", "texto": f.get("texto") or u"",
+                           "rvCat": cod.get("cat") or u"", "papel": u"", "camadas": [], "siglaNova": f.get("siglaNova")}
+    item = cod["item"]
+    linha = dados.linha_projeto(item["id"])
+    kn = (linha or {}).get("kn") or u""
+    desc = (linha or {}).get("desc") or item.get("desc") or u""
+    p = {"item": item, "linha": linha, "kn": kn, "desc": desc, "reservas": None, "novo": bool(cod.get("novo")),
+         "problemas": [], "avisos": []}
+    if not dados.projeto:
+        p["problemas"].append(u"O modelo não está ligado a um projeto publicado pelo sistema.")
+    elif not linha and item.get("sigla"):
+        kn = dados.prox_kn(item["sigla"], tambem)
+        tambem.add(kn)
+        p["kn"] = kn
+        p["reservas"] = {"kn": kn}
+    elif not linha:
+        p["problemas"].append(u"{} não está na especificação do projeto e não tem sigla.".format(item.get("fja")))
+    if not (desc or u"").strip():
+        p["problemas"].append(u"Código sem descrição.")
+    return p
+
+
+def nome_tipo_comp(kn, desc, original, repetido):
+    n = u"{} - {}".format(kn, (desc or u"").upper())
+    if repetido:
+        n += u" - {}".format(original)
+    return limpar_nome(n)
+
+
+def aplicar_componente(doc, dados, fam, grupos, ren_fam, nome_fam, ren_tipos):
+    """grupos: [{"plano": plano_codigo, "tipos": [nomes]}]. Carrega a família (se vier de arquivo), grava
+    keynote/Type Mark/descrição/vínculo por tipo, renomeia tipos e família se pedido e envia os pedidos ao
+    sistema. Precisa de transação aberta. Devolve (familia, avisos)."""
+    import clr
+    avisos = []
+    for g in grupos:
+        p, item = g["plano"], g["plano"]["item"]
+        g["pedido"] = item.get("pedido") or u""
+        if p.get("novo"):
+            ped = montar_pedido(dados, "novo-item", item, dict(p.get("reservas") or {}, fja=item.get("fja")),
+                                modelo=doc.Title)
+            ped["id"] = item["pedido"]
+            gravar_pedido(dados, ped)
+        elif p.get("reservas"):
+            ped = montar_pedido(dados, "incluir-no-projeto", item, p["reservas"], modelo=doc.Title)
+            gravar_pedido(dados, ped)
+            g["pedido"] = ped["id"]
+    if fam.get("modelo"):
+        familia = fam["familia"]
+    else:
+        ref = clr.Reference[DB.Family]()
+        doc.LoadFamily(fam["caminho"], _OpcoesCarga(), ref)
+        familia = ref.Value or _familia_por_nome(doc, fam["nome"])
+    if familia is None:
+        raise ValueError(u"Não foi possível carregar a família.")
+    simb = dict((nome_elem(doc.GetElement(i)), doc.GetElement(i)) for i in familia.GetFamilySymbolIds())
+    for g in grupos:
+        p, item = g["plano"], g["plano"]["item"]
+        rep = len(g["tipos"]) > 1
+        for nome in g["tipos"]:
+            t = simb.get(nome)
+            if t is None:
+                avisos.append(u"Tipo '{}' não encontrado na família carregada.".format(nome))
+                continue
+            _set(t, DB.BuiltInParameter.ALL_MODEL_TYPE_MARK, p["kn"])
+            _set(t, DB.BuiltInParameter.KEYNOTE_PARAM, p["kn"])
+            _set(t, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION, (p["desc"] or u"").upper())
+            _set(t, DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS, item.get("fja") or u"")
+            gravar_vinculo(t, fja=item.get("fja"), itemCentral=u"" if item.get("pendente") else item["id"],
+                           itemProjeto=(p["linha"] or {}).get("id"),
+                           projeto=dados.projeto["id"] if dados.projeto else "",
+                           pedido=g["pedido"] or (p["linha"] or {}).get("pendente") or u"")
+            if ren_tipos:
+                novo = nome_tipo_comp(p["kn"] or item.get("fja"), p["desc"], nome, rep)
+                if novo != nome:
+                    try:
+                        t.Name = novo
+                    except Exception as e:
+                        avisos.append(u"Não foi possível renomear o tipo '{}': {}".format(nome, e))
+    if ren_fam and nome_fam and familia.Name != nome_fam:
+        if _familia_por_nome(doc, nome_fam) is not None:
+            avisos.append(u"Já existe uma família chamada '{}': o nome não foi trocado.".format(nome_fam))
+        else:
+            try:
+                familia.Name = nome_fam
+            except Exception as e:
+                avisos.append(u"Não foi possível renomear a família: {}".format(e))
     return familia, avisos
