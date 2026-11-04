@@ -239,7 +239,7 @@ def item_do_pedido(p):
         cam.append({"funcao": FUNCOES_PT.get(fn, fn), "funcaoRevit": fn, "material": c.get("material"),
                     "esp": float(c.get("esp") or 0)})
     return {"id": u"pedido:" + p["id"], "pedido": p["id"], "pendente": True,
-            "fja": (p.get("reservas") or {}).get("fja") or u"", "sigla": i.get("sigla") or u"", "tipo": "sistema",
+            "fja": (p.get("reservas") or {}).get("fja") or u"", "sigla": i.get("sigla") or u"", "tipo": i.get("tipo") or "sistema",
             "desc": i.get("desc") or u"", "texto": i.get("texto") or u"", "rvCat": i.get("rvCat") or u"",
             "papel": i.get("papel") or u"", "camadas": cam, "espTotal": sum(c["esp"] for c in cam)}
 
@@ -255,7 +255,8 @@ def montar_pedido(dados, acao, item, reservas, modelo=u""):
          "reservas": reservas}
     if acao in ("novo-item", "editar-item"):
         p["item"] = {"id": item["id"]} if acao == "editar-item" else {}
-        p["item"].update({"sigla": item.get("sigla"), "rvCat": item.get("rvCat"), "papel": item.get("papel"),
+        p["item"].update({"sigla": item.get("sigla"), "tipo": item.get("tipo") or "sistema",
+                     "rvCat": item.get("rvCat"), "papel": item.get("papel"),
                      "desc": item.get("desc"), "texto": item.get("texto") or u"", "fabricante": u"", "nbr": u"",
                      "camadas": [{"funcao": c.get("funcaoRevit"), "material": c.get("material"),
                                   "esp": float(c.get("esp") or 0)} for c in item.get("camadas", [])]})
@@ -638,3 +639,130 @@ def plano_editar(doc, dados, item, form):
     p["avisos"].insert(0, u"{} será alterado na biblioteca central quando alguém abrir o sistema; "
                           u"outros projetos que usam o item verão o aviso de texto central alterado.".format(novo.get("fja")))
     return p
+
+
+# ------------------------------------------------------------------ componentes (famílias carregáveis)
+def elementos(dados):
+    """Itens da biblioteca de elemento/família (siglas de 3 letras do tipo elemento)."""
+    return [x for x in dados.bib.get("itens", []) if x.get("tipo") == "elemento"]
+
+
+def siglas_elemento(dados):
+    return sorted([s for s in dados.bib.get("siglas", []) if s.get("tipo") == "elemento"], key=lambda s: s["sigla"])
+
+
+def ler_familia(app, caminho):
+    """Abre o .rfa em segundo plano e devolve {nome, categoria, tipos}."""
+    fdoc = app.OpenDocumentFile(caminho)
+    try:
+        if not fdoc.IsFamilyDocument:
+            raise ValueError(u"O arquivo não é uma família (.rfa).")
+        cat = fdoc.OwnerFamily.FamilyCategory
+        tipos = [t.Name for t in fdoc.FamilyManager.Types if t.Name and t.Name.strip()]
+        return {"caminho": caminho, "nome": os.path.splitext(os.path.basename(caminho))[0],
+                "categoria": cat.Name if cat else u"", "tipos": tipos}
+    finally:
+        fdoc.Close(False)
+
+
+def nome_familia(sigla, desc):
+    return limpar_nome(u"({}) {}".format((sigla or u"").upper(), (desc or u"").upper()))
+
+
+def plano_componente(doc, dados, item, fam, renomear=True, nome=None):
+    """O que acontecerá ao inserir a família com o código do item (sem alterar nada)."""
+    linha = dados.linha_projeto(item["id"])
+    kn = (linha or {}).get("kn") or u""
+    desc = (linha or {}).get("desc") or item.get("desc") or u""
+    p = {"item": item, "linha": linha, "kn": kn, "desc": desc, "fam": fam, "problemas": [], "avisos": [],
+         "reservas": None, "renomear": renomear}
+    if not dados.projeto:
+        p["problemas"].append(u"O modelo não está ligado a um projeto publicado pelo sistema.")
+    elif not linha and item.get("sigla"):
+        kn = dados.prox_kn(item["sigla"])
+        p["kn"] = kn
+        p["reservas"] = {"kn": kn}
+        p["avisos"].append(u"O item ainda não está na especificação do projeto {}: entra como {} "
+                           u"(o sistema confirma o keynote).".format(dados.projeto["codigo"], kn))
+    elif not linha:
+        p["problemas"].append(u"O item não está na especificação do projeto e não tem sigla.")
+    if not (desc or u"").strip():
+        p["problemas"].append(u"Informe a descrição.")
+    p["nomeFamilia"] = limpar_nome(nome) if nome else nome_familia(item.get("sigla"), desc)
+    if renomear and not p["nomeFamilia"]:
+        p["problemas"].append(u"Informe o nome da família.")
+    if item.get("pendente"):
+        p["avisos"].insert(0, u"Será criado na biblioteca central como {} (o sistema confirma o código).".format(
+            item.get("fja")))
+    return p
+
+
+def plano_componente_novo(doc, dados, fam, form, renomear=True, nome=None):
+    pid = novo_id_pedido()
+    item = {"id": u"pedido:" + pid, "pedido": pid, "pendente": True, "fja": dados.prox_fja(form.get("sigla")),
+            "sigla": (form.get("sigla") or u"").upper(), "tipo": "elemento", "desc": form.get("desc") or u"",
+            "texto": form.get("texto") or u"", "rvCat": fam.get("categoria") or u"", "papel": u"", "camadas": []}
+    p = plano_componente(doc, dados, item, fam, renomear, nome)
+    p["novo"] = True
+    if not item["sigla"]:
+        p["problemas"].append(u"Escolha a sigla.")
+    return p
+
+
+class _OpcoesCarga(DB.IFamilyLoadOptions):
+    def OnFamilyFound(self, familyInUse, overwriteParameterValues):
+        overwriteParameterValues.Value = False
+        return True
+
+    def OnSharedFamilyFound(self, sharedFamily, familyInUse, source, overwriteParameterValues):
+        source.Value = DB.FamilySource.Family
+        overwriteParameterValues.Value = False
+        return True
+
+
+def _familia_por_nome(doc, nome):
+    for f in DB.FilteredElementCollector(doc).OfClass(DB.Family):
+        if f.Name == nome:
+            return f
+    return None
+
+
+def inserir_componente(doc, dados, p):
+    """Carrega a família, grava keynote/Type Mark/descrição/vínculo em todos os tipos e renomeia se pedido.
+    Grava o pedido ao sistema. Precisa de transação aberta. Devolve (familia, avisos)."""
+    import clr
+    item, fam, avisos = p["item"], p["fam"], list(p["avisos"])
+    pedido_id = item.get("pedido") or u""
+    if p.get("novo"):
+        ped = montar_pedido(dados, "novo-item", item, dict(p.get("reservas") or {}, fja=item.get("fja")),
+                            modelo=doc.Title)
+        ped["id"] = item["pedido"]
+        gravar_pedido(dados, ped)
+    elif p.get("reservas"):
+        ped = montar_pedido(dados, "incluir-no-projeto", item, p["reservas"], modelo=doc.Title)
+        gravar_pedido(dados, ped)
+        pedido_id = ped["id"]
+    ref = clr.Reference[DB.Family]()
+    doc.LoadFamily(fam["caminho"], _OpcoesCarga(), ref)
+    familia = ref.Value or _familia_por_nome(doc, fam["nome"])
+    if familia is None:
+        raise ValueError(u"Não foi possível carregar a família.")
+    if p.get("renomear") and familia.Name != p["nomeFamilia"]:
+        if _familia_por_nome(doc, p["nomeFamilia"]) is not None:
+            avisos.append(u"Já existe uma família chamada '{}': o nome não foi trocado.".format(p["nomeFamilia"]))
+        else:
+            try:
+                familia.Name = p["nomeFamilia"]
+            except Exception as e:
+                avisos.append(u"Não foi possível renomear a família: {}".format(e))
+    for sid in familia.GetFamilySymbolIds():
+        t = doc.GetElement(sid)
+        _set(t, DB.BuiltInParameter.ALL_MODEL_TYPE_MARK, p["kn"])
+        _set(t, DB.BuiltInParameter.KEYNOTE_PARAM, p["kn"])
+        _set(t, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION, (p["desc"] or u"").upper())
+        _set(t, DB.BuiltInParameter.ALL_MODEL_TYPE_COMMENTS, item.get("fja") or u"")
+        gravar_vinculo(t, fja=item.get("fja"), itemCentral=u"" if item.get("pendente") else item["id"],
+                       itemProjeto=(p["linha"] or {}).get("id"),
+                       projeto=dados.projeto["id"] if dados.projeto else "",
+                       pedido=pedido_id or (p["linha"] or {}).get("pendente") or u"")
+    return familia, avisos

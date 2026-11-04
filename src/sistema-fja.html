@@ -7058,6 +7058,7 @@ function rvMontar(){
     siglas:siglasEt().map(x=>({sigla:x.sigla,nome:x.nome||'',tipo:x.tipo,...(x.rvCat?{rvCat:x.rvCat}:{}),...(x.papel?{papel:x.papel}:{})})),
     itens:[...S.espb.values()].sort((a,b)=>fjaNum(a)-fjaNum(b)).map(b=>{const t=tipoEt(b), o={id:b.id,fja:b.fja||'',sigla:sigB(b)||'',tipo:t,desc:b.desc||'',texto:b.texto||'',nbr:b.nbr||'',fabricante:b.fabricante||'',...(b.pedido?{pedido:b.pedido}:{})};
       if(t==='sistema'){o.rvCat=b.rvCat||siglaEt(sigB(b))?.rvCat||''; o.papel=cpPapel(b); o.camadas=cpCamadas(b).map(c=>({funcao:c.fn,funcaoRevit:fnRv(c.fn),material:c.mat||'',esp:+c.esp||0})); o.espTotal=cpTotal(b)}
+      else if(t==='elemento'&&b.rvCat) o.rvCat=b.rvCat;
       return o}),
     projetos:projs.map(i=>({id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||'',arquivo:rvNomeProj(i)}))};
   const arqs=[{nome:'biblioteca.json',obj:bib}];
@@ -7131,10 +7132,11 @@ async function rvAplicarPedido(p){
     b=[...S.espb.values()].find(x=>x.pedido===p.id);
     if(!b){
       const i=p.item||{}, sg=String(i.sigla||'').toUpperCase(), sx=siglaEt(sg);
-      if(!sx||sx.tipo!=='sistema') throw new Error(`a sigla ${sg||'(vazia)'} não é de composição`);
+      const tp=i.tipo==='elemento'?'elemento':'sistema';
+      if(!sx||sx.tipo!==tp) throw new Error(`a sigla ${sg||'(vazia)'} não é de ${tp==='elemento'?'elemento/família':'composição'}`);
       const camadas=(i.camadas||[]).map(c=>({fn:fnPt(c.funcao),mat:c.material||'',esp:+c.esp||0}));
       let fja=p.reservas?.fja; if(!fja||!fja.startsWith(`FJ.${sg}.`)||[...S.espb.values()].some(x=>x.fja===fja)){const f2=proxFja(sg); if(fja) msgs.push(`${fja} já existia: criado como ${f2}`); fja=f2}
-      b=await novoEsCentral({fja,sigla:sg,tipo:'sistema',tabela:sx.tabela||'Diversos',desc:String(i.desc||'').trim()||'Sem descrição',texto:i.texto||'',fabricante:i.fabricante||'',nbr:i.nbr||'',
+      b=await novoEsCentral({fja,sigla:sg,tipo:tp,tabela:sx.tabela||'Diversos',desc:String(i.desc||'').trim()||'Sem descrição',texto:i.texto||'',fabricante:i.fabricante||'',nbr:i.nbr||'',
         rvCat:i.rvCat||sx.rvCat||'',papel:i.papel||sx.papel||'',camadas,pedido:p.id,obs:`Criado pelo Revit (${p.autor||'?'}${p.modelo?', '+p.modelo:''}).`});
       msgs.push(`${b.fja} criado na biblioteca`);
     }
