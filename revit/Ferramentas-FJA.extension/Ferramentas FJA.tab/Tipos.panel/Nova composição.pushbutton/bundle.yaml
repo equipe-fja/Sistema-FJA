@@ -1,6 +1,6 @@
 title:
-  pt_br: "Nova\ncomposição"
-  en_us: "Nova\ncomposição"
+  pt_br: "Composições"
+  en_us: "Composições"
 tooltip:
   pt_br: "Cria no modelo tipos de parede, piso, forro e cobertura a partir das composições da biblioteca central do Sistema FJA (especificação técnica): camadas, materiais, Type Mark e Keynote do projeto, Descrição e vínculo com o sistema. Se o tipo já existir, atualiza."
   en_us: "Cria no modelo tipos de parede, piso, forro e cobertura a partir das composições da biblioteca central do Sistema FJA (especificação técnica): camadas, materiais, Type Mark e Keynote do projeto, Descrição e vínculo com o sistema. Se o tipo já existir, atualiza."

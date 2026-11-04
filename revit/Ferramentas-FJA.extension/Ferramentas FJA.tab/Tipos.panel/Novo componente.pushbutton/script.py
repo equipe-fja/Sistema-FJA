@@ -16,7 +16,7 @@ from System.Windows.Controls import ListBoxItem
 doc = revit.doc
 uidoc = revit.uidoc
 cfg = script.get_config()
-TITULO = u"Novo componente"
+TITULO = u"Componentes"
 
 def _pincel(r, g, b):
     from System.Windows.Media import SolidColorBrush, Color
@@ -316,7 +316,7 @@ class Janela(forms.WPFWindow):
                     title=TITULO, yes=True, no=True):
                 return
         try:
-            with revit.Transaction(u"Novo componente: {}".format(p["nomeFamilia"] if p["renomear"] else self.fam["nome"])):
+            with revit.Transaction(u"Componentes: {}".format(p["nomeFamilia"] if p["renomear"] else self.fam["nome"])):
                 familia, avisos = F.inserir_componente(doc, self.dados, p)
                 nome = familia.Name
         except Exception as e:

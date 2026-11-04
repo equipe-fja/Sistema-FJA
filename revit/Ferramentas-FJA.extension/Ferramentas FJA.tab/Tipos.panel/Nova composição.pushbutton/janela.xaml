@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Nova composição — Ferramentas FJA" Width="1120" Height="720" MinWidth="880" MinHeight="540"
+        Title="Composições — Ferramentas FJA" Width="1120" Height="720" MinWidth="880" MinHeight="540"
         WindowStartupLocation="CenterScreen" FontFamily="Segoe UI" FontSize="13" Background="#F6F6F5" Foreground="#1D1D1D">
     <Grid>
         <Grid.RowDefinitions>
@@ -23,7 +23,7 @@
                     <TextBlock Text="FJ" FontFamily="Arial" FontWeight="Bold" FontSize="15" Foreground="#8E1B1B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="Nova composição" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="Composições" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock x:Name="txtFonte" Foreground="#5E5E5C" FontSize="12" Margin="0,1,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center">

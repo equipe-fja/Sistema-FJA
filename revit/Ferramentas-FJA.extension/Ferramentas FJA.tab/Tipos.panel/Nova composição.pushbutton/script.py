@@ -453,7 +453,7 @@ class FormNova(forms.WPFWindow):
             if c["funcaoRevit"] != "Membrane" and not c["esp"] > 0:
                 erros.append(u"Camada {}: informe a espessura.".format(k + 1))
         if erros:
-            forms.alert(u"\n".join(erros), title=u"Nova composição")
+            forms.alert(u"\n".join(erros), title=u"Composições")
             return
         self.resultado = f
         self.Close()
@@ -528,7 +528,7 @@ class Janela(forms.WPFWindow):
         try:
             self.dados.carregar_projeto(proj)
         except Exception as e:
-            forms.alert(u"{}".format(e), title=u"Nova composição")
+            forms.alert(u"{}".format(e), title=u"Composições")
             self.dados.carregar_projeto(None)
         self.vinc = F.tipos_vinculados(doc)
         self.preencher()
@@ -742,7 +742,7 @@ class Janela(forms.WPFWindow):
     def _abrir_form(self, item=None, modo="novo"):
         d = self.dados
         if d is None or not d.projeto:
-            forms.alert(u"Escolha o projeto (no alto da janela) antes.", title=u"Nova composição")
+            forms.alert(u"Escolha o projeto (no alto da janela) antes.", title=u"Composições")
             return None
         cat = [None, "Parede", "Piso", "Forro", "Cobertura"][max(0, self.cbCategoria.SelectedIndex)]
         f = FormNova(d, cat, item=item, modo=modo)
@@ -778,7 +778,7 @@ class Janela(forms.WPFWindow):
             return
         p = F.plano_novo(doc, self.dados, r)
         if p["problemas"]:
-            forms.alert(u"\n".join(p["problemas"]), title=u"Nova composição")
+            forms.alert(u"\n".join(p["problemas"]), title=u"Composições")
             return
         self._executar(p)
 
@@ -786,7 +786,7 @@ class Janela(forms.WPFWindow):
         d = self.dados
         if d is None or not d.projeto:
             forms.alert(u"Escolha o projeto (no alto da janela) antes de criar uma composição nova.",
-                        title=u"Nova composição")
+                        title=u"Composições")
             return
         cat = [None, "Parede", "Piso", "Forro", "Cobertura"][max(0, self.cbCategoria.SelectedIndex)]
         f = FormNova(d, cat)
@@ -799,7 +799,7 @@ class Janela(forms.WPFWindow):
             return
         p = F.plano_novo(doc, d, f.resultado)
         if p["problemas"]:
-            forms.alert(u"\n".join(p["problemas"]), title=u"Nova composição")
+            forms.alert(u"\n".join(p["problemas"]), title=u"Composições")
             return
         self._executar(p)
 
@@ -815,11 +815,11 @@ class Janela(forms.WPFWindow):
     def _executar(self, p):
         item_id = p["item"]["id"]
         try:
-            with revit.Transaction(u"Nova composição: {}".format(p["nome"])):
+            with revit.Transaction(u"Composições: {}".format(p["nome"])):
                 tipo, avisos = F.criar_tipo(doc, self.dados, p)
                 nome = F.nome_elem(tipo)
         except Exception as e:
-            forms.alert(u"Não foi possível criar o tipo:\n{}".format(e), title=u"Nova composição")
+            forms.alert(u"Não foi possível criar o tipo:\n{}".format(e), title=u"Composições")
             return
         msg = u"Tipo pronto no modelo:\n{}".format(nome)
         if p.get("editar"):
@@ -830,12 +830,12 @@ class Janela(forms.WPFWindow):
                    u"o sistema; se algum mudar, use Atualizar nesta janela."
         if avisos:
             msg += u"\n\n" + u"\n".join(u"• " + a for a in avisos)
-        forms.alert(msg, title=u"Nova composição")
+        forms.alert(msg, title=u"Composições")
         self.vinc = F.tipos_vinculados(doc)
         self.preencher(manter=item_id)
 
 
 if doc is None or doc.IsFamilyDocument:
-    forms.alert(u"Abra um modelo de projeto para usar esta ferramenta.", title=u"Nova composição")
+    forms.alert(u"Abra um modelo de projeto para usar esta ferramenta.", title=u"Composições")
 else:
     Janela().ShowDialog()
