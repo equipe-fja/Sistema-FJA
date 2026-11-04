@@ -38,8 +38,9 @@ def aplicar_estilo(win):
 
 
 class Janela(forms.WPFWindow):
-    def __init__(self):
+    def __init__(self, elemento=None):
         forms.WPFWindow.__init__(self, os.path.join(os.path.dirname(__file__), "janela.xaml"))
+        self.pedir_selecao = False
         aplicar_estilo(self)
         self.dados = None
         self.fam = None
@@ -51,11 +52,13 @@ class Janela(forms.WPFWindow):
         self.cbFonte.SelectedIndex = 1 if cfg.get_option("dev", not tem_oficial) else 0
         self._pronto = True
         self.carregar()
-        # readequar: elemento já selecionado ao abrir a ferramenta
+        # readequar: elemento escolhido em "Selecionar no modelo" ou já selecionado ao abrir a ferramenta
         try:
-            ids = list(uidoc.Selection.GetElementIds())
-            if ids:
-                self._usar_elemento(doc.GetElement(ids[0]), avisar=False)
+            if elemento is None:
+                ids = list(uidoc.Selection.GetElementIds())
+                elemento = doc.GetElement(ids[0]) if ids else None
+            if elemento is not None:
+                self._usar_elemento(elemento, avisar=True)
         except Exception:
             pass
 
@@ -131,16 +134,10 @@ class Janela(forms.WPFWindow):
         self.preencher()
 
     def selecionar(self, sender, args):
-        self.Hide()
-        el = None
-        try:
-            ref = uidoc.Selection.PickObject(ObjectType.Element, u"Clique num elemento da família a readequar")
-            el = doc.GetElement(ref.ElementId)
-        except Exception:
-            pass  # Esc
-        self.Show()
-        if el is not None:
-            self._usar_elemento(el)
+        # A seleção no modelo precisa acontecer com a janela fechada: esconder uma janela modal encerra o
+        # contexto da API do Revit (e as transações seguintes falham). Fecha, seleciona e reabre.
+        self.pedir_selecao = True
+        self.Close()
 
     def _usar_elemento(self, el, avisar=True):
         try:
@@ -346,4 +343,15 @@ class Janela(forms.WPFWindow):
 if doc is None or doc.IsFamilyDocument:
     forms.alert(u"Abra um modelo de projeto para usar esta ferramenta.", title=TITULO)
 else:
-    Janela().ShowDialog()
+    elemento = None
+    while True:
+        j = Janela(elemento)
+        j.ShowDialog()
+        if not j.pedir_selecao:
+            break
+        elemento = None
+        try:
+            ref = uidoc.Selection.PickObject(ObjectType.Element, u"Clique num elemento da família a readequar (Esc cancela)")
+            elemento = doc.GetElement(ref.ElementId)
+        except Exception:
+            pass  # Esc: reabre sem elemento
