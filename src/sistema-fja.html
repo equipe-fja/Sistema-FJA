@@ -622,6 +622,9 @@ tr.rd-sel>td:first-child{box-shadow:inset 3px 0 0 var(--accent,#8e1b1b)}
 .ferr-cam-ic a:hover,.ferr-cam-ic button:hover{color:var(--accent);background:var(--accent-weak)}
 @media (hover:none){.ferr-cam-ic{opacity:1}}
 .ferr-cam-alt{border:0;background:none;padding:0 2px;font:inherit;font-size:11px;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.knx-caixa{max-width:520px}.knx-lista{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+.knx-it{display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line)}.knx-it:last-child{border-bottom:0}.knx-it .mono{min-width:44px;color:var(--muted)}
+.knx-d{flex:1;display:flex;flex-direction:column;line-height:1.3}.knx-d small{color:var(--muted);font-size:12px}.btn.knx-bt{width:34px;padding:0;justify-content:center;margin-left:-4px}
 .pc-modal{position:fixed;inset:0;background:rgba(20,20,18,.35);display:grid;place-items:center;z-index:200;padding:16px}
 .pc-caixa{background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;max-width:460px;width:100%;padding:18px 20px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
 .pc-caixa h2{font-size:17px;margin:0}.pc-caixa p,.pc-caixa ol{margin:0;font-size:13.5px}.pc-caixa ol{padding-left:20px;display:flex;flex-direction:column;gap:4px}
@@ -4744,7 +4747,7 @@ function telaEsp(h,v){
   h+=`<div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="eqBusca" type="search" placeholder="Buscar por keynote, descrição, especificação, FJ…" aria-label="Buscar na especificação" value="${esc(MS().busca||'')}"></div>
     <span class="muted eq-count" id="eqCount">${(()=>{const n=eqFiltrados(it.id).length,t=todos.length;return n===t?t+' itens':n+' de '+t+' itens'})()}</span><button class="btn sm ghost" id="eqLimpar" data-act="eq-limpar" ${temFiltroEq()?'':'hidden'}>Limpar filtros</button>
     <button class="btn" id="btnCols" data-act="eq-cols" aria-expanded="${!!MS().colsOpen}">Colunas <span class="cnt">${MS().cols.length}/${M().T.length}</span></button>
-    ${todos.length?`<button class="btn" data-act="et-keynotes" data-id="${esc(it.id)}" title="Arquivo de keynotes para o Revit (.txt)">${IC.download||''}Exportar keynotes</button>`:''}
+    ${todos.length?`<button class="btn" data-act="et-keynotes" data-id="${esc(it.id)}" title="Arquivo de keynotes para o Revit (.txt)">${IC.download||''}Exportar keynotes</button><button class="btn knx-bt" data-act="et-knx" data-id="${esc(it.id)}" title="Exportações anteriores (até ${KNX_MAX})" aria-label="Exportações anteriores de keynotes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></button>`:''}
     ${S.ro?'':`<button class="btn" data-act="et-importar" data-id="${esc(it.id)}" title="Importar as tabelas de uma planilha de especificação (Google Sheets)">Importar</button><button class="btn" data-act="et-novo" data-id="${esc(it.id)}">${IC.plus}Novo item</button><button class="btn pri" data-act="et-puxar" data-id="${esc(it.id)}">${IC.plus}Puxar da biblioteca</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
   h+=`<section class="sheet" id="eqTabela">${eqTabelaHTML(it.id)}</section></div>`;
   return h;
@@ -4910,13 +4913,56 @@ function keynotesTxt(pid){
   for(const [p,g] of grupos){out.push(`${p}\t${nomeGrupoKn(p,g.tab)}`); for(const e of g.itens.sort(ordKn)) out.push(`${linha1(e.kn)}\t${linha1(e.desc||descCurta(e.texto))}\t${p}`)}
   return out.join('\r\n')+'\r\n';
 }
-async function exportarKeynotes(pid){
-  const it=S.itens.get(pid), txt=keynotesTxt(pid), nome=`${codEmissao(it)||it?.campos?.codigo||'PROJ'}-KEYNOTES-${new Date().toISOString().slice(0,10)}.txt`;
+/* Cada exportação de keynotes fica guardada (knexp/<projeto>/exp), até 100 por projeto; o menu ao lado do botão
+   permite escolher uma data e baixar de novo qualquer uma delas. */
+const KNX_MAX=100;
+const knxColl=pid=>db.collection(`knexp/${pid}/exp`);
+const knxNome=(it,t)=>`${codEmissao(it)||it?.campos?.codigo||'PROJ'}-KEYNOTES-${new Date(t).toLocaleDateString('sv-SE')}.txt`;
+async function baixarKnTxt(txt,nome){
   const u16=new Uint8Array(2+txt.length*2); u16[0]=0xFF; u16[1]=0xFE; for(let i=0;i<txt.length;i++){const c=txt.charCodeAt(i); u16[2+i*2]=c&255; u16[3+i*2]=c>>8}
   const blob=new Blob([u16],{type:'text/plain'});
-  try{if(downloads){const r=await downloads.save({filename:nome,data:blob});toast(r?.status==='saved'?'Keynotes salvos':'Arquivo gerado')}
-    else{const u=URL.createObjectURL(blob),x=document.createElement('a');x.href=u;x.download=nome;document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('Arquivo de keynotes gerado')}}
+  if(downloads){const r=await downloads.save({filename:nome,data:blob}); return r?.status==='saved'}
+  const u=URL.createObjectURL(blob),x=document.createElement('a');x.href=u;x.download=nome;document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(u),4000); return true;
+}
+async function knxListar(pid){
+  const s=await bkpLer(knxColl(pid)); return (s.docs||[]).map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.em||0)-(a.em||0));
+}
+async function knxGuardar(pid,txt,nome){
+  if(S.ro||!db) return;
+  try{
+    const n=txt.split('\r\n').filter(l=>l&&l.split('\t').length>2).length;
+    await knxColl(pid).doc(String(Date.now())).set({projeto:pid,em:Date.now(),por:me||'',porNome:S.meuNome||'',nome,n,txt});
+    const L=await knxListar(pid); for(const x of L.slice(KNX_MAX)){try{await knxColl(pid).doc(x.id).delete()}catch{}}
+  }catch(e){console.warn('keynotes: guardar exportação',e)}
+}
+async function exportarKeynotes(pid){
+  const it=S.itens.get(pid), txt=keynotesTxt(pid), nome=knxNome(it,Date.now());
+  try{const ok=await baixarKnTxt(txt,nome); toast(ok?'Keynotes salvos':'Arquivo gerado'); await knxGuardar(pid,txt,nome)}
   catch(err){toast(err?.code==='declined'?'Download cancelado':'Não foi possível gerar o arquivo')}
+}
+async function menuKnx(pid){
+  $('knxModal')?.remove(); const it=S.itens.get(pid), d=document.createElement('div'); d.id='knxModal'; d.className='pc-modal';
+  d.innerHTML=`<div class="pc-caixa knx-caixa" role="dialog" aria-modal="true" aria-labelledby="knxT"><h2 id="knxT">Exportações de keynotes</h2>
+    <p class="muted" style="font-size:12.5px;margin:-6px 0 0">As últimas ${KNX_MAX} exportações deste projeto ficam guardadas. Escolha a data e baixe de novo o arquivo daquele momento.</p>
+    <div id="knxCorpo" class="muted">Carregando…</div>
+    <div style="display:flex;justify-content:flex-end"><button class="btn" data-k="fechar">Fechar</button></div></div>`;
+  document.body.appendChild(d);
+  const fechar=()=>d.remove(); d.addEventListener('click',ev=>{if(ev.target===d||ev.target.closest('[data-k=fechar]')) fechar()});
+  d.addEventListener('keydown',ev=>{if(ev.key==='Escape') fechar()});
+  let L=[]; try{L=await knxListar(pid)}catch(e){$('knxCorpo').textContent='Não foi possível ler as exportações.';return}
+  if(!L.length){$('knxCorpo').textContent='Nenhuma exportação guardada ainda. Elas passam a ser guardadas a cada clique em Exportar keynotes.';return}
+  const dia=t=>new Date(t).toLocaleDateString('sv-SE'), dias=[...new Set(L.map(x=>dia(x.em)))];
+  const fmtD=s=>{const [a,m,dd]=s.split('-'); return `${dd}/${m}/${a}`};
+  const desenhar=sel=>{
+    const H=L.filter(x=>dia(x.em)===sel);
+    $('knxCorpo').innerHTML=`<label class="fl">Data<select class="fld" id="knxDia">${dias.map(x=>`<option value="${x}"${x===sel?' selected':''}>${fmtD(x)} · ${L.filter(y=>dia(y.em)===x).length} exportaç${L.filter(y=>dia(y.em)===x).length>1?'ões':'ão'}</option>`).join('')}</select></label>
+      <div class="knx-lista">${H.map(x=>`<div class="knx-it"><span class="mono">${new Date(x.em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span><span class="knx-d"><b>${x.n||0} keynotes</b><small>${esc(x.porNome||'')}${x.id===L[0].id?' · mais recente':''}</small></span><button class="btn sm" data-k="baixar" data-x="${esc(x.id)}">${IC.download||''}Baixar</button></div>`).join('')}</div>
+      <p class="muted" style="font-size:12px;margin:0">${L.length} de ${KNX_MAX} exportações guardadas.</p>`;
+    $('knxDia').onchange=ev=>desenhar(ev.target.value);
+  };
+  desenhar(dias[0]);
+  d.addEventListener('click',async ev=>{const b=ev.target.closest('[data-k=baixar]'); if(!b) return; const x=L.find(y=>y.id===b.dataset.x); if(!x) return;
+    try{const ok=await baixarKnTxt(x.txt||'',x.nome||knxNome(it,x.em)); toast(ok?'Keynotes salvos':'Arquivo gerado')}catch(err){toast(err?.code==='declined'?'Download cancelado':'Não foi possível gerar o arquivo')}});
 }
 
 /* ---- importação da planilha de especificação (abas ET-…) ---- */
@@ -5162,6 +5208,7 @@ async function esAcao(a,b){
   if(a==='et-cel-set'){salvarCelEs(b.dataset.v);return}
   if(a==='et-cel-ok'){salvarCelEs($('etCelTxt')?.value);return}
   if(a==='et-keynotes'){exportarKeynotes(pid);return}
+  if(a==='et-knx'){menuKnx(pid);return}
   if(a==='et-importar'){await importarEt(pid);return}
   if(a==='espb'){ir({t:'espb'});return}
   if(a==='et-sig'){ir({t:'etsig'});return}
