@@ -3,7 +3,16 @@
 Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact oficial; devNN = versão correspondente da desenvolvimento). Datas em 2026.
 
 ## Em desenvolvimento (ainda não publicado na oficial)
-- Especificações (projeto) e Especificações da biblioteca (`espec`, `espb`), entre outras mudanças feitas na dev depois da v99 — revisar o diff `oficial-v99..main` antes de promover.
+- (nada)
+
+## oficial v100 = dev v106 — 04/11, ~11h50 — commit 9de9681
+- Especificação técnica: banco central (`espb`) com códigos FJ.SIGLA.NNNN, siglas de keynote (`etsig`), especificação por projeto (`espec`), importação de planilha ET-, exportação de keynotes com histórico de 100 exportações por projeto (`knexp/<projeto>/exp`).
+- Descrição simplificada com variações e principal; diagnóstico na planilha do projeto e no banco central.
+- Conexão com o Revit (publicação no G: e pedidos da aba Ferramentas FJA) e download da extensão do pyRevit em Ferramentas.
+- Nova seção Manutenção: Conexão com o Revit e Backup do sistema (backup diário automático na pasta BACKUP do Drive, em partes).
+- Barra lateral lembra as seções recolhidas.
+- Bancos de especificação, siglas e keynotes começam vazios na oficial (preenchimento controlado).
+- Contrato do artifact 0.2.91 → 0.2.92; Google Drive ganha `trash_file` (limpeza das cópias do Revit).
 
 ## oficial v99 = dev v74 — 30/10, ~18h30 — commit 7f4d3ac
 - Comentários × Relação de documentos: ligação pelo nome do arquivo (`chaveDoc`) ou explícita (`coment.rdoc`); coluna e seção de Comentários na RD.

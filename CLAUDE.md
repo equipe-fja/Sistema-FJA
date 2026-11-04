@@ -18,7 +18,7 @@ Responder ao usuário em português. O usuário é a equipe da FJA (a FJA decide
 - Baixar o código publicado para disco: `read_file` com `paths:["index.html"]` (o arquivo é salvo em disco). Antes de começar, conferir se o publicado bate com `dist/` gerado do repositório; se não bater, alguém publicou fora do repositório — trazer a diferença para o git primeiro.
 - Publicar: `./scripts/gerar.sh` e depois `publish_files` com `{as:"index.html", path:".../dist/dev.html"}`, `slug` e `base_version` atual. Recarregar com Ctrl+F5.
 - Alterar artifacts exige sessão com acesso de rede; sem ele, só artifacts criados na própria sessão podem ser alterados.
-- A oficial roda no contrato 0.2.91 e a dev no 0.2.92.
+- A oficial e a dev rodam no contrato 0.2.92.
 
 ## Notas técnicas
 - Ver `docs/notas-tecnicas.md` (banco, módulos, Drive/Sheets, PDF, Windows).
