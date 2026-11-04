@@ -4846,14 +4846,20 @@ async function descExcluir(bid,vid){const b=S.espb.get(bid); if(!b||vid===descPr
   const v=descsDe(b).find(x=>x.id===vid); if(!v||usosEspb(b.id).some(e=>nTxt(e.desc)===nTxt(v.t))) return;
   const L=descsDe(b).filter(x=>x.id!==vid).map(x=>({...x}));
   try{await espbColl().doc(b.id).update({descs:L,descPri:descPriId(b),atualizadoEm:Date.now()}); b.descs=L; S.edraft=null; toast('Variação excluída'); render()}catch{toast('Não foi possível excluir.')}}
+async function descEditar(bid,vid){const b=S.espb.get(bid), v=descsDe(b).find(x=>x.id===vid); if(!b||!v) return;
+  if(usosEspb(b.id).some(e=>nTxt(e.desc)===nTxt(v.t))){toast('Esta descrição está em uso: crie uma nova variação.');return}
+  const t=nTxt(await pedirNome({titulo:'Corrigir descrição',rotulo:'Texto do keynote',ok:'Salvar',padrao:v.t,bruto:true})); if(!t||t===nTxt(v.t)) return;
+  if(descVarDe(b,t)){toast('Já existe uma variação com este texto.');return}
+  const L=descsDe(b).map(x=>x.id===vid?{...x,t}:{...x}), pri=descPriId(b), upd={descs:L,descPri:pri,desc:L.find(x=>x.id===pri).t,atualizadoEm:Date.now()};
+  try{await espbColl().doc(b.id).update(upd); Object.assign(b,upd); S.edraft=null; toast('Descrição corrigida'); render()}catch{toast('Não foi possível salvar.')}}
 async function descNova(bid){const b=S.espb.get(bid); if(!b) return;
   const t=await pedirNome({titulo:'Nova variação da descrição',rotulo:'Texto do keynote',ok:'Registrar',padrao:descPri(b)?.t||'',bruto:true}); if(!nTxt(t)) return;
   try{await descRegistrar(b,t); S.edraft=null; toast('Variação registrada'); render()}catch{toast('Não foi possível salvar.')}}
 function descsHTML(b){
   if(!b?.id||!S.espb.get(b.id)) return ''; const B=S.espb.get(b.id), pri=descPriId(B), us=usosEspb(B.id);
-  return `<section class="sheet"><div class="sheet-h"><h2>Descrições</h2><span class="hint">a principal entra nos projetos novos; editar a descrição acima cria uma nova principal, sem mudar os projetos</span><span class="sp"></span>${S.ro?'':`<button class="btn sm" data-act="et-dnova" data-bid="${esc(B.id)}">${IC.plus}Nova variação</button>`}</div>
+  return `<section class="sheet"><div class="sheet-h"><h2>Descrição simplificada</h2><span class="hint">texto do keynote · a principal entra nos projetos novos; os projetos existentes não mudam</span><span class="sp"></span>${S.ro?'':`<button class="btn sm" data-act="et-dnova" data-bid="${esc(B.id)}">${IC.plus}Nova variação</button>`}</div>
   <div class="tablewrap"><table class="list esp"><thead><tr><th>Texto</th><th style="width:220px">Projetos</th><th style="width:190px"></th></tr></thead><tbody>${descsDe(B).map(v=>{const u=us.filter(e=>nTxt(e.desc)===nTxt(v.t)), ps=[...new Set(u.map(e=>S.itens.get(e.projeto)?.campos?.codigo||S.itens.get(e.projeto)?.nome||'?'))];
-    return `<tr class="et-res"><td>${esc(v.t)}${v.id===pri?' <span class="dg-b dg-ok">principal</span>':''}</td><td class="muted">${ps.length?esc(ps.join(', ')):'—'}</td><td style="text-align:right">${S.ro||v.id===pri?'':`<button class="btn sm" data-act="et-dpri" data-bid="${esc(B.id)}" data-v="${esc(v.id)}">Tornar principal</button>${u.length?'':`<button class="icb del" data-act="et-ddel" data-bid="${esc(B.id)}" data-v="${esc(v.id)}" title="Excluir variação (sem uso)">${IC.trash}</button>`}`}</td></tr>`}).join('')}</tbody></table></div></section>`;
+    return `<tr class="et-res"><td>${esc(v.t)}${v.id===pri?' <span class="dg-b dg-ok">principal</span>':''}</td><td class="muted">${ps.length?esc(ps.join(', ')):'—'}</td><td style="text-align:right">${S.ro?'':v.id===pri?(u.length?'':`<button class="icb" data-act="et-dedit" data-bid="${esc(B.id)}" data-v="${esc(v.id)}" title="Corrigir o texto (nenhum projeto usa esta descrição)">✎</button>`):`<button class="btn sm" data-act="et-dpri" data-bid="${esc(B.id)}" data-v="${esc(v.id)}">Tornar principal</button>${u.length?'':`<button class="icb" data-act="et-dedit" data-bid="${esc(B.id)}" data-v="${esc(v.id)}" title="Corrigir o texto (só variações que nenhum projeto usa)">✎</button><button class="icb del" data-act="et-ddel" data-bid="${esc(B.id)}" data-v="${esc(v.id)}" title="Excluir variação (sem uso)">${IC.trash}</button>`}`}</td></tr>`}).join('')}</tbody></table></div></section>`;
 }
 async function salvarEs(){
   const e=S.qdraft; if(!e) return true;
@@ -5139,13 +5145,14 @@ function telaEspbItem(h,v){
   h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="espb">Especificação técnica</button><span>/</span><span class="mono">${esc(b.fja)}</span></div>
   <h1 style="margin-bottom:6px"><span class="mono">${esc(b.fja)}</span> · ${esc(b.desc||'Item')}</h1><p class="lead">${esc(rotSig(sigB(b))||'Sem tabela')}${b.nbr?' · <span class="mono">'+esc(b.nbr)+'</span>':''}</p>
   ${dup.length?`<div class="banner" style="margin:0 0 14px"><span class="sp">Possível duplicado: ${dup.map(id=>{const o=S.espb.get(id);return `<button class="chip link mono" data-act="et-b-abrir" data-bid="${esc(id)}">${esc(o?.fja||'')}</button>`}).join(' ')} tem a mesma especificação.</span></div>`:''}
+  ${descsHTML(b)}
   <section class="sheet"><div class="sheet-h"><h2>Item central</h2><span class="hint">o código FJA não muda</span></div><div class="grid">
     <label class="fl">Código FJA<input class="fld mono" value="${esc(b.fja)}" disabled ${b.fjaAntigo?`title="Código antigo: ${esc(b.fjaAntigo)}"`:''}></label>${fld('nbr','Classe NBR 15965 (tabela 3R)')}
     <label class="fl" for="b_sigla">Tabela (sigla)<select class="fld" id="b_sigla" data-eb="sigla" ${dis} ${fjaNovo(base.fja)?'disabled title="A sigla faz parte do código FJ e não muda depois de criada"':''}><option value="">—</option>${siglasEt().map(x=>`<option value="${esc(x.sigla)}" ${x.sigla===sigB(b)?'selected':''}>${esc(rotSig(x.sigla))}</option>`).join('')}</select></label>
     <label class="fl">Tipo<input class="fld" value="${esc(TIPOS_ET[tipoEt(b)])}" disabled title="Vem do cadastro da sigla"></label>
-    ${fld('desc','Descrição principal (texto do keynote, obrigatória)','text','wide')}${fld('texto','Especificação base (opcional)','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
+    ${fld('texto','Especificação base (opcional)','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
     <datalist id="dlNbr">${[...new Set([...S.espb.values()].map(x=>x.nbr).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist></section>
-  ${descsHTML(b)}${ehComp(b)?cpEditorHTML(b):''}
+  ${ehComp(b)?cpEditorHTML(b):''}
   <section class="sheet"><div class="sheet-h"><h2>Uso nos projetos</h2><span class="cnt">${us.length}</span></div>${us.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th style="width:170px">Projeto</th><th style="width:90px">Keynote</th><th>Descrição no projeto</th></tr></thead><tbody>${us.map(x=>{const p=S.itens.get(x.projeto);return `<tr data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}"><td>${esc((p?.campos?.codigo?p.campos.codigo+' ':'')+(p?.nome||''))}</td><td class="mono"><b>${esc(x.kn)}</b>${desatEs(x)?' <span class="et-dot" title="Texto central alterado depois">●</span>':''}</td><td>${esc(x.desc||'')}</td></tr>`}).join('')}</tbody></table></div>`:`<p class="pad muted">Ainda não usado em nenhum projeto.</p>`}</section>
   <div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="et-b-del">${IC.trash}Excluir</button><button class="btn pri" data-act="et-b-salvar">Salvar alterações</button></div>`;
@@ -5157,10 +5164,9 @@ async function salvarEspb(){
   if(!body.desc){toast('A descrição simplificada é obrigatória (é o texto do keynote).');return false}
   if(!at||normTxtEt(at.texto)!==normTxtEt(body.texto)) body.textoEm=Date.now();
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  if(at&&nTxt(body.desc)!==nTxt(descPri(at)?.t)){const L=descsDe(at).map(x=>({...x})); let v=L.find(x=>nTxt(x.t)===nTxt(body.desc));
-    if(!v){v={id:'d'+Date.now().toString(36),t:nTxt(body.desc),em:Date.now(),...(me?{por:me}:{})}; L.push(v)} body.descs=L; body.descPri=v.id; body.desc=v.t}
+  if(at){body.desc=at.desc; if(at.descs) body.descs=at.descs; if(at.descPri) body.descPri=at.descPri}
   try{await espbColl().doc(b.id).set(body);S.espb.set(b.id,{...body,id:b.id});S.edraft={...body,id:b.id};S.dirty=false;
-    toast(at&&body.descPri!==at.descPri&&body.descPri?'Salvo · nova descrição principal (os projetos não mudam)':'Salvo');return true}
+    toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
 document.addEventListener('input',ev=>{const el=ev.target;
@@ -5292,6 +5298,7 @@ async function esAcao(a,b){
   if(a==='et-diag'){diagAlternar();return}
   if(a==='et-dpri'){await descTornarPri(b.dataset.bid,b.dataset.v);return}
   if(a==='et-ddel'){await descExcluir(b.dataset.bid,b.dataset.v);return}
+  if(a==='et-dedit'){await descEditar(b.dataset.bid,b.dataset.v);return}
   if(a==='et-dnova'){await descNova(b.dataset.bid);return}
   if(a==='et-b-tab'){ET_B.tab=b.dataset.v;renderMain();return}
   if(a==='et-b-abrir'){ir({t:'espbi',bid:b.dataset.bid});return}
@@ -5303,7 +5310,7 @@ async function esAcao(a,b){
     return}
   if(a==='et-novo'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
     const sg=await escolherSigla({pid,titulo:'Novo item · escolha a sigla',sub:'2 letras = material · 3 letras = composição ou elemento/família'}); if(!sg) return;
-    try{const sx=siglaEt(sg); const x=await novoEsCentral({sigla:sg,tipo:sx?.tipo||(sg.length===2?'material':'elemento')}); const id=await criarLinhaEs(pid,x,{},sg); S.qdraft=null; ir({t:'espi',id:pid,eid:id}); setTimeout(()=>{const n=$('q_desc'); n?.focus()},60); toast(`Item central ${x.fja} criado`)}catch{toast('Não foi possível criar.')}
+    const dsc=nTxt(await pedirNome({titulo:'Descrição do item',rotulo:'Descrição simplificada (texto do keynote)',ok:'Criar',bruto:true})); if(!dsc) return; try{const sx=siglaEt(sg); const x=await novoEsCentral({sigla:sg,tipo:sx?.tipo||(sg.length===2?'material':'elemento'),desc:dsc}); const id=await criarLinhaEs(pid,x,{},sg); S.qdraft=null; ir({t:'espi',id:pid,eid:id}); toast(`Item central ${x.fja} criado`)}catch{toast('Não foi possível criar.')}
     return}
   if(a==='et-salvar'){if(await salvarEs()) render();return}
   if(a==='et-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
@@ -5324,7 +5331,7 @@ async function esAcao(a,b){
     e.item=x.id; e.baseEm=Date.now(); S.dirty=true; if(await salvarEs()) render(); return}
   if(a==='et-b-novo'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
     const sg=await escolherSigla({pid:null,titulo:'Novo item central · escolha a tabela (sigla)',sub:'2 letras = material · 3 letras = composição ou elemento/família'}); if(!sg) return;
-    try{const x=await novoEsCentral({sigla:sg,tipo:siglaEt(sg)?.tipo||(sg.length===2?'material':'elemento')}); S.edraft=null; ir({t:'espbi',bid:x.id}); setTimeout(()=>{const n=$('b_desc'); n?.focus(); n?.select()},60)}catch{toast('Não foi possível criar.')}
+    const dsc=nTxt(await pedirNome({titulo:'Descrição do item',rotulo:'Descrição simplificada (texto do keynote)',ok:'Criar',bruto:true})); if(!dsc) return; try{const x=await novoEsCentral({sigla:sg,tipo:siglaEt(sg)?.tipo||(sg.length===2?'material':'elemento'),desc:dsc}); S.edraft=null; ir({t:'espbi',bid:x.id})}catch{toast('Não foi possível criar.')}
     return}
   if(a==='et-b-salvar'){if(await salvarEspb()) render();return}
   if(a==='et-sig-novo'){const v=await pedirNome({titulo:'Nova sigla de keynote',rotulo:'Sigla (2 letras para material, 3 para composição ou elemento/família)',ok:'Criar'}); if(!v) return;
