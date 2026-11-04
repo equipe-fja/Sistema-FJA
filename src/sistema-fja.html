@@ -7091,13 +7091,29 @@ async function bkpMontar(){
   contagem.config=Object.keys(config).length; total+=contagem.config;
   return {sistema:'Sistema FJA',formato:1,ambiente:AMB,geradoEm:new Date().toISOString(),geradoPor:S.meuNome||me||'',total,contagem,colecoes,config};
 }
+/* O Drive recusa envios grandes ("tool input is too large"): cada backup vira uma pasta com um arquivo por coleção,
+   dividido em partes de até ~180 KB, e um 00-indice.json com os metadados, as configurações e a lista de partes. */
+const BKP_MAX=180000;
+async function bkpCriar(titulo,txt,parentId,pasta){
+  const a=pasta?{title:titulo,contentMimeType:'application/vnd.google-apps.folder',parentId}:{title:titulo,parentId,textContent:txt,contentMimeType:'application/json',disableConversionToGoogleType:true};
+  let ult; for(let t=0;t<3;t++){try{const r=await mcp.callTool('Google Drive','create_file',a,{cache:false}); const f=r?.payload||r||{}, id=f.id||f.file?.id; if(id) return {id,url:f.viewUrl||f.file?.viewUrl||''}; ult=new Error('o Drive não devolveu o arquivo')}catch(e){ult=e} await new Promise(r=>setTimeout(r,1500*(t+1)))}
+  throw ult;
+}
 async function bkpGravar(obj){
   const d=new Date(), p=n=>String(n).padStart(2,'0');
-  const nome=`${AMB==='dev'?'DEV-':''}SISTEMA-FJA_BACKUP_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}h${p(d.getMinutes())}.json`;
-  const txt=JSON.stringify(obj);
-  const r=await mcp.callTool('Google Drive','create_file',{title:nome,parentId:BKP.pasta,textContent:txt,contentMimeType:'application/json',disableConversionToGoogleType:true},{cache:false});
-  const f=r?.payload||r||{};
-  return {nome,id:f.id||'',url:f.viewUrl||(f.id?`https://drive.google.com/file/d/${f.id}/view`:''),bytes:new Blob([txt]).size};
+  const nome=`${AMB==='dev'?'DEV-':''}SISTEMA-FJA_BACKUP_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}h${p(d.getMinutes())}`;
+  const pasta=await bkpCriar(nome,'',BKP.pasta,true);
+  const partes=[]; let bytes=0;
+  for(const [col,docs] of Object.entries(obj.colecoes)){
+    const ids=Object.keys(docs); let lote={}, tam=0, k=0;
+    const fechar=async()=>{k++; const arq=`${col}-${String(k).padStart(2,'0')}.json`, txt=JSON.stringify({sistema:obj.sistema,formato:2,colecao:col,parte:k,docs:lote});
+      await bkpCriar(arq,txt,pasta.id); partes.push({arquivo:arq,colecao:col,n:Object.keys(lote).length}); bytes+=txt.length; lote={}; tam=0};
+    for(const id of ids){const t=JSON.stringify(docs[id]).length+id.length+6; if(tam&&tam+t>BKP_MAX) await fechar(); lote[id]=docs[id]; tam+=t}
+    if(ids.length) await fechar();
+  }
+  const {colecoes,...meta}=obj, idx=JSON.stringify({...meta,formato:2,partes});
+  await bkpCriar('00-indice.json',idx,pasta.id); bytes+=idx.length;
+  return {nome,id:pasta.id,url:`https://drive.google.com/drive/folders/${pasta.id}`,bytes,partes:partes.length};
 }
 async function bkpExecutar(manual){
   if(BKP.rodando) return;
@@ -7116,7 +7132,7 @@ async function bkpExecutar(manual){
       if(v2.ultimoDia===bkpHoje()||(v2.executando?.por||'')!==(me||'')) return;
     }
     const obj=await bkpMontar(), arq=await bkpGravar(obj);
-    const st={ultimoDia:bkpHoje(),ultimoEm:Date.now(),ultimoPor:obj.geradoPor,arquivo:arq.nome,arquivoId:arq.id,url:arq.url,bytes:arq.bytes,total:obj.total,contagem:obj.contagem,manual:!!manual,ambiente:AMB,executando:null,erro:null};
+    const st={ultimoDia:bkpHoje(),ultimoEm:Date.now(),ultimoPor:obj.geradoPor,arquivo:arq.nome,arquivoId:arq.id,url:arq.url,bytes:arq.bytes,partes:arq.partes,total:obj.total,contagem:obj.contagem,manual:!!manual,ambiente:AMB,executando:null,erro:null};
     await ref.set(st); BKP.st=st;
     if(manual) toast(`Backup gravado no Drive (${obj.total} registros)`);
   }catch(e){
@@ -7130,11 +7146,11 @@ function telaBkp(h){
   const s=BKP.st||{}, auto=AMB==='oficial', fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
   const cont=s.contagem?Object.entries(s.contagem).map(([k,n])=>`${esc(BKP_ROT[k]||k)}: <b>${n}</b>`).join(' · '):'';
   h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="ferr">Ferramentas</button><span>/</span><span>Backup do sistema</span></div>
-  <h1>Backup do sistema</h1><p class="lead">Cópia completa do banco de dados (todos os projetos, módulos, catálogos e configurações) gravada como arquivo .json na pasta BACKUP do Drive.</p>
+  <h1>Backup do sistema</h1><p class="lead">Cópia completa do banco de dados (todos os projetos, módulos, catálogos e configurações) gravada na pasta BACKUP do Drive: uma pasta por backup, com um arquivo .json por coleção (dividido em partes) e um índice.</p>
   <section class="sheet"><div class="sheet-h"><h2>Último backup</h2>${auto?'<span class="hint">automático, 1 vez por dia</span>':'<span class="hint">desenvolvimento: só manual</span>'}</div><div class="pad ferr-pad">
     ${s.ultimoEm?`<p><b>${fmt(s.ultimoEm)}</b> · ${s.total} registros · ${((s.bytes||0)/1048576).toFixed(2)} MB${s.ultimoPor?' · por '+esc(s.ultimoPor):''}${s.manual?' · manual':' · automático'}</p>
     <p class="mono">${esc(s.arquivo||'')}</p><p class="muted">${cont}</p>
-    ${s.url?`<div><a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">Abrir o arquivo no Drive</a></div>`:''}`:'<p class="muted">Nenhum backup registrado ainda.</p>'}
+    ${s.url?`<div><a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">Abrir a pasta do backup no Drive</a></div>`:''}`:'<p class="muted">Nenhum backup registrado ainda.</p>'}
     ${s.erro?`<p style="color:var(--danger)">Última falha (${fmt(s.erro.em)}): ${esc(s.erro.msg||'')}</p>`:''}
     <div><button class="btn pri" data-act="bkp-agora"${BKP.rodando||S.ro||!mcp?' disabled':''}>${BKP.rodando?'Gravando backup…':'Fazer backup agora'}</button></div>
   </div></section>
