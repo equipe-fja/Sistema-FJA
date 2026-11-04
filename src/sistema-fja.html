@@ -4760,7 +4760,7 @@ function telaEspItem(h,v){
   h+=`<section class="sheet"><div class="sheet-h"><h2>No projeto</h2><span class="hint">keynote único neste projeto · ${esc(TIPOS_ET[tipoEt(b)])}: ${esc(regraKn(tipoEt(b)))}</span></div><div class="grid">
     <label class="fl" for="q_kn">Keynote<input class="fld mono" id="q_kn" data-q="kn" value="${esc(e.kn||'')}" ${dis}></label>
     <label class="fl">Tabela<input class="fld" value="${esc(tabEs(e))}" disabled title="A tabela é a sigla do keynote"></label>
-    ${eqCampoHTML(['desc','Descrição no projeto','text','wide'],e.desc)}
+    ${eqCampoHTML(['desc','Descrição simplificada (texto do keynote, igual em todos os projetos)','text','wide'],e.desc)}
     ${eqCampoHTML(['texto','Especificação no projeto','longtext'],e.texto).replace('rows="3"','rows="9"')}
     ${e.ferragens||tipoEt(b)==='elemento'?eqCampoHTML(['ferragens','Ferragens','longtext'],e.ferragens):''}
     ${eqCampoHTML(['obs','Observações','longtext'],e.obs)}</div></section>`;
@@ -4779,12 +4779,31 @@ function telaEspItem(h,v){
   return h;
 }
 function knLivre(pid,kn,id){const k=knChave(kn); if(!k) return 'Informe o keynote'; const ln=S.espec.get(id)||S.qdraft, t=tipoEt(espbDe(ln)); if(!fmtKnOk(k,t)) return `Keynote de ${t==='material'?'material':'composição ou elemento'}: ${regraKn(t)}`; const d=espDe(pid).find(x=>x.id!==id&&knChave(x.kn)===k); return d?`O keynote ${kn} já é usado por “${d.desc||'outro item'}”`:''}
+/* Descrição simplificada = texto do keynote: uma só para o item central e todas as linhas de projeto que o usam.
+   Só a especificação (texto) pode variar por projeto. A descrição é obrigatória; a especificação, opcional. */
+async function sincDesc(itemId,desc,exceto){
+  desc=String(desc||'').trim(); const b=S.espb.get(itemId); if(!b||!desc) return;
+  if((b.desc||'')!==desc){await espbColl().doc(b.id).update({desc,atualizadoEm:Date.now()}); b.desc=desc}
+  for(const e of [...S.espec.values()].filter(x=>x.item===itemId&&x.id!==exceto&&(x.desc||'')!==desc)){
+    try{await espColl().doc(e.id).update({desc}); e.desc=desc}catch(err){console.warn('sincDesc',e.id,err)}}
+}
+const descDiverg=()=>[...S.espec.values()].filter(e=>{const b=espbDe(e); return b&&(e.desc||'').trim()!==(b.desc||'').trim()});
+async function unificarDesc(){
+  const L=descDiverg(); if(!L.length){toast('As descrições já estão iguais');return}
+  if(!await confirmar(`${L.length} linha(s) de projeto têm descrição diferente do banco central.\n\nA descrição passa a ser uma só (é o texto do keynote). Fica a do projeto quando o banco central ainda está como "Novo item" ou vazio; nos outros casos, fica a do banco central. A especificação de cada projeto não muda.`,{ok:'Unificar'})) return;
+  let n=0; for(const e of L){const b=espbDe(e), dp=(e.desc||'').trim(), dc=(b.desc||'').trim(), d=(!dc||dc==='Novo item')&&dp?dp:dc||dp; if(!d) continue;
+    try{await sincDesc(b.id,d,null); n++}catch(err){console.warn('unificar',e.id,err)}}
+  toast(`${n} descrição(ões) unificada(s)`); render();
+}
 async function salvarEs(){
   const e=S.qdraft; if(!e) return true;
   const body={...e}; delete body.id; body.kn=String(body.kn||'').trim().toUpperCase();
   const er=knLivre(e.projeto,body.kn,e.id); if(er){toast(er);return false}
+  body.desc=String(body.desc||'').trim(); if(!body.desc){toast('A descrição simplificada é obrigatória (é o texto do keynote).');return false}
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  try{await espColl().doc(e.id).set(body);S.espec.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;toast('Salvo');return true}
+  try{await espColl().doc(e.id).set(body);S.espec.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;
+    if(body.item) await sincDesc(body.item,body.desc,e.id);
+    toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
 const proxLinhaEs=pid=>espDe(pid).reduce((m,e)=>Math.max(m,+e.linha||0),0)+1;
@@ -4855,10 +4874,11 @@ function abrirCelEs(alvo){
 async function salvarCelEs(v){
   const p=$('celPop'); if(!p||S.ro) return; const k=p.dataset.k, e=S.espec.get(p.dataset.eid); if(!e) return fecharCelPop();
   v=String(v??'').trim(); if(k==='kn'){v=v.toUpperCase(); const er=knLivre(e.projeto,v,e.id); if(er){const m=$('etCelMsg'); if(m){m.textContent=er;m.className='pc-msg err'} return}}
+  if(k==='desc'&&!v){const m=$('etCelMsg'); if(m){m.textContent='A descrição é obrigatória (é o texto do keynote).';m.className='pc-msg err'} return}
   fecharCelPop(); if((e[k]||'')===v) return;
   const upd={[k]:v,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})}, ant={...e};
   Object.assign(e,upd); render();
-  try{await espColl().doc(e.id).update(upd); toast('Salvo')}catch(err){Object.assign(e,ant); render(); toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
+  try{await espColl().doc(e.id).update(upd); if(k==='desc'&&e.item){await sincDesc(e.item,v,e.id); render()} toast('Salvo')}catch(err){Object.assign(e,ant); render(); toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
 }
 document.addEventListener('keydown',ev=>{const p=$('celPop'); if(!p||!p.classList.contains('et-pop')) return;
   if(ev.key==='Enter'&&!ev.shiftKey&&ev.target.closest('#celPop')&&ev.target.tagName!=='BUTTON'){ev.preventDefault();salvarCelEs($('etCelTxt')?.value)}
@@ -4982,7 +5002,7 @@ function telaEspb(h){
   const q=semAc(ET_B.busca), F=L.filter(b=>(!ET_B.tab||tipoEt(b)===ET_B.tab)&&(!q||semAc([b.fja,b.fjaAntigo,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q))).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
   const tabs=Object.keys(TIPOS_ET).filter(t=>L.some(b=>tipoEt(b)===t));
   h+=`<div class="page wide"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><span>Especificação técnica</span></div>
-  <h1>Especificação técnica</h1><div class="seg" style="margin:-4px 0 14px"><button class="on">Banco central</button><button data-act="et-sig">Siglas de keynote</button></div><p class="lead">Banco central de itens do escritório. Cada item tem um código FJA permanente e uma classe da ABNT NBR 15965; nos projetos, recebe o keynote e a descrição específica.</p>${!S.ro&&fjaAntigos().length?`<div class="banner"><span class="sp">${fjaAntigos().length} itens ainda usam o código antigo (FJ-NNNN). O padrão agora é FJ.SIGLA.NNNN, com numeração própria de cada sigla.</span><button class="btn sm" data-act="et-migrar">Converter códigos</button></div>`:''}
+  <h1>Especificação técnica</h1><div class="seg" style="margin:-4px 0 14px"><button class="on">Banco central</button><button data-act="et-sig">Siglas de keynote</button></div><p class="lead">Banco central de itens do escritório. Cada item tem um código FJA permanente e uma classe da ABNT NBR 15965; nos projetos, recebe o keynote e a descrição específica.</p>${!S.ro&&descDiverg().length?`<div class="banner"><span class="sp">${descDiverg().length} linha(s) de projeto com descrição diferente do banco central. A descrição simplificada é uma só (texto do keynote); só a especificação varia por projeto.</span><button class="btn sm" data-act="et-unif">Unificar descrições</button></div>`:''}${!S.ro&&fjaAntigos().length?`<div class="banner"><span class="sp">${fjaAntigos().length} itens ainda usam o código antigo (FJ-NNNN). O padrão agora é FJ.SIGLA.NNNN, com numeração própria de cada sigla.</span><button class="btn sm" data-act="et-migrar">Converter códigos</button></div>`:''}
   <div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="etBBusca" type="search" placeholder="Buscar por FJ, descrição, especificação, classe NBR…" value="${esc(ET_B.busca)}" aria-label="Buscar no banco central"></div><span class="muted eq-count">${F.length===L.length?L.length+' itens':F.length+' de '+L.length+' itens'}</span>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div>`;
   if(tabs.length>1) h+=`<div class="chips" style="padding:0 0 14px"><button class="chip link ${!ET_B.tab?'on':''}" data-act="et-b-tab" data-v="">Todas <span class="cnt">${L.length}</span></button>${tabs.map(t=>`<button class="chip link ${ET_B.tab===t?'on':''}" data-act="et-b-tab" data-v="${esc(t)}">${esc(TIPOS_ET[t])} <span class="cnt">${L.filter(b=>tipoEt(b)===t).length}</span></button>`).join('')}</div>`;
   if(!L.length) return h+`<section class="sheet"><div class="esp-vazio"><h2>O banco central está vazio</h2><p>Cadastre itens aqui ou importe a planilha de especificação de um projeto (na seção Especificação técnica do projeto): cada keynote importado gera um item central.</p>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div></section></div>`;
@@ -5007,7 +5027,7 @@ function telaEspbItem(h,v){
     <label class="fl">Código FJA<input class="fld mono" value="${esc(b.fja)}" disabled ${b.fjaAntigo?`title="Código antigo: ${esc(b.fjaAntigo)}"`:''}></label>${fld('nbr','Classe NBR 15965 (tabela 3R)')}
     <label class="fl" for="b_sigla">Tabela (sigla)<select class="fld" id="b_sigla" data-eb="sigla" ${dis} ${fjaNovo(base.fja)?'disabled title="A sigla faz parte do código FJ e não muda depois de criada"':''}><option value="">—</option>${siglasEt().map(x=>`<option value="${esc(x.sigla)}" ${x.sigla===sigB(b)?'selected':''}>${esc(rotSig(x.sigla))}</option>`).join('')}</select></label>
     <label class="fl">Tipo<input class="fld" value="${esc(TIPOS_ET[tipoEt(b)])}" disabled title="Vem do cadastro da sigla"></label>
-    ${fld('desc','Descrição simplificada','text','wide')}${fld('texto','Especificação base','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
+    ${fld('desc','Descrição simplificada (texto do keynote, obrigatória)','text','wide')}${fld('texto','Especificação base (opcional)','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
     <datalist id="dlNbr">${[...new Set([...S.espb.values()].map(x=>x.nbr).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist></section>
   ${ehComp(b)?cpEditorHTML(b):''}
   <section class="sheet"><div class="sheet-h"><h2>Uso nos projetos</h2><span class="cnt">${us.length}</span></div>${us.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th style="width:170px">Projeto</th><th style="width:90px">Keynote</th><th>Descrição no projeto</th></tr></thead><tbody>${us.map(x=>{const p=S.itens.get(x.projeto);return `<tr data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}"><td>${esc((p?.campos?.codigo?p.campos.codigo+' ':'')+(p?.nome||''))}</td><td class="mono"><b>${esc(x.kn)}</b>${desatEs(x)?' <span class="et-dot" title="Texto central alterado depois">●</span>':''}</td><td>${esc(x.desc||'')}</td></tr>`}).join('')}</tbody></table></div>`:`<p class="pad muted">Ainda não usado em nenhum projeto.</p>`}</section>
@@ -5018,9 +5038,11 @@ function telaEspbItem(h,v){
 async function salvarEspb(){
   const b=S.edraft; if(!b) return true; const at=S.espb.get(b.id);
   const body={...b}; delete body.id; body.nbr=String(body.nbr||'').trim().toUpperCase(); body.desc=String(body.desc||'').trim();
-  if(!at||normTxtEt(at.texto)!==normTxtEt(body.texto)||(at.desc||'')!==body.desc) body.textoEm=Date.now();
+  if(!body.desc){toast('A descrição simplificada é obrigatória (é o texto do keynote).');return false}
+  if(!at||normTxtEt(at.texto)!==normTxtEt(body.texto)) body.textoEm=Date.now();
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  try{await espbColl().doc(b.id).set(body);S.espb.set(b.id,{...body,id:b.id});S.edraft={...body,id:b.id};S.dirty=false;toast('Salvo');return true}
+  try{await espbColl().doc(b.id).set(body);S.espb.set(b.id,{...body,id:b.id});S.edraft={...body,id:b.id};S.dirty=false;
+    await sincDesc(b.id,body.desc,null); toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
 document.addEventListener('input',ev=>{const el=ev.target;
@@ -5144,6 +5166,7 @@ async function esAcao(a,b){
   if(a==='espb'){ir({t:'espb'});return}
   if(a==='et-sig'){ir({t:'etsig'});return}
   if(a==='et-migrar'){await migrarFja();return}
+  if(a==='et-unif'){await unificarDesc();return}
   if(a==='et-b-tab'){ET_B.tab=b.dataset.v;renderMain();return}
   if(a==='et-b-abrir'){ir({t:'espbi',bid:b.dataset.bid});return}
   if(S.ro) return;
@@ -5154,7 +5177,7 @@ async function esAcao(a,b){
     return}
   if(a==='et-novo'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
     const sg=await escolherSigla({pid,titulo:'Novo item · escolha a sigla',sub:'2 letras = material · 3 letras = composição ou elemento/família'}); if(!sg) return;
-    try{const sx=siglaEt(sg); const x=await novoEsCentral({sigla:sg,tipo:sx?.tipo||(sg.length===2?'material':'elemento')}); const id=await criarLinhaEs(pid,x,{desc:''},sg); S.qdraft=null; ir({t:'espi',id:pid,eid:id}); setTimeout(()=>{const n=$('q_desc'); n?.focus()},60); toast(`Item central ${x.fja} criado`)}catch{toast('Não foi possível criar.')}
+    try{const sx=siglaEt(sg); const x=await novoEsCentral({sigla:sg,tipo:sx?.tipo||(sg.length===2?'material':'elemento')}); const id=await criarLinhaEs(pid,x,{},sg); S.qdraft=null; ir({t:'espi',id:pid,eid:id}); setTimeout(()=>{const n=$('q_desc'); n?.focus()},60); toast(`Item central ${x.fja} criado`)}catch{toast('Não foi possível criar.')}
     return}
   if(a==='et-salvar'){if(await salvarEs()) render();return}
   if(a==='et-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
@@ -6978,6 +7001,7 @@ async function rvAplicarPedido(p){
       if((upd.desc??b.desc)!==b.desc||normTxtEt(upd.texto??b.texto)!==normTxtEt(b.texto)) upd.textoEm=Date.now();
       await espbColl().doc(b.id).update(upd); Object.assign(b,upd);
       msgs.push(`${b.fja} alterado na biblioteca`);
+      await sincDesc(b.id,b.desc,null);
       const e=pid&&espDe(pid).find(x=>x.item===b.id);
       if(e){const u2={desc:b.desc,texto:b.texto||'',baseEm:Date.now()+1,atualizadoEm:Date.now()}; await espColl().doc(e.id).update(u2); Object.assign(S.espec.get(e.id)||{},u2); msgs.push(`${e.kn} atualizado no projeto`)}
     }
