@@ -4791,7 +4791,7 @@ function telaEspItem(h,v){
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="et-del">${IC.trash}Excluir</button><button class="btn pri" data-act="et-salvar">Salvar alterações</button></div>`;
   return h;
 }
-function knLivre(pid,kn,id){const k=knChave(kn); if(!k) return 'Informe o keynote'; const ln=S.espec.get(id)||S.qdraft, t=tipoEt(espbDe(ln)); if(!fmtKnOk(k,t)) return `Keynote de ${t==='material'?'material':'composição ou elemento'}: ${regraKn(t)}`; const d=espDe(pid).find(x=>x.id!==id&&knChave(x.kn)===k); return d?`O keynote ${kn} já é usado por “${d.desc||'outro item'}”`:''}
+function knLivre(pid,kn,id){const k=knChave(kn); if(!k) return 'Informe o keynote'; {const ln0=S.espec.get(id)||S.qdraft, sc=espbDe(ln0)?.sigla; if(sc&&knPref(k)!==sc) return `O keynote deste item começa com ${sc} (sigla do código central ${espbDe(ln0)?.fja||''})`} const ln=S.espec.get(id)||S.qdraft, t=tipoEt(espbDe(ln)); if(!fmtKnOk(k,t)) return `Keynote de ${t==='material'?'material':'composição ou elemento'}: ${regraKn(t)}`; const d=espDe(pid).find(x=>x.id!==id&&knChave(x.kn)===k); return d?`O keynote ${kn} já é usado por “${d.desc||'outro item'}”`:''}
 /* Descrição simplificada (texto do keynote): o item central guarda as variações (descs) e qual é a principal
    (descPri; b.desc = texto da principal). Projetos novos entram com a principal; cada linha de projeto guarda o
    próprio texto e não muda quando o central muda. O diagnóstico da planilha compara cada linha com o central. */
@@ -5315,7 +5315,8 @@ async function esAcao(a,b){
   if(S.ro) return;
   if(a==='et-puxar'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
     const x=await escolherCentral({titulo:'Puxar item do banco central',pid}); if(!x) return;
-    const sg=await escolherSigla({pid,tipo:tipoEt(x),sugerida:prefSugerido(pid,x)[0],sub:`${x.fja} · ${x.desc||''} (${TIPOS_ET[tipoEt(x)]})`}); if(!sg) return;
+    // a sigla do keynote é a mesma do código central (FJ.SIGLA.NNNN); só pergunta se o item central não tiver sigla
+    const sg=sigB(x)||await escolherSigla({pid,tipo:tipoEt(x),sugerida:prefSugerido(pid,x)[0],sub:`${x.fja} · ${x.desc||''} (${TIPOS_ET[tipoEt(x)]})`}); if(!sg) return;
     try{const id=await criarLinhaEs(pid,x,{},sg); toast(`${x.fja} entrou no projeto como ${S.espec.get(id).kn}`); S.qdraft=null; ir({t:'espi',id:pid,eid:id})}catch{toast('Não foi possível adicionar.')}
     return}
   if(a==='et-novo'){if(S.dirty){toast('Salve ou descarte as alterações antes');return}
