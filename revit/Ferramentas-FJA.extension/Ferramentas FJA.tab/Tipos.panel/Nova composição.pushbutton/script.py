@@ -2,6 +2,7 @@
 """Cria no modelo tipos de parede, piso, forro e cobertura a partir das composições da
 biblioteca central do Sistema FJA (especificação técnica), com camadas, materiais,
 Type Mark, Keynote, Descrição e vínculo com o sistema."""
+__persistentengine__ = True  # evita a limpeza lenta do motor do pyRevit ao fechar a janela (~7 s medidos)
 import os
 
 from pyrevit import revit, DB, forms, script
@@ -804,38 +805,7 @@ class Janela(forms.WPFWindow):
         self.preencher(manter=item_id)
 
 
-# ---- medição de tempos (temporária): grava em Ferramentas-FJA.extension/tempos.log
-import time as _t
-_T0 = _t.time()
-_MARCAS = []
-
-
-def marca(rot):
-    _MARCAS.append((rot, _t.time() - _T0))
-
-
-def gravar_tempos():
-    try:
-        import io as _io, gc as _gc
-        marca(u"antes do gc")
-        _gc.collect()
-        marca(u"depois do gc")
-        arq = os.path.join(os.path.dirname(os.path.dirname(F.__file__)), "tempos.log")
-        with _io.open(arq, "a", encoding="utf-8") as f:
-            f.write(u"{} · {}\n".format(_t.strftime("%Y-%m-%d %H:%M:%S"), u" | ".join(u"{} {:.2f}s".format(r, v) for r, v in _MARCAS)))
-    except Exception as e:
-        print(u"tempos: {}".format(e))
-
-
 if doc is None or doc.IsFamilyDocument:
     forms.alert(u"Abra um modelo de projeto para usar esta ferramenta.", title=u"Nova composição")
 else:
-    marca(u"início")
-    _j = Janela()
-    marca(u"janela montada")
-    _j.ContentRendered += lambda s, e: marca(u"janela visível")
-    _j.Closing += lambda s, e: marca(u"clicou fechar")
-    _j.ShowDialog()
-    marca(u"janela fechada")
-    _j = None
-    gravar_tempos()
+    Janela().ShowDialog()
