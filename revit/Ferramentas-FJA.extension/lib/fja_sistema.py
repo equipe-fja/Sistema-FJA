@@ -665,6 +665,40 @@ def ler_familia(app, caminho):
         fdoc.Close(False)
 
 
+def familia_do_elemento(doc, elem):
+    """Família de um elemento já inserido no modelo (instância ou tipo de família carregável)."""
+    sim = None
+    if isinstance(elem, DB.FamilyInstance):
+        sim = elem.Symbol
+    elif isinstance(elem, DB.FamilySymbol):
+        sim = elem
+    if sim is None:
+        raise ValueError(u"O elemento selecionado não é de uma família carregável.")
+    familia = sim.Family
+    if familia.IsInPlace:
+        raise ValueError(u"Famílias criadas no local (in-place) não podem ser readequadas.")
+    tipos = [doc.GetElement(i) for i in familia.GetFamilySymbolIds()]
+    cont = {}
+    for inst in DB.FilteredElementCollector(doc).OfClass(DB.FamilyInstance):
+        try:
+            if inst.Symbol.Family.Id == familia.Id:
+                cont[inst.Symbol.Id.IntegerValue] = cont.get(inst.Symbol.Id.IntegerValue, 0) + 1
+        except Exception:
+            pass
+    vinc = ler_vinculo(sim) or {}
+    kn = u""
+    try:
+        par = sim.get_Parameter(DB.BuiltInParameter.KEYNOTE_PARAM)
+        kn = par.AsString() or u"" if par else u""
+    except Exception:
+        pass
+    return {"modelo": True, "familia": familia, "simbolo": sim, "nome": familia.Name,
+            "categoria": familia.FamilyCategory.Name if familia.FamilyCategory else u"",
+            "tipos": [nome_elem(t) for t in tipos],
+            "instancias": dict((nome_elem(t), cont.get(t.Id.IntegerValue, 0)) for t in tipos),
+            "vinculo": vinc, "knAtual": kn, "tipoAtual": nome_elem(sim)}
+
+
 def nome_familia(sigla, desc):
     return limpar_nome(u"({}) {}".format((sigla or u"").upper(), (desc or u"").upper()))
 
@@ -742,9 +776,12 @@ def inserir_componente(doc, dados, p):
         ped = montar_pedido(dados, "incluir-no-projeto", item, p["reservas"], modelo=doc.Title)
         gravar_pedido(dados, ped)
         pedido_id = ped["id"]
-    ref = clr.Reference[DB.Family]()
-    doc.LoadFamily(fam["caminho"], _OpcoesCarga(), ref)
-    familia = ref.Value or _familia_por_nome(doc, fam["nome"])
+    if fam.get("modelo"):
+        familia = fam["familia"]  # readequar: família já no modelo, sem recarregar
+    else:
+        ref = clr.Reference[DB.Family]()
+        doc.LoadFamily(fam["caminho"], _OpcoesCarga(), ref)
+        familia = ref.Value or _familia_por_nome(doc, fam["nome"])
     if familia is None:
         raise ValueError(u"Não foi possível carregar a família.")
     if p.get("renomear") and familia.Name != p["nomeFamilia"]:
@@ -755,7 +792,9 @@ def inserir_componente(doc, dados, p):
                 familia.Name = p["nomeFamilia"]
             except Exception as e:
                 avisos.append(u"Não foi possível renomear a família: {}".format(e))
-    for sid in familia.GetFamilySymbolIds():
+    alvos = [fam["simbolo"].Id] if fam.get("modelo") and p.get("soTipo") else list(familia.GetFamilySymbolIds())
+    p["nTipos"] = len(alvos)
+    for sid in alvos:
         t = doc.GetElement(sid)
         _set(t, DB.BuiltInParameter.ALL_MODEL_TYPE_MARK, p["kn"])
         _set(t, DB.BuiltInParameter.KEYNOTE_PARAM, p["kn"])

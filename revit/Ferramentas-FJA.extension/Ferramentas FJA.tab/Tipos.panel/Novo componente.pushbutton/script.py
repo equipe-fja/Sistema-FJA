@@ -10,11 +10,21 @@ from pyrevit import revit, DB, forms, script
 import fja_sistema as F
 
 from System.Windows import Visibility
+from Autodesk.Revit.UI.Selection import ObjectType
 from System.Windows.Controls import ListBoxItem
 
 doc = revit.doc
+uidoc = revit.uidoc
 cfg = script.get_config()
 TITULO = u"Novo componente"
+
+def _pincel(r, g, b):
+    from System.Windows.Media import SolidColorBrush, Color
+    return SolidColorBrush(Color.FromRgb(r, g, b))
+
+
+F_COR = {"cinza": _pincel(94, 94, 92), "verde": _pincel(46, 115, 64), "ambar": _pincel(138, 93, 5),
+         "vermelho": _pincel(179, 38, 30)}
 
 
 def aplicar_estilo(win):
@@ -41,6 +51,13 @@ class Janela(forms.WPFWindow):
         self.cbFonte.SelectedIndex = 1 if cfg.get_option("dev", not tem_oficial) else 0
         self._pronto = True
         self.carregar()
+        # readequar: elemento já selecionado ao abrir a ferramenta
+        try:
+            ids = list(uidoc.Selection.GetElementIds())
+            if ids:
+                self._usar_elemento(doc.GetElement(ids[0]), avisar=False)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------ dados do sistema
     def carregar(self):
@@ -105,10 +122,84 @@ class Janela(forms.WPFWindow):
             forms.alert(u"Não foi possível ler a família:\n{}".format(e), title=TITULO)
             return
         f = self.fam
+        self.spAbr.Visibility = Visibility.Collapsed
+        self.ckRenomear.IsEnabled = True
+        self._mostrar_vinculo()
         self.tbArquivo.Text = caminho
         self.txtFamilia.Text = u"Família {} · categoria {} · {} tipo(s): {}".format(
             f["nome"], f["categoria"] or u"?", len(f["tipos"]), u", ".join(f["tipos"][:8]) + (u"…" if len(f["tipos"]) > 8 else u""))
         self.preencher()
+
+    def selecionar(self, sender, args):
+        self.Hide()
+        el = None
+        try:
+            ref = uidoc.Selection.PickObject(ObjectType.Element, u"Clique num elemento da família a readequar")
+            el = doc.GetElement(ref.ElementId)
+        except Exception:
+            pass  # Esc
+        self.Show()
+        if el is not None:
+            self._usar_elemento(el)
+
+    def _usar_elemento(self, el, avisar=True):
+        try:
+            f = F.familia_do_elemento(doc, el)
+        except Exception as e:
+            if avisar:
+                forms.alert(u"{}".format(e), title=TITULO)
+            return
+        self.fam = f
+        self.tbArquivo.Text = u"No modelo: {}".format(f["nome"])
+        n = sum(f["instancias"].values())
+        self.txtFamilia.Text = u"Readequar família {} · categoria {} · {} tipo(s), {} instância(s) no modelo".format(
+            f["nome"], f["categoria"] or u"?", len(f["tipos"]), n)
+        self.rbFamilia.Content = u"a família inteira ({} tipos)".format(len(f["tipos"]))
+        self.rbTipo.Content = u"só o tipo \"{}\" ({} instância(s))".format(f["tipoAtual"], f["instancias"].get(f["tipoAtual"], 0))
+        self.rbFamilia.IsChecked = True
+        self.spAbr.Visibility = Visibility.Visible if len(f["tipos"]) > 1 else Visibility.Collapsed
+        self._mostrar_vinculo()
+        self.rbExistente.IsChecked = True
+        self.preencher()
+        # já vem marcado o código atual, se houver
+        iid = (f.get("vinculo") or {}).get("itemCentral")
+        for k, it in enumerate(self.lista):
+            if iid and it["id"] == iid:
+                self.lbItens.SelectedIndex = k
+                self.lbItens.ScrollIntoView(self.lbItens.SelectedItem)
+                break
+
+    def _mostrar_vinculo(self):
+        f = self.fam or {}
+        if not f.get("modelo"):
+            self.txtVinculo.Text = u""
+            return
+        v = f.get("vinculo") or {}
+        it = self.dados.itens.get(v.get("itemCentral")) if self.dados and v.get("itemCentral") else None
+        if not v.get("itemCentral") and not v.get("pedido"):
+            self.txtVinculo.Text = u"Sem vínculo com o sistema" + (u" (keynote atual: {})".format(f["knAtual"]) if f["knAtual"] else u"")
+            self.txtVinculo.Foreground = F_COR["cinza"]
+            return
+        ln = self.dados.linha_projeto(v["itemCentral"]) if self.dados and v.get("itemCentral") else None
+        kn_ok = (ln or {}).get("kn") or u""
+        if it is None:
+            self.txtVinculo.Text = u"Vinculada a {} (aguardando o sistema ou fora desta biblioteca)".format(v.get("fja") or u"?")
+            self.txtVinculo.Foreground = F_COR["ambar"]
+        elif kn_ok and kn_ok != f["knAtual"]:
+            self.txtVinculo.Text = u"Vínculo divergente: {} · keynote no modelo {} · no sistema {}".format(it.get("fja"), f["knAtual"] or u"—", kn_ok)
+            self.txtVinculo.Foreground = F_COR["vermelho"]
+        else:
+            self.txtVinculo.Text = u"Já vinculada a {} · {} · keynote {}".format(it.get("fja"), it.get("desc"), f["knAtual"] or u"—")
+            self.txtVinculo.Foreground = F_COR["verde"]
+
+    def abr_mudou(self, sender, args):
+        if not self._pronto:
+            return
+        so = bool(self.rbTipo.IsChecked)
+        self.ckRenomear.IsChecked = not so
+        self.ckRenomear.IsEnabled = not so
+        self.tbNomeFam.IsEnabled = not so
+        self.atualizar()
 
     # ------------------------------------------------------------ código
     def modo_mudou(self, sender, args):
@@ -178,17 +269,20 @@ class Janela(forms.WPFWindow):
         d, f = self.dados, self.fam
         if d is None or f is None:
             return None
-        ren = bool(self.ckRenomear.IsChecked)
+        ren = bool(self.ckRenomear.IsChecked) and self.ckRenomear.IsEnabled
         nome = self.tbNomeFam.Text if self._nome_editado else None
         if self.rbNovo.IsChecked:
             i = self.cbSigla.SelectedIndex
             form = {"sigla": self.siglas[i]["sigla"] if 0 <= i < len(self.siglas) else u"",
                     "desc": self.tbDesc.Text.strip(), "texto": self.tbTexto.Text.strip()}
-            return F.plano_componente_novo(doc, d, f, form, ren, nome)
-        i = self.lbItens.SelectedIndex
-        if i < 0 or i >= len(self.lista):
-            return None
-        return F.plano_componente(doc, d, self.lista[i], f, ren, nome)
+            p = F.plano_componente_novo(doc, d, f, form, ren, nome)
+        else:
+            i = self.lbItens.SelectedIndex
+            if i < 0 or i >= len(self.lista):
+                return None
+            p = F.plano_componente(doc, d, self.lista[i], f, ren, nome)
+        p["soTipo"] = bool(f.get("modelo") and self.spAbr.Visibility == Visibility.Visible and self.rbTipo.IsChecked)
+        return p
 
     def atualizar(self, manter_nome=False):
         p = self.plano = self._plano()
@@ -202,8 +296,10 @@ class Janela(forms.WPFWindow):
             self.tbNomeFam.Text = p["nomeFamilia"]
             self._pronto = True
         fam_nome = p["nomeFamilia"] if p["renomear"] else self.fam["nome"]
-        self.txtPrevia.Text = u"Família \"{}\" · {} tipo(s) com Keynote e Type Mark {} · {} · descrição \"{}\"".format(
-            fam_nome, len(self.fam["tipos"]), p["kn"] or u"(sem keynote)", p["item"].get("fja") or u"", (p["desc"] or u"").upper())
+        n = 1 if p.get("soTipo") else len(self.fam["tipos"])
+        self.txtPrevia.Text = u"{} \"{}\" · {} tipo(s) com Keynote e Type Mark {} · {} · descrição \"{}\"".format(
+            u"Readequar família" if self.fam.get("modelo") else u"Família", fam_nome, n, p["kn"] or u"(sem keynote)",
+            p["item"].get("fja") or u"", (p["desc"] or u"").upper())
         self.txtAvisos.Text = u"\n".join(u"• " + a for a in p["avisos"])
         self.txtProblemas.Text = u"\n".join(u"• " + a for a in p["problemas"])
         self.btInserir.IsEnabled = not p["problemas"]
@@ -213,6 +309,15 @@ class Janela(forms.WPFWindow):
         p = self.plano
         if p is None or p["problemas"]:
             return
+        f = self.fam
+        atual = (f.get("vinculo") or {}).get("itemCentral") if f.get("modelo") else None
+        if atual and atual != p["item"]["id"]:
+            ant = self.dados.itens.get(atual) or {}
+            if not forms.alert(u"Esta família já está vinculada a {} ({}).\n\nTrocar para {} ({})?".format(
+                    ant.get("fja") or (f["vinculo"].get("fja") or u"?"), ant.get("desc") or u"",
+                    p["item"].get("fja") or u"novo código", (p["desc"] or u"").upper()),
+                    title=TITULO, yes=True, no=True):
+                return
         try:
             with revit.Transaction(u"Novo componente: {}".format(p["nomeFamilia"] if p["renomear"] else self.fam["nome"])):
                 familia, avisos = F.inserir_componente(doc, self.dados, p)
@@ -220,7 +325,7 @@ class Janela(forms.WPFWindow):
         except Exception as e:
             forms.alert(u"Não foi possível inserir a família:\n{}".format(e), title=TITULO)
             return
-        msg = u"Família no modelo: {}\nKeynote {} em {} tipo(s).".format(nome, p["kn"] or u"—", len(list(familia.GetFamilySymbolIds())))
+        msg = u"Família no modelo: {}\nKeynote {} em {} tipo(s).".format(nome, p["kn"] or u"—", p.get("nTipos") or 0)
         if p.get("novo") or p.get("reservas"):
             msg += u"\n\nPedido enviado ao sistema: o código e o keynote ficam definitivos quando alguém abrir o sistema."
         if avisos:
@@ -228,7 +333,10 @@ class Janela(forms.WPFWindow):
         forms.alert(msg, title=TITULO)
         self.fam = None
         self.tbArquivo.Text = u""
-        self.txtFamilia.Text = u"Família inserida. Escolha outro arquivo para continuar."
+        self.spAbr.Visibility = Visibility.Collapsed
+        self.ckRenomear.IsEnabled = True
+        self.txtVinculo.Text = u""
+        self.txtFamilia.Text = u"Pronto. Escolha outro arquivo ou selecione outro elemento para continuar."
         self.preencher()
 
     def fechar(self, sender, args):

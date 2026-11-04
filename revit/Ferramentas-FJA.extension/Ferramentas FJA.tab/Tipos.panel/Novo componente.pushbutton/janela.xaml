@@ -44,16 +44,24 @@
                 <!-- 1. família -->
                 <Border Style="{DynamicResource Cartao}" Padding="16,12" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Text="1 · Arquivo da família" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8"/>
+                        <TextBlock Text="1 · Família" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="tbArquivo" IsReadOnly="True" ToolTip="Arquivo .rfa"/>
-                            <Button Grid.Column="1" Content="Escolher arquivo…" Margin="8,0,0,0" Padding="14,0" Click="escolher"/>
+                            <TextBox x:Name="tbArquivo" IsReadOnly="True" ToolTip="Arquivo .rfa ou família já inserida no modelo"/>
+                            <Button Grid.Column="1" Content="Escolher arquivo…" Margin="8,0,0,0" Padding="14,0" Click="escolher" ToolTip="Carregar uma família nova (.rfa)"/>
+                            <Button Grid.Column="2" Content="Selecionar no modelo" Margin="8,0,0,0" Padding="14,0" Click="selecionar" ToolTip="Readequar uma família já inserida: clique num elemento"/>
                         </Grid>
-                        <TextBlock x:Name="txtFamilia" Foreground="#5E5E5C" Margin="0,8,0,0" TextWrapping="Wrap" Text="Escolha um arquivo .rfa: a categoria e os tipos são lidos do arquivo."/>
+                        <TextBlock x:Name="txtFamilia" Foreground="#5E5E5C" Margin="0,8,0,0" TextWrapping="Wrap" Text="Escolha um arquivo .rfa (família nova) ou selecione no modelo um elemento já inserido (readequar)."/>
+                        <TextBlock x:Name="txtVinculo" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        <StackPanel x:Name="spAbr" Orientation="Horizontal" Margin="0,8,0,0" Visibility="Collapsed">
+                            <TextBlock Text="Aplicar em:" Foreground="#5E5E5C" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <RadioButton x:Name="rbFamilia" IsChecked="True" Margin="0,0,18,0" VerticalAlignment="Center" Checked="abr_mudou"/>
+                            <RadioButton x:Name="rbTipo" VerticalAlignment="Center" Checked="abr_mudou"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
