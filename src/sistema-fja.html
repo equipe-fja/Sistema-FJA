@@ -4806,23 +4806,23 @@ async function descRegistrar(b,t,{principal=false}={}){
 function descEstado(e){
   const b=espbDe(e); if(!b) return null; const p=descPri(b), v=descVarDe(b,e.desc);
   if(v&&v.id===p?.id) return 'ok';
-  if(!v) return e.descOk===nTxt(e.desc)?'mant':'fora';
+  if(!v) return 'fora';
   return e.descEsc==='manual'||e.descOk===p?.id?'var':'mudou';
 }
-const DESC_EST={ok:['Principal','dg-ok'],var:['Variação escolhida','dg-var'],mant:['Mantida no projeto','dg-var'],mudou:['Principal mudou','dg-mud'],fora:['Fora do central','dg-fora']};
-const DESC_DICA={ok:'Usa a descrição principal do banco central.',var:'Usa outra variação cadastrada no banco central, escolhida para este projeto.',mant:'Texto próprio deste projeto, mantido de propósito.',mudou:'Usava a principal, mas a principal do banco central mudou depois.',fora:'O texto não existe em nenhuma variação do banco central.'};
+const DESC_EST={ok:['Principal','dg-ok'],var:['Variação escolhida','dg-var'],mudou:['Principal mudou','dg-mud'],fora:['Fora do central','dg-fora']};
+const DESC_DICA={ok:'Usa a descrição principal do banco central.',var:'Usa outra variação cadastrada no banco central, escolhida para este projeto.',mudou:'Usava a principal, mas a principal do banco central mudou depois.',fora:'O texto não existe em nenhuma variação do banco central.'};
 function diagCelEs(e){
   const st=descEstado(e); if(!st) return '<span class="muted">sem item central</span>'; const [rot,cls]=DESC_EST[st];
   const bt=(op,t,d)=>S.ro?'':`<button class="btn sm" data-act="et-dg" data-op="${op}" data-eid="${esc(e.id)}" title="${esc(d)}">${t}</button>`;
-  const acoes=st==='mudou'?bt('atualizar','Atualizar','Trocar pela descrição principal atual')+bt('manter','Manter','Manter a descrição atual neste projeto')
-    :st==='fora'?bt('registrar','Registrar','Cadastrar este texto como variação no banco central')+bt('atualizar','Usar a principal','Trocar pela descrição principal')+bt('manter','Manter','Manter o texto só neste projeto'):'';
+  const acoes=st==='mudou'?bt('atualizar','Usar a principal','Trocar pela descrição principal atual')+bt('variacao','Ficar com a variação','Continuar com esta descrição, que já é uma variação cadastrada')
+    :st==='fora'?bt('registrar','Registrar como variação','Cadastrar este texto como variação no banco central')+bt('atualizar','Usar a principal','Trocar pela descrição principal'):'';
   return `<span class="dg-b ${cls}" title="${esc(DESC_DICA[st])}${st==='mudou'||st==='fora'?' Principal: '+esc(descPri(espbDe(e))?.t||''):''}">${rot}</span>${acoes?`<span class="dg-ac">${acoes}</span>`:''}`;
 }
 async function diagAcao(op,eid){
   const e=S.espec.get(eid), b=espbDe(e); if(!e||!b||S.ro) return; let upd;
   if(op==='atualizar') upd={desc:descPri(b).t,descEsc:'auto',descOk:null};
   else if(op==='registrar'){await descRegistrar(b,e.desc); upd={descEsc:'manual',descOk:null}}
-  else if(op==='manter') upd=descEstado(e)==='fora'?{descOk:nTxt(e.desc)}:{descEsc:'manual',descOk:descPriId(b)};
+  else if(op==='variacao') upd={descEsc:'manual',descOk:null};
   else return;
   upd.atualizadoEm=Date.now();
   try{await espColl().doc(e.id).update(upd); Object.assign(e,upd); toast('Salvo'); render()}catch{toast('Não foi possível salvar.')}
