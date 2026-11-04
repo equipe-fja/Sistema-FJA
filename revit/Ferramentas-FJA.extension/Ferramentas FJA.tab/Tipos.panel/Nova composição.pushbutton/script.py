@@ -195,38 +195,84 @@ class FormNova(forms.WPFWindow):
         self.linhas.insert(min(para, len(self.linhas)), ln)
         self.desenhar()
 
-    def _arrastar(self, g, i):
-        from System.Windows import DragDrop, DragDropEffects, DataObject
-        try:
-            g.Opacity = 0.5
-            DragDrop.DoDragDrop(g, DataObject("fja-camada", str(i)), DragDropEffects.Move)
-        finally:
-            g.Opacity = 1.0
+    # ---------------------------------------------- arrastar pelo grip (sem DragDrop do WPF)
+    def _alvo(self, y):
+        """Índice da posição de inserção para a coordenada y (relativa a spCamadas)."""
+        from System.Windows import Point
+        filhos = list(self.spCamadas.Children)
+        for k, ch in enumerate(filhos):
+            topo = ch.TranslatePoint(Point(0, 0), self.spCamadas).Y
+            if y < topo + ch.ActualHeight / 2.0:
+                return k
+        return len(filhos)
+
+    def _marcar(self, de, alvo):
+        filhos = list(self.spCamadas.Children)
+        for k, ch in enumerate(filhos):
+            ch.Opacity = 0.45 if k == de else 1.0
+            # linha vermelha indicando onde a camada vai entrar
+            ch.Margin = Thickness(0, 3 if k == alvo else 0, 0, 3 if (alvo == len(filhos) and k == len(filhos) - 1) else 6)
+            ch.Background = None
+        if 0 <= alvo < len(filhos):
+            filhos[alvo].Background = self._faixa_topo
+        elif filhos and alvo == len(filhos):
+            filhos[-1].Background = self._faixa_base
 
     def _ligar_arraste(self, g, alca, i):
-        from System.Windows.Input import Cursors
-        alca.Cursor = Cursors.SizeAll
-        alca.ToolTip = u"Arraste para mudar a ordem (camada {})".format(i + 1)
-        alca.MouseLeftButtonDown += (lambda s, e, g=g, i=i: self._arrastar(g, i))
-        g.AllowDrop = True
+        from System.Windows.Input import Cursors, Mouse
+        from System.Windows.Media import LinearGradientBrush, GradientStop, GradientStopCollection, Color
+        from System.Windows import Point
+        if not hasattr(self, "_faixa_topo"):
+            def faixa(ini, fim):
+                v = Color.FromRgb(142, 27, 27)
+                t = Color.FromArgb(0, 255, 255, 255)
+                st = GradientStopCollection()
+                for c, o in ((t, 0.0), (t, ini), (v, ini), (v, fim), (t, fim), (t, 1.0)):
+                    st.Add(GradientStop(c, o))
+                return LinearGradientBrush(st, Point(0, 0), Point(0, 1))
+            self._faixa_topo = faixa(0.0, 0.07)
+            self._faixa_base = faixa(0.93, 1.0)
+        alca.Cursor = Cursors.SizeNS
+        alca.ToolTip = u"Arraste para cima ou para baixo para mudar a ordem"
+        estado = {"ativo": False, "alvo": i}
 
-        def sobre(s, e, g=g):
-            if e.Data.GetDataPresent("fja-camada"):
-                g.Background = pincel((247, 236, 234))
-                e.Handled = True
+        def desce(s, e):
+            estado["ativo"] = True
+            estado["alvo"] = i
+            alca.CaptureMouse()
+            self._marcar(i, i)
+            e.Handled = True
 
-        def saiu(s, e, g=g):
-            g.Background = None
+        def move(s, e):
+            if not estado["ativo"]:
+                return
+            y = e.GetPosition(self.spCamadas).Y
+            a = self._alvo(y)
+            if a != estado["alvo"]:
+                estado["alvo"] = a
+                self._marcar(i, a)
 
-        def soltou(s, e, i=i, g=g):
-            g.Background = None
-            if e.Data.GetDataPresent("fja-camada"):
-                self._soltar(int(e.Data.GetData("fja-camada")), i)
-                e.Handled = True
+        def sobe(s, e):
+            if not estado["ativo"]:
+                return
+            estado["ativo"] = False
+            alca.ReleaseMouseCapture()
+            a = estado["alvo"]
+            para = a - 1 if a > i else a  # ajusta pela remoção da própria camada
+            if para != i:
+                ln = self.linhas.pop(i)
+                self.linhas.insert(para, ln)
+            self.desenhar()
 
-        g.DragOver += sobre
-        g.DragLeave += saiu
-        g.Drop += soltou
+        def perdeu(s, e):
+            if estado["ativo"]:
+                estado["ativo"] = False
+                self.desenhar()
+
+        alca.MouseLeftButtonDown += desce
+        alca.MouseMove += move
+        alca.MouseLeftButtonUp += sobe
+        alca.LostMouseCapture += perdeu
 
     def _duplicar(self, i):
         self.linhas.insert(i + 1, dict(self.linhas[i]))
@@ -304,24 +350,19 @@ class FormNova(forms.WPFWindow):
         for i, ln in enumerate(self.linhas):
             g = Grid()
             g.Margin = Thickness(0, 0, 0, 6)
-            for w in (24, 140, -1, 80, 128):
+            for w in (20, 140, -1, 80, 76):
                 cd = ColumnDefinition()
                 cd.Width = GridLength(1, GridUnitType.Star) if w < 0 else GridLength(w)
                 g.ColumnDefinitions.Add(cd)
             q = Border()
-            q.Width = 12
-            q.Height = 12
-            q.CornerRadius = System_CornerRadius(3)
+            q.Width = 8
+            q.Margin = Thickness(2, 1, 0, 1)
+            q.CornerRadius = System_CornerRadius(4)
             q.Background = pincel(COR_FN.get(ln["funcaoRevit"], (220, 220, 220)))
+            q.BorderBrush = pincel((150, 150, 146))
+            q.BorderThickness = Thickness(1)
             q.HorizontalAlignment = HorizontalAlignment.Left
-            q.Width = 14
-            q.Height = 22
-            q.CornerRadius = System_CornerRadius(3)
-            q.Child = TextBlock()
-            q.Child.Text = u"\u22EE"
-            q.Child.HorizontalAlignment = HorizontalAlignment.Center
-            q.Child.VerticalAlignment = VerticalAlignment.Center
-            q.Child.Foreground = pincel((90, 90, 90))
+            q.VerticalAlignment = VerticalAlignment.Stretch
             Grid.SetColumn(q, 0)
             g.Children.Add(q)
             self._ligar_arraste(g, q, i)
@@ -345,9 +386,7 @@ class FormNova(forms.WPFWindow):
             bts = StackPanel()
             bts.Orientation = Orientation.Horizontal
             bts.Margin = Thickness(8, 0, 0, 0)
-            for rot, fn, dica in ((u"\u2191", lambda s, e, i=i: self._mover(i, -1), u"Subir"),
-                                  (u"\u2193", lambda s, e, i=i: self._mover(i, 1), u"Descer"),
-                                  (u"\u29C9", lambda s, e, i=i: self._duplicar(i), u"Duplicar camada"),
+            for rot, fn, dica in ((u"\u29C9", lambda s, e, i=i: self._duplicar(i), u"Duplicar camada"),
                                   (u"\u2715", lambda s, e, i=i: self._remover(i), u"Remover")):
                 b = Button()
                 b.Content = rot
