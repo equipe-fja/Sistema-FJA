@@ -4646,6 +4646,9 @@ const knChave=kn=>String(kn||'').trim().toUpperCase();
 const ordKn=(a,b)=>String(a.kn||'').replace(/^\./,'').localeCompare(String(b.kn||'').replace(/^\./,''),'pt',{numeric:true});
 const ordEs=(a,b)=>ordSig(knPref(a.kn))-ordSig(knPref(b.kn))||ordKn(a,b);
 const usosEspb=id=>[...S.espec.values()].filter(e=>e.item===id);
+// variações da descrição: só os projetos em andamento contam (concluídos e arquivados ficam fora da comparação)
+const projArquivado=pid=>/^(Conclu|Arquiv)/i.test(S.itens.get(pid)?.status||'');
+const usosAtivos=id=>usosEspb(id).filter(e=>!projArquivado(e.projeto));
 const desatEs=e=>{const b=espbDe(e);return !!(b&&e.baseEm&&b.textoEm&&b.textoEm>e.baseEm)};
 const nomeGrupoKn=(pref,tab)=>siglaEt(pref)?.nome||KN_NOMES[pref]||(tab&&tab!=='Materiais'?tab:pref);
 const linha1=t=>String(t||'').replace(/[\t\r\n]+/g,' ').replace(/\s{2,}/g,' ').trim();
@@ -4756,7 +4759,7 @@ function telaEsp(h,v){
   h+=`<div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="eqBusca" type="search" placeholder="Buscar por keynote, descrição, especificação, FJ…" aria-label="Buscar na especificação" value="${esc(MS().busca||'')}"></div>
     <span class="muted eq-count" id="eqCount">${(()=>{const n=eqFiltrados(it.id).length,t=todos.length;return n===t?t+' itens':n+' de '+t+' itens'})()}</span><button class="btn sm ghost" id="eqLimpar" data-act="eq-limpar" ${temFiltroEq()?'':'hidden'}>Limpar filtros</button>
     <button class="btn" id="btnCols" data-act="eq-cols" aria-expanded="${!!MS().colsOpen}">Colunas <span class="cnt">${MS().cols.length}/${M().T.length}</span></button>
-    ${todos.length?`<button class="btn${S.diagEs?' on':''}" data-act="et-diag" data-id="${esc(it.id)}" aria-pressed="${!!S.diagEs}" title="Compara a descrição de cada item com o banco central e marca por cores; filtre pela coluna Diagnóstico">Diagnóstico${S.diagEs?` <span class="cnt">${todos.filter(e=>['mudou','fora'].includes(descEstado(e))).length}</span>`:''}</button>`:''}
+    ${todos.length&&!projArquivado(it.id)?`<button class="btn${S.diagEs?' on':''}" data-act="et-diag" data-id="${esc(it.id)}" aria-pressed="${!!S.diagEs}" title="Compara a descrição de cada item com o banco central e marca por cores; filtre pela coluna Diagnóstico">Diagnóstico${S.diagEs?` <span class="cnt">${todos.filter(e=>['mudou','fora'].includes(descEstado(e))).length}</span>`:''}</button>`:''}
     ${todos.length?`<button class="btn" data-act="et-keynotes" data-id="${esc(it.id)}" title="Arquivo de keynotes para o Revit (.txt)">${IC.download||''}Exportar keynotes</button><button class="btn knx-bt" data-act="et-knx" data-id="${esc(it.id)}" title="Exportações anteriores (até ${KNX_MAX})" aria-label="Exportações anteriores de keynotes"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></button>`:''}
     ${S.ro?'':`<button class="btn" data-act="et-importar" data-id="${esc(it.id)}" title="Importar as tabelas de uma planilha de especificação (Google Sheets)">Importar</button><button class="btn" data-act="et-novo" data-id="${esc(it.id)}">${IC.plus}Novo item</button><button class="btn pri" data-act="et-puxar" data-id="${esc(it.id)}">${IC.plus}Puxar da biblioteca</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
   h+=`<section class="sheet" id="eqTabela">${eqTabelaHTML(it.id)}</section></div>`;
@@ -4807,7 +4810,7 @@ async function descRegistrar(b,t,{principal=false}={}){
   await espbColl().doc(b.id).update(upd); Object.assign(b,upd); return v;
 }
 function descEstado(e){
-  const b=espbDe(e); if(!b) return null; const p=descPri(b), v=descVarDe(b,e.desc);
+  const b=espbDe(e); if(!b||projArquivado(e.projeto)) return null; const p=descPri(b), v=descVarDe(b,e.desc);
   if(v&&v.id===p?.id) return 'ok';
   if(!v) return 'fora';
   return e.descEsc==='manual'||e.descOk===p?.id?'var':'mudou';
@@ -4815,7 +4818,7 @@ function descEstado(e){
 const DESC_EST={ok:['Principal','dg-ok'],var:['Variação escolhida','dg-var'],mudou:['Principal mudou','dg-mud'],fora:['Fora do central','dg-fora']};
 const DESC_DICA={ok:'Usa a descrição principal do banco central.',var:'Usa outra variação cadastrada no banco central, escolhida para este projeto.',mudou:'Usava a principal, mas a principal do banco central mudou depois.',fora:'O texto não existe em nenhuma variação do banco central.'};
 function diagCelEs(e){
-  const st=descEstado(e); if(!st) return '<span class="muted">sem item central</span>'; const [rot,cls]=DESC_EST[st];
+  const st=descEstado(e); if(!st) return `<span class="muted">${projArquivado(e.projeto)?'projeto arquivado: fora da comparação':'sem item central'}</span>`; const [rot,cls]=DESC_EST[st];
   const bt=(op,t,d)=>S.ro?'':`<button class="btn sm" data-act="et-dg" data-op="${op}" data-eid="${esc(e.id)}" title="${esc(d)}">${t}</button>`;
   const acoes=st==='mudou'?bt('atualizar','Usar a principal','Trocar pela descrição principal atual')+bt('variacao','Ficar com a variação','Continuar com esta descrição, que já é uma variação cadastrada')
     :st==='var'?bt('atualizar','Usar a principal','Trocar esta variação pela descrição principal')
@@ -4853,11 +4856,11 @@ function diagAlternar(){
 async function descTornarPri(bid,vid){const b=S.espb.get(bid), v=descsDe(b).find(x=>x.id===vid); if(!b||!v) return;
   try{await descRegistrar(b,v.t,{principal:true}); S.edraft=null; toast('Descrição principal alterada (os projetos não mudam)'); render()}catch{toast('Não foi possível salvar.')}}
 async function descExcluir(bid,vid){const b=S.espb.get(bid); if(!b||vid===descPriId(b)) return;
-  const v=descsDe(b).find(x=>x.id===vid); if(!v||usosEspb(b.id).some(e=>nTxt(e.desc)===nTxt(v.t))) return;
+  const v=descsDe(b).find(x=>x.id===vid); if(!v||usosAtivos(b.id).some(e=>nTxt(e.desc)===nTxt(v.t))) return;
   const L=descsDe(b).filter(x=>x.id!==vid).map(x=>({...x}));
   try{await espbColl().doc(b.id).update({descs:L,descPri:descPriId(b),atualizadoEm:Date.now()}); b.descs=L; S.edraft=null; toast('Variação excluída'); render()}catch{toast('Não foi possível excluir.')}}
 async function descEditar(bid,vid){const b=S.espb.get(bid), v=descsDe(b).find(x=>x.id===vid); if(!b||!v) return;
-  if(usosEspb(b.id).some(e=>nTxt(e.desc)===nTxt(v.t))){toast('Esta descrição está em uso: crie uma nova variação.');return}
+  if(usosAtivos(b.id).some(e=>nTxt(e.desc)===nTxt(v.t))){toast('Esta descrição está em uso em projeto em andamento: crie uma nova variação.');return}
   const t=nTxt(await pedirNome({titulo:'Corrigir descrição',rotulo:'Texto do keynote',ok:'Salvar',padrao:v.t,bruto:true})); if(!t||t===nTxt(v.t)) return;
   if(descVarDe(b,t)){toast('Já existe uma variação com este texto.');return}
   const L=descsDe(b).map(x=>x.id===vid?{...x,t}:{...x}), pri=descPriId(b), upd={descs:L,descPri:pri,desc:L.find(x=>x.id===pri).t,atualizadoEm:Date.now()};
@@ -4866,9 +4869,9 @@ async function descNova(bid){const b=S.espb.get(bid); if(!b) return;
   const t=await pedirNome({titulo:'Nova variação da descrição',rotulo:'Texto do keynote',ok:'Registrar',padrao:descPri(b)?.t||'',bruto:true}); if(!nTxt(t)) return;
   try{await descRegistrar(b,t); S.edraft=null; toast('Variação registrada'); render()}catch{toast('Não foi possível salvar.')}}
 function descsHTML(b){
-  if(!b?.id||!S.espb.get(b.id)) return ''; const B=S.espb.get(b.id), pri=descPriId(B), us=usosEspb(B.id);
+  if(!b?.id||!S.espb.get(b.id)) return ''; const B=S.espb.get(b.id), pri=descPriId(B), us=usosAtivos(B.id);
   return `<section class="sheet"><div class="sheet-h"><h2>Descrição simplificada</h2><span class="hint">texto do keynote · a principal entra nos projetos novos; os projetos existentes não mudam</span><span class="sp"></span>${S.ro?'':`<button class="btn sm" data-act="et-dnova" data-bid="${esc(B.id)}">${IC.plus}Nova variação</button>`}</div>
-  <div class="tablewrap"><table class="list esp"><thead><tr><th>Texto</th><th style="width:220px">Projetos</th><th style="width:190px"></th></tr></thead><tbody>${descsDe(B).map(v=>{const u=us.filter(e=>nTxt(e.desc)===nTxt(v.t)), ps=[...new Set(u.map(e=>S.itens.get(e.projeto)?.campos?.codigo||S.itens.get(e.projeto)?.nome||'?'))];
+  <div class="tablewrap"><table class="list esp"><thead><tr><th>Texto</th><th style="width:220px" title="Só projetos em andamento">Projetos em andamento</th><th style="width:190px"></th></tr></thead><tbody>${descsDe(B).map(v=>{const u=us.filter(e=>nTxt(e.desc)===nTxt(v.t)), ps=[...new Set(u.map(e=>S.itens.get(e.projeto)?.campos?.codigo||S.itens.get(e.projeto)?.nome||'?'))];
     return `<tr class="et-res"><td>${esc(v.t)}${v.id===pri?' <span class="dg-b dg-ok">principal</span>':''}</td><td class="muted">${ps.length?esc(ps.join(', ')):'—'}</td><td style="text-align:right">${S.ro?'':v.id===pri?(u.length?'':`<button class="icb" data-act="et-dedit" data-bid="${esc(B.id)}" data-v="${esc(v.id)}" title="Corrigir o texto (nenhum projeto usa esta descrição)">✎</button>`):`<button class="btn sm" data-act="et-dpri" data-bid="${esc(B.id)}" data-v="${esc(v.id)}">Tornar principal</button>${u.length?'':`<button class="icb" data-act="et-dedit" data-bid="${esc(B.id)}" data-v="${esc(v.id)}" title="Corrigir o texto (só variações que nenhum projeto usa)">✎</button><button class="icb del" data-act="et-ddel" data-bid="${esc(B.id)}" data-v="${esc(v.id)}" title="Excluir variação (sem uso)">${IC.trash}</button>`}`}</td></tr>`}).join('')}</tbody></table></div></section>`;
 }
 async function salvarEs(){
@@ -5119,10 +5122,10 @@ async function importarEt(pid){
 /* ---- biblioteca: banco central ---- */
 const ET_B={busca:'',tab:'',diag:false,dg:''};
 /* diagnóstico do banco central: variações da descrição e situação nos projetos */
-function diagB(b){const us=usosEspb(b.id), est=us.map(descEstado); return {nVar:descsDe(b).length,fora:est.filter(x=>x==='fora').length,mudou:est.filter(x=>x==='mudou').length}}
+function diagB(b){const us=usosAtivos(b.id), est=us.map(descEstado); return {nVar:descsDe(b).length,fora:est.filter(x=>x==='fora').length,mudou:est.filter(x=>x==='mudou').length}}
 const DG_B=[['var','Com variações',b=>diagB(b).nVar>1],['pri','Só a principal',b=>diagB(b).nVar<=1],['fora','Projetos fora do central',b=>diagB(b).fora>0],['mud','Principal mudou em projetos',b=>diagB(b).mudou>0]];
 function diagBHTML(b){
-  const pri=descPriId(b), us=usosEspb(b.id), d=diagB(b);
+  const pri=descPriId(b), us=usosAtivos(b.id), d=diagB(b);
   return `<div class="dgb">${descsDe(b).map(v=>{const n=us.filter(e=>nTxt(e.desc)===nTxt(v.t)).length;
     return `<div class="dgb-v${v.id===pri?' pri':''}">${v.id===pri?'<span class="dg-b dg-ok">principal</span>':S.ro?'<span class="dg-b">variação</span>':`<button class="btn sm" data-act="et-dpri" data-bid="${esc(b.id)}" data-v="${esc(v.id)}" title="Passa a ser a descrição dos projetos novos; os projetos existentes não mudam">Tornar principal</button>`}<span class="dgb-t">${esc(v.t)}</span><span class="muted dgb-n">${n} projeto${n===1?'':'s'}</span></div>`}).join('')}
     ${d.fora||d.mudou?`<div class="dgb-a">${d.fora?`<span class="dg-b dg-fora">${d.fora} fora do central</span> `:''}${d.mudou?`<span class="dg-b dg-mud">${d.mudou} com principal antiga</span>`:''}</div>`:''}</div>`;
