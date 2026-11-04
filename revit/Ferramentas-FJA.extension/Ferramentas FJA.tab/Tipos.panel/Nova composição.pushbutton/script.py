@@ -21,7 +21,7 @@ cfg = script.get_config()
 
 COR_FN = {"Finish1": (207, 224, 238), "Finish2": (230, 216, 239), "Substrate": (228, 223, 213),
           "Structure": (199, 193, 182), "Insulation": (243, 227, 168), "Membrane": (74, 74, 72)}
-COLS = [("FJ", 72), ("Keynote", 70), (u"Descrição", -1), ("mm", 54), (u"Situação", 120)]
+COLS = [("FJ", 100), ("Keynote", 70), (u"Descrição", -1), ("mm", 54), (u"Selos", 190)]
 
 
 def aplicar_estilo(win):
@@ -77,7 +77,7 @@ def linha_grade(valores, peso=None, cor=None):
         cd.Width = GridLength(1, GridUnitType.Star) if w < 0 else GridLength(w)
         g.ColumnDefinitions.Add(cd)
     for i, v in enumerate(valores):
-        tb = v if isinstance(v, TextBlock) else texto(v, cor=cor, peso=peso, margem=(0, 0, 6, 0))
+        tb = v if not isinstance(v, (str, type(u""), type(None), int, float)) else texto(v, cor=cor, peso=peso, margem=(0, 0, 6, 0))
         Grid.SetColumn(tb, i)
         g.Children.Add(tb)
     return g
@@ -534,18 +534,41 @@ class Janela(forms.WPFWindow):
         self.preencher()
 
     # ---------------------------------------------------------------- lista
-    def _situacao(self, it):
-        if it["id"] in self.vinc or (it.get("pedido") and u"pedido:" + it["pedido"] in self.vinc):
-            return u"no modelo", VERDE
+    # selos da lista: podem aparecer juntos
+    SELOS = {"projeto": (u"Projeto", (237, 237, 235), (94, 94, 92)),
+             "tipo": (u"Tipo", (228, 241, 230), (46, 115, 64)),
+             "camadas": (u"Sem camadas", (251, 231, 229), (179, 38, 30)),
+             "categoria": (u"Sem categoria", (251, 231, 229), (179, 38, 30)),
+             "aguardando": (u"Aguardando", (248, 239, 217), (138, 93, 5))}
+
+    def _selos(self, it, linha):
+        r = []
         if it.get("pendente"):
-            return u"aguardando sistema", AMBAR
+            r.append("aguardando")
+        if linha:
+            r.append("projeto")
+        if it["id"] in self.vinc or (it.get("pedido") and u"pedido:" + it["pedido"] in self.vinc):
+            r.append("tipo")
         if not it.get("camadas"):
-            return u"sem camadas", VERMELHO
+            r.append("camadas")
         if not it.get("rvCat"):
-            return u"sem categoria", VERMELHO
-        if self.dados.projeto and not self.dados.linha_projeto(it["id"]):
-            return u"entra no projeto", CINZA
-        return u"pronto", CINZA
+            r.append("categoria")
+        return r
+
+    def _painel_selos(self, chaves):
+        from System.Windows.Controls import WrapPanel
+        wp = WrapPanel()
+        wp.VerticalAlignment = VerticalAlignment.Center
+        for k in chaves:
+            rot, fundo, cor = self.SELOS[k]
+            b = Border()
+            b.CornerRadius = System_CornerRadius(9)
+            b.Background = pincel(fundo)
+            b.Padding = Thickness(7, 1, 7, 1)
+            b.Margin = Thickness(0, 1, 4, 1)
+            b.Child = texto(rot, cor=pincel(cor), tam=11)
+            wp.Children.Add(b)
+        return wp
 
     def preencher(self, manter=None):
         self.lbItens.Items.Clear()
@@ -574,13 +597,12 @@ class Janela(forms.WPFWindow):
         lst.sort(key=lambda x: (x[0], x[1], x[2]))
         escolhido = None
         for _, _, _, it, linha in lst:
-            sit, cor = self._situacao(it)
             li = ListBoxItem()
             li.Tag = it["id"]
             li.Padding = Thickness(4, 3, 4, 3)
             li.Content = linha_grade([it.get("fja"), (linha or {}).get("kn") or u"—",
                                       (linha or {}).get("desc") or it.get("desc"),
-                                      F.fmt_mm(it.get("espTotal")), texto(sit, cor=cor)])
+                                      F.fmt_mm(it.get("espTotal")), self._painel_selos(self._selos(it, linha))])
             li.ToolTip = u"{} · {} · {}".format(it.get("rvCat") or u"sem categoria", it.get("papel") or u"sem papel",
                                                   it.get("desc"))
             self.lbItens.Items.Add(li)
