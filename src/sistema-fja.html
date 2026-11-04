@@ -6483,7 +6483,10 @@ document.addEventListener('keydown',ev=>{
 });
 
 /* ---------- Ferramentas (Biblioteca): scripts de suporte ao sistema ---------- */
-const MANUT=[];
+const MANUT=[
+  {id:'revit',nome:'Conexão com o Revit',resumo:'Publica a especificação técnica no G: para a aba Ferramentas FJA do pyRevit.'},
+  {id:'bkp',nome:'Backup do sistema',resumo:'Cópia completa e diária do banco de dados na pasta BACKUP do Drive.'}
+];
 const FERRAMENTAS=[
   {id:'rvext',nome:'Extensão do Revit',resumo:'Baixa a aba Ferramentas FJA do pyRevit (Nova composição, Renomear tipos, Legendas).'},
   {id:'pc',nome:'Conexão com PC',resumo:'Abre no Windows Explorer as pastas e arquivos do G: quando você clica num caminho do sistema.'}
@@ -7134,7 +7137,6 @@ function telaRevit(h){
   const t=setInterval(()=>{
     if(S.publico){clearInterval(t);return}
     if(!S.carregado||!db) return; clearInterval(t);
-    if(!MANUT.some(x=>x.id==='revit')) MANUT.push({id:'revit',nome:'Conexão com o Revit',resumo:'Publica a especificação técnica no G: para a aba Ferramentas FJA do pyRevit.'});
     db.doc('config/revit').onSnapshot(s=>{RVP.st=s.exists?s.data():null; rvUI()},()=>{});
     db.doc('config/revitPedidos').onSnapshot(s=>{RVP.ped=s.exists?s.data():null; rvUI()},()=>{});
     setTimeout(()=>rvPedidos(false).catch(()=>{}),25e3); setInterval(()=>rvPedidos(false).catch(()=>{}),90e3);
@@ -7269,7 +7271,6 @@ document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="b
   const t=setInterval(()=>{
     if(S.publico){clearInterval(t);return}
     if(!S.carregado||!db) return; clearInterval(t);
-    if(!MANUT.some(x=>x.id==='bkp')) MANUT.push({id:'bkp',nome:'Backup do sistema',resumo:'Cópia completa e diária do banco de dados na pasta BACKUP do Drive.'});
     Promise.resolve(db).then(rdb=>rdb.doc('config/backup').onSnapshot(s=>{BKP.st=s.exists?s.data():null; bkpUI()},()=>{})).catch(()=>{});
     if(AMB==='oficial'){setTimeout(()=>bkpExecutar(false),45e3); setInterval(()=>bkpExecutar(false),30*60e3)}
   },1000);
