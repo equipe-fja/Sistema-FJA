@@ -1,0 +1,7 @@
+title:
+  pt_br: "Diagnóstico"
+  en_us: "Diagnóstico"
+tooltip:
+  pt_br: "Confere todos os tipos e materiais do modelo criados pelas ferramentas FJA com o Sistema FJA (keynote, Type Mark, descrição e camadas) e ressincroniza: o sistema é a referência."
+  en_us: "Confere os tipos vinculados ao Sistema FJA e ressincroniza."
+author: "Ferramentas FJA"

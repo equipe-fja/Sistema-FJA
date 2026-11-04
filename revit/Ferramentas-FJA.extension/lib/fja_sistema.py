@@ -305,26 +305,69 @@ def esquema():
     return sb.Finish()
 
 
+# versão 2 do vínculo: guarda também o keynote e a descrição gravados na última sincronização,
+# para o diagnóstico distinguir "o sistema mudou" de "alguém alterou no Revit".
+SCHEMA_GUID2 = System.Guid("8d2e4b61-5f3a-4c09-b7e2-1a9c6f0d3e58")
+CAMPOS2 = CAMPOS + ("kn", "desc")
+
+
+def esquema2():
+    sc = Schema.Lookup(SCHEMA_GUID2)
+    if sc is not None:
+        return sc
+    sb = SchemaBuilder(SCHEMA_GUID2)
+    sb.SetSchemaName("FJA_SistemaTipo2")
+    sb.SetReadAccessLevel(AccessLevel.Public)
+    sb.SetWriteAccessLevel(AccessLevel.Public)
+    sb.SetDocumentation("Vinculo do tipo/material com o Sistema FJA (com valores sincronizados)")
+    for c in CAMPOS2:
+        sb.AddSimpleField(c, System.String)
+    return sb.Finish()
+
+
+def _param_txt(elem, bip):
+    try:
+        p = elem.get_Parameter(bip)
+        return (p.AsString() or u"") if p is not None else u""
+    except Exception:
+        return u""
+
+
 def gravar_vinculo(elem, **valores):
-    sc = esquema()
-    ent = Entity(sc)
     valores.setdefault("sincronizadoEm", time.strftime("%Y-%m-%dT%H:%M:%S"))
-    for c in CAMPOS:
+    valores.setdefault("kn", _param_txt(elem, DB.BuiltInParameter.KEYNOTE_PARAM))
+    valores.setdefault("desc", _param_txt(elem, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION))
+    ent = Entity(esquema2())
+    for c in CAMPOS2:
         ent.Set[System.String](c, u"{}".format(valores.get(c) or u""))
     elem.SetEntity(ent)
 
 
 def ler_vinculo(elem):
-    sc = Schema.Lookup(SCHEMA_GUID)
-    if sc is None:
-        return None
-    try:
-        ent = elem.GetEntity(sc)
-        if ent is None or not ent.IsValid():
-            return None
-        return dict((c, ent.Get[System.String](c)) for c in CAMPOS)
-    except Exception:
-        return None
+    for guid, campos in ((SCHEMA_GUID2, CAMPOS2), (SCHEMA_GUID, CAMPOS)):
+        sc = Schema.Lookup(guid)
+        if sc is None:
+            continue
+        try:
+            ent = elem.GetEntity(sc)
+            if ent is None or not ent.IsValid():
+                continue
+            v = dict((c, ent.Get[System.String](c)) for c in campos)
+            v["_versao"] = 2 if guid == SCHEMA_GUID2 else 1
+            return v
+        except Exception:
+            continue
+    return None
+
+
+def apagar_vinculo(elem):
+    for guid in (SCHEMA_GUID2, SCHEMA_GUID):
+        sc = Schema.Lookup(guid)
+        if sc is not None:
+            try:
+                elem.DeleteEntity(sc)
+            except Exception:
+                pass
 
 
 # ------------------------------------------------------------------ parâmetros
@@ -592,7 +635,7 @@ def criar_tipo(doc, dados, p):
     t = p["existente"]
     if t is None:
         t = tipo_base(doc, p["cat"]).Duplicate(p["nome"])
-    elif nome_elem(t) != p["nome"]:
+    elif nome_elem(t) != p["nome"] and not p.get("manterNome"):
         try:
             t.Name = p["nome"]
         except Exception:
@@ -964,3 +1007,181 @@ def aplicar_componente(doc, dados, fam, grupos, ren_fam, nome_fam, ren_tipos):
             except Exception as e:
                 avisos.append(u"Não foi possível renomear a família: {}".format(e))
     return familia, avisos
+
+
+# ------------------------------------------------------------------ diagnóstico da sincronização
+def elementos_vinculados(doc):
+    """Tipos (sistema e famílias) e materiais com vínculo do Sistema FJA."""
+    res = []
+    for cls in (DB.WallType, DB.FloorType, DB.CeilingType, DB.RoofType, DB.FamilySymbol, DB.Material):
+        for e in DB.FilteredElementCollector(doc).OfClass(cls):
+            v = ler_vinculo(e)
+            if v and (v.get("itemCentral") or v.get("pedido") or v.get("fja")):
+                res.append((e, v))
+    return res
+
+
+def _cat_elem(e):
+    if isinstance(e, DB.Material):
+        return u"Material"
+    if isinstance(e, DB.FamilySymbol):
+        try:
+            return e.Family.FamilyCategory.Name
+        except Exception:
+            return u"Família"
+    return {"WallType": u"Paredes", "FloorType": u"Pisos", "CeilingType": u"Forros", "RoofType": u"Coberturas"}.get(
+        e.GetType().Name, e.GetType().Name)
+
+
+def _mm(pes):
+    return round(pes * 304.8, 1)
+
+
+def _camadas_modelo(doc, t):
+    try:
+        cs = t.GetCompoundStructure()
+    except Exception:
+        cs = None
+    if cs is None:
+        return None
+    res = []
+    for ly in cs.GetLayers():
+        mid = u""
+        m = doc.GetElement(ly.MaterialId) if ly.MaterialId and ly.MaterialId != DB.ElementId.InvalidElementId else None
+        if m is not None:
+            mid = (ler_vinculo(m) or {}).get("itemCentral") or u""
+        res.append((_mm(ly.Width), mid))
+    return res
+
+
+def diagnosticar(doc, dados, e, v):
+    """Compara o elemento vinculado com o sistema. Devolve dict com estado e diferenças."""
+    tipo = "material" if isinstance(e, DB.Material) else ("componente" if isinstance(e, DB.FamilySymbol) else "composicao")
+    d = {"elem": e, "vinc": v, "tipo": tipo, "nome": nome_elem(e), "cat": _cat_elem(e), "item": None, "linha": None,
+         "estado": "ok", "difs": [], "kn": u"", "desc": u""}
+    item = dados.itens.get(v.get("itemCentral")) if v.get("itemCentral") else None
+    if item is None and v.get("pedido"):
+        item = next((x for x in dados.bib.get("itens", []) if x.get("pedido") == v["pedido"]), None)
+        if item is None:
+            pend = [p for p in dados.pendentes if p.get("id") == v["pedido"]]
+            if pend:
+                d["estado"] = "aguardando"
+                d["fja"] = v.get("fja")
+                return d
+    if item is None:
+        d["estado"] = "orfao"
+        return d
+    d["item"] = item
+    linha = dados.linha_projeto(item["id"])
+    d["linha"] = linha
+    if dados.projeto and not linha:
+        d["estado"] = "fora"
+        return d
+    if (linha or {}).get("pendente"):
+        d["estado"] = "aguardando"
+        return d
+    kn = (linha or {}).get("kn") or u""
+    desc = ((linha or {}).get("desc") or item.get("desc") or u"").upper()
+    d["kn"], d["desc"] = kn, desc
+    atual_kn = _param_txt(e, DB.BuiltInParameter.KEYNOTE_PARAM)
+    atual_desc = _param_txt(e, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION)
+    if kn and atual_kn != kn:
+        d["difs"].append((u"Keynote", atual_kn, kn))
+    if tipo != "material":
+        tm = _param_txt(e, DB.BuiltInParameter.ALL_MODEL_TYPE_MARK)
+        if kn and tm != kn:
+            d["difs"].append((u"Type Mark", tm, kn))
+    if desc and atual_desc.upper() != desc:
+        d["difs"].append((u"Descrição", atual_desc, desc))
+    if tipo == "composicao" and item.get("camadas"):
+        mod = _camadas_modelo(doc, e) or []
+        sis = [(round(float(c.get("esp") or 0), 1), c.get("material") or u"") for c in item["camadas"]]
+        if [x[0] for x in mod] != [x[0] for x in sis]:
+            d["difs"].append((u"Camadas (mm)", u" / ".join(fmt_mm(x[0]) for x in mod), u" / ".join(fmt_mm(x[0]) for x in sis)))
+        elif [x[1] for x in mod] != [x[1] for x in sis]:
+            d["difs"].append((u"Materiais das camadas", u"diferentes", u"conforme a composição"))
+    if d["difs"]:
+        # com o vínculo v2 dá para saber quem mudou: se o Revit ainda tem o valor sincronizado, quem mudou foi o sistema
+        if v.get("_versao") == 2:
+            mexeu = (atual_kn != (v.get("kn") or u"")) or (atual_desc != (v.get("desc") or u""))
+            d["estado"] = "revit" if mexeu else "desatualizado"
+        else:
+            d["estado"] = "desatualizado"
+    return d
+
+
+def ressincronizar(doc, dados, d, renomear=False):
+    """Traz para o Revit os dados do sistema (precisa de transação aberta). Devolve lista de avisos."""
+    e, item, avisos = d["elem"], d["item"], []
+    if d["tipo"] == "composicao":
+        p = plano_tipo(doc, dados, item)
+        p["existente"] = e
+        p["manterNome"] = not renomear
+        if [x for x in p["problemas"] if u"tipo de" not in x]:
+            return [u"{}: {}".format(d["nome"], u"; ".join(p["problemas"]))]
+        _, av = criar_tipo(doc, dados, p)
+        return av
+    _set(e, DB.BuiltInParameter.KEYNOTE_PARAM, d["kn"])
+    if d["tipo"] == "material":
+        _set(e, DB.BuiltInParameter.ALL_MODEL_MARK, d["kn"])
+    else:
+        _set(e, DB.BuiltInParameter.ALL_MODEL_TYPE_MARK, d["kn"])
+    _set(e, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION, d["desc"])
+    if renomear and d["kn"]:
+        novo = limpar_nome(u"{} - {}".format(d["kn"], d["desc"]))
+        if d["tipo"] == "componente":
+            irmaos = [nome_elem(doc.GetElement(i)) for i in e.Family.GetFamilySymbolIds() if i != e.Id]
+            if novo in irmaos:
+                orig = d["nome"].rsplit(u" - ", 1)[-1] if d["nome"].startswith(d["kn"]) else d["nome"]
+                novo = limpar_nome(u"{} - {}".format(novo, orig))
+        if novo != d["nome"]:
+            try:
+                e.Name = novo
+            except Exception as ex:
+                avisos.append(u"Não foi possível renomear '{}': {}".format(d["nome"], ex))
+    v = d["vinc"]
+    gravar_vinculo(e, fja=item.get("fja"), itemCentral=item["id"], itemProjeto=(d["linha"] or {}).get("id"),
+                   projeto=dados.projeto["id"] if dados.projeto else v.get("projeto"), pedido=v.get("pedido"))
+    return avisos
+
+
+def incluir_no_projeto(doc, dados, d):
+    """Item fora do projeto: reserva keynote, envia pedido 'incluir-no-projeto' e grava no Revit."""
+    item = d["item"]
+    kn = dados.prox_kn(item.get("sigla"))
+    ped = montar_pedido(dados, "incluir-no-projeto", item, {"kn": kn}, modelo=doc.Title)
+    gravar_pedido(dados, ped)
+    d["_pedido"] = ped["id"]
+    d2 = dict(d, kn=kn, desc=(item.get("desc") or u"").upper(), linha={"id": u"", "kn": kn, "pendente": ped["id"]})
+    d2["vinc"] = dict(d["vinc"], pedido=ped["id"])
+    e = d["elem"]
+    _set(e, DB.BuiltInParameter.KEYNOTE_PARAM, kn)
+    _set(e, DB.BuiltInParameter.ALL_MODEL_MARK if d["tipo"] == "material" else DB.BuiltInParameter.ALL_MODEL_TYPE_MARK, kn)
+    _set(e, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION, d2["desc"])
+    gravar_vinculo(e, fja=item.get("fja"), itemCentral=item["id"], itemProjeto=u"",
+                   projeto=dados.projeto["id"] if dados.projeto else u"", pedido=ped["id"])
+    return kn
+
+
+def instancias_do_tipo(doc, e):
+    if isinstance(e, DB.Material):
+        return []
+    ids = []
+    for cls in (DB.Wall, DB.Floor, DB.Ceiling, DB.RoofBase, DB.FamilyInstance):
+        for x in DB.FilteredElementCollector(doc).OfClass(cls).WhereElementIsNotElementType():
+            try:
+                if x.GetTypeId() == e.Id:
+                    ids.append(x.Id)
+            except Exception:
+                pass
+    return ids
+
+
+def gravar_valores(doc, dados, d, kn, desc, pedido=u""):
+    """Grava keynote/Type Mark/descrição e vínculo (sem mexer em camadas nem no nome)."""
+    e, item = d["elem"], d["item"]
+    _set(e, DB.BuiltInParameter.KEYNOTE_PARAM, kn)
+    _set(e, DB.BuiltInParameter.ALL_MODEL_MARK if d["tipo"] == "material" else DB.BuiltInParameter.ALL_MODEL_TYPE_MARK, kn)
+    _set(e, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION, desc)
+    gravar_vinculo(e, fja=item.get("fja"), itemCentral=item["id"], itemProjeto=u"",
+                   projeto=dados.projeto["id"] if dados.projeto else u"", pedido=pedido)
