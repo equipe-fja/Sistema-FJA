@@ -436,7 +436,7 @@ class FormNova(forms.WPFWindow):
             return
         kn = d.prox_kn(f["sigla"])
         self.txtPrevia.Text = u"Será criado como {} na biblioteca e {} no projeto {} → tipo \"{}\"".format(
-            d.prox_fja(), kn, (d.projeto or {}).get("codigo", u"?"), F.nome_tipo(kn, f["desc"] or u"…"))
+            d.prox_fja(f["sigla"]), kn, (d.projeto or {}).get("codigo", u"?"), F.nome_tipo(kn, f["desc"] or u"…"))
 
     def confirmar(self, sender, args):
         f = self._form()

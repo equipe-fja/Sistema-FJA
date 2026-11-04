@@ -4603,8 +4603,26 @@ const TABELAS_ET=['Materiais','Chapim','Corrimão e guarda-corpo','Divisórias',
 const ordTabEt=t=>{const i=TABELAS_ET.indexOf(t);return i<0?90:i};
 const KN_NOMES={AL:'Painéis de alumínio composto',BL:'Blocos',CO:'Elementos vazados',COB:'Elementos vazados',CH:'Chapas metálicas',CL:'Concreto aparente',CR:'Capachos e carpetes',CS:'Pisos e lajes em concreto',EM:'Argamassas',ESP:'Espelhos',FM:'Forros minerais',GE:'Gesso acartonado',GM:'Forrações vegetais',GN:'Granitos e granilites',IT:'Pisos intertravados',MD:'Madeiras',PC:'Placas cimentícias',PI:'Pinturas e texturas',PN:'Painéis acústicos',PO:'Porcelanatos e cerâmicas',RS:'Resinas',RVA:'Revestimentos acústicos',TM:'Telhas e coberturas',VN:'Pisos vinílicos'};
 const ES_DIM=[['ferragens','Ferragens','longtext'],['largura','Largura (m)','text'],['altura','Altura (m)','text'],['peitoril','Peitoril (m)','text'],['qtd','Quantidade','text'],['comp','Comprimento (m)','text'],['area','Área (m²)','text']];
-const fjaNum=b=>+(/^FJ-(\d+)/.exec(b?.fja||'')?.[1]||0);
-const proxFja=()=>'FJ-'+String([...S.espb.values()].reduce((m,b)=>Math.max(m,fjaNum(b)),0)+1).padStart(4,'0');
+// código central: FJ.<SIGLA>.NNNN, numeração própria de cada sigla (antes: FJ-NNNN, sequência única; guardado em fjaAntigo)
+const fjaNum=b=>+(/(\d+)$/.exec(b?.fja||'')?.[1]||0);
+const fjaNovo=f=>/^FJ\.[A-Z]{2,3}\.\d{4}$/.test(f||'');
+const fjaCod=(sg,n)=>`FJ.${sg}.${String(n).padStart(4,'0')}`;
+const proxFja=sg=>{if(!sg) throw new Error('sigla obrigatória para o código FJ'); return fjaCod(sg,[...S.espb.values()].filter(b=>fjaNovo(b.fja)&&b.fja.split('.')[1]===sg).reduce((m,b)=>Math.max(m,fjaNum(b)),0)+1)};
+const fjaAntigos=()=>[...S.espb.values()].filter(b=>!fjaNovo(b.fja));
+async function migrarFja(){
+  const L=fjaAntigos(), sem=L.filter(b=>!sigB(b)), ok=L.filter(b=>sigB(b));
+  if(!ok.length){toast(sem.length?`${sem.length} item(ns) sem sigla: defina a tabela antes de converter.`:'Nada a converter');return}
+  if(!await confirmar(`Converter ${ok.length} códigos do banco central para o formato FJ.SIGLA.NNNN?\n\nA numeração recomeça em cada sigla (na ordem dos códigos atuais). O código antigo fica guardado e continua encontrável na busca. Os keynotes dos projetos não mudam. Depois de convertido, a sigla do item fica travada.${sem.length?`\n\n${sem.length} item(ns) sem sigla ficam como estão.`:''}`,{ok:'Converter'})) return;
+  const porSig=new Map(); for(const b of ok){const sg=sigB(b); if(!porSig.has(sg)) porSig.set(sg,[]); porSig.get(sg).push(b)}
+  let n=0;
+  for(const [sg,arr] of porSig){
+    let k=[...S.espb.values()].filter(b=>fjaNovo(b.fja)&&b.fja.split('.')[1]===sg).reduce((m,b)=>Math.max(m,fjaNum(b)),0);
+    arr.sort((a,b)=>fjaNum(a)-fjaNum(b));
+    for(const b of arr){const upd={fja:fjaCod(sg,++k),fjaAntigo:b.fja,sigla:sg,atualizadoEm:Date.now()};
+      try{await espbColl().doc(b.id).update(upd); Object.assign(b,upd); n++}catch(e){console.warn('migrar',b.fja,e)}}
+  }
+  toast(`${n} códigos convertidos`); render();
+}
 const espbDe=e=>e?.item?S.espb.get(e.item):null;
 const knPref=kn=>(/^\.?([A-Za-z]+)/.exec(String(kn||''))?.[1]||'').toUpperCase();
 const knNum=kn=>{const m=/(\d+)/.exec(String(kn||''));return m?+m[1]:0};
@@ -4812,7 +4830,7 @@ async function criarLinhaEs(pid,b,extra={},sigla){
   const ref=espColl().doc(); await ref.set(body); S.espec.set(ref.id,{...body,id:ref.id}); return ref.id;
 }
 async function novoEsCentral(dados){
-  const body={fja:proxFja(),nbr:'',sigla:'',tipo:'material',desc:'Novo item',texto:'',fabricante:'',obs:'',criadoEm:Date.now(),atualizadoEm:Date.now(),textoEm:Date.now(),...(me?{criadoPor:me}:{}),...dados};
+  const body={fja:proxFja(String(dados.sigla||'').toUpperCase()),nbr:'',sigla:'',tipo:'material',desc:'Novo item',texto:'',fabricante:'',obs:'',criadoEm:Date.now(),atualizadoEm:Date.now(),textoEm:Date.now(),...(me?{criadoPor:me}:{}),...dados};
   const ref=espbColl().doc(); await ref.set(body); S.espb.set(ref.id,{...body,id:ref.id}); return S.espb.get(ref.id);
 }
 
@@ -4849,7 +4867,7 @@ function escolherCentral({titulo,pid,excluirUsados=true}){return new Promise(ok=
     <div class="search" style="margin:0 0 10px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="etMQ" type="search" placeholder="Buscar por FJ, descrição, especificação, classe NBR…" autocomplete="off"></div>
     <div class="et-ml" id="etML"></div><div class="pc-acts"><span class="muted" style="font-size:12px;margin-right:auto">Um item central entra uma única vez em cada projeto.</span><button type="button" class="btn ghost" id="etMC">Cancelar</button></div></div>`;
   document.body.appendChild(d);
-  const lista=()=>{const q=semAc($('etMQ').value), L=[...S.espb.values()].filter(b=>!q||semAc([b.fja,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q)).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
+  const lista=()=>{const q=semAc($('etMQ').value), L=[...S.espb.values()].filter(b=>!q||semAc([b.fja,b.fjaAntigo,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q)).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
     $('etML').innerHTML=L.length?L.slice(0,150).map(b=>{const u=usados.get(b.id);return `<button class="et-mi" data-bid="${esc(b.id)}" ${u&&excluirUsados?'disabled':''}><span class="mono">${esc(b.fja)}</span><span class="et-mi-d"><b>${esc(b.desc||'Sem descrição')}</b><small>${esc(rotSig(sigB(b))||TIPOS_ET[tipoEt(b)])}${b.nbr?' · '+esc(b.nbr):''}${u?` · já no projeto como <span class="mono">${esc(u)}</span>`:''}</small></span></button>`}).join('')+(L.length>150?`<p class="muted" style="padding:8px">Mais ${L.length-150} itens — refine a busca.</p>`:''):`<p class="muted" style="padding:10px">${S.espb.size?'Nenhum item encontrado.':'O banco central está vazio. Cadastre itens na Biblioteca ou importe a planilha de um projeto.'}</p>`};
   const fim=v=>{d.remove();document.removeEventListener('keydown',tec,true);ok(v)};
   const tec=ev=>{if(ev.key==='Escape'){ev.stopPropagation();fim(null)}};
@@ -4934,7 +4952,7 @@ async function importarEt(pid){
   }
   const antigos=espDe(pid).filter(e=>e.origem?.planilha===id);
   const porTab=[...new Set(linhas.map(e=>e.tabelaOrig))].map(t=>`${t}: ${linhas.filter(e=>e.tabelaOrig===t).length}`).join(' · ')+`\n\nTabelas (siglas) resultantes: ${new Set(linhas.map(e=>e.sigla)).size}`;
-  if(!await confirmar(`Importar ${linhas.length} itens de ${abas.length} abas?\n\n${porTab}\n\nOs keynotes são renumerados no padrão do escritório (material PI.01, composição DRY.01, elemento/família PMD.01), conforme a tabela de siglas da Biblioteca; o código original fica guardado como código de origem. Itens iguais que só mudam de dimensão viram um só. Cada keynote ganha um item novo no banco central (FJ-…).${antigos.length?`\n\nEste projeto já tem ${antigos.length} itens importados desta planilha: eles serão substituídos (os itens centrais que só eles usavam também saem).`:''}`,{ok:antigos.length?'Substituir e importar':'Importar'})) return;
+  if(!await confirmar(`Importar ${linhas.length} itens de ${abas.length} abas?\n\n${porTab}\n\nOs keynotes são renumerados no padrão do escritório (material PI.01, composição DRY.01, elemento/família PMD.01), conforme a tabela de siglas da Biblioteca; o código original fica guardado como código de origem. Itens iguais que só mudam de dimensão viram um só. Cada keynote ganha um item novo no banco central (FJ.SIGLA.NNNN).${antigos.length?`\n\nEste projeto já tem ${antigos.length} itens importados desta planilha: eles serão substituídos (os itens centrais que só eles usavam também saem).`:''}`,{ok:antigos.length?'Substituir e importar':'Importar'})) return;
   let feitos=0, falhas=0;
   if(antigos.length){toast(`Removendo ${antigos.length} itens da importação anterior…`);
     for(const x of antigos){try{await espColl().doc(x.id).delete(); S.espec.delete(x.id); const c=S.espb.get(x.item); if(c&&c.origem?.projeto===pid&&!usosEspb(c.id).length){await espbColl().doc(c.id).delete(); S.espb.delete(c.id)}}catch(err){if(err?.code==='invalid_argument'){toast('Você não tem permissão para editar');return}}}}
@@ -4956,10 +4974,10 @@ async function importarEt(pid){
 const ET_B={busca:'',tab:''};
 function telaEspb(h){
   const L=[...S.espb.values()], dup=duplicadosEspb();
-  const q=semAc(ET_B.busca), F=L.filter(b=>(!ET_B.tab||tipoEt(b)===ET_B.tab)&&(!q||semAc([b.fja,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q))).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
+  const q=semAc(ET_B.busca), F=L.filter(b=>(!ET_B.tab||tipoEt(b)===ET_B.tab)&&(!q||semAc([b.fja,b.fjaAntigo,b.desc,b.texto,b.nbr,rotSig(sigB(b)),b.fabricante].join(' ')).includes(q))).sort((a,b)=>ordSig(sigB(a))-ordSig(sigB(b))||fjaNum(a)-fjaNum(b));
   const tabs=Object.keys(TIPOS_ET).filter(t=>L.some(b=>tipoEt(b)===t));
   h+=`<div class="page wide"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><span>Especificação técnica</span></div>
-  <h1>Especificação técnica</h1><div class="seg" style="margin:-4px 0 14px"><button class="on">Banco central</button><button data-act="et-sig">Siglas de keynote</button></div><p class="lead">Banco central de itens do escritório. Cada item tem um código FJA permanente e uma classe da ABNT NBR 15965; nos projetos, recebe o keynote e a descrição específica.</p>
+  <h1>Especificação técnica</h1><div class="seg" style="margin:-4px 0 14px"><button class="on">Banco central</button><button data-act="et-sig">Siglas de keynote</button></div><p class="lead">Banco central de itens do escritório. Cada item tem um código FJA permanente e uma classe da ABNT NBR 15965; nos projetos, recebe o keynote e a descrição específica.</p>${!S.ro&&fjaAntigos().length?`<div class="banner"><span class="sp">${fjaAntigos().length} itens ainda usam o código antigo (FJ-NNNN). O padrão agora é FJ.SIGLA.NNNN, com numeração própria de cada sigla.</span><button class="btn sm" data-act="et-migrar">Converter códigos</button></div>`:''}
   <div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="etBBusca" type="search" placeholder="Buscar por FJ, descrição, especificação, classe NBR…" value="${esc(ET_B.busca)}" aria-label="Buscar no banco central"></div><span class="muted eq-count">${F.length===L.length?L.length+' itens':F.length+' de '+L.length+' itens'}</span>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div>`;
   if(tabs.length>1) h+=`<div class="chips" style="padding:0 0 14px"><button class="chip link ${!ET_B.tab?'on':''}" data-act="et-b-tab" data-v="">Todas <span class="cnt">${L.length}</span></button>${tabs.map(t=>`<button class="chip link ${ET_B.tab===t?'on':''}" data-act="et-b-tab" data-v="${esc(t)}">${esc(TIPOS_ET[t])} <span class="cnt">${L.filter(b=>tipoEt(b)===t).length}</span></button>`).join('')}</div>`;
   if(!L.length) return h+`<section class="sheet"><div class="esp-vazio"><h2>O banco central está vazio</h2><p>Cadastre itens aqui ou importe a planilha de especificação de um projeto (na seção Especificação técnica do projeto): cada keynote importado gera um item central.</p>${S.ro?'':`<button class="btn pri" data-act="et-b-novo">${IC.plus}Novo item</button>`}</div></section></div>`;
@@ -4981,8 +4999,8 @@ function telaEspbItem(h,v){
   <h1 style="margin-bottom:6px"><span class="mono">${esc(b.fja)}</span> · ${esc(b.desc||'Item')}</h1><p class="lead">${esc(rotSig(sigB(b))||'Sem tabela')}${b.nbr?' · <span class="mono">'+esc(b.nbr)+'</span>':''}</p>
   ${dup.length?`<div class="banner" style="margin:0 0 14px"><span class="sp">Possível duplicado: ${dup.map(id=>{const o=S.espb.get(id);return `<button class="chip link mono" data-act="et-b-abrir" data-bid="${esc(id)}">${esc(o?.fja||'')}</button>`}).join(' ')} tem a mesma especificação.</span></div>`:''}
   <section class="sheet"><div class="sheet-h"><h2>Item central</h2><span class="hint">o código FJA não muda</span></div><div class="grid">
-    <label class="fl">Código FJA<input class="fld mono" value="${esc(b.fja)}" disabled></label>${fld('nbr','Classe NBR 15965 (tabela 3R)')}
-    <label class="fl" for="b_sigla">Tabela (sigla)<select class="fld" id="b_sigla" data-eb="sigla" ${dis}><option value="">—</option>${siglasEt().map(x=>`<option value="${esc(x.sigla)}" ${x.sigla===sigB(b)?'selected':''}>${esc(rotSig(x.sigla))}</option>`).join('')}</select></label>
+    <label class="fl">Código FJA<input class="fld mono" value="${esc(b.fja)}" disabled ${b.fjaAntigo?`title="Código antigo: ${esc(b.fjaAntigo)}"`:''}></label>${fld('nbr','Classe NBR 15965 (tabela 3R)')}
+    <label class="fl" for="b_sigla">Tabela (sigla)<select class="fld" id="b_sigla" data-eb="sigla" ${dis} ${fjaNovo(base.fja)?'disabled title="A sigla faz parte do código FJ e não muda depois de criada"':''}><option value="">—</option>${siglasEt().map(x=>`<option value="${esc(x.sigla)}" ${x.sigla===sigB(b)?'selected':''}>${esc(rotSig(x.sigla))}</option>`).join('')}</select></label>
     <label class="fl">Tipo<input class="fld" value="${esc(TIPOS_ET[tipoEt(b)])}" disabled title="Vem do cadastro da sigla"></label>
     ${fld('desc','Descrição simplificada','text','wide')}${fld('texto','Especificação base','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
     <datalist id="dlNbr">${[...new Set([...S.espb.values()].map(x=>x.nbr).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist></section>
@@ -5120,6 +5138,7 @@ async function esAcao(a,b){
   if(a==='et-importar'){await importarEt(pid);return}
   if(a==='espb'){ir({t:'espb'});return}
   if(a==='et-sig'){ir({t:'etsig'});return}
+  if(a==='et-migrar'){await migrarFja();return}
   if(a==='et-b-tab'){ET_B.tab=b.dataset.v;renderMain();return}
   if(a==='et-b-abrir'){ir({t:'espbi',bid:b.dataset.bid});return}
   if(S.ro) return;
@@ -6934,7 +6953,7 @@ async function rvAplicarPedido(p){
       const i=p.item||{}, sg=String(i.sigla||'').toUpperCase(), sx=siglaEt(sg);
       if(!sx||sx.tipo!=='sistema') throw new Error(`a sigla ${sg||'(vazia)'} não é de composição`);
       const camadas=(i.camadas||[]).map(c=>({fn:fnPt(c.funcao),mat:c.material||'',esp:+c.esp||0}));
-      let fja=p.reservas?.fja; if(!fja||[...S.espb.values()].some(x=>x.fja===fja)){const f2=proxFja(); if(fja) msgs.push(`${fja} já existia: criado como ${f2}`); fja=f2}
+      let fja=p.reservas?.fja; if(!fja||!fja.startsWith(`FJ.${sg}.`)||[...S.espb.values()].some(x=>x.fja===fja)){const f2=proxFja(sg); if(fja) msgs.push(`${fja} já existia: criado como ${f2}`); fja=f2}
       b=await novoEsCentral({fja,sigla:sg,tipo:'sistema',tabela:sx.tabela||'Diversos',desc:String(i.desc||'').trim()||'Sem descrição',texto:i.texto||'',fabricante:i.fabricante||'',nbr:i.nbr||'',
         rvCat:i.rvCat||sx.rvCat||'',papel:i.papel||sx.papel||'',camadas,pedido:p.id,obs:`Criado pelo Revit (${p.autor||'?'}${p.modelo?', '+p.modelo:''}).`});
       msgs.push(`${b.fja} criado na biblioteca`);

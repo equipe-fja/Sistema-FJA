@@ -155,17 +155,20 @@ class Dados(object):
         return res
 
     # ---------------------------------------------------------- reservas
-    def prox_fja(self):
+    def prox_fja(self, sigla):
+        """Próximo código FJ.<SIGLA>.NNNN (numeração própria de cada sigla)."""
+        sg = (sigla or u"").upper()
+        rx = re.compile(r"^FJ\.%s\.(\d+)$" % re.escape(sg))
         n = 0
         for x in self.bib.get("itens", []):
-            m = re.match(r"^FJ-(\d+)", x.get("fja") or "")
+            m = rx.match(x.get("fja") or "")
             if m:
                 n = max(n, int(m.group(1)))
         for p in self.pendentes:
-            m = re.match(r"^FJ-(\d+)", (p.get("reservas") or {}).get("fja") or "")
+            m = rx.match((p.get("reservas") or {}).get("fja") or "")
             if m:
                 n = max(n, int(m.group(1)))
-        return u"FJ-%04d" % (n + 1)
+        return u"FJ.%s.%04d" % (sg, n + 1)
 
     def prox_kn(self, sigla, tambem=()):
         """Próximo keynote livre da sigla no projeto, contando a especificação publicada,
@@ -602,7 +605,7 @@ def plano_novo(doc, dados, form):
     pid = novo_id_pedido()
     cam = [{"funcao": FUNCOES_PT.get(c["funcaoRevit"], c["funcaoRevit"]), "funcaoRevit": c["funcaoRevit"],
             "material": c["material"], "esp": float(c.get("esp") or 0)} for c in form.get("camadas", [])]
-    item = {"id": u"pedido:" + pid, "pedido": pid, "pendente": True, "fja": dados.prox_fja(),
+    item = {"id": u"pedido:" + pid, "pedido": pid, "pendente": True, "fja": dados.prox_fja(form.get("sigla")),
             "sigla": (form.get("sigla") or u"").upper(), "tipo": "sistema", "desc": form.get("desc") or u"",
             "texto": form.get("texto") or u"", "rvCat": form.get("rvCat") or u"", "papel": form.get("papel") or u"",
             "camadas": cam, "espTotal": sum(c["esp"] for c in cam)}
