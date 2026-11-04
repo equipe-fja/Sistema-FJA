@@ -6910,8 +6910,8 @@ async function rvLimpar(manual){
   return n;
 }
 /* ---- pedidos do Revit (pasta REVIT\pedidos): itens criados ou incluídos a partir da aba Ferramentas FJA ----
-   pedido = {fja:'pedido',formato:1,id,acao:'novo-item'|'incluir-no-projeto',criadoEm,autor,modelo,projeto:{id,codigo},
-             item:{id} (incluir) ou {sigla,rvCat,papel,desc,texto,fabricante,nbr,camadas:[{funcao,material,esp}]} (novo),
+   pedido = {fja:'pedido',formato:1,id,acao:'novo-item'|'incluir-no-projeto'|'editar-item',criadoEm,autor,modelo,projeto:{id,codigo},
+             item:{id} (incluir), {id,desc,texto,rvCat,papel,camadas} (editar) ou {sigla,rvCat,papel,desc,texto,fabricante,nbr,camadas:[{funcao,material,esp}]} (novo),
              reservas:{fja,kn,materiais:{<id do material>:kn}}}
    O pyRevit já criou o tipo no modelo com as reservas; aqui elas viram definitivas (ou são trocadas, se já estiverem em uso).
    Registro em config/revitPedidos.log. Cada pedido processado vai para a lixeira; reprocessar é seguro (procura pelo id do pedido). */
@@ -6938,6 +6938,20 @@ async function rvAplicarPedido(p){
       b=await novoEsCentral({fja,sigla:sg,tipo:'sistema',tabela:sx.tabela||'Diversos',desc:String(i.desc||'').trim()||'Sem descrição',texto:i.texto||'',fabricante:i.fabricante||'',nbr:i.nbr||'',
         rvCat:i.rvCat||sx.rvCat||'',papel:i.papel||sx.papel||'',camadas,pedido:p.id,obs:`Criado pelo Revit (${p.autor||'?'}${p.modelo?', '+p.modelo:''}).`});
       msgs.push(`${b.fja} criado na biblioteca`);
+    }
+  }else if(p.acao==='editar-item'){
+    b=S.espb.get(p.item?.id); if(!b) throw new Error('item central não encontrado');
+    if(b.editPedido!==p.id){
+      const i=p.item, upd={atualizadoEm:Date.now(),editPedido:p.id};
+      if(i.desc!=null) upd.desc=String(i.desc).trim()||b.desc;
+      if(i.texto!=null) upd.texto=i.texto;
+      if(i.rvCat) upd.rvCat=i.rvCat; if(i.papel) upd.papel=i.papel;
+      if(Array.isArray(i.camadas)) upd.camadas=i.camadas.map(c=>({fn:fnPt(c.funcao),mat:c.material||'',esp:+c.esp||0}));
+      if((upd.desc??b.desc)!==b.desc||normTxtEt(upd.texto??b.texto)!==normTxtEt(b.texto)) upd.textoEm=Date.now();
+      await espbColl().doc(b.id).update(upd); Object.assign(b,upd);
+      msgs.push(`${b.fja} alterado na biblioteca`);
+      const e=pid&&espDe(pid).find(x=>x.item===b.id);
+      if(e){const u2={desc:b.desc,texto:b.texto||'',baseEm:Date.now()+1,atualizadoEm:Date.now()}; await espColl().doc(e.id).update(u2); Object.assign(S.espec.get(e.id)||{},u2); msgs.push(`${e.kn} atualizado no projeto`)}
     }
   }else if(p.acao==='incluir-no-projeto'){
     b=S.espb.get(p.item?.id); if(!b) throw new Error('item central não encontrado');

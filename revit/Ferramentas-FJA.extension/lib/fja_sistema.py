@@ -250,11 +250,12 @@ def montar_pedido(dados, acao, item, reservas, modelo=u""):
          "criadoEm": time.strftime("%Y-%m-%dT%H:%M:%S"), "autor": autor(), "modelo": modelo,
          "projeto": {"id": dados.projeto["id"], "codigo": dados.projeto.get("codigo")} if dados.projeto else None,
          "reservas": reservas}
-    if acao == "novo-item":
-        p["item"] = {"sigla": item.get("sigla"), "rvCat": item.get("rvCat"), "papel": item.get("papel"),
+    if acao in ("novo-item", "editar-item"):
+        p["item"] = {"id": item["id"]} if acao == "editar-item" else {}
+        p["item"].update({"sigla": item.get("sigla"), "rvCat": item.get("rvCat"), "papel": item.get("papel"),
                      "desc": item.get("desc"), "texto": item.get("texto") or u"", "fabricante": u"", "nbr": u"",
                      "camadas": [{"funcao": c.get("funcaoRevit"), "material": c.get("material"),
-                                  "esp": float(c.get("esp") or 0)} for c in item.get("camadas", [])]}
+                                  "esp": float(c.get("esp") or 0)} for c in item.get("camadas", [])]})
     else:
         p["item"] = {"id": item["id"]}
     return p
@@ -557,6 +558,11 @@ def criar_tipo(doc, dados, p):
                             modelo=doc.Title)
         ped["id"] = item["pedido"]
         gravar_pedido(dados, ped)
+    elif p.get("editar"):
+        # alteração de uma composição já existente: o sistema atualiza o item central e a linha do projeto
+        ped = montar_pedido(dados, "editar-item", dict(item, desc=p["desc"]), p.get("reservas") or {}, modelo=doc.Title)
+        gravar_pedido(dados, ped)
+        pedido_id = ped["id"]
     elif p.get("reservas"):
         ped = montar_pedido(dados, "incluir-no-projeto", item, p["reservas"], modelo=doc.Title)
         gravar_pedido(dados, ped)
@@ -610,4 +616,22 @@ def plano_novo(doc, dados, form):
         if not c.get("material"):
             p["problemas"].append(u"Há camada sem material.")
             break
+    return p
+
+
+def plano_editar(doc, dados, item, form):
+    """Plano para alterar uma composição existente (camadas, descrição, especificação, categoria, papel).
+    O tipo do modelo é atualizado na hora e o sistema recebe um pedido 'editar-item'."""
+    cam = [{"funcao": FUNCOES_PT.get(c["funcaoRevit"], c["funcaoRevit"]), "funcaoRevit": c["funcaoRevit"],
+            "material": c["material"], "esp": float(c.get("esp") or 0)} for c in form.get("camadas", [])]
+    novo = dict(item)
+    novo.update({"desc": form.get("desc") or item.get("desc") or u"", "texto": form.get("texto") or u"",
+                 "rvCat": form.get("rvCat") or item.get("rvCat") or u"", "papel": form.get("papel") or u"",
+                 "camadas": cam, "espTotal": sum(c["esp"] for c in cam)})
+    p = plano_tipo(doc, dados, novo)
+    p["editar"] = True
+    p["desc"] = novo["desc"]
+    p["nome"] = nome_tipo(p["kn"] or novo.get("fja"), p["desc"])
+    p["avisos"].insert(0, u"{} será alterado na biblioteca central quando alguém abrir o sistema; "
+                          u"outros projetos que usam o item verão o aviso de texto central alterado.".format(novo.get("fja")))
     return p

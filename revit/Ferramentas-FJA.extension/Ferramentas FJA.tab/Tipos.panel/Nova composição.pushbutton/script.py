@@ -8,7 +8,8 @@ from pyrevit import revit, DB, forms, script
 
 import fja_sistema as F
 
-from System.Windows import Thickness, GridLength, GridUnitType, TextWrapping, FontWeights, VerticalAlignment
+from System.Windows import Thickness, GridLength, GridUnitType, TextWrapping, FontWeights, VerticalAlignment, \
+    HorizontalAlignment, CornerRadius as System_CornerRadius
 from System.Windows.Controls import Grid, ColumnDefinition, TextBlock, StackPanel, Border, ListBoxItem, Orientation, \
     ComboBox, ComboBoxItem, TextBox, Button
 from System.Windows.Media import SolidColorBrush, Color
@@ -20,6 +21,17 @@ cfg = script.get_config()
 COR_FN = {"Finish1": (207, 224, 238), "Finish2": (230, 216, 239), "Substrate": (228, 223, 213),
           "Structure": (199, 193, 182), "Insulation": (243, 227, 168), "Membrane": (74, 74, 72)}
 COLS = [("FJ", 72), ("Keynote", 70), (u"Descrição", -1), ("mm", 54), (u"Situação", 120)]
+
+
+def aplicar_estilo(win):
+    """Aplica a estética do Sistema FJA (lib/fja_estilo.xaml) à janela."""
+    try:
+        from System.Windows.Markup import XamlReader
+        from System.IO import File
+        caminho = os.path.join(os.path.dirname(F.__file__), "fja_estilo.xaml")
+        win.Resources.MergedDictionaries.Add(XamlReader.Parse(File.ReadAllText(caminho)))
+    except Exception as e:
+        print(u"estilo: {}".format(e))
 
 
 def pincel(rgb):
@@ -82,11 +94,14 @@ def num(s):
 
 
 class FormNova(forms.WPFWindow):
-    """Formulário de composição nova (mesmos campos do sistema)."""
+    """Formulário de composição (mesmos campos do sistema). modo: 'novo', 'editar' ou 'duplicar'."""
 
-    def __init__(self, dados, cat=None):
+    def __init__(self, dados, cat=None, item=None, modo="novo"):
         forms.WPFWindow.__init__(self, os.path.join(os.path.dirname(__file__), "formulario.xaml"))
+        aplicar_estilo(self)
         self.dados = dados
+        self.modo = modo
+        self.item = item
         self.resultado = None
         self.linhas = []
         self._pronto = False
@@ -96,14 +111,47 @@ class FormNova(forms.WPFWindow):
             self.cbSigla.Items.Add(u"{} · {}".format(s["sigla"], s.get("nome") or u""))
         self.mats = sorted([x for x in dados.bib.get("itens", []) if x.get("tipo") == "material"],
                            key=lambda x: (x.get("sigla") or u"", x.get("fja") or u""))
-        self.txtSub.Text = u"Projeto {} · o item é criado no sistema (biblioteca central e especificação do projeto) " \
-                           u"e o tipo é criado no modelo agora mesmo.".format(
-                               (dados.projeto or {}).get("codigo", u"?"))
+        proj = (dados.projeto or {}).get("codigo", u"?")
+        if modo == "editar":
+            self.Title = u"Editar composição — Ferramentas FJA"
+            self.txtTitulo.Text = u"Editar {} · {}".format(item.get("fja"), item.get("desc") or u"")
+            self.txtSub.Text = u"Projeto {} · as alterações vão para a biblioteca central (o sistema aplica quando alguém o abrir) " \
+                               u"e o tipo do modelo é atualizado agora.".format(proj)
+            self.btOk.Content = u"Salvar e atualizar o tipo"
+        else:
+            self.txtSub.Text = u"Projeto {} · o item é criado no sistema (biblioteca central e especificação do projeto) " \
+                               u"e o tipo é criado no modelo agora mesmo.".format(proj)
+            if modo == "duplicar":
+                self.txtTitulo.Text = u"Nova composição a partir de {}".format(item.get("fja"))
         self._cat_ini = cat
         self._pronto = True
-        if self.siglas:
-            self.cbSigla.SelectedIndex = 0
-        self.adicionar(None, None)
+        if item:
+            self._preencher(item)
+        else:
+            if self.siglas:
+                self.cbSigla.SelectedIndex = 0
+            self.adicionar(None, None)
+
+    def _preencher(self, it):
+        sig = [s["sigla"] for s in self.siglas]
+        if it.get("sigla") in sig:
+            self.cbSigla.SelectedIndex = sig.index(it["sigla"])
+        if self.modo == "editar":
+            self.cbSigla.IsEnabled = False  # trocar a sigla mudaria o keynote: crie uma composição nova
+        cats = ["Parede", "Piso", "Forro", "Cobertura"]
+        if it.get("rvCat") in cats:
+            self.cbCat.SelectedIndex = cats.index(it["rvCat"])
+        if it.get("papel") in (u"Vedação", u"Acabamento"):
+            self.cbPapel.SelectedIndex = [u"Vedação", u"Acabamento"].index(it["papel"])
+        linha = self.dados.linha_projeto(it["id"]) or {}
+        desc = linha.get("desc") or it.get("desc") or u""
+        self.tbDesc.Text = desc + (u" (cópia)" if self.modo == "duplicar" else u"")
+        self.tbTexto.Text = linha.get("texto") or it.get("texto") or u""
+        self.linhas = [{"funcaoRevit": c.get("funcaoRevit") or "Structure", "material": c.get("material") or u"",
+                        "esp": F.fmt_mm(c.get("esp"))} for c in it.get("camadas", [])]
+        if not self.linhas:
+            self.linhas.append({"funcaoRevit": "Structure", "material": u"", "esp": u""})
+        self.desenhar()
 
     def _rot_mat(self, m):
         kn = (self.dados.linha_projeto(m["id"]) or {}).get("kn")
@@ -140,59 +188,127 @@ class FormNova(forms.WPFWindow):
         del self.linhas[i]
         self.desenhar()
 
+    def _duplicar(self, i):
+        self.linhas.insert(i + 1, dict(self.linhas[i]))
+        self.desenhar()
+
+    # ------------------------------------------------------- material com busca
+    def _combo_material(self, i, ln):
+        cm = ComboBox()
+        cm.Margin = Thickness(0, 0, 8, 0)
+        cm.IsEditable = True
+        cm.IsTextSearchEnabled = False
+        cm.StaysOpenOnEdit = True
+        cm.MaxDropDownHeight = 320
+        estado = {"lista": list(self.mats), "mudando": False}
+
+        def carregar(lista):
+            estado["mudando"] = True
+            cm.Items.Clear()
+            for m in lista:
+                cm.Items.Add(self._rot_mat(m))
+            estado["lista"] = lista
+            estado["mudando"] = False
+
+        carregar(self.mats)
+        atual = [m for m in self.mats if m["id"] == ln["material"]]
+        if atual:
+            estado["mudando"] = True
+            cm.SelectedIndex = self.mats.index(atual[0])
+            estado["mudando"] = False
+
+        def escolheu(s, e):
+            if estado["mudando"] or cm.SelectedIndex < 0:
+                return
+            m = estado["lista"][cm.SelectedIndex]
+            self._set(i, "material", m["id"])
+
+        def digitou(s, e):
+            k = u"{}".format(e.Key)
+            if k in ("Up", "Down", "Enter", "Return", "Tab", "Escape", "Left", "Right"):
+                return
+            txt = cm.Text or u""
+            q = F._norm(txt)
+            lista = [m for m in self.mats if not q or q in F._norm(self._rot_mat(m) + u" " + (m.get("fja") or u""))]
+            carregar(lista)
+            estado["mudando"] = True
+            cm.Text = txt
+            estado["mudando"] = False
+            try:
+                tb = cm.Template.FindName("PART_EditableTextBox", cm)
+                tb.CaretIndex = len(txt)
+            except Exception:
+                pass
+            cm.IsDropDownOpen = True
+
+        def saiu(s, e):
+            # ao sair sem escolher, volta a mostrar o material escolhido (ou limpa)
+            mid = self.linhas[i]["material"] if i < len(self.linhas) else u""
+            m = [x for x in self.mats if x["id"] == mid]
+            if (cm.Text or u"") != (self._rot_mat(m[0]) if m else u""):
+                carregar(self.mats)
+                estado["mudando"] = True
+                cm.SelectedIndex = self.mats.index(m[0]) if m else -1
+                if not m:
+                    cm.Text = u""
+                estado["mudando"] = False
+
+        cm.SelectionChanged += escolheu
+        cm.KeyUp += digitou
+        cm.LostKeyboardFocus += saiu
+        return cm
+
     def desenhar(self):
         sp = self.spCamadas
         sp.Children.Clear()
         for i, ln in enumerate(self.linhas):
             g = Grid()
-            g.Margin = Thickness(0, 0, 0, 4)
-            for w in (24, 130, -1, 70, 96):
+            g.Margin = Thickness(0, 0, 0, 6)
+            for w in (24, 140, -1, 80, 128):
                 cd = ColumnDefinition()
                 cd.Width = GridLength(1, GridUnitType.Star) if w < 0 else GridLength(w)
                 g.ColumnDefinitions.Add(cd)
-            n = texto(u"{}".format(i + 1), cor=CLARO)
-            Grid.SetColumn(n, 0)
-            g.Children.Add(n)
+            q = Border()
+            q.Width = 12
+            q.Height = 12
+            q.CornerRadius = System_CornerRadius(3)
+            q.Background = pincel(COR_FN.get(ln["funcaoRevit"], (220, 220, 220)))
+            q.HorizontalAlignment = HorizontalAlignment.Left
+            q.ToolTip = u"Camada {}".format(i + 1)
+            Grid.SetColumn(q, 0)
+            g.Children.Add(q)
             cf = ComboBox()
-            cf.Margin = Thickness(0, 0, 6, 0)
+            cf.Margin = Thickness(0, 0, 8, 0)
             for rot, cod in FN_OPC:
                 cf.Items.Add(rot)
             cf.SelectedIndex = [c for _, c in FN_OPC].index(ln["funcaoRevit"])
-            cf.SelectionChanged += (lambda s, e, i=i: self._set(i, "funcaoRevit", FN_OPC[s.SelectedIndex][1]))
+            cf.SelectionChanged += (lambda s, e, i=i: (self._set(i, "funcaoRevit", FN_OPC[s.SelectedIndex][1]), self.desenhar()))
             Grid.SetColumn(cf, 1)
             g.Children.Add(cf)
-            cm = ComboBox()
-            cm.Margin = Thickness(0, 0, 6, 0)
-            cm.IsTextSearchEnabled = True
-            sel = -1
-            for k, m in enumerate(self.mats):
-                cm.Items.Add(self._rot_mat(m))
-                if m["id"] == ln["material"]:
-                    sel = k
-            cm.SelectedIndex = sel
-            cm.SelectionChanged += (lambda s, e, i=i: self._set(i, "material", self.mats[s.SelectedIndex]["id"]
-                                                                if s.SelectedIndex >= 0 else u""))
+            cm = self._combo_material(i, ln)
             Grid.SetColumn(cm, 2)
             g.Children.Add(cm)
             te = TextBox()
             te.Text = ln["esp"]
-            te.Height = 23
             te.ToolTip = u"Espessura em mm"
             te.TextChanged += (lambda s, e, i=i: self._set(i, "esp", s.Text))
             Grid.SetColumn(te, 3)
             g.Children.Add(te)
             bts = StackPanel()
             bts.Orientation = Orientation.Horizontal
-            bts.Margin = Thickness(6, 0, 0, 0)
+            bts.Margin = Thickness(8, 0, 0, 0)
             for rot, fn, dica in ((u"\u2191", lambda s, e, i=i: self._mover(i, -1), u"Subir"),
                                   (u"\u2193", lambda s, e, i=i: self._mover(i, 1), u"Descer"),
+                                  (u"\u29C9", lambda s, e, i=i: self._duplicar(i), u"Duplicar camada"),
                                   (u"\u2715", lambda s, e, i=i: self._remover(i), u"Remover")):
                 b = Button()
                 b.Content = rot
-                b.Width = 26
-                b.Margin = Thickness(0, 0, 3, 0)
                 b.ToolTip = dica
                 b.Click += fn
+                try:
+                    b.Style = self.FindResource("Discreto")
+                except Exception:
+                    b.Width = 28
                 bts.Children.Add(b)
             Grid.SetColumn(bts, 4)
             g.Children.Add(bts)
@@ -226,6 +342,10 @@ class FormNova(forms.WPFWindow):
         if not f["sigla"]:
             self.txtPrevia.Text = u""
             return
+        if self.modo == "editar":
+            kn = (d.linha_projeto(self.item["id"]) or {}).get("kn") or self.item.get("fja")
+            self.txtPrevia.Text = u"Tipo no modelo: \"{}\" · {} mm".format(F.nome_tipo(kn, f["desc"] or u"…"), F.fmt_mm(total))
+            return
         kn = d.prox_kn(f["sigla"])
         self.txtPrevia.Text = u"Será criado como {} na biblioteca e {} no projeto {} → tipo \"{}\"".format(
             d.prox_fja(), kn, (d.projeto or {}).get("codigo", u"?"), F.nome_tipo(kn, f["desc"] or u"…"))
@@ -257,7 +377,9 @@ class FormNova(forms.WPFWindow):
 class Janela(forms.WPFWindow):
     def __init__(self):
         forms.WPFWindow.__init__(self, os.path.join(os.path.dirname(__file__), "janela.xaml"))
+        aplicar_estilo(self)
         self.dados = None
+        self.item_atual = None
         self.plano = None
         self.vinc = {}
         self._pronto = False
@@ -391,6 +513,9 @@ class Janela(forms.WPFWindow):
         self.plano = None
         self.btCriar.IsEnabled = False
         self.btCriar.Content = u"Criar no modelo"
+        self.item_atual = item
+        self.btEditar.IsEnabled = bool(item) and not item.get("pendente") and bool(self.dados and self.dados.projeto)
+        self.btDuplicar.IsEnabled = bool(item) and bool(self.dados and self.dados.projeto)
         if item is None:
             sp.Children.Add(texto(u"Escolha uma composição na lista.", cor=CLARO))
             return
@@ -496,6 +621,49 @@ class Janela(forms.WPFWindow):
         li = self.lbItens.SelectedItem
         self.mostrar(self._item(li.Tag) if li is not None else None)
 
+    def _abrir_form(self, item=None, modo="novo"):
+        d = self.dados
+        if d is None or not d.projeto:
+            forms.alert(u"Escolha o projeto (no alto da janela) antes.", title=u"Nova composição")
+            return None
+        cat = [None, "Parede", "Piso", "Forro", "Cobertura"][max(0, self.cbCategoria.SelectedIndex)]
+        f = FormNova(d, cat, item=item, modo=modo)
+        try:
+            f.Owner = self
+        except Exception:
+            pass
+        f.ShowDialog()
+        return f.resultado
+
+    def editar(self, sender, args):
+        it = self.item_atual
+        if not it or it.get("pendente"):
+            return
+        r = self._abrir_form(it, "editar")
+        if not r:
+            return
+        p = F.plano_editar(doc, self.dados, it, r)
+        if p["problemas"]:
+            forms.alert(u"\n".join(p["problemas"]), title=u"Editar composição")
+            return
+        self._executar(p)
+        # mostra já a versão editada enquanto o sistema não republica
+        self.dados.itens[it["id"]] = p["item"]
+        self.preencher(manter=it["id"])
+
+    def duplicar(self, sender, args):
+        it = self.item_atual
+        if not it:
+            return
+        r = self._abrir_form(it, "duplicar")
+        if not r:
+            return
+        p = F.plano_novo(doc, self.dados, r)
+        if p["problemas"]:
+            forms.alert(u"\n".join(p["problemas"]), title=u"Nova composição")
+            return
+        self._executar(p)
+
     def nova(self, sender, args):
         d = self.dados
         if d is None or not d.projeto:
@@ -536,7 +704,10 @@ class Janela(forms.WPFWindow):
             forms.alert(u"Não foi possível criar o tipo:\n{}".format(e), title=u"Nova composição")
             return
         msg = u"Tipo pronto no modelo:\n{}".format(nome)
-        if p.get("novo") or p.get("reservas"):
+        if p.get("editar"):
+            msg += u"\n\nAlteração enviada ao sistema: a biblioteca central e a especificação do projeto são " \
+                   u"atualizadas quando alguém abrir o sistema."
+        elif p.get("novo") or p.get("reservas"):
             msg += u"\n\nPedido enviado ao sistema. Os códigos reservados ficam definitivos quando alguém abrir " \
                    u"o sistema; se algum mudar, use Atualizar nesta janela."
         if avisos:
