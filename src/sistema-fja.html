@@ -7244,7 +7244,7 @@ async function modoPublico(){
 }
 (async()=>{
   if(!window.claude?.use){modoPublico();return}
-  {const bruto=db; try{const w=envolverDb(bruto); if(w&&typeof w.collection('crono').doc==='function'&&typeof w.collection('crono').onSnapshot==='function') db=w; else db=bruto}catch(e){console.warn('desfazer indisponível',e);db=bruto}}
+  {const bruto=await claude.use('db'); try{const w=envolverDb(bruto); if(w&&typeof w.collection('crono').doc==='function'&&typeof w.collection('crono').onSnapshot==='function') db=w; else db=bruto}catch(e){console.warn('desfazer indisponível',e);db=bruto}}
   if(!db){modoPublico();return}
   user=await claude.use('user');
   try{assets=await claude.use('assets')}catch{assets=null}
