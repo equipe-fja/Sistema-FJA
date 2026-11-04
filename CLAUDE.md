@@ -1,10 +1,10 @@
 # Instruções para trabalhar no Sistema FJA
 
-Responder ao usuário em português. O usuário é a equipe da FJA (o Filipe decide quando a oficial é atualizada).
+Responder ao usuário em português. O usuário é a equipe da FJA (a FJA decide quando a oficial é atualizada). Nas respostas, não citar nomes de pessoas: dizer "a FJA".
 
 ## Regras de ouro
 - A fonte é `src/sistema-fja.html`, sempre com `const AMB='oficial'` e `<title>Sistema FJA</title>`. Nunca editar `dist/`.
-- Toda mudança vai primeiro para a **dev**. A **oficial** só é publicada quando o Filipe pede ("pode atualizar a oficial").
+- Toda mudança vai primeiro para a **dev**. A **oficial** só é publicada quando a FJA pede ("pode atualizar a oficial").
 - Antes de promover: listar o que entra (`git log origin/oficial..main`) e avisar antes de qualquer migração que altere dados existentes.
 - Depois de publicar na oficial: entrada no `CHANGELOG.md` (versão vNN + commit), commit, e `git push origin main:oficial` (a branch `oficial` sempre aponta para o que está publicado). Tags não passam pelo proxy (push de tag é recusado).
 - Commit a cada mudança publicada na dev, com mensagem em português.
