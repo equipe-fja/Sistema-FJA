@@ -537,13 +537,11 @@ class Janela(forms.WPFWindow):
     # selos da lista: podem aparecer juntos
     SELOS = {"projeto": (u"Projeto", (237, 237, 235), (94, 94, 92)),
              "tipo": (u"Tipo", (228, 241, 230), (46, 115, 64)),
-             "camadas": (u"Sem camadas", (251, 231, 229), (179, 38, 30)),
              "categoria": (u"Sem categoria", (251, 231, 229), (179, 38, 30)),
              "aguardando": (u"Aguardando", (248, 239, 217), (138, 93, 5))}
 
     DICAS = {"projeto": u"Já está na especificação técnica deste projeto, com keynote.",
              "tipo": u"Já existe um tipo criado a partir desta composição no modelo aberto.",
-             "camadas": u"A composição não tem camadas: não pode virar tipo até ser corrigida.",
              "categoria": u"Falta definir a categoria (parede, piso, forro ou cobertura): não pode virar tipo até ser corrigida.",
              "aguardando": u"Criada ou alterada pelo Revit; o sistema confirma os códigos quando alguém o abrir."}
 
@@ -555,8 +553,6 @@ class Janela(forms.WPFWindow):
             r.append("projeto")
         if it["id"] in self.vinc or (it.get("pedido") and u"pedido:" + it["pedido"] in self.vinc):
             r.append("tipo")
-        if not it.get("camadas"):
-            r.append("camadas")
         if not it.get("rvCat"):
             r.append("categoria")
         return r
@@ -607,9 +603,14 @@ class Janela(forms.WPFWindow):
             li = ListBoxItem()
             li.Tag = it["id"]
             li.Padding = Thickness(4, 3, 4, 3)
-            li.Content = linha_grade([it.get("fja"), (linha or {}).get("kn") or u"—",
+            sem_cam = not it.get("camadas")
+            cod = texto(it.get("fja"), cor=VERMELHO if sem_cam else None, margem=(0, 0, 6, 0))
+            esp = texto(F.fmt_mm(it.get("espTotal")) or u"0", cor=VERMELHO if sem_cam else None, margem=(0, 0, 6, 0))
+            if sem_cam:
+                cod.ToolTip = esp.ToolTip = u"Sem camadas: a composição não pode virar tipo até ganhar camadas."
+            li.Content = linha_grade([cod, (linha or {}).get("kn") or u"—",
                                       (linha or {}).get("desc") or it.get("desc"),
-                                      F.fmt_mm(it.get("espTotal")), self._painel_selos(self._selos(it, linha))])
+                                      esp, self._painel_selos(self._selos(it, linha))])
             li.ToolTip = u"{} · {} · {}".format(it.get("rvCat") or u"sem categoria", it.get("papel") or u"sem papel",
                                                   it.get("desc"))
             self.lbItens.Items.Add(li)
