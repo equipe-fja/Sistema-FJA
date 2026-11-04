@@ -73,7 +73,7 @@ class Janela(forms.WPFWindow):
             self.atualizar()
             return
         d = self.dados
-        self.txtFonte.Text = u"{} · publicado em {} · {} elementos/famílias na biblioteca".format(
+        self.txtFonte.Text = u"Modelo: {} · {} · publicado em {} · {} elementos/famílias na biblioteca".format(doc.Title,
             u"Desenvolvimento (REVIT\\DEV)" if dev else u"Oficial", (d.geradoEm or u"")[:16].replace("T", " "),
             len(F.elementos(d)))
         auto = d.projeto_do_documento(doc.Title)
@@ -90,6 +90,8 @@ class Janela(forms.WPFWindow):
         self.siglas = F.siglas_elemento(d)
         for s in self.siglas:
             self.cbSigla.Items.Add(u"{} · {}".format(s["sigla"], s.get("nome") or u""))
+        self.cbSigla.Items.Add(u"+ Nova sigla…")
+        self._sig_ant = -1
         self._pronto = True
         self._usar_projeto(d.projetos[sel - 1] if sel else None)
 
@@ -248,6 +250,18 @@ class Janela(forms.WPFWindow):
         self.atualizar()
 
     def novo_mudou(self, sender, args):
+        if sender is self.cbSigla and self._pronto:
+            if self.cbSigla.SelectedIndex == len(self.siglas):  # "+ Nova sigla…"
+                nova = F.pedir_sigla_nova(self.dados, "elemento", u"Nova sigla de elemento/família")
+                self._pronto = False
+                if nova:
+                    self.siglas.append(nova)
+                    self.cbSigla.Items.Insert(len(self.siglas) - 1, u"{} · {} (nova)".format(nova["sigla"], nova["nome"]))
+                    self.cbSigla.SelectedIndex = len(self.siglas) - 1
+                else:
+                    self.cbSigla.SelectedIndex = self._sig_ant
+                self._pronto = True
+            self._sig_ant = self.cbSigla.SelectedIndex
         if self._pronto:
             self._nome_editado = False
             self.atualizar()
@@ -270,7 +284,9 @@ class Janela(forms.WPFWindow):
         nome = self.tbNomeFam.Text if self._nome_editado else None
         if self.rbNovo.IsChecked:
             i = self.cbSigla.SelectedIndex
-            form = {"sigla": self.siglas[i]["sigla"] if 0 <= i < len(self.siglas) else u"",
+            sg = self.siglas[i] if 0 <= i < len(self.siglas) else None
+            form = {"sigla": sg["sigla"] if sg else u"",
+                    "siglaNova": dict((k, v) for k, v in sg.items() if k != "nova") if sg and sg.get("nova") else None,
                     "desc": self.tbDesc.Text.strip(), "texto": self.tbTexto.Text.strip()}
             p = F.plano_componente_novo(doc, d, f, form, ren, nome)
         else:
@@ -305,6 +321,10 @@ class Janela(forms.WPFWindow):
     def inserir(self, sender, args):
         p = self.plano
         if p is None or p["problemas"]:
+            return
+        if not F.doc_ativo_ok(doc):
+            forms.alert(u"O modelo ativo mudou. Esta janela só age sobre \"{}\", o modelo ativo quando ela foi aberta: "
+                        u"volte para ele ou feche e abra a ferramenta de novo.".format(doc.Title), title=TITULO)
             return
         f = self.fam
         atual = (f.get("vinculo") or {}).get("itemCentral") if f.get("modelo") else None
@@ -350,6 +370,9 @@ else:
         if not j.pedir_selecao:
             break
         elemento = None
+        if not F.doc_ativo_ok(doc):
+            forms.alert(u"O modelo ativo mudou: a seleção só vale em \"{}\".".format(doc.Title), title=TITULO)
+            continue
         try:
             ref = uidoc.Selection.PickObject(ObjectType.Element, u"Clique num elemento da família a readequar (Esc cancela)")
             elemento = doc.GetElement(ref.ElementId)

@@ -262,6 +262,8 @@ def montar_pedido(dados, acao, item, reservas, modelo=u""):
                                   "esp": float(c.get("esp") or 0)} for c in item.get("camadas", [])]})
     else:
         p["item"] = {"id": item["id"]}
+    if item.get("siglaNova"):
+        p["item"]["siglaNova"] = item["siglaNova"]  # o sistema cadastra a sigla antes de criar o item
     return p
 
 
@@ -345,6 +347,16 @@ def nome_elem(e):
 def _sigla_kn(s):
     m = re.match(r"^\.?([A-Za-z]+)", s or "")
     return m.group(1).upper() if m else ""
+
+
+def doc_ativo_ok(doc):
+    """A ferramenta só age sobre o modelo que estava ativo quando foi aberta."""
+    try:
+        from pyrevit import HOST_APP
+        atual = HOST_APP.uidoc.Document
+        return atual is not None and atual.Equals(doc)
+    except Exception:
+        return True
 
 
 def plano_material(doc, dados, mat_id, reservas=None):
@@ -609,7 +621,7 @@ def plano_novo(doc, dados, form):
     item = {"id": u"pedido:" + pid, "pedido": pid, "pendente": True, "fja": dados.prox_fja(form.get("sigla")),
             "sigla": (form.get("sigla") or u"").upper(), "tipo": "sistema", "desc": form.get("desc") or u"",
             "texto": form.get("texto") or u"", "rvCat": form.get("rvCat") or u"", "papel": form.get("papel") or u"",
-            "camadas": cam, "espTotal": sum(c["esp"] for c in cam)}
+            "camadas": cam, "espTotal": sum(c["esp"] for c in cam), "siglaNova": form.get("siglaNova")}
     p = plano_tipo(doc, dados, item)
     p["novo"] = True
     p["avisos"] = [a for a in p["avisos"] if not a.startswith(u"Composição criada no Revit")]
@@ -642,6 +654,29 @@ def plano_editar(doc, dados, item, form):
 
 
 # ------------------------------------------------------------------ componentes (famílias carregáveis)
+def pedir_sigla_nova(dados, tipo, titulo=u"Nova sigla"):
+    """Pergunta sigla (3 letras) e nome da tabela. Devolve dict da sigla nova ou None."""
+    from pyrevit import forms
+    rot = u"composição" if tipo == "sistema" else u"elemento/família"
+    sg = forms.ask_for_string(prompt=u"Sigla da nova tabela de {} (3 letras):".format(rot), title=titulo)
+    if not sg:
+        return None
+    sg = re.sub(r"[^A-Za-z]", "", sg).upper()
+    if len(sg) != 3:
+        forms.alert(u"A sigla de {} tem 3 letras.".format(rot), title=titulo)
+        return None
+    if sg in dados.siglas:
+        forms.alert(u"A sigla {} já existe ({}).".format(sg, dados.siglas[sg].get("nome") or u""), title=titulo)
+        return None
+    nome = forms.ask_for_string(prompt=u"Nome da tabela {} (ex.: Portas de madeira):".format(sg), title=titulo)
+    if not nome or not nome.strip():
+        return None
+    s = {"sigla": sg, "nome": nome.strip(), "tipo": tipo, "nova": True}
+    dados.siglas[sg] = s
+    dados.bib.setdefault("siglas", []).append(s)
+    return s
+
+
 def elementos(dados):
     """Itens da biblioteca de elemento/família (siglas de 3 letras do tipo elemento)."""
     return [x for x in dados.bib.get("itens", []) if x.get("tipo") == "elemento"]
@@ -742,6 +777,7 @@ def plano_componente_novo(doc, dados, fam, form, renomear=True, nome=None):
     pid = novo_id_pedido()
     item = {"id": u"pedido:" + pid, "pedido": pid, "pendente": True, "fja": dados.prox_fja(form.get("sigla")),
             "sigla": (form.get("sigla") or u"").upper(), "tipo": "elemento", "desc": form.get("desc") or u"",
+            "siglaNova": form.get("siglaNova"),
             "texto": form.get("texto") or u"", "rvCat": fam.get("categoria") or u"", "papel": u"", "camadas": []}
     p = plano_componente(doc, dados, item, fam, renomear, nome)
     p["novo"] = True

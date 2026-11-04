@@ -110,6 +110,8 @@ class FormNova(forms.WPFWindow):
                              key=lambda s: s["sigla"])
         for s in self.siglas:
             self.cbSigla.Items.Add(u"{} · {}".format(s["sigla"], s.get("nome") or u""))
+        self.cbSigla.Items.Add(u"+ Nova sigla…")
+        self._sig_ant = -1
         self.mats = sorted([x for x in dados.bib.get("itens", []) if x.get("tipo") == "material"],
                            key=lambda x: (x.get("sigla") or u"", x.get("fja") or u""))
         proj = (dados.projeto or {}).get("codigo", u"?")
@@ -163,6 +165,16 @@ class FormNova(forms.WPFWindow):
         return self.siglas[i] if 0 <= i < len(self.siglas) else None
 
     def sigla_mudou(self, sender, args):
+        if self.cbSigla.SelectedIndex == len(self.siglas):  # "+ Nova sigla…"
+            nova = F.pedir_sigla_nova(self.dados, "sistema", u"Nova sigla de composição")
+            if nova:
+                self.siglas.append(nova)
+                self.cbSigla.Items.Insert(len(self.siglas) - 1, u"{} · {} (nova)".format(nova["sigla"], nova["nome"]))
+                self.cbSigla.SelectedIndex = len(self.siglas) - 1
+            else:
+                self.cbSigla.SelectedIndex = self._sig_ant
+            return
+        self._sig_ant = self.cbSigla.SelectedIndex
         s = self._sigla()
         if s is None:
             return
@@ -411,7 +423,9 @@ class FormNova(forms.WPFWindow):
     # ------------------------------------------------------- prévia e confirmação
     def _form(self):
         s = self._sigla()
-        return {"sigla": s["sigla"] if s else u"", "rvCat": ["Parede", "Piso", "Forro", "Cobertura"][max(0, self.cbCat.SelectedIndex)],
+        return {"sigla": s["sigla"] if s else u"",
+                "siglaNova": dict((k, v) for k, v in s.items() if k != "nova") if s and s.get("nova") else None,
+                "rvCat": ["Parede", "Piso", "Forro", "Cobertura"][max(0, self.cbCat.SelectedIndex)],
                 "papel": [u"Vedação", u"Acabamento"][max(0, self.cbPapel.SelectedIndex)],
                 "desc": (self.tbDesc.Text or u"").strip(), "texto": (self.tbTexto.Text or u"").strip(),
                 "camadas": [{"funcaoRevit": ln["funcaoRevit"], "material": ln["material"], "esp": num(ln["esp"]) or 0}
@@ -508,7 +522,7 @@ class Janela(forms.WPFWindow):
             self.mostrar(None)
             return
         d = self.dados
-        self.txtFonte.Text = u"{} · publicado em {} · {} composições".format(
+        self.txtFonte.Text = u"Modelo: {} · {} · publicado em {} · {} composições".format(doc.Title,
             u"Desenvolvimento (REVIT\\DEV)" if dev else u"Oficial", (d.geradoEm or u"")[:16].replace("T", " "),
             len(d.composicoes()))
         auto = d.projeto_do_documento(doc.Title)
@@ -814,6 +828,10 @@ class Janela(forms.WPFWindow):
 
     def _executar(self, p):
         item_id = p["item"]["id"]
+        if not F.doc_ativo_ok(doc):
+            forms.alert(u"O modelo ativo mudou. Esta janela só age sobre \"{}\", o modelo ativo quando ela foi aberta: "
+                        u"volte para ele ou feche e abra a ferramenta de novo.".format(doc.Title), title=u"Composições")
+            return
         try:
             with revit.Transaction(u"Composições: {}".format(p["nome"])):
                 tipo, avisos = F.criar_tipo(doc, self.dados, p)

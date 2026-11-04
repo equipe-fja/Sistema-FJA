@@ -7132,7 +7132,12 @@ async function rvAplicarPedido(p){
   if(p.acao==='novo-item'){
     b=[...S.espb.values()].find(x=>x.pedido===p.id);
     if(!b){
-      const i=p.item||{}, sg=String(i.sigla||'').toUpperCase(), sx=siglaEt(sg);
+      const i=p.item||{}, sg=String(i.sigla||'').toUpperCase();
+      if(!siglaEt(sg)&&i.siglaNova&&/^[A-Z]{3}$/.test(sg)){ // sigla criada no Revit
+        const n=i.siglaNova, tp0=n.tipo==='elemento'?'elemento':'sistema';
+        await etsigColl().doc(sg).set({sigla:sg,nome:String(n.nome||'').trim()||sg,tipo:tp0,tabela:'Diversos',origens:[],...(tp0==='sistema'?{rvCat:n.rvCat||i.rvCat||'',papel:n.papel||i.papel||''}:{})});
+        S.etsig.set(sg,{sigla:sg,nome:String(n.nome||'').trim()||sg,tipo:tp0,tabela:'Diversos',origens:[],id:sg}); msgs.push(`sigla ${sg} criada`)}
+      const sx=siglaEt(sg);
       const tp=i.tipo==='elemento'?'elemento':'sistema';
       if(!sx||sx.tipo!==tp) throw new Error(`a sigla ${sg||'(vazia)'} não é de ${tp==='elemento'?'elemento/família':'composição'}`);
       const camadas=(i.camadas||[]).map(c=>({fn:fnPt(c.funcao),mat:c.material||'',esp:+c.esp||0}));
