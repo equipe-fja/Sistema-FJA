@@ -7381,6 +7381,10 @@ function telaBkp(h){
     ${s.erro?`<p style="color:var(--danger)">Última falha (${fmt(s.erro.em)}): ${esc(s.erro.msg||'')}</p>`:''}
     <div><button class="btn pri" data-act="bkp-agora"${BKP.rodando||S.ro||!mcp?' disabled':''}>${BKP.rodando?'Gravando backup…':'Fazer backup agora'}</button></div>
   </div></section>
+  ${AMB==='firebase'&&window.FJA_FIREBASE?.admin?.()?`<section class="sheet"><div class="sheet-h"><h2>Migração: arquivos do Claude</h2></div><div class="pad ferr-pad">
+    <p class="muted">Extrai o <span class="mono">SISTEMA-FJA_ARQUIVOS.zip</span> da pasta ARQUIVOS DO SISTEMA (gerado na versão do Claude). Arquivos que já estão lá são pulados.</p>
+    <div><button class="btn" data-act="mig-zip"${BKP.migrando?' disabled':''}>${BKP.migrando?esc(BKP.migrando):'Importar arquivos do .zip'}</button></div>
+  </div></section>`:''}
   ${AMB!=='firebase'?`<section class="sheet"><div class="sheet-h"><h2>Migração para o Firebase</h2></div><div class="pad ferr-pad">
     <p class="muted">Baixa num .zip todas as imagens e anexos guardados no Claude (capas, PEB, imagens, PDFs). Coloque o .zip em <span class="mono">SISTEMA FJA\\ARQUIVOS DO SISTEMA</span> no G: e avise: a cópia é extraída lá para a versão Firebase.</p>
     <div><button class="btn" data-act="mig-arqs"${BKP.migrando?' disabled':''}>${BKP.migrando?esc(BKP.migrando):'Baixar arquivos para a migração'}</button></div>
@@ -7407,6 +7411,9 @@ async function migBaixarArquivos(){
   catch(e){toast('Não foi possível salvar o .zip: '+(e?.message||e))}
   finally{BKP.migrando=null; bkpUI()}
 }
+document.addEventListener('click',async ev=>{const b=ev.target.closest?.('[data-act="mig-zip"]'); if(!b) return; ev.stopPropagation(); if(b.disabled||BKP.migrando||!window.FJA_GOOGLE) return;
+  try{BKP.migrando='Preparando…'; bkpUI(); const r=await FJA_GOOGLE.importarZip(t=>{BKP.migrando=t; bkpUI()}); toast(`${r.ok} arquivos importados, ${r.pul} já existiam${r.err?', '+r.err+' com erro':''}`)}
+  catch(e){toast('Não foi possível importar: '+(e?.message||e))} finally{BKP.migrando=null; bkpUI()}},true);
 document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="mig-arqs"]'); if(!b) return; ev.stopPropagation(); if(!b.disabled&&!BKP.migrando) migBaixarArquivos()},true);
 document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="bkp-agora"]'); if(!b) return; ev.stopPropagation(); if(!b.disabled) bkpExecutar(true)},true);
 /* ---------- Contas e acesso (só na versão Firebase) ----------

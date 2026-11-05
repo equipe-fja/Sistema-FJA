@@ -125,7 +125,32 @@
   function avisarSW(){}
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('sw',e));
 
-  window.FJA_GOOGLE={conectar:()=>pedir(''),conectado:valido,mcp:mcpApi,assets:assetsApi};
+  /* migração: extrai o SISTEMA-FJA_ARQUIVOS.zip (sem compressão) da pasta ARQUIVOS DO SISTEMA, um arquivo por id */
+  async function importarZip(prog){
+    const G=FERR['Google Drive'];
+    const z=(await G.search_files({query:`'${PASTA_ARQ}' in parents and name = 'SISTEMA-FJA_ARQUIVOS.zip' and trashed = false`,pageSize:5})).files[0];
+    if(!z) throw new Error('SISTEMA-FJA_ARQUIVOS.zip não está na pasta ARQUIVOS DO SISTEMA');
+    const ja=new Set(); let pt='';
+    do{const r=await G.search_files({query:`'${PASTA_ARQ}' in parents and trashed = false`,pageSize:1000,pageToken:pt||undefined}); r.files.forEach(f=>{ja.add(f.title);idsDrive.set(f.title,f.id)}); pt=r.nextPageToken||''}while(pt);
+    prog('Baixando o .zip…');
+    const buf=await (await api(D+'files/'+z.id+'?alt=media&'+TODOS)).arrayBuffer(), dv=new DataView(buf), dec=new TextDecoder();
+    let e=buf.byteLength-22; while(e>=0&&dv.getUint32(e,true)!==0x06054b50) e--; if(e<0) throw new Error('.zip inválido');
+    const n=dv.getUint16(e+10,true); let c=dv.getUint32(e+16,true); const L=[];
+    for(let i=0;i<n;i++){const met=dv.getUint16(c+10,true),tam=dv.getUint32(c+20,true),nl=dv.getUint16(c+28,true),xl=dv.getUint16(c+30,true),cl=dv.getUint16(c+32,true),off=dv.getUint32(c+42,true);
+      const nome=dec.decode(new Uint8Array(buf,c+46,nl)); L.push({nome,met,tam,off}); c+=46+nl+xl+cl}
+    let ok=0,pul=0,err=0;
+    for(let i=0;i<L.length;i++){const a=L[i], id=a.nome.split('/').pop();
+      if(!/^[0-9a-f]{32}$/.test(id)) continue; if(ja.has(id)){pul++;continue}
+      if(a.met!==0){err++;continue}
+      const h=a.off, ini=h+30+dv.getUint16(h+26,true)+dv.getUint16(h+28,true), b=new Uint8Array(buf,ini,a.tam);
+      const tipo=b[0]===0xFF&&b[1]===0xD8?'image/jpeg':b[0]===0x89&&b[1]===0x50?'image/png':b[0]===0x25&&b[1]===0x50?'application/pdf':'application/octet-stream';
+      prog(`Enviando ${i+1} de ${L.length}…`);
+      try{const fd=new FormData(); fd.append('metadata',new Blob([JSON.stringify({name:id,parents:[PASTA_ARQ]})],{type:'application/json'})); fd.append('file',new Blob([b],{type:tipo}));
+        const f=await (await api(U+'files?uploadType=multipart&'+TODOS+'&fields=id',{method:'POST',body:fd})).json(); idsDrive.set(id,f.id); ja.add(id); ok++}catch(x){console.warn('zip',id,x);err++}
+    }
+    return {ok,pul,err};
+  }
+  window.FJA_GOOGLE={importarZip,conectar:()=>pedir(''),conectado:valido,mcp:mcpApi,assets:assetsApi};
   window.FJA_FIREBASE?.pronto?.then(()=>{if(!valido()) barra(true)});
 })();
 </script>
