@@ -41,11 +41,13 @@ service cloud.firestore {
     // RFI: a equipe faz tudo. Convidado só vê RFIs de projetos de que participa (rfi.participantes, copiado do projeto),
     // comenta em qualquer uma e responde (respostas/status) só às dirigidas a ele ou à empresa dele.
     function participa() { return ativo() && request.auth.uid in resource.data.get('participantes', []); }
+    function minhaEmpresa() { return get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.get('empresa', '-'); }
     function dirigida() {
-      return resource.data.get('requerido', null) != null && (
-        (resource.data.requerido.get('tipo', '') == 'u' && resource.data.requerido.get('id', '') == request.auth.uid)
-        || (resource.data.requerido.get('tipo', '') == 'e'
-            && resource.data.requerido.get('id', '') == get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.get('empresa', '-')));
+      return ('u:' + request.auth.uid) in resource.data.get('requeridosIds', [])
+        || ('e:' + minhaEmpresa()) in resource.data.get('requeridosIds', [])
+        || (resource.data.get('requerido', null) != null && (   // RFIs antigas, com um só requerido
+          (resource.data.requerido.get('tipo', '') == 'u' && resource.data.requerido.get('id', '') == request.auth.uid)
+          || (resource.data.requerido.get('tipo', '') == 'e' && resource.data.requerido.get('id', '') == minhaEmpresa())));
     }
     function muda(chaves) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(chaves); }
     match /rfi/{id} {
