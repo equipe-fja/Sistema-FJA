@@ -912,6 +912,7 @@ body.cro-arr,body.cro-arr *{cursor:grabbing!important}
 .cro-dr-h{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);font-size:15px}
 .cro-dr-b{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
 .cro-dr-f{display:flex;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.chip .chip-nome,.chip-nome{width:auto;height:auto;border-radius:0;display:inline;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.chip .chip-nome:hover{background:none;color:var(--accent)}.eqp-menu .ml-b.eqp-novo{flex-direction:row;align-items:center;gap:6px;border-top:1px solid var(--line);width:100%}.eqp-menu{width:320px;max-width:calc(100vw - 16px)}.eqp-ml{max-height:320px;overflow:auto}.eqp-menu .ml-b{flex-direction:column;align-items:flex-start;gap:0}
 .eqp-lista{display:flex;flex-direction:column;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:6px}.eqp-lista .ml-b{justify-content:flex-start;text-align:left;gap:6px}
 .cro-dr .fl{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
 .cro-dr .fld{padding:6px 8px;font-size:13px;min-width:0}
@@ -2544,7 +2545,7 @@ document.addEventListener('contextmenu',ev=>{
 });
 document.addEventListener('click',ev=>{const m=$('menuLinha');if(m&&!m.contains(ev.target))fecharMenuLinha()},true);
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&$('menuLinha')){fecharMenuLinha();ev.stopPropagation()}},true);
-document.addEventListener('scroll',()=>fecharMenuLinha(),true);
+document.addEventListener('scroll',ev=>{const m=$('menuLinha'); if(m&&ev.target instanceof Node&&m.contains(ev.target)) return; fecharMenuLinha()},true);
 async function salvarCm(){
   const e=S.qdraft; if(!e) return true;
   const body={...e}; delete body.id;
@@ -3860,12 +3861,12 @@ function blocoEquipeProj(it){
   const fb=AMB==='firebase'; if(fb) acsOuvir();
   const ro=S.ro, adm=!ro&&(!fb||FB()?.admin()), L=ACS.lista||[], ps=partsDe(it), emps=empresasProj(it);
   const discsDe=eid=>(it.disciplinas||[]).filter(l=>l.parceiro===eid||(l.apoio||[]).includes(eid)).map(l=>l.sigla||l.cod);
-  const chip=u=>`<span class="chip chip-c" title="${esc(u.email||'')}"><span>${esc(u.nome||u.email)}</span><span class="muted" style="font-size:12px">${esc(acsNivelTxt(u.nivel))}${ehPh(u)?' · sem acesso':u.ultimoAcesso?'':' · aguardando 1º acesso'}</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(u.id)}" aria-label="Tirar ${esc(u.nome||'')} do projeto">${IC.x}</button>`:''}</span>`;
-  const addSel=(lista,rot,eid)=>adm?`<button class="btn sm ghost" data-act="eqp-abrir" data-tipo="pessoa" data-id="${esc(it.id)}" data-e="${esc(eid||'')}">${IC.plus}${esc(rot)}</button>`:'';
+  const chip=u=>`<span class="chip chip-c" title="${esc(u.email||'')}"><button class="chip-nome" data-act="eqp-ver" data-u="${esc(u.id)}" title="Ver dados">${esc(u.nome||u.email)}</button><span class="muted" style="font-size:12px">${esc(acsNivelTxt(u.nivel))}${ehPh(u)?' · sem acesso':u.ultimoAcesso?'':' · aguardando 1º acesso'}</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(u.id)}" aria-label="Tirar ${esc(u.nome||'')} do projeto">${IC.x}</button>`:''}</span>`;
+  const addSel=(lista,rot,eid)=>adm?`<button class="btn sm ghost" data-act="eqp-menu" data-tipo="pessoa" data-id="${esc(it.id)}" data-e="${esc(eid||'')}">${IC.plus}${esc(rot)}</button>`:'';
   const ordN=(a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt');
   let h=`<section class="sheet"><div class="sheet-h"><h2>Equipe do projeto</h2><span class="hint">${emps.length} empresa${emps.length===1?'':'s'}${fb?` · ${ps.length} pessoa${ps.length===1?'':'s'}`:''}</span>
     ${fb?'<span class="muted" style="font-size:12px;margin-left:8px">Convidados só veem os projetos em que estão aqui (apenas a RFI).</span>':''}<span class="sp"></span>
-    ${adm?`<button class="btn sm" data-act="eqp-abrir" data-tipo="empresa" data-id="${esc(it.id)}">${IC.plus}Adicionar empresa</button>`:''}</div>`;
+    ${adm?`<button class="btn sm" data-act="eqp-menu" data-tipo="empresa" data-id="${esc(it.id)}">${IC.plus}Adicionar empresa</button>`:''}</div>`;
   h+=`<div class="tablewrap"><table class="list"><thead><tr><th style="width:26%">Empresa</th><th style="width:18%">Disciplinas</th><th>${fb?'Pessoas no projeto':''}</th>${adm?'<th style="width:40px"></th>':''}</tr></thead><tbody>`;
   for(const eid of emps){const p=S.itens.get(eid), ds=discsDe(eid), noProj=L.filter(u=>u.empresa===eid&&ps.includes(u.id)).sort(ordN), fora=L.filter(u=>u.empresa===eid&&!ps.includes(u.id)).sort(ordN);
     const extra=(it.empresasExtra||[]).includes(eid), podeTirar=extra&&!ds.length&&!noProj.length;
@@ -3884,56 +3885,85 @@ async function empresasExtraGravar(pid,lista){
   const it=S.itens.get(pid); if(!it) return;
   try{await coll().doc(pid).update({empresasExtra:lista}); it.empresasExtra=lista; if(S.draft?.id===pid) S.draft.empresasExtra=lista; renderMain()}catch(e){toast('Não foi possível alterar: '+(e?.message||e))}
 }
-/* ficha lateral da equipe: escolher uma empresa/pessoa já cadastrada ou cadastrar uma nova */
-const EQP={dr:null};
+/* equipe: seleção direta numa lista (menu com busca); a ficha lateral só abre para cadastrar algo novo
+   ou para ver/editar os dados de uma pessoa (clique no nome) */
+const EQP={dr:null,menu:null};
 function eqpFechar(){EQP.dr=null; $('eqpDr')?.remove(); document.body.classList.remove('cro-dr-on')}
+function eqpCandidatos(m){const it=S.itens.get(m.pid); if(!it) return [];
+  const q=semAc(String(m.q||'')).toLowerCase(), casa=t=>!q||semAc(String(t||'')).toLowerCase().includes(q);
+  if(m.tipo==='empresa'){const ja=empresasProj(it); return parceiros().filter(p=>!ja.includes(p.id)&&casa(p.nome)).sort(ordena).map(p=>({act:'eqp-emp',v:p.id,t:p.nome,sub:[p.campos?.papel,discsParc(p).join(' ')].filter(Boolean).join(' · ')}))}
+  const ps=partsDe(it); return (ACS.lista||[]).filter(u=>!ps.includes(u.id)&&(m.e?u.empresa===m.e:!u.empresa||!S.itens.get(u.empresa))&&casa((u.nome||'')+' '+u.email))
+    .sort((a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt')).map(u=>({act:'eqp-pes',v:u.id,t:u.nome||u.email,sub:[u.email||'sem acesso',acsNivelTxt(u.nivel)].join(' · ')}))}
+function eqpMenu(btn){
+  fecharMenuLinha(); const m=EQP.menu;
+  const p=document.createElement('div'); p.id='menuLinha'; p.className='menu-linha eqp-menu'; p.setAttribute('role','menu');
+  const lista=()=>{const L=eqpCandidatos(m); return (L.map(x=>`<button class="ml-b" role="menuitem" data-act="${x.act}" data-v="${esc(x.v)}"><b>${esc(x.t)}</b><span class="muted" style="font-size:12px">${esc(x.sub)}</span></button>`).join('')||`<div class="muted" style="padding:8px 12px;font-size:12.5px">${m.q?'Nada encontrado.':m.tipo==='empresa'?'Todas as empresas já estão no projeto.':'Ninguém disponível.'}</div>`)
+    +`<button class="ml-b eqp-novo" role="menuitem" data-act="eqp-novo">${IC.plus}${m.tipo==='empresa'?'Cadastrar nova empresa…':'Nova pessoa…'}</button>`};
+  p.innerHTML=`<div class="ml-h"><input class="fld" id="eqpBusca" type="search" placeholder="Buscar…" aria-label="Buscar" style="width:100%"></div><div class="eqp-ml">${lista()}</div>`;
+  document.body.appendChild(p);
+  const r=btn.getBoundingClientRect(); p.style.left=Math.max(8,Math.min(r.left,innerWidth-p.offsetWidth-8))+'px'; p.style.top=(r.bottom+4+p.offsetHeight>innerHeight?Math.max(8,r.top-p.offsetHeight-4):r.bottom+4)+'px';
+  const b=p.querySelector('#eqpBusca'); b.oninput=()=>{m.q=b.value; p.querySelector('.eqp-ml').innerHTML=lista()}; setTimeout(()=>b.focus(),20);
+}
 function eqpRender(){
   const dr=EQP.dr; if(!dr){eqpFechar();return}
   let d=$('eqpDr'); if(!d){d=document.createElement('aside');d.id='eqpDr';d.className='cro-dr';document.body.appendChild(d)}
   document.body.classList.add('cro-dr-on');
-  const it=S.itens.get(dr.pid); if(!it){eqpFechar();return}
-  const q=semAc(String(dr.q||'')).toLowerCase(), casa=t=>!q||semAc(String(t||'')).toLowerCase().includes(q);
-  const busca=`<input class="fld" id="eqpBusca" type="search" placeholder="Buscar…" value="${esc(dr.q||'')}" aria-label="Buscar">`;
-  let corpo='', tit='';
+  const adm=FB()?.admin()&&!S.ro; let corpo='', tit='', pe='';
   if(dr.tipo==='empresa'){
-    tit='Adicionar empresa ao projeto';
-    const ja=empresasProj(it), L=parceiros().filter(p=>!ja.includes(p.id)&&casa(p.nome)).sort(ordena);
-    corpo=`<div class="fl">Empresas cadastradas${busca}</div><div class="eqp-lista">${L.map(p=>`<button class="ml-b" data-act="eqp-emp" data-e="${esc(p.id)}"><b>${esc(p.nome)}</b> <span class="muted">${esc([p.campos?.papel,discsParc(p).join(' ')].filter(Boolean).join(' · '))}</span></button>`).join('')||'<p class="muted">Nenhuma empresa encontrada.</p>'}</div>
-      <h3 style="margin:14px 0 4px;font-size:14px">Ou cadastre uma nova</h3>
-      <label class="fl">Nome *<input class="fld" id="eqpNome"></label>
+    tit='Nova empresa';
+    corpo=`<label class="fl">Nome *<input class="fld" id="eqpNome"></label>
       <label class="fl">Papel<select class="fld" id="eqpPapel"><option value="">—</option>${['Projetista','Consultor','Arquitetura autora','Cliente','Órgão / concessionária','Interno (FJA)'].map(o=>`<option>${o}</option>`).join('')}</select></label>
       <label class="fl">Contato principal<input class="fld" id="eqpContato"></label>
       <label class="fl">E-mail<input class="fld" id="eqpEmail" type="email"></label>
       <label class="fl">Telefone / WhatsApp<input class="fld" id="eqpTel"></label>
       <label class="fl">CNPJ / CPF<input class="fld" id="eqpCnpj"></label>`;
-  } else {
-    const emp=dr.e?S.itens.get(dr.e):null; tit=`Adicionar pessoa${emp?' · '+emp.nome:' · sem empresa'}`;
-    const ps=partsDe(it), L=(ACS.lista||[]).filter(u=>!ps.includes(u.id)&&(dr.e?u.empresa===dr.e:!u.empresa||!S.itens.get(u.empresa))&&casa((u.nome||'')+' '+u.email)).sort((a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt'));
-    corpo=`<div class="fl">Pessoas com conta${emp?' nesta empresa':' sem empresa'}${busca}</div><div class="eqp-lista">${L.map(u=>`<button class="ml-b" data-act="eqp-pes" data-u="${esc(u.id)}"><b>${esc(u.nome||u.email)}</b> <span class="muted">${esc(u.email)} · ${acsNivelTxt(u.nivel)}</span></button>`).join('')||'<p class="muted">Ninguém disponível.</p>'}</div>
-      <h3 style="margin:14px 0 4px;font-size:14px">Ou cadastre uma pessoa nova</h3>
-      <label class="fl">Nome *<input class="fld" id="eqpNome"></label>
-      <label class="fl">E-mail <span style="font-size:11px">(vazio = pessoa sem acesso; o e-mail e o acesso podem vir depois, em Usuários e acesso)</span><input class="fld" id="eqpEmail" type="email"></label>
+    pe=`<button class="btn pri" data-act="eqp-criar">Cadastrar${dr.pid?' e adicionar':''}</button>`;
+  } else if(dr.tipo==='pessoa'){
+    tit='Nova pessoa';
+    corpo=`<label class="fl">Nome *<input class="fld" id="eqpNome"></label>
+      <label class="fl">E-mail <span style="font-size:11px">(vazio = sem acesso; o e-mail e o acesso podem vir depois)</span><input class="fld" id="eqpEmail" type="email"></label>
       <label class="fl">Empresa<select class="fld" id="eqpEmp">${acsEmpOpcoes(dr.e||'')}</select></label>
       <label class="fl">Nível<select class="fld" id="eqpNivel"><option value="usuario">Convidado</option><option value="admin">Administrador</option></select></label>
-      <label class="fl">Senha provisória<input class="fld mono" id="eqpSenha" value="${esc(dr.senha||=FB().senhaProvisoria())}"></label>
+      <label class="fl">Senha provisória <span style="font-size:11px">(só se tiver e-mail)</span><input class="fld mono" id="eqpSenha" value="${esc(dr.senha||=FB().senhaProvisoria())}"></label>
       ${dr.criada?`<div class="banner pub"><span class="sp">Conta criada: <b>${esc(dr.criada.email)}</b> · senha <b class="mono">${esc(dr.criada.senha)}</b></span><button class="btn sm" data-act="eqp-copiar">Copiar mensagem</button></div>`:''}`;
+    pe=`<button class="btn pri" data-act="eqp-criar">Cadastrar${dr.pid?' e adicionar':''}</button>`;
+  } else { // ver pessoa
+    const u=(ACS.lista||[]).find(x=>x.id===dr.u); if(!u){eqpFechar();return}
+    tit=u.nome||u.email;
+    const projs=itensDe('projetos').filter(p=>partsDe(p).includes(u.id)).sort(ordena), rf=[...S.rfis.values()].filter(r=>[r.requerente,r.requerido].some(x=>x?.tipo==='u'&&x.id===u.id));
+    const sit=ehPh(u)?'Sem acesso':u.ultimoAcesso?'Ativo · último acesso '+new Date(u.ultimoAcesso).toLocaleDateString('pt-BR'):'Aguardando 1º acesso'+(u.linkSenhaEm?' · link enviado '+acsFmtDH(u.linkSenhaEm):'');
+    const ro=!adm||u.nivel==='master'?'disabled':'';
+    corpo=`<label class="fl">Nome<input class="fld" id="eqpNome" value="${esc(u.nome||'')}" ${adm?'':'disabled'}></label>
+      <label class="fl">E-mail<input class="fld mono" value="${esc(u.email||'')}" disabled placeholder="sem e-mail"></label>
+      <label class="fl">Empresa<select class="fld" id="eqpEmp" ${adm?'':'disabled'}>${acsEmpOpcoes(u.empresa||'')}</select></label>
+      <label class="fl">Nível${u.nivel==='master'?`<input class="fld" value="Master" disabled>`:`<select class="fld" id="eqpNivel" ${ro}><option value="usuario"${u.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${u.nivel==='admin'?' selected':''}>Administrador</option></select>`}</label>
+      <div class="fl">Situação<span style="color:var(--ink);font-size:13.5px">${esc(sit)}</span></div>
+      <div class="fl">Projetos (${projs.length})<span style="color:var(--ink);font-size:13.5px">${projs.map(p=>esc((p.campos?.codigo?p.campos.codigo+' ':'')+p.nome)).join('<br>')||'nenhum'}</span></div>
+      <div class="fl">RFIs como requerente ou requerido<span style="color:var(--ink);font-size:13.5px">${rf.length}</span></div>
+      ${adm?`<p class="muted" style="font-size:12px">E-mail, acesso e senha: em <button class="dc-lk" data-act="manut" data-f="acesso">Usuários e acesso</button>.</p>`:''}`;
+    pe=adm?`<button class="btn pri" data-act="eqp-salvar">Salvar</button>`:'';
   }
   d.innerHTML=`<div class="cro-dr-h"><b>${esc(tit)}</b><button class="icb" data-act="eqp-fechar" aria-label="Fechar">${IC.x}</button></div><div class="cro-dr-b">${corpo}</div>
-    <div class="cro-dr-f"><span class="sp"></span><button class="btn ghost" data-act="eqp-fechar">Fechar</button><button class="btn pri" data-act="eqp-criar">${dr.tipo==='empresa'?'Cadastrar e adicionar':'Cadastrar e adicionar'}</button></div>`;
-  const b=$('eqpBusca'); if(b&&dr.focoBusca){b.focus(); b.setSelectionRange(b.value.length,b.value.length)}
+    <div class="cro-dr-f"><span class="sp"></span><button class="btn ghost" data-act="eqp-fechar">Fechar</button>${pe}</div>`;
+  setTimeout(()=>{if(dr.tipo!=='ver') $('eqpNome')?.focus()},30);
 }
-document.addEventListener('input',ev=>{if(ev.target.id==='eqpBusca'&&EQP.dr){EQP.dr.q=ev.target.value; EQP.dr.focoBusca=true; eqpRender()}},true);
 document.addEventListener('change',async ev=>{if(ev.target.id==='eqpEmp'&&ev.target.value===ACS_NOVO){const id=await acsNovoParceiro(); ev.target.innerHTML=acsEmpOpcoes(id||'')}},true);
 document.addEventListener('click',async ev=>{
   const b=ev.target.closest?.('[data-act^="eqp-"]'); if(!b) return; ev.stopPropagation(); ev.preventDefault();
-  const a=b.dataset.act, dr=EQP.dr;
-  if(a==='eqp-abrir'){EQP.dr={tipo:b.dataset.tipo,pid:b.dataset.id,e:b.dataset.e||'',q:''}; eqpRender(); return}
+  const a=b.dataset.act, v=id=>String($(id)?.value||'').trim();
+  if(a==='eqp-menu'){EQP.menu={tipo:b.dataset.tipo,pid:b.dataset.id,e:b.dataset.e||'',q:''}; eqpMenu(b); return}
   if(a==='eqp-fechar'){eqpFechar(); return}
-  if(!dr) return; const it=S.itens.get(dr.pid); if(!it) return;
-  const v=id=>String($(id)?.value||'').trim();
-  if(a==='eqp-emp'){await empresasExtraGravar(it.id,[...(it.empresasExtra||[]),b.dataset.e]); toast('Empresa adicionada ao projeto'); eqpFechar(); return}
-  if(a==='eqp-pes'){await partsGravar(it.id,[...partsDe(it),b.dataset.u]); toast('Pessoa adicionada ao projeto'); eqpRender(); return}
+  if(a==='eqp-ver'){fecharMenuLinha(); EQP.dr={tipo:'ver',u:b.dataset.u}; eqpRender(); return}
+  const m=EQP.menu;
+  if(a==='eqp-novo'&&m){fecharMenuLinha(); EQP.dr={tipo:m.tipo,pid:m.pid,e:m.e}; eqpRender(); return}
+  if(a==='eqp-emp'&&m){fecharMenuLinha(); const it=S.itens.get(m.pid); if(it){await empresasExtraGravar(it.id,[...(it.empresasExtra||[]),b.dataset.v]); toast('Empresa adicionada ao projeto')} return}
+  if(a==='eqp-pes'&&m){fecharMenuLinha(); const it=S.itens.get(m.pid); if(it){await partsGravar(it.id,[...partsDe(it),b.dataset.v]); toast('Pessoa adicionada ao projeto')} return}
+  const dr=EQP.dr; if(!dr) return;
   if(a==='eqp-copiar'){try{await navigator.clipboard.writeText(acsMsgConvite(dr.criada)); toast('Mensagem copiada')}catch{} return}
+  if(a==='eqp-salvar'){const u=(ACS.lista||[]).find(x=>x.id===dr.u); if(!u) return;
+    const upd={nome:v('eqpNome')||u.nome, empresa:v('eqpEmp').replace(ACS_NOVO,'')}; if(u.nivel!=='master'&&$('eqpNivel')) upd.nivel=v('eqpNivel')==='admin'?'admin':'usuario';
+    try{await db.collection('acessos').doc(u.id).update(upd); toast('Dados salvos'); eqpFechar()}catch(e){toast('Não foi possível salvar: '+(e?.message||e))} return}
+  const it=dr.pid?S.itens.get(dr.pid):null;
   if(a==='eqp-criar'&&dr.tipo==='empresa'){
     const nome=v('eqpNome'); if(!nome){toast('Informe o nome da empresa');$('eqpNome')?.focus();return}
     const ex=parceiros().find(p=>(p.nome||'').trim().toLowerCase()===nome.toLowerCase());
@@ -3941,22 +3971,22 @@ document.addEventListener('click',async ev=>{
     if(!eid){const campos={natureza:'Empresa'}; for(const [k,id] of [['papel','eqpPapel'],['contato','eqpContato'],['email','eqpEmail'],['telefone','eqpTel'],['cnpj','eqpCnpj']]) if(v(id)) campos[k]=v(id);
       const ref=coll().doc(), body={secao:'parceiros',nome,pasta:'',status:STATUS.parceiros[0],campos,criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me,atualizadoPor:me}:{})};
       try{await ref.set(body); S.itens.set(ref.id,{...body,id:ref.id}); eid=ref.id}catch(e){toast('Não foi possível cadastrar: '+(e?.message||e));return}}
-    await empresasExtraGravar(it.id,[...(it.empresasExtra||[]),eid]); toast(ex?'Já existia: '+ex.nome+' adicionada ao projeto':'Empresa cadastrada e adicionada'); eqpFechar(); return}
+    if(it) await empresasExtraGravar(it.id,[...(it.empresasExtra||[]),eid]); toast(ex?'Já existia: '+ex.nome+(it?' (adicionada ao projeto)':''):'Empresa cadastrada'); eqpFechar(); return}
   if(a==='eqp-criar'){
-    const fb=FB(); if(!fb?.admin()){toast('Somente administradores criam contas');return}
+    const fb=FB(); if(!fb?.admin()){toast('Somente administradores cadastram pessoas');return}
     const nome=v('eqpNome'), em=v('eqpEmail').toLowerCase(), empresa=v('eqpEmp').replace(ACS_NOVO,''), nivel=v('eqpNivel')==='admin'?'admin':'usuario', senha=v('eqpSenha');
     if(!nome){toast('Informe o nome');return}
-    if(!em){const id=await acsCriarPlaceholder({nome,nivel,empresa}); if(id){await partsGravar(it.id,[...partsDe(it),id]); eqpRender()} return}
+    if(!em){const id=await acsCriarPlaceholder({nome,nivel,empresa}); if(id){if(it) await partsGravar(it.id,[...partsDe(it),id]); eqpFechar()} return}
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
     if(senha.length<8){toast('A senha provisória precisa ter pelo menos 8 caracteres');return}
-    const ja=(ACS.lista||[]).find(x=>x.email===em); if(ja){await partsGravar(it.id,[...new Set([...partsDe(it),ja.id])]); toast(em+' já tinha conta: adicionada ao projeto'); eqpRender(); return}
+    const ja=(ACS.lista||[]).find(x=>x.email===em); if(ja){if(it) await partsGravar(it.id,[...new Set([...partsDe(it),ja.id])]); toast(em+' já tinha cadastro'+(it?': adicionada ao projeto':'')); eqpFechar(); return}
     b.disabled=true;
     try{const uid=await fb.criarConta(em,senha);
       await db.collection('acessos').doc(uid).set({email:em,nome,nivel,empresa,trocarSenha:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
       try{await fb.fs.collection('senhasProvisorias').doc(uid).set({email:em,senha,em:Date.now()})}catch{}
-      await partsGravar(it.id,[...partsDe(it),uid]);
-      dr.criada={email:em,nome,senha}; dr.senha=null; toast('Conta criada e adicionada ao projeto'); eqpRender()}
-    catch(e){b.disabled=false; toast(e?.code==='auth/email-already-in-use'?'Esse e-mail já tem conta antiga: libere em Usuários e acesso e depois adicione aqui':'Não foi possível criar: '+fb.mensagemErro(e))}
+      if(it) await partsGravar(it.id,[...partsDe(it),uid]);
+      dr.criada={email:em,nome,senha}; dr.senha=null; toast('Conta criada'+(it?' e adicionada ao projeto':'')); eqpRender()}
+    catch(e){b.disabled=false; toast(e?.code==='auth/email-already-in-use'?'Esse e-mail já tem conta antiga: libere em Usuários e acesso':'Não foi possível criar: '+fb.mensagemErro(e))}
   }
 },true);
 document.addEventListener('change',async ev=>{const s=ev.target.closest?.('select[data-act="emp-add"]'); if(!s||!s.value) return;
