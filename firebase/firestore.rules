@@ -10,15 +10,26 @@ service cloud.firestore {
 
     match /acessos/{uid} {
       allow read: if ativo();
-      allow create, delete: if admin();
+      allow delete: if admin();
+      // admin cria; ou a própria pessoa, a partir de uma liberação em acessosPendentes/<email> (conta que já existia)
+      allow create: if admin()
+        || (logado() && request.auth.uid == uid
+            && exists(/databases/$(database)/documents/acessosPendentes/$(request.auth.token.email.lower()))
+            && request.resource.data.nivel == get(/databases/$(database)/documents/acessosPendentes/$(request.auth.token.email.lower())).data.nivel
+            && request.resource.data.email == request.auth.token.email.lower());
       allow update: if admin()
         || (logado() && request.auth.uid == uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trocarSenha', 'ultimoAcesso', 'nome'])
             && request.resource.data.get('trocarSenha', false) == false);
     }
+    match /acessosPendentes/{em} {
+      allow read: if admin() || (logado() && em == request.auth.token.email.lower());
+      allow create, update: if admin();
+      allow delete: if admin() || (logado() && em == request.auth.token.email.lower());
+    }
     // demais coleções (o curinga também casaria com acessos, por isso a exclusão explícita)
     match /{colecao}/{resto=**} {
-      allow read, write: if ativo() && colecao != 'acessos';
+      allow read, write: if ativo() && colecao != 'acessos' && colecao != 'acessosPendentes';
     }
   }
 }

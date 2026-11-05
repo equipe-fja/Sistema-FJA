@@ -7451,7 +7451,12 @@ document.addEventListener('click',async ev=>{
       ACS.criada={email:em,nome,senha}; ACS.senha=null; renderMain();
     }catch(e){
       b.disabled=false;
-      toast(e?.code==='auth/email-already-in-use'?'Já existe uma conta com este e-mail no Firebase (de um acesso anterior). Peça ao suporte para reativá-la.':'Não foi possível criar: '+fb.mensagemErro(e));
+      if(e?.code==='auth/email-already-in-use'){
+        // conta antiga (ex.: login por link): fica liberada e é vinculada no próximo login da pessoa
+        try{await db.collection('acessosPendentes').doc(em).set({email:em,nome,nivel,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+          toast('Este e-mail já tinha conta: acesso liberado. A pessoa entra com a senha atual dela ou usa "Esqueci a senha".')}
+        catch(x){toast('Não foi possível liberar: '+x.message)}
+      } else toast('Não foi possível criar: '+fb.mensagemErro(e));
     }
   } else if(a==='acs-copiar'){
     const t=acsMsgConvite(ACS.criada||{}); try{await navigator.clipboard.writeText(t); toast('Mensagem copiada')}catch{toast(t)}
