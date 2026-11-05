@@ -1,7 +1,7 @@
 tarefa: publicar
-status: failure
-commit: 93803463f12449c457b4762ccd8cdce00576857e
-quando: 2026-11-05T15:12:00Z
+status: success
+commit: e3bb30d45fecb0077e246ea04c2520dfbc7506c5
+quando: 2026-11-05T15:34:13Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja'...[22m
@@ -26,5 +26,10 @@ quando: 2026-11-05T15:12:00Z
 
 [36m[1mi [22m[39m deploying [1mfirestore[22m
 [36m[1mi  cloud.firestore:[22m[39m checking [1mfirebase/firestore.rules[22m for compilation errors...
+[32m[1m✔  cloud.firestore:[22m[39m rules file [1mfirebase/firestore.rules[22m compiled successfully
+[36m[1mi  firestore:[22m[39m uploading rules [1mfirebase/firestore.rules[22m...
+[32m[1m✔  firestore:[22m[39m released rules [1mfirebase/firestore.rules[22m to [1mcloud.firestore[22m
 
-[1m[31mError:[39m[22m Request to https://firebaserules.googleapis.com/v1/projects/sistema-fja:test had HTTP Error: 403, The caller does not have permission
+[32m[1m✔ [22m[39m [1m[4mDeploy complete![24m[22m
+
+[1mProject Console:[22m https://console.firebase.google.com/project/sistema-fja/overview
