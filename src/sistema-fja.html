@@ -971,7 +971,8 @@ if(AMB==='dev'){document.documentElement.classList.add('amb-dev');document.title
 /* versões Firebase: a homologação se comporta como dev em tudo que grava fora do banco (Revit, espelhos);
    rotinas automáticas (Revit, espelhos, backup) só rodam na oficial Firebase depois da virada (FJA_FB_VIRADA) */
 const AMB_DEV=AMB==='dev'||!!window.FJA_FB_HOMOLOG;
-const AUTO_OK=AMB!=='firebase'||(!!window.FJA_FB_VIRADA&&!window.FJA_FB_HOMOLOG);
+const MIGRADO_PARA='https://sistema-fja.web.app';   // oficial do Claude: só leitura, aponta para a versão Firebase
+const AUTO_OK=AMB==='firebase'?(!!window.FJA_FB_VIRADA&&!window.FJA_FB_HOMOLOG):!(AMB==='oficial'&&MIGRADO_PARA);
 const IC = {
   manut:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   ferr:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.3 5.3L4 17l3 3 5.4-5.4a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.3-.7-.7-2.3z"/></svg>',
@@ -7370,7 +7371,7 @@ async function bkpExecutar(manual){
 }
 function bkpUI(){if(S.view?.f==='bkp'&&!S.dirty) renderMain()}
 function telaBkp(h){
-  const s=BKP.st||{}, auto=AMB==='oficial'||(AMB==='firebase'&&AUTO_OK), fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+  const s=BKP.st||{}, auto=AMB!=='dev'&&AUTO_OK, fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
   const cont=s.contagem?Object.entries(s.contagem).map(([k,n])=>`${esc(BKP_ROT[k]||k)}: <b>${n}</b>`).join(' · '):'';
   h+=`<div class="page"><div class="crumb"><button data-act="manut">Manutenção</button><span>/</span><span>Backup do sistema</span></div>
   <h1>Backup do sistema</h1><p class="lead">Cópia completa do banco de dados (todos os projetos, módulos, catálogos e configurações) gravada na pasta BACKUP do Drive: uma pasta por backup, com um arquivo .json por coleção (dividido em partes) e um índice.</p>
@@ -7546,7 +7547,7 @@ document.addEventListener('change',async ev=>{
     if(S.publico){clearInterval(t);return}
     if(!S.carregado||!db) return; clearInterval(t);
     Promise.resolve(db).then(rdb=>rdb.doc('config/backup').onSnapshot(s=>{BKP.st=s.exists?s.data():null; bkpUI()},()=>{})).catch(()=>{});
-    if(AMB==='oficial'||(AMB==='firebase'&&AUTO_OK)){setTimeout(()=>bkpExecutar(false),45e3); setInterval(()=>bkpExecutar(false),30*60e3)}
+    if(AMB!=='dev'&&AUTO_OK){setTimeout(()=>bkpExecutar(false),45e3); setInterval(()=>bkpExecutar(false),30*60e3)}
   },1000);
 })();
 
@@ -7646,6 +7647,9 @@ async function modoPublico(){
   try{mcp=await claude.use('mcp')}catch{mcp=null}
   try{downloads=await claude.use('downloads')}catch{downloads=null}
   if(user){try{me=await user.id()}catch{} try{const w=await user.can('data.write'); if(w===false) S.ro=true}catch{}}
+  /* virada para o Firebase (05/11/2026): a oficial do Claude fica só para consulta */
+  if(AMB==='oficial'&&MIGRADO_PARA){S.ro=true; const d=document.createElement('div'); d.style.cssText='position:sticky;top:0;z-index:999;background:#8E1B1B;color:#fff;padding:10px 16px;font-size:14px;text-align:center';
+    d.innerHTML=`O Sistema FJA mudou de endereço. Esta versão é <b>somente leitura</b>. Use <a href="${MIGRADO_PARA}" target="_blank" rel="noopener" style="color:#fff;font-weight:700">${MIGRADO_PARA.replace('https://','')}</a>`; document.body.prepend(d)}
   setConn(S.ro?'Somente leitura':'Conectado','on');
   db.doc('config/espelhos').onSnapshot(snap=>{
     const v=snap.exists?snap.data():{}; S.espSec={disciplinas:v?.disciplinas||null,parceiros:v?.parceiros||null};
