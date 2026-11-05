@@ -82,7 +82,7 @@
     if(falha){await auth.signOut();entrar('Não foi possível conferir o acesso ('+msgErro(falha)+'). Tente de novo.',true);return}
     if(!g.exists){   // conta antiga liberada por um admin: vincula agora
       try{const em=u.email.toLowerCase(), pd=await fs.collection('acessosPendentes').doc(em).get();
-        if(pd.exists){const v=pd.data(); await fs.collection('acessos').doc(u.uid).set({email:em,nome:v.nome||'',nivel:v.nivel==='admin'?'admin':'usuario',trocarSenha:false,criadoPor:v.criadoPor||'',em:v.em||Date.now()});
+        if(pd.exists){const v=pd.data(); await fs.collection('acessos').doc(u.uid).set({email:em,nome:v.nome||'',nivel:v.nivel==='admin'?'admin':'usuario',empresa:v.empresa||'',trocarSenha:false,criadoPor:v.criadoPor||'',em:v.em||Date.now()});
           await fs.collection('acessosPendentes').doc(em).delete(); g=await fs.collection('acessos').doc(u.uid).get()}}catch(x){console.warn('pendente',x)}
     }
     if(!g.exists){await auth.signOut();entrar('A conta '+u.email+' não tem acesso ao sistema. Fale com um administrador.',true);return}

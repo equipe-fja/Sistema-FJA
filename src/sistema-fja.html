@@ -7392,13 +7392,27 @@ function acsOuvir(){
   db.collection('acessos').onSnapshot(snap=>{ACS.lista=snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>(a.nome||a.email||'').localeCompare(b.nome||b.email||'','pt')); ACS.erro=null; if(S.view?.f==='acesso'&&!S.dirty) renderMain()},
     e=>{ACS.lista=[];ACS.erro=e.message; if(S.view?.f==='acesso') renderMain()});
 }
+const ACS_NOVO='__novo__';
+const acsEmpNome=id=>id?(S.itens.get(id)?.nome||'(parceiro removido)'):'';
+function acsEmpOpcoes(sel){
+  const L=parceiros().slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','pt'));
+  return `<option value="">— sem empresa —</option>${L.map(p=>`<option value="${esc(p.id)}"${p.id===sel?' selected':''}>${esc(p.nome||'')}${p.status&&p.status!=='Ativo'?' ('+esc(p.status)+')':''}</option>`).join('')}<option value="${ACS_NOVO}">+ Cadastrar novo parceiro…</option>`;
+}
+/* cria um parceiro (Biblioteca › Parceiros/Projetistas) só com o nome; o resto se completa na ficha dele */
+async function acsNovoParceiro(){
+  const nome=(await pedirNome({titulo:'Novo parceiro',rotulo:'Nome da empresa / parceiro',ok:'Cadastrar',bruto:true})||'').trim(); if(!nome) return null;
+  const ex=parceiros().find(p=>(p.nome||'').trim().toLowerCase()===nome.toLowerCase()); if(ex){toast('Já existe: '+ex.nome+' (selecionado)');return ex.id}
+  const ref=coll().doc(), body={secao:'parceiros',nome,pasta:'',status:STATUS.parceiros[0],campos:{natureza:'Empresa'},criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me,atualizadoPor:me}:{})};
+  try{await ref.set(body); S.itens.set(ref.id,{...body,id:ref.id}); toast('Parceiro cadastrado: '+nome); return ref.id}
+  catch(e){toast('Não foi possível cadastrar o parceiro: '+e.message);return null}
+}
 const acsMsgConvite=(c)=>`Olá${c.nome?' '+c.nome:''}! Sua conta no Sistema FJA foi criada.\n\nEndereço: ${location.origin}\nE-mail: ${c.email}\nSenha provisória: ${c.senha}\n\nNo primeiro acesso o sistema pede que você crie a sua própria senha.`;
 function telaConta(h){
   const p=FB()?.perfil()||{};
   h+=`<div class="page"><div class="crumb"><button data-act="manut">Manutenção</button><span>/</span><span>Minha conta</span></div>
   <h1>Minha conta</h1>
   <section class="sheet"><div class="pad ferr-pad">
-    <p><b>${esc(p.nome||'')}</b> <span class="mono">${esc(p.email||'')}</span> · ${p.nivel==='admin'?'Administrador':'Usuário'}</p>
+    <p><b>${esc(p.nome||'')}</b> <span class="mono">${esc(p.email||'')}</span> · ${p.nivel==='admin'?'Administrador':'Usuário'}${p.empresa?` · <button class="btn sm ghost" data-act="item" data-id="${esc(p.empresa)}">${esc(acsEmpNome(p.empresa))}</button>`:''}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="acs-senha">Alterar senha</button><button class="btn ghost" data-act="acs-sair">Sair</button></div>
   </div></section></div>`;
   return h;
@@ -7419,14 +7433,16 @@ function telaAcesso(h){
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <input class="fld" id="acsEm" type="email" placeholder="e-mail" style="flex:2 1 220px">
       <input class="fld" id="acsNome" placeholder="nome" style="flex:1 1 160px">
+      <select class="fld" id="acsEmp" data-act="acs-emp-novo" style="flex:1 1 200px" title="Empresa (Biblioteca › Parceiros)">${acsEmpOpcoes(ACS.emp||'')}</select>
       <select class="fld" id="acsNivel" style="flex:0 0 auto"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select>
       <input class="fld mono" id="acsSenha" value="${esc(ACS.senha||=FB().senhaProvisoria())}" title="Senha provisória (pode trocar)" style="flex:0 1 140px">
       <button class="btn pri" data-act="acs-add">Criar conta</button></div>
   </div></section>
   <section class="sheet"><div class="sheet-h"><h2>Contas</h2><span class="hint">${L?L.length:''}</span></div><div class="pad ferr-pad">
   ${ACS.erro?`<p style="color:var(--danger)">${esc(ACS.erro)}</p>`:!L?'<p class="muted">Carregando…</p>':
-   `<table class="tbl" style="width:100%"><thead><tr><th style="text-align:left">Nome</th><th style="text-align:left">E-mail</th><th style="text-align:left">Nível</th><th style="text-align:left">Último acesso</th><th></th></tr></thead><tbody>
+   `<table class="tbl" style="width:100%"><thead><tr><th style="text-align:left">Nome</th><th style="text-align:left">E-mail</th><th style="text-align:left">Empresa</th><th style="text-align:left">Nível</th><th style="text-align:left">Último acesso</th><th></th></tr></thead><tbody>
    ${L.map(x=>`<tr><td>${esc(x.nome||'')}${x.id===eu?' <span class="muted">(você)</span>':''}</td><td class="mono">${esc(x.email||'')}</td>
+     <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
      <td>${x.id===eu?'Administrador':`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Usuário</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select>`}</td>
      <td class="muted">${x.trocarSenha?'aguardando 1º acesso':fmt(x.ultimoAcesso)}</td>
      <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-reset" data-id="${esc(x.id)}" title="Envia à pessoa um e-mail com link para criar uma nova senha">Redefinir senha</button>${x.id===eu?'':` <button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}">Remover</button>`}</td></tr>`).join('')}</tbody></table>`}
@@ -7440,20 +7456,20 @@ document.addEventListener('click',async ev=>{
   if(a==='acs-sair'){fb.sair();return}
   if(!fb.admin()){toast('Somente administradores');return}
   if(a==='acs-add'){
-    const em=($('acsEm')?.value||'').trim().toLowerCase(), nome=($('acsNome')?.value||'').trim(), nivel=$('acsNivel')?.value==='admin'?'admin':'usuario', senha=($('acsSenha')?.value||'').trim();
+    const em=($('acsEm')?.value||'').trim().toLowerCase(), nome=($('acsNome')?.value||'').trim(), nivel=$('acsNivel')?.value==='admin'?'admin':'usuario', empresa=($('acsEmp')?.value||'').replace(ACS_NOVO,''), senha=($('acsSenha')?.value||'').trim();
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
     if(!nome){toast('Informe o nome');return}
     if(senha.length<8){toast('A senha provisória precisa ter pelo menos 8 caracteres');return}
     b.disabled=true;
     try{
       const uid=await fb.criarConta(em,senha);
-      await db.collection('acessos').doc(uid).set({email:em,nome,nivel,trocarSenha:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
-      ACS.criada={email:em,nome,senha}; ACS.senha=null; renderMain();
+      await db.collection('acessos').doc(uid).set({email:em,nome,nivel,empresa,trocarSenha:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+      ACS.criada={email:em,nome,senha}; ACS.senha=null; ACS.emp=''; renderMain();
     }catch(e){
       b.disabled=false;
       if(e?.code==='auth/email-already-in-use'){
         // conta antiga (ex.: login por link): fica liberada e é vinculada no próximo login da pessoa
-        try{await db.collection('acessosPendentes').doc(em).set({email:em,nome,nivel,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+        try{await db.collection('acessosPendentes').doc(em).set({email:em,nome,nivel,empresa,criadoPor:fb.perfil()?.email||'',em:Date.now()});
           toast('Este e-mail já tinha conta: acesso liberado. A pessoa entra com a senha atual dela ou usa "Esqueci a senha".')}
         catch(x){toast('Não foi possível liberar: '+x.message)}
       } else toast('Não foi possível criar: '+fb.mensagemErro(e));
@@ -7472,6 +7488,15 @@ document.addEventListener('click',async ev=>{
   }
 },true);
 document.addEventListener('change',async ev=>{
+  const e=ev.target.closest?.('select[data-act="acs-emp"],select[data-act="acs-emp-novo"]');
+  if(e&&FB()?.admin()){
+    let v=e.value;
+    if(v===ACS_NOVO){v=await acsNovoParceiro(); if(!v){e.value=e.dataset.act==='acs-emp'?((ACS.lista||[]).find(y=>y.id===e.dataset.id)?.empresa||''):(ACS.emp||'');return}
+      e.innerHTML=acsEmpOpcoes(v)}
+    if(e.dataset.act==='acs-emp-novo'){ACS.emp=v;return}
+    try{await db.collection('acessos').doc(e.dataset.id).update({empresa:v}); toast('Empresa atualizada')}catch(x){toast('Não foi possível alterar: '+x.message)}
+    return;
+  }
   const s=ev.target.closest?.('select[data-act="acs-nivel"]'); if(!s||!FB()?.admin()) return;
   const outrosAdmins=(ACS.lista||[]).filter(y=>y.nivel==='admin'&&y.id!==s.dataset.id).length;
   if(s.value!=='admin'&&!outrosAdmins){toast('É preciso manter pelo menos um administrador');s.value='admin';return}
