@@ -2852,6 +2852,25 @@ function telaRfi(h,v){
 }
 const RFI_CAMPOS=[['assunto','Assunto','text','wide'],['descricao','Pergunta / descrição','longtext'],['status','Status','select',STATUS_RFI]];
 /* convidado: responde só às RFIs dirigidas a ele ou à empresa dele; comenta em qualquer uma */
+/* empresas que atendem as disciplinas marcadas na RFI (parceiro e apoio em Disciplinas e equipe) */
+function rfiEmpresasDisc(e){const ids=new Set(); for(const c of discsRfi(e)){const l=linhaDisc(e.projeto,c); if(l?.parceiro) ids.add(l.parceiro); for(const a of (l?.apoio||[])) ids.add(a)} return ids}
+const rfiDiscsDaEmpresa=(e,eid)=>discsRfi(e).filter(c=>{const l=linhaDisc(e.projeto,c); return l&&(l.parceiro===eid||(l.apoio||[]).includes(eid))}).map(c=>siglaP(e.projeto,c));
+function rfiReqOpcoes(e){
+  if(S.convidado) return rfiPessoaOpcoes(null).replace('<option value="">—</option>','<option value="">+ adicionar requerido</option>');
+  acsOuvir();
+  const ja=new Set(reqsRfi(e).map(q=>q.tipo+':'+q.id)), emps=rfiEmpresasDisc(e), it=S.itens.get(e.projeto), parts=partsDe(it);
+  const nomeU=u=>u.nome||u.email, ordN=(a,b)=>String(nomeU(a)).localeCompare(String(nomeU(b)),'pt');
+  const op=(v,t)=>ja.has(v)?'':`<option value="${esc(v)}">${esc(t)}</option>`;
+  const L=ACS.lista||[], sugE=[...emps].filter(id=>S.itens.get(id)), sugU=L.filter(u=>u.empresa&&emps.has(u.empresa)&&parts.includes(u.id)).sort(ordN);
+  const outE=parceiros().filter(p=>!emps.has(p.id)).sort(ordena), outU=L.filter(u=>!sugU.includes(u)).sort(ordN);
+  const g=(rot,html)=>html.replace(/\s/g,'')?`<optgroup label="${esc(rot)}">${html}</optgroup>`:'';
+  const ds=discsRfi(e).map(c=>siglaP(e.projeto,c)).join(', ');
+  return `<option value="">+ adicionar requerido</option>`
+    +(emps.size?g('Empresas de '+ds,sugE.map(id=>op('e:'+id,S.itens.get(id).nome+' ('+rfiDiscsDaEmpresa(e,id).join(' ')+')')).join(''))+g('Pessoas da equipe nessas empresas',sugU.map(u=>op('u:'+u.id,nomeU(u)+' · '+acsEmpNome(u.empresa))).join('')):'')
+    +g(emps.size?'Outras pessoas':'Pessoas',outU.map(u=>op('u:'+u.id,nomeU(u)+(u.empresa?' · '+acsEmpNome(u.empresa):''))).join(''))
+    +g(emps.size?'Outras empresas':'Empresas',outE.map(p=>op('e:'+p.id,p.nome)).join(''))
+    +`<optgroup label="Cadastrar">${AMB==='firebase'&&FB()?.admin()?'<option value="+u">+ Nova pessoa (conta no sistema)…</option>':''}<option value="+e">+ Nova empresa…</option></optgroup>`;
+}
 function rfiDirigidaAMim(e){const eu=FB()?.perfil(); if(!eu) return false; return reqsRfi(e).some(r=>r.tipo==='u'?r.id===eu.uid:r.tipo==='e'&&!!eu.empresa&&r.id===eu.empresa)}
 function telaRfiItem(h,v){
   const it=S.itens.get(v.id), base=S.rfis.get(v.eid);
@@ -2866,14 +2885,17 @@ function telaRfiItem(h,v){
   if(conv) h+=`<div class="banner pub" style="margin-bottom:12px"><span class="sp">${podeResp?'Esta RFI é dirigida a você ou à sua empresa: registre a resposta abaixo. Comentários ficam abertos a todos.':'Você pode acompanhar esta RFI e adicionar comentários. Respostas só de quem foi requerido.'}</span></div>`;
   h+=`<div class="eq-top eq-top2">${conv?'':blocoCapaEq(e)}<div class="eq-acts"><button class="btn" data-act="eq-pdf" title="Gerar o registro da RFI em PDF, em papel timbrado">${IC.pdf}Exportar PDF</button></div></div>`;
   const camposRO=html=>conv?html.replace(/<(input|textarea|select)(?![^>]*disabled)/g,'<$1 disabled'):html;
+  // ordem: RFI → disciplinas envolvidas → requeridos (sugeridos pelas disciplinas) → prazos → respostas → comentários
   h+=`<section class="sheet"><div class="sheet-h"><h2>RFI</h2></div><div class="grid">${camposRO(RFI_CAMPOS.map(f=>eqCampoHTML(f,e[f[0]])).join(''))}
-    <label class="fl" for="q_requerente">Requerente<select class="fld" id="q_requerente" data-rfip="requerente" ${dis}>${rfiPessoaOpcoes(e.requerente)}</select></label>
-    <div class="fl wide">Requeridos <span class="muted" style="font-size:11.5px">(pessoas ou empresas que devem responder)</span><div class="tags-ed" style="padding:4px 0 0">${reqsRfi(e).map((r,i)=>`<span class="chip chip-c"><span>${esc(rfiPessoaNome(r))}</span><span class="muted" style="font-size:11.5px">${r.tipo==='e'?'empresa':(()=>{const m=(ACS.lista||[]).find(x=>x.id===r.id)?.email; return m?esc(m):'sem e-mail'})()}</span>${dis?'':`<button data-act="rfi-req-rm" data-i="${i}" aria-label="Tirar ${esc(rfiPessoaNome(r))}">${IC.x}</button>`}</span>`).join('')||'<span class="muted">nenhum</span>'}
-      ${dis?'':`<span class="tag-add"><select class="fld" id="q_requerido" data-rfip="requeridos" aria-label="Adicionar requerido">${rfiPessoaOpcoes(null).replace('<option value="">—</option>','<option value="">+ adicionar requerido</option>')}</select></span>`}</div></div></div></section>`;
-  const mails=reqsEmails(e);
-  if(!conv&&!S.ro) h+=`<div class="banner pub" style="margin:-4px 0 16px"><span class="sp">${mails.length?`Notificar os requeridos por e-mail: <span class="mono">${esc(mails.join(', '))}</span>${(e.notificacoes||[]).length?` · última notificação ${esc(acsFmtDH(e.notificacoes[e.notificacoes.length-1].em))}`:''}`:'A notificação por e-mail fica disponível quando algum requerido for uma pessoa com e-mail.'}</span><button class="btn sm${mails.length?' pri':''}" data-act="rfi-notificar" ${mails.length&&!S.dirty?'':'disabled'} title="${S.dirty?'Salve antes de notificar':'Abre o seu e-mail com a mensagem pronta'}">Notificar por e-mail</button></div>`;
+    <label class="fl" for="q_requerente">Requerente<select class="fld" id="q_requerente" data-rfip="requerente" ${dis}>${rfiPessoaOpcoes(e.requerente)}</select></label></div></section>`;
+  h+=conv?camposRO(blocoDiscRfi(e)).replace(/<button data-act="rfi-tag-rm"[^>]*>.*?<\/button>/g,'').replace(/<span class="tag-add">.*?<\/span>/s,''):blocoDiscRfi(e);
+  const mails=reqsEmails(e), rq=reqsRfi(e);
+  h+=`<section class="sheet"><div class="sheet-h"><h2>Requeridos</h2><span class="hint">${rq.length||'Nenhum'}</span><span class="muted" style="font-size:12px;margin-left:8px">quem deve responder${discsRfi(e).length?' · sugestões pelas disciplinas envolvidas':''}</span></div>
+    <div class="pad tags-ed">${rq.map((r,i)=>`<span class="chip chip-c"><span>${esc(rfiPessoaNome(r))}</span><span class="muted" style="font-size:11.5px">${r.tipo==='e'?'empresa'+(rfiEmpresasDisc(e).has(r.id)?' · '+esc(rfiDiscsDaEmpresa(e,r.id).join(' ')):''):(()=>{const m=(ACS.lista||[]).find(x=>x.id===r.id)?.email; return m?esc(m):'sem e-mail'})()}</span>${dis?'':`<button data-act="rfi-req-rm" data-i="${i}" aria-label="Tirar ${esc(rfiPessoaNome(r))}">${IC.x}</button>`}</span>`).join('')}
+      ${dis?(rq.length?'':'<span class="muted">nenhum</span>'):`<span class="tag-add"><select class="fld" id="q_requerido" data-rfip="requeridos" aria-label="Adicionar requerido">${rfiReqOpcoes(e)}</select></span>`}</div>
+    ${!conv&&!S.ro?`<div class="pad" style="padding-top:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="muted" style="font-size:12.5px;flex:1">${mails.length?`E-mail: <span class="mono">${esc(mails.join(', '))}</span>${(e.notificacoes||[]).length?` · última notificação ${esc(acsFmtDH(e.notificacoes[e.notificacoes.length-1].em))}`:''}`:'A notificação por e-mail fica disponível quando algum requerido for uma pessoa com e-mail.'}</span><button class="btn sm${mails.length?' pri':''}" data-act="rfi-notificar" ${mails.length&&!S.dirty?'':'disabled'} title="${S.dirty?'Salve antes de notificar':'Abre o seu e-mail com a mensagem pronta'}">Notificar por e-mail</button></div>`:''}</section>`;
   h+=`<section class="sheet"><div class="sheet-h"><h2>Prazos</h2></div><div class="grid">${camposRO([['abertura','Abertura','date'],['prazo','Prazo para resposta','date'],['fechamento','Fechamento','date']].map(f=>eqCampoHTML(f,e[f[0]])).join(''))}</div></section>`;
-  h+=(conv?camposRO(blocoDiscRfi(e)).replace(/<button data-act="rfi-tag-rm"[^>]*>.*?<\/button>/g,'').replace(/<span class="tag-add">.*?<\/span>/s,''):blocoDiscRfi(e))+blocoEvRfi(e,'respostas','Respostas','Registre a resposta: quem respondeu, o que foi definido…',!podeResp)+blocoEvRfi(e,'comentarios','Comentários','Comentário sobre a RFI…',S.ro);
+  h+=blocoEvRfi(e,'respostas','Respostas','Registre a resposta: quem respondeu, o que foi definido…',!podeResp)+blocoEvRfi(e,'comentarios','Comentários','Comentário sobre a RFI…',S.ro);
   h+=`<div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button>${S.convidado?'':`<button class="btn danger" data-act="rfi-del">${IC.trash}Excluir</button>`}<button class="btn pri" data-act="rfi-salvar">Salvar alterações</button></div>`;
   return h;
@@ -2949,14 +2971,18 @@ async function rfiAcao(a,b){
 }
 document.addEventListener('change',async ev=>{
   const el=ev.target; if(!S.qdraft||S.view?.t!=='rfii') return;
-  if(el.id==='rfiTagIn'&&el.value){rfiGarantir(); if(!S.qdraft.disciplinas.includes(el.value)) S.qdraft.disciplinas.push(el.value); marcaSujo(); renderMain(); return}
+  if(el.id==='rfiTagIn'&&el.value){rfiGarantir(); if(!S.qdraft.disciplinas.includes(el.value)) S.qdraft.disciplinas.push(el.value);
+    // atalho: a empresa responsável pela disciplina entra como requerida (dá para tirar no X)
+    const l=linhaDisc(S.qdraft.projeto,el.value), eid=l?.parceiro, emp=eid&&S.itens.get(eid);
+    if(emp){const L=reqsRfi(S.qdraft); if(!L.some(q=>q.tipo==='e'&&q.id===eid)){L.push({tipo:'e',id:eid,nome:emp.nome||''}); S.qdraft.requeridos=L; delete S.qdraft.requerido; toast(`${emp.nome} (responsável por ${siglaP(S.qdraft.projeto,el.value)}) incluída como requerida`)}}
+    marcaSujo(); renderMain(); return}
   if(el.dataset.rfip){const k=el.dataset.rfip, v=el.value; let p=null;
     if(v==='+u') p=await rfiNovaPessoa();
     else if(v==='+e'){const id=await acsNovoParceiro(); if(id) p={tipo:'e',id,nome:S.itens.get(id)?.nome||''}}
     else if(v){const [t,id]=[v[0],v.slice(2)]; let nm=t==='e'?S.itens.get(id)?.nome||'':((ACS.lista||[]).find(x=>x.id===id)?.nome||'');
       if(!nm){for(const r of S.rfis.values()) for(const q of [r.requerente,...reqsRfi(r)]) if(q?.id===id&&q.nome) nm=q.nome; if(!nm&&id===FB()?.perfil()?.uid) nm=FB().perfil().nome||FB().perfil().email}
       p={tipo:t,id,nome:nm}}
-    if(v&&v.startsWith('+')&&!p){el.innerHTML=rfiPessoaOpcoes(k==='requeridos'?null:S.qdraft[k]);return}
+    if(v&&v.startsWith('+')&&!p){el.innerHTML=k==='requeridos'?rfiReqOpcoes(S.qdraft):rfiPessoaOpcoes(S.qdraft[k]);return}
     if(p&&!S.convidado){const u=p.tipo==='u'?(ACS.lista||[]).find(x=>x.id===p.id):null; if(u?.empresa){p.empresa=u.empresa; p.empresaNome=acsEmpNome(u.empresa)}}
     if(k==='requeridos'){if(!p) return; const L=reqsRfi(S.qdraft); if(!L.some(q=>q.tipo===p.tipo&&q.id===p.id)) L.push(p); S.qdraft.requeridos=L; delete S.qdraft.requerido; marcaSujo(); renderMain(); return}
     S.qdraft[k]=p; marcaSujo(); renderMain(); return}
