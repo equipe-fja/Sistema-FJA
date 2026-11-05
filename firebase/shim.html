@@ -22,7 +22,9 @@
   firebase.initializeApp(CFG);
   const auth=firebase.auth(), fs=firebase.firestore();
   let pronto; const logado=new Promise(r=>pronto=r);
-  const okEmail=e=>typeof e==='string'&&e.toLowerCase().endsWith(DOMINIO);
+  const okEmail=e=>typeof e==='string'&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
+  const interno=e=>String(e||'').toLowerCase().endsWith(DOMINIO);
+  let papel='editar';
 
   function tela(html){
     let d=document.getElementById('fbLogin');
@@ -30,14 +32,14 @@
     d.innerHTML='<div class="cx"><div class="lg">FJ</div>'+html+'</div>'; return d;
   }
   function pedirEmail(msg,erro){
-    const d=tela('<h1>Sistema FJA</h1><p>Digite o seu e-mail @fj.arq.br. Você vai receber um link para entrar (não há senha).</p>'+
-      '<input id="fbEm" type="email" autocomplete="email" placeholder="nome@fj.arq.br"><button id="fbBt">Enviar link</button>'+
+    const d=tela('<h1>Sistema FJA</h1><p>Digite o seu e-mail. Você vai receber um link para entrar (não há senha). Quem não é da FJA precisa ter sido convidado.</p>'+
+      '<input id="fbEm" type="email" autocomplete="email" placeholder="seu e-mail"><button id="fbBt">Enviar link</button>'+
       '<div class="msg'+(erro?' err':'')+'" id="fbMsg">'+(msg||'')+'</div>');
     const em=d.querySelector('#fbEm'), bt=d.querySelector('#fbBt'), m=d.querySelector('#fbMsg');
     try{em.value=localStorage.getItem(LS)||''}catch{}
     const enviar=async()=>{
       const e=em.value.trim().toLowerCase();
-      if(!okEmail(e)){m.className='msg err';m.textContent='Use um endereço terminado em '+DOMINIO+'.';return}
+      if(!okEmail(e)){m.className='msg err';m.textContent='E-mail inválido.';return}
       bt.disabled=true; m.className='msg'; m.textContent='Enviando…';
       try{
         await auth.sendSignInLinkToEmail(e,{url:location.origin+location.pathname,handleCodeInApp:true});
@@ -51,7 +53,7 @@
     let e=''; try{e=localStorage.getItem(LS)||''}catch{}
     if(!e){
       const d=tela('<h1>Confirme o e-mail</h1><p>Este link foi aberto em outro navegador. Digite o e-mail para o qual o link foi enviado.</p>'+
-        '<input id="fbEm" type="email" placeholder="nome@fj.arq.br"><button id="fbBt">Entrar</button><div class="msg err" id="fbMsg"></div>');
+        '<input id="fbEm" type="email" placeholder="seu e-mail"><button id="fbBt">Entrar</button><div class="msg err" id="fbMsg"></div>');
       e=await new Promise(r=>{const bt=d.querySelector('#fbBt'),em=d.querySelector('#fbEm');bt.onclick=()=>r(em.value.trim().toLowerCase());em.onkeydown=ev=>{if(ev.key==='Enter')bt.click()}});
     }
     try{await auth.signInWithEmailLink(e,location.href); try{localStorage.setItem(LS,e)}catch{}}
@@ -62,7 +64,11 @@
   if(auth.isSignInWithEmailLink(location.href)) concluirLink();
   auth.onAuthStateChanged(async u=>{
     if(!u){if(!auth.isSignInWithEmailLink(location.href)) pedirEmail();return}
-    if(!okEmail(u.email)){await auth.signOut();pedirEmail('Somente endereços '+DOMINIO+'.',true);return}
+    if(!interno(u.email)){
+      let c=null; try{const g=await fs.collection('convites').doc(u.email.toLowerCase()).get(); c=g.exists?g.data():null}catch{}
+      if(!c){await auth.signOut();pedirEmail('O endereço '+u.email+' não foi convidado. Peça acesso à FJA.',true);return}
+      papel=c.papel==='editar'?'editar':'consultar';
+    }
     try{await fs.collection('usuarios').doc(u.uid).set({email:u.email,nome:u.email.split('@')[0],ultimoAcesso:Date.now()},{merge:true})}catch(x){console.warn('usuarios',x)}
     document.getElementById('fbLogin')?.remove();
     pronto(u);
@@ -70,7 +76,7 @@
 
   const userApi={
     id:async()=>(await logado).uid,
-    can:async()=>true,
+    can:async()=>papel==='editar',
     profiles:async ids=>{
       const r={}; for(const id of ids||[]){try{const g=await fs.collection('usuarios').doc(id).get(); if(g.exists) r[id]={name:g.data().nome||g.data().email}}catch{}}
       return r},

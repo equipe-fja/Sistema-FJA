@@ -7222,6 +7222,7 @@ function telaExtRevit(h){
 function telaManut(h,v){
   if(v.f==='revit') return telaRevit(h);
   if(v.f==='bkp') return telaBkp(h);
+  if(v.f==='acesso') return telaAcesso(h);
   h+=`<div class="page"><h1>Manutenção</h1><p class="lead">Rotinas técnicas do sistema: publicação para o Revit e backup do banco de dados.</p>
     <div class="ferr-lista">${MANUT.map(x=>`<button class="card ferr-card" data-act="manut" data-f="${x.id}"><b>${esc(x.nome)}</b><span class="muted">${esc(x.resumo)}</span></button>`).join('')}</div></div>`;
   return h;
@@ -7375,6 +7376,61 @@ function telaBkp(h){
   return h;
 }
 document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="bkp-agora"]'); if(!b) return; ev.stopPropagation(); if(!b.disabled) bkpExecutar(true)},true);
+/* ---------- Acesso (só na versão Firebase): convites para pessoas de fora do @fj.arq.br ----------
+   convites/<email> = {email, papel:'editar'|'consultar', nome, convidadoPor, em}. As regras do Firestore consultam essa coleção. */
+if(AMB==='firebase') MANUT.push({id:'acesso',nome:'Acesso e convites',resumo:'Quem pode entrar no sistema além dos endereços @fj.arq.br, e se pode editar ou só consultar.'});
+const ACS={lista:null,ouvindo:false};
+const acsEmail=()=>window.FJA_FIREBASE?.auth?.currentUser?.email||'';
+const acsInterno=()=>/@fj\.arq\.br$/i.test(acsEmail());
+function acsOuvir(){
+  if(ACS.ouvindo||!db) return; ACS.ouvindo=true;
+  db.collection('convites').onSnapshot(snap=>{ACS.lista=snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>(a.email||'').localeCompare(b.email||'')); if(S.view?.f==='acesso'&&!S.dirty) renderMain()},
+    e=>{ACS.lista=[];ACS.erro=e.message; if(S.view?.f==='acesso') renderMain()});
+}
+function telaAcesso(h){
+  acsOuvir();
+  const pode=acsInterno(), L=ACS.lista, fmt=t=>t?new Date(t).toLocaleDateString('pt-BR'):'';
+  h+=`<div class="page"><div class="crumb"><button data-act="manut">Manutenção</button><span>/</span><span>Acesso e convites</span></div>
+  <h1>Acesso e convites</h1><p class="lead">Todos os endereços <b>@fj.arq.br</b> entram sempre, com edição. Pessoas de fora entram só se estiverem nesta lista. Para entrar, a pessoa abre o sistema, digita o próprio e-mail e clica no link que recebe.</p>
+  ${pode?`<section class="sheet"><div class="sheet-h"><h2>Convidar</h2></div><div class="pad ferr-pad">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input class="fld" id="acsEm" type="email" placeholder="e-mail da pessoa" style="flex:2 1 220px">
+      <input class="fld" id="acsNome" placeholder="nome (opcional)" style="flex:1 1 160px">
+      <select class="fld" id="acsPapel" style="flex:0 0 auto"><option value="consultar">Só consultar</option><option value="editar">Editar</option></select>
+      <button class="btn pri" data-act="acs-add">Convidar</button></div>
+    <p class="muted" style="margin-top:8px">Depois de convidar, envie à pessoa o endereço do sistema: <span class="mono">${esc(location.origin)}</span> <button class="btn sm ghost" data-act="acs-copiar">Copiar mensagem de convite</button></p>
+  </div></section>`:'<p class="muted">Só endereços @fj.arq.br podem convidar.</p>'}
+  <section class="sheet"><div class="sheet-h"><h2>Convidados</h2><span class="hint">${L?L.length:''}</span></div><div class="pad ferr-pad">
+  ${ACS.erro?`<p style="color:var(--danger)">${esc(ACS.erro)}</p>`:!L?'<p class="muted">Carregando…</p>':!L.length?'<p class="muted">Ninguém convidado ainda.</p>':
+   `<table class="tbl" style="width:100%"><thead><tr><th style="text-align:left">E-mail</th><th style="text-align:left">Nome</th><th style="text-align:left">Acesso</th><th style="text-align:left">Convidado em</th><th></th></tr></thead><tbody>
+   ${L.map(c=>`<tr><td class="mono">${esc(c.email)}</td><td>${esc(c.nome||'')}</td>
+     <td>${pode?`<select class="fld" data-act="acs-papel" data-id="${esc(c.id)}"><option value="consultar"${c.papel!=='editar'?' selected':''}>Só consultar</option><option value="editar"${c.papel==='editar'?' selected':''}>Editar</option></select>`:(c.papel==='editar'?'Editar':'Só consultar')}</td>
+     <td class="muted">${fmt(c.em)}${c.convidadoPor?' · '+esc(c.convidadoPor):''}</td>
+     <td style="text-align:right">${pode?`<button class="btn sm ghost" data-act="acs-rm" data-id="${esc(c.id)}">Remover</button>`:''}</td></tr>`).join('')}</tbody></table>`}
+  </div></section></div>`;
+  return h;
+}
+document.addEventListener('click',async ev=>{
+  const b=ev.target.closest?.('[data-act^="acs-"]'); if(!b||b.tagName==='SELECT') return; ev.stopPropagation();
+  const a=b.dataset.act;
+  if(a==='acs-add'){
+    const em=($('acsEm')?.value||'').trim().toLowerCase(), nome=($('acsNome')?.value||'').trim(), papel=$('acsPapel')?.value||'consultar';
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
+    if(/@fj\.arq\.br$/.test(em)){toast('Endereços @fj.arq.br já entram sem convite');return}
+    try{await db.collection('convites').doc(em).set({email:em,nome,papel,convidadoPor:acsEmail(),em:Date.now()}); toast('Convite registrado')}catch(e){toast('Não foi possível convidar: '+e.message)}
+  } else if(a==='acs-rm'){
+    const c=(ACS.lista||[]).find(x=>x.id===b.dataset.id); if(!c) return;
+    if(!await confirmar(`Remover o acesso de ${c.email}? A pessoa deixa de conseguir entrar.`)) return;
+    try{await db.collection('convites').doc(c.id).delete(); toast('Acesso removido')}catch(e){toast('Não foi possível remover: '+e.message)}
+  } else if(a==='acs-copiar'){
+    const t=`Você foi convidado(a) para o Sistema FJA.\n\nAcesse ${location.origin}, digite o seu e-mail e clique em "Enviar link". Você vai receber um e-mail com o link para entrar (não há senha). Abra o link no mesmo navegador.`;
+    try{await navigator.clipboard.writeText(t); toast('Mensagem copiada')}catch{toast(t)}
+  }
+},true);
+document.addEventListener('change',async ev=>{
+  const s=ev.target.closest?.('select[data-act="acs-papel"]'); if(!s) return;
+  try{await db.collection('convites').doc(s.dataset.id).update({papel:s.value}); toast('Acesso atualizado')}catch(e){toast('Não foi possível alterar: '+e.message)}
+},true);
 (function bkpIniciar(){
   const t=setInterval(()=>{
     if(S.publico){clearInterval(t);return}
