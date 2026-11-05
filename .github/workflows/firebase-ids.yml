@@ -1,0 +1,21 @@
+name: Firebase · listar arquivos citados
+on:
+  push:
+    branches: [main]
+    paths: ['firebase/importador/ids-arquivos.js']
+  workflow_dispatch:
+permissions: {contents: write}
+jobs:
+  ids:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - env: {CHAVE: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"}
+        run: |
+          printf '%s' "$CHAVE" > "$RUNNER_TEMP/chave.json"; export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
+          cd firebase/importador && npm install --silent --no-audit --no-fund && node ids-arquivos.js > "$RUNNER_TEMP/log.txt" 2>&1
+      - if: always()
+        env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
+        run: ./scripts/firebase-log.sh "ids" "${{ job.status }}"
