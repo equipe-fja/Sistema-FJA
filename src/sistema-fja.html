@@ -7531,10 +7531,10 @@ function telaAcesso(h){
      <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
      <td>${x.id===eu?'Administrador':`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Usuário</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select>`}</td>
      <td class="muted">${x.trocarSenha?'aguardando 1º acesso':fmt(x.ultimoAcesso)}</td>
-     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-reset" data-id="${esc(x.id)}" title="Envia à pessoa um e-mail com link para criar uma nova senha">Redefinir senha</button>${x.id===eu?'':` <button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}">Remover</button>`}</td></tr>`).join('')}
+     <td style="text-align:right;white-space:nowrap">${x.trocarSenha?`<button class="btn sm ghost" data-act="acs-reenviar" data-id="${esc(x.id)}" title="Copia de novo a mensagem com os dados de acesso">Reenviar</button> <button class="btn sm ghost" data-act="acs-email" data-id="${esc(x.id)}">Alterar e-mail</button> `:''}<button class="btn sm ghost" data-act="acs-reset" data-id="${esc(x.id)}" title="Envia à pessoa um e-mail com link para criar uma nova senha">Redefinir senha</button>${x.id===eu?'':` <button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}">Remover</button>`}</td></tr>`).join('')}
    ${(ACS.pend||[]).filter(p=>!L.some(x=>(x.email||'')===p.email)).map(p=>`<tr><td>${esc(p.nome||'')}</td><td class="mono">${esc(p.email)}</td><td>${esc(acsEmpNome(p.empresa)||'—')}</td><td>${p.nivel==='admin'?'Administrador':'Usuário'}</td>
      <td class="muted" title="O e-mail já tinha conta no sistema: o acesso fica liberado e a conta aparece aqui depois que a pessoa entrar">liberado · entra com a senha atual ou “Esqueci a senha”</td>
-     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-reset-em" data-em="${esc(p.email)}">Redefinir senha</button> <button class="btn sm ghost" data-act="acs-rm-pend" data-id="${esc(p.id)}">Remover</button></td></tr>`).join('')}</tbody></table>`}
+     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-email-pend" data-id="${esc(p.id)}">Alterar e-mail</button> <button class="btn sm ghost" data-act="acs-reset-em" data-em="${esc(p.email)}">Reenviar link de senha</button> <button class="btn sm ghost" data-act="acs-rm-pend" data-id="${esc(p.id)}">Remover</button></td></tr>`).join('')}</tbody></table>`}
   </div></section></div>`;
   return h;
 }
@@ -7553,6 +7553,7 @@ document.addEventListener('click',async ev=>{
     try{
       const uid=await fb.criarConta(em,senha);
       await db.collection('acessos').doc(uid).set({email:em,nome,nivel,empresa,trocarSenha:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+      try{await fb.fs.collection('senhasProvisorias').doc(uid).set({email:em,senha,em:Date.now()})}catch(e){console.warn('senha provisória',e)}
       ACS.criada={email:em,nome,senha}; ACS.senha=null; ACS.emp=''; renderMain();
     }catch(e){
       b.disabled=false;
@@ -7567,6 +7568,48 @@ document.addEventListener('click',async ev=>{
   } else if(a==='acs-copiar'){
     const t=acsMsgConvite(ACS.criada||{}); try{await navigator.clipboard.writeText(t); toast('Mensagem copiada')}catch{toast(t)}
   } else if(a==='acs-fechar'){ACS.criada=null; renderMain()}
+  else if(a==='acs-reenviar'){
+    const x=(ACS.lista||[]).find(y=>y.id===b.dataset.id); if(!x) return;
+    let sp=null; try{const g=await fb.fs.collection('senhasProvisorias').doc(x.id).get(); sp=g.exists?g.data().senha:null}catch{}
+    if(sp){ACS.criada={email:x.email,nome:x.nome,senha:sp}; renderMain(); window.scrollTo({top:0,behavior:'smooth'})}
+    else{try{await fb.auth.sendPasswordResetEmail(x.email); toast('A senha provisória não está guardada: enviado a '+x.email+' um link para criar a senha')}catch(e){toast('Não foi possível enviar: '+fb.mensagemErro(e))}}
+  }
+  else if(a==='acs-email'){
+    const x=(ACS.lista||[]).find(y=>y.id===b.dataset.id); if(!x||!x.trocarSenha) return;
+    const novo=String(await pedirNome({titulo:'Alterar e-mail',rotulo:'Novo e-mail',padrao:x.email,ok:'Alterar',bruto:true})||'').trim().toLowerCase();
+    if(!novo||novo===x.email) return; if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(novo)){toast('E-mail inválido');return}
+    if((ACS.lista||[]).some(y=>y.email===novo)){toast('Já existe uma conta com '+novo);return}
+    let sp=null; try{const g=await fb.fs.collection('senhasProvisorias').doc(x.id).get(); sp=g.exists?g.data().senha:null}catch{}
+    const senha=sp||fb.senhaProvisoria();
+    try{
+      const {id:_,...dados}=x, uid=await fb.criarConta(novo,senha);
+      await db.collection('acessos').doc(uid).set({...dados,email:novo,trocarSenha:true,em:Date.now()});
+      await fb.fs.collection('senhasProvisorias').doc(uid).set({email:novo,senha,em:Date.now()});
+      await db.collection('acessos').doc(x.id).delete(); try{await fb.fs.collection('senhasProvisorias').doc(x.id).delete()}catch{}
+      ACS.criada={email:novo,nome:x.nome,senha}; renderMain(); window.scrollTo({top:0,behavior:'smooth'}); toast('E-mail alterado para '+novo);
+    }catch(e){
+      if(e?.code==='auth/email-already-in-use'){
+        try{await db.collection('acessosPendentes').doc(novo).set({email:novo,nome:x.nome||'',nivel:x.nivel,empresa:x.empresa||'',criadoPor:fb.perfil()?.email||'',em:Date.now()});
+          await db.collection('acessos').doc(x.id).delete(); try{await fb.fs.collection('senhasProvisorias').doc(x.id).delete()}catch{}
+          toast(novo+' já tinha conta: acesso liberado para ele (entra com a senha atual ou "Esqueci a senha")')}catch(x2){toast('Não foi possível alterar: '+x2.message)}
+      } else toast('Não foi possível alterar: '+fb.mensagemErro(e));
+    }
+  }
+  else if(a==='acs-email-pend'){
+    const p=(ACS.pend||[]).find(y=>y.id===b.dataset.id); if(!p) return;
+    const novo=String(await pedirNome({titulo:'Alterar e-mail',rotulo:'Novo e-mail',padrao:p.email,ok:'Alterar',bruto:true})||'').trim().toLowerCase();
+    if(!novo||novo===p.email) return; if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(novo)){toast('E-mail inválido');return}
+    // tenta criar conta nova com o e-mail novo; se ele também já existir, só troca a liberação
+    const senha=fb.senhaProvisoria();
+    try{const uid=await fb.criarConta(novo,senha);
+      await db.collection('acessos').doc(uid).set({email:novo,nome:p.nome||'',nivel:p.nivel,empresa:p.empresa||'',trocarSenha:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+      await fb.fs.collection('senhasProvisorias').doc(uid).set({email:novo,senha,em:Date.now()});
+      await db.collection('acessosPendentes').doc(p.id).delete(); ACS.criada={email:novo,nome:p.nome,senha}; renderMain(); window.scrollTo({top:0,behavior:'smooth'})}
+    catch(e){
+      if(e?.code==='auth/email-already-in-use'){try{await db.collection('acessosPendentes').doc(novo).set({email:novo,nome:p.nome||'',nivel:p.nivel,empresa:p.empresa||'',criadoPor:p.criadoPor||'',em:Date.now()}); await db.collection('acessosPendentes').doc(p.id).delete(); toast('Liberação passada para '+novo)}catch(x2){toast('Não foi possível alterar: '+x2.message)}}
+      else toast('Não foi possível alterar: '+fb.mensagemErro(e));
+    }
+  }
   else if(a==='acs-reset-em'){try{await fb.auth.sendPasswordResetEmail(b.dataset.em); toast('E-mail de redefinição enviado para '+b.dataset.em)}catch(e){toast('Não foi possível enviar: '+fb.mensagemErro(e))}}
   else if(a==='acs-rm-pend'){try{await db.collection('acessosPendentes').doc(b.dataset.id).delete(); toast('Liberação removida')}catch(e){toast('Não foi possível remover: '+e.message)}}
   else if(a==='acs-reset'){

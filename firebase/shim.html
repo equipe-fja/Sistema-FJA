@@ -67,6 +67,7 @@
         if(n1.value!==n2.value){m.className='msg err';m.textContent='As duas senhas não são iguais.';return}
         bt.disabled=true; m.className='msg'; m.textContent='Salvando…';
         try{await u.updatePassword(n1.value); try{await fs.collection('acessos').doc(u.uid).update({trocarSenha:false})}catch{}
+          try{await fs.collection('senhasProvisorias').doc(u.uid).delete()}catch{}
           if(perfil) perfil.trocarSenha=false; d.remove(); ok(true)}
         catch(x){m.className='msg err';m.textContent=msgErro(x);bt.disabled=false}
       };
