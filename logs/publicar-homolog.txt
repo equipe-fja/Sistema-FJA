@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: success
-commit: 20969705b17766117f9137f43b11aa31e7e90730
-quando: 2026-11-05T20:54:46Z
+commit: 026f1601876b85ea48f0bed1c382884fd40bd632
+quando: 2026-11-05T21:05:59Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -9,7 +9,7 @@ quando: 2026-11-05T20:54:46Z
 [36m[1mi [22m[39m deploying [1mfirestore, hosting[22m
 [36m[1mi  cloud.firestore:[22m[39m checking [1mfirebase/firestore.rules[22m for compilation errors...
 [32m[1m✔  cloud.firestore:[22m[39m rules file [1mfirebase/firestore.rules[22m compiled successfully
-[36m[1mi  firestore:[22m[39m latest version of [1mfirebase/firestore.rules[22m already up to date, skipping upload...
+[36m[1mi  firestore:[22m[39m uploading rules [1mfirebase/firestore.rules[22m...
 [36m[1mi  hosting[sistema-fja-homolog]:[22m[39m beginning deploy...
 [36m[1mi  hosting[sistema-fja-homolog]:[22m[39m found 2 files in [1mdist/homolog[22m
 [36m[1mi  hosting:[22m[39m upload complete
