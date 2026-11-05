@@ -912,7 +912,8 @@ body.cro-arr,body.cro-arr *{cursor:grabbing!important}
 .cro-dr-h{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);font-size:15px}
 .cro-dr-b{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
 .cro-dr-f{display:flex;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
-.chip .chip-nome,.chip-nome{width:auto;height:auto;border-radius:0;display:inline;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.chip .chip-nome:hover{background:none;color:var(--accent)}.eqp-menu .ml-b.eqp-novo{flex-direction:row;align-items:center;gap:6px;border-top:1px solid var(--line);width:100%}.eqp-menu{width:320px;max-width:calc(100vw - 16px)}.eqp-ml{max-height:320px;overflow:auto}.eqp-menu .ml-b{flex-direction:column;align-items:flex-start;gap:0}
+.chip .chip-nome,.chip-nome{width:auto;height:auto;border-radius:0;display:inline;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.chip .chip-nome:hover{background:none;color:var(--accent)}.eqp-menu .ml-b.eqp-novo{flex-direction:row;align-items:center;gap:6px;border-top:1px solid var(--line);width:100%}.ev-autor{display:block;font-size:10.5px;color:var(--faint,#9a9a96);margin-top:3px;line-height:1.2}.ev-c .ev-autor{display:inline;margin:0}
+.eqp-menu{width:320px;max-width:calc(100vw - 16px)}.eqp-ml{max-height:320px;overflow:auto}.eqp-menu .ml-b{flex-direction:column;align-items:flex-start;gap:0}
 .eqp-lista{display:flex;flex-direction:column;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:6px}.eqp-lista .ml-b{justify-content:flex-start;text-align:left;gap:6px}
 .cro-dr .fl{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
 .cro-dr .fld{padding:6px 8px;font-size:13px;min-width:0}
@@ -2744,7 +2745,7 @@ const RFI_TCOLS=[
   ['comentarios','Comentários',0,e=>rfiEvCel(e,'comentarios'),'muted wide'],
   ['imagem','Imagem',0,e=>e.capa?`<img class="esp-th" src="${esc(urlThumb(e.capa))}" alt="" loading="lazy">`:'','']
 ];
-function rfiEvCel(e,c){const L=evOrdem(evRfi(e,c)); if(!L.length) return ''; const k=c+':'+e.id, ab=S.evAbertos.has(k), um=x=>`<span class="cm-txt ev-c">${x.data?`<span class="ev-d">${esc(x.data)}</span> `:''}${esc(x.texto)}</span>`;
+function rfiEvCel(e,c){const L=evOrdem(evRfi(e,c)); if(!L.length) return ''; const k=c+':'+e.id, ab=S.evAbertos.has(k), um=x=>`<span class="cm-txt ev-c">${x.data?`<span class="ev-d">${esc(x.data)}</span> `:''}${esc(x.texto)}${x.por?` <span class="ev-autor">— ${esc(x.por)}</span>`:''}</span>`;
   return um(L[0][0])+(L.length>1?(ab?`<div class="ev-ant">${L.slice(1).map(([x])=>um(x)).join('')}</div>`:'')+`<button class="ev-mais" data-act="pd-ev-ver" data-eid="${esc(k)}">${ab?'Ocultar anteriores':`Ver anteriores (${L.length-1})`}</button>`:'')}
 const ordRfi=(a,b)=>(a.num??1e9)-(b.num??1e9)||(a.criadoEm||0)-(b.criadoEm||0);
 const proxNumRfi=pid=>rfiDe(pid).reduce((m,e)=>Math.max(m,+e.num||0),0)+1;
@@ -2758,7 +2759,7 @@ iniciarMod({id:'rfi',lk:'fja.rfi.',T:RFI_TCOLS,padrao:RFI_TCOLS.filter(c=>c[2]).
   rotGrupo(k,v){if(!v) return 'Sem '+({status:'status',requerente:'requerente',requerido:'requerido'})[k];return esc(v)},
   busca:e=>[e.num,e.assunto,e.descricao,e.status,rfiPessoaNome(e.requerente),reqsNomes(e),...discsRfi(e),...discsRfi(e).map(discNome),...evRfi(e,'respostas').map(x=>x.data+' '+x.texto),...evRfi(e,'comentarios').map(x=>x.data+' '+x.texto)].join(' '),
   abrir:'rfi-abrir',dica:'Clique para abrir a RFI',nenhum:'Nenhuma RFI corresponde aos filtros.',fotoTxt:'Clique ou arraste uma imagem relacionada à RFI',
-  vazio:pid=>`<div class="esp-vazio"><h2>Nenhuma RFI cadastrada</h2><p>Registre aqui os pedidos de informação do projeto: quem pergunta (requerente), quem deve responder (requerido), prazo, respostas e comentários.</p>${S.ro||S.convidado?'':`<button class="btn pri" data-act="rfi-novo" data-id="${esc(pid)}">${IC.plus}Nova RFI</button>`}</div>`,
+  vazio:pid=>`<div class="esp-vazio"><h2>Nenhuma RFI cadastrada</h2><p>Registre aqui os pedidos de informação do projeto: quem pergunta (requerente), quem deve responder (requerido), prazo, respostas e comentários.</p>${S.ro?'':`<button class="btn pri" data-act="rfi-novo" data-id="${esc(pid)}">${IC.plus}Nova RFI</button>`}</div>`,
   locais:['capa','disciplinas'],
   xVal:(k,e)=>k==='respostas'||k==='comentarios'?txtEvRfi(e,k):k==='disciplinas'?discsRfi(e).map(c=>siglaP(e.projeto,c)).join(', '):k==='requerente'?rfiPessoaNome(e[k]):k==='requerido'?reqsNomes(e):undefined,
   pdfE:e=>({...e,requerente:rfiPessoaNome(e.requerente),requerido:reqsNomes(e),respostas:txtEvRfi(e,'respostas'),comentarios:txtEvRfi(e,'comentarios'),disciplinas:discsRfi(e).map(c=>siglaP(e.projeto,c)+' '+discNome(c)).join(', ')}),
@@ -2799,7 +2800,7 @@ function iniciarConvidado(){
   S.convidado=true; S.ro=false;
   const uid=FB()?.perfil()?.uid||'-';
   db.collection('projetosRfi').where('participantes','array-contains',uid).onSnapshot(snap=>{
-    const m=new Map(); for(const d of snap.docs){const v=d.data(); m.set(d.id,{secao:'projetos',nome:v.nome||'',pasta:v.pasta||'',status:v.status||'',campos:{codigo:v.codigo||''},disciplinas:v.disciplinas||[],id:d.id})}
+    const m=new Map(); for(const d of snap.docs){const v=d.data(); m.set(d.id,{secao:'projetos',nome:v.nome||'',pasta:v.pasta||'',status:v.status||'',campos:{codigo:v.codigo||''},disciplinas:v.disciplinas||[],participantes:v.participantes||[],id:d.id})}
     S.itens=m; if(!S.carregado){S.carregado=true;S.estado='ok';if(restaurarVista())return} if(S.dirty) renderTree(); else render();
   },e=>{console.warn('projetosRfi',e); S.carregado=true; S.estado='ok'; render()});
   rfiColl().where('participantes','array-contains',uid).onSnapshot(snap=>{
@@ -2846,7 +2847,7 @@ function telaRfi(h,v){
   h+=`<div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="eqBusca" type="search" placeholder="Buscar por assunto, pergunta, requerente, requerido, resposta…" aria-label="Buscar nas RFIs" value="${esc(MS().busca)}"></div>
     <span class="muted eq-count" id="eqCount">${(()=>{const n=eqFiltrados(it.id).length,t=todos.length;return n===t?t+' itens':n+' de '+t+' itens'})()}</span><button class="btn sm ghost" id="eqLimpar" data-act="eq-limpar" ${temFiltroEq()?'':'hidden'}>Limpar filtros</button>
     <button class="btn" id="btnCols" data-act="eq-cols" aria-expanded="${!!MS().colsOpen}">Colunas <span class="cnt">${MS().cols.length}/${M().T.length}</span></button>
-    ${S.ro||S.convidado?'':`<button class="btn pri" data-act="rfi-novo" data-id="${esc(it.id)}">${IC.plus}Nova</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
+    ${S.ro?'':`<button class="btn pri" data-act="rfi-novo" data-id="${esc(it.id)}">${IC.plus}Nova</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
   h+=`<section class="sheet" id="eqTabela">${eqTabelaHTML(it.id)}</section></div>`;
   return h;
 }
@@ -2880,19 +2881,21 @@ function telaRfiItem(h,v){
   if(!it||!base&&!(S.qdraft&&S.qdraft.id===v.eid)) return h+`<div class="page"><h1>RFI não encontrada</h1></div>`;
   if(!S.qdraft||S.qdraft.id!==v.eid){S.qdraft=structuredClone(base);S.dirty=false}
   acsOuvir();
-  const e=S.qdraft, nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome, dis=S.ro||S.convidado?'disabled':'';
-  const conv=S.convidado, podeResp=!S.ro&&(!conv||rfiDirigidaAMim(base||e));
+  const e=S.qdraft, nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome;
+  const ehMinha=S.convidado&&e.requerente?.tipo==='u'&&e.requerente.id===FB()?.perfil()?.uid, dis=S.ro||(S.convidado&&!ehMinha)?'disabled':'';
+  const conv=S.convidado, euUid=FB()?.perfil()?.uid, minha=conv&&!!base&&base.requerente?.tipo==='u'&&base.requerente.id===euUid||conv&&!base;
+  const podeResp=!S.ro&&(!conv||minha||rfiDirigidaAMim(base||e));
   S.eqLock=false;
   h+=`<div class="page"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><button data-act="rfi" data-id="${esc(it.id)}">RFI</button><span>/</span><span>Nº ${esc(e.num??'')}</span></div>
   <h1 style="margin-bottom:6px">${e.num!=null?`<span class="cm-num">${esc(e.num)}</span>`:''}${esc(e.assunto||'RFI')}</h1><p class="lead" style="margin-bottom:14px">${[e.requerente&&'De: '+esc(rfiPessoaNome(e.requerente)),e.requerido&&'Para: '+esc(rfiPessoaNome(e.requerido)),e.prazo&&'prazo '+esc(e.prazo)].filter(Boolean).join(' · ')}${e.status?' &nbsp;'+statusRfi(e):''}${atrasadaRfi(e)?' <span class="st-cm st-crit">Prazo vencido</span>':''}</p>`;
-  if(conv) h+=`<div class="banner pub" style="margin-bottom:12px"><span class="sp">${podeResp?'Esta RFI é dirigida a você ou à sua empresa: registre a resposta abaixo. Comentários ficam abertos a todos.':'Você pode acompanhar esta RFI e adicionar comentários. Respostas só de quem foi requerido.'}</span></div>`;
+  if(conv) h+=`<div class="banner pub" style="margin-bottom:12px"><span class="sp">${minha?'Você abriu esta RFI: pode editar os dados, os requeridos e comentar. Respostas ficam com quem foi requerido.':podeResp?'Esta RFI é dirigida a você ou à sua empresa: registre a resposta abaixo. Comentários ficam abertos a todos.':'Você pode acompanhar esta RFI e adicionar comentários. Respostas só de quem foi requerido.'}</span></div>`;
   h+=`<div class="eq-top eq-top2">${conv?'':blocoCapaEq(e)}<div class="eq-acts"><button class="btn" data-act="eq-pdf" title="Gerar o registro da RFI em PDF, em papel timbrado">${IC.pdf}Exportar PDF</button></div></div>`;
-  const camposRO=html=>conv?html.replace(/<(input|textarea|select)(?![^>]*disabled)/g,'<$1 disabled'):html;
+  const camposRO=html=>conv&&!minha?html.replace(/<(input|textarea|select)(?![^>]*disabled)/g,'<$1 disabled'):html;
   // ordem: RFI → disciplinas envolvidas → requeridos (sugeridos pelas disciplinas) → prazos → respostas → comentários
   const mails=reqsEmails(e), rq=reqsRfi(e), roD=!!dis;
   // ordem: assunto, pergunta, status, requerente → disciplinas envolvidas → requeridos (sugeridos pelas disciplinas)
   h+=`<section class="sheet"><div class="sheet-h"><h2>RFI</h2></div><div class="grid">${camposRO(RFI_CAMPOS.map(f=>eqCampoHTML(f,e[f[0]])).join(''))}
-    <label class="fl" for="q_requerente">Requerente<select class="fld" id="q_requerente" data-rfip="requerente" ${dis}>${rfiPessoaOpcoes(e.requerente)}</select></label>
+    <label class="fl" for="q_requerente">Requerente<select class="fld" id="q_requerente" data-rfip="requerente" ${dis||(conv?'disabled':'')}>${rfiPessoaOpcoes(e.requerente)}</select></label>
     ${campoDiscRfi(e,roD)}
     <div class="fl wide">Requeridos <span class="muted" style="font-size:11.5px">(quem deve responder${discsRfi(e).length?'; sugestões pelas disciplinas envolvidas':''})</span><div class="tags-ed" style="padding:4px 0 0">${rq.map((r,i)=>`<span class="chip chip-c"><span>${esc(rfiPessoaNome(r))}</span><span class="muted" style="font-size:11.5px">${r.tipo==='e'?'empresa'+(rfiEmpresasDisc(e).has(r.id)?' · '+esc(rfiDiscsDaEmpresa(e,r.id).join(' ')):''):(()=>{const m=(ACS.lista||[]).find(x=>x.id===r.id)?.email; return m?esc(m):'sem e-mail'})()}</span>${roD?'':`<button data-act="rfi-req-rm" data-i="${i}" aria-label="Tirar ${esc(rfiPessoaNome(r))}">${IC.x}</button>`}</span>`).join('')||(roD?'<span class="muted">nenhum</span>':'')}
       ${roD?'':`<span class="tag-add"><select class="fld" id="q_requerido" data-rfip="requeridos" aria-label="Adicionar requerido">${rfiReqOpcoes(e)}</select></span>`}</div></div></div>
@@ -2918,14 +2921,17 @@ function blocoEvRfi(e,c,tit,ph,soLeitura){
   const evs=evRfi(e,c), ro=soLeitura??S.ro, dis=ro?'disabled':'';
   let h=`<section class="sheet"><div class="sheet-h"><h2>${tit}</h2><span class="hint">${evs.length||'Nenhum'}${evs.length?` registro${evs.length===1?'':'s'}`:''}</span></div>`;
   if(!ro) h+=`<div class="ev-novo"><input type="date" class="fld" id="evData_${c}" value="${dIso(new Date().toLocaleDateString('pt-BR'))}" aria-label="Data"><textarea class="fld" id="evTxt_${c}" rows="2" placeholder="${esc(ph)}" aria-label="${esc(tit)}"></textarea><button class="btn pri sm" data-act="rfi-ev-add" data-c="${c}">${IC.plus}Adicionar</button></div>`;
-  h+=evs.length?`<ol class="ev-lista">${evOrdem(evs).map(([x,i])=>`<li class="ev"><div class="ev-l"><input type="date" class="fld ev-dt" data-rfiev="${c}" data-ev="${i}" data-evk="data" value="${dIso(x.data)}" ${dis} aria-label="Data"></div><textarea class="fld ev-tx" data-rfiev="${c}" data-ev="${i}" data-evk="texto" rows="${Math.min(8,Math.max(2,String(x.texto).split('\n').length))}" ${dis} aria-label="Texto">${esc(x.texto)}</textarea>${ro?'':`<button class="icb del" data-act="rfi-ev-rm" data-c="${c}" data-i="${i}" title="Excluir" aria-label="Excluir">${IC.trash}</button>`}</li>`).join('')}</ol>`:`<p class="note">Nada registrado.</p>`;
+  h+=evs.length?`<ol class="ev-lista">${evOrdem(evs).map(([x,i])=>`<li class="ev"><div class="ev-l"><input type="date" class="fld ev-dt" data-rfiev="${c}" data-ev="${i}" data-evk="data" value="${dIso(x.data)}" ${dis} aria-label="Data">${rfiAutorEv(x)}</div><textarea class="fld ev-tx" data-rfiev="${c}" data-ev="${i}" data-evk="texto" rows="${Math.min(8,Math.max(2,String(x.texto).split('\n').length))}" ${dis} aria-label="Texto">${esc(x.texto)}</textarea>${ro?'':`<button class="icb del" data-act="rfi-ev-rm" data-c="${c}" data-i="${i}" title="Excluir" aria-label="Excluir">${IC.trash}</button>`}</li>`).join('')}</ol>`:`<p class="note">Nada registrado.</p>`;
   return h+'</section>';
 }
+const rfiLimpaEv=l=>(l||[]).map(x=>({data:x.data||'',texto:String(x.texto||'').trim(),...(x.por?{por:x.por}:{}),...(x.porId?{porId:x.porId}:{}),...(x.em?{em:x.em}:{})})).filter(x=>x.texto||x.data);
+const rfiAutorEv=x=>x.por||x.em?`<span class="ev-autor">${esc([x.por,x.em&&new Date(x.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})].filter(Boolean).join(' · '))}</span>`:'';
 function rfiGarantir(){const d=S.qdraft; if(!d) return; for(const c of ['respostas','comentarios','disciplinas']) if(!Array.isArray(d[c])) d[c]=[]}
 async function salvarRfi(){
   const e=S.qdraft; if(!e) return true;
-  if(S.convidado){ // só o que o convidado pode mudar: comentários e, se dirigida a ele, respostas (e o status vira Respondida)
-    const base=S.rfis.get(e.id)||{}, limpa=l=>(l||[]).map(x=>({data:x.data||'',texto:String(x.texto||'').trim()})).filter(x=>x.texto||x.data);
+  const minhaRfi=S.convidado&&(()=>{const b0=S.rfis.get(e.id); return !!b0&&b0.requerente?.tipo==='u'&&b0.requerente.id===FB()?.perfil()?.uid})();
+  if(S.convidado&&!minhaRfi){ // só o que o convidado pode mudar: comentários e, se dirigida a ele, respostas (e o status vira Respondida)
+    const base=S.rfis.get(e.id)||{}, limpa=rfiLimpaEv;
     const upd={comentarios:limpa(e.comentarios),atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};
     if(rfiDirigidaAMim(base)){upd.respostas=limpa(e.respostas); if(base.status==='ABERTA'&&upd.respostas.length>(base.respostas||[]).length) upd.status='RESPONDIDA'}
     try{await rfiColl().doc(e.id).update(upd); Object.assign(base,upd); S.qdraft={...base,id:e.id}; S.dirty=false; toast('Salvo'); return true}
@@ -2933,7 +2939,7 @@ async function salvarRfi(){
   }
   rfiGarantir(); const body={...S.qdraft}; delete body.id; delete body._stAntes;
   if(body.fechamento&&ANTES_RFI.has(body.status||'')) body.status='FECHADA';
-  for(const c of ['respostas','comentarios']) body[c]=(body[c]||[]).map(x=>({data:x.data||'',texto:String(x.texto||'').trim()})).filter(x=>x.texto||x.data);
+  for(const c of ['respostas','comentarios']) body[c]=rfiLimpaEv(body[c]);
   if(body.status==='ABERTA'&&body.respostas.length&&!S.rfis.get(e.id)?.respostas?.length) body.status='RESPONDIDA';
   body.disciplinas=[...new Set((body.disciplinas||[]).map(d=>String(d).trim().toUpperCase()).filter(Boolean))];
   body.requeridos=reqsRfi(body); body.requeridosIds=body.requeridos.map(q=>q.tipo+':'+q.id); delete body.requerido;
@@ -2970,7 +2976,8 @@ async function rfiAcao(a,b){
   if(a==='rfi-del'){if(!await confirmar('Excluir esta RFI? Não dá para desfazer.',{ok:'Excluir',perigo:true})) return true;
     const e=S.qdraft;try{await rfiColl().doc(e.id).delete();S.rfis.delete(e.id);S.dirty=false;S.qdraft=null;toast('RFI excluída');ir({t:'rfi',id:e.projeto})}catch{toast('Não foi possível excluir.')}return true}
   if(a==='rfi-ev-add'){const c=b.dataset.c, t=String($('evTxt_'+c)?.value||'').trim(), d=dBr($('evData_'+c)?.value||''); if(!t){$('evTxt_'+c)?.focus();toast('Escreva o texto');return true}
-    rfiGarantir(); S.qdraft[c].push({data:d,texto:t}); marcaSujo(); renderMain(); return true}
+    const eu=AMB==='firebase'?FB()?.perfil():null;
+    rfiGarantir(); S.qdraft[c].push({data:d,texto:t,por:eu?.nome||eu?.email||S.meuNome||'',porId:eu?.uid||me||'',em:Date.now()}); marcaSujo(); renderMain(); return true}
   if(a==='rfi-ev-rm'){rfiGarantir(); S.qdraft[b.dataset.c].splice(+b.dataset.i,1); marcaSujo(); renderMain(); return true}
   if(a==='rfi-req-rm'){const L=reqsRfi(S.qdraft); L.splice(+b.dataset.i,1); S.qdraft.requeridos=L; delete S.qdraft.requerido; marcaSujo(); renderMain(); return true}
   if(a==='rfi-notificar'){await rfiNotificar(); return true}

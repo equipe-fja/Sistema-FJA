@@ -50,10 +50,24 @@ service cloud.firestore {
           || (resource.data.requerido.get('tipo', '') == 'e' && resource.data.requerido.get('id', '') == minhaEmpresa())));
     }
     function muda(chaves) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(chaves); }
+    function projRfi(pid) { return get(/databases/$(database)/documents/projetosRfi/$(pid)).data; }
+    // convidado cria RFI em projeto de que participa, como requerente, com a lista de participantes do projeto
+    function criaConvidado() {
+      return ativo() && request.auth.uid in projRfi(request.resource.data.projeto).get('participantes', [])
+        && request.resource.data.get('participantes', []) == projRfi(request.resource.data.projeto).get('participantes', [])
+        && request.resource.data.get('requerente', {}).get('tipo', '') == 'u'
+        && request.resource.data.get('requerente', {}).get('id', '') == request.auth.uid;
+    }
+    // RFI aberta pelo próprio convidado: pode editar tudo, menos projeto, participantes e requerente
+    function minhaRfi() {
+      return participa() && resource.data.get('requerente', {}).get('tipo', '') == 'u' && resource.data.get('requerente', {}).get('id', '') == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['projeto', 'participantes', 'requerente']);
+    }
     match /rfi/{id} {
       allow read: if interno() || participa();
-      allow create, delete: if interno();
-      allow update: if interno()
+      allow create: if interno() || criaConvidado();
+      allow delete: if interno();
+      allow update: if interno() || minhaRfi()
         || (participa() && muda(['comentarios', 'atualizadoEm', 'atualizadoPor']))
         || (participa() && dirigida() && muda(['comentarios', 'respostas', 'status', 'atualizadoEm', 'atualizadoPor']));
     }
