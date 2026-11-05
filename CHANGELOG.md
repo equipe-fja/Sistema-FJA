@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~16h30 — commit f1ab40b
+- Usuários e acesso: controle do link de senha (data e quem enviou); "Definir senha" em vermelho até o link ser enviado a quem ainda não entrou; Reenviar vira "Copiar mensagem".
+
 ## oficial Firebase — 05/11, ~16h10 — commit 4086d38
 - Contas: quem cria a senha pelo link do e-mail não precisa trocar de novo ao entrar; link de senha enviado pelo admin dispensa a troca; "aguardando 1º acesso" depende do primeiro login (regra: a pessoa lê a própria senha provisória).
 
