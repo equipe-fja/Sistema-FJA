@@ -1,0 +1,7 @@
+tarefa: importar
+status: success
+commit: 266b2ccaf33568e6e5d0fcc8145ca7bd7dac003c
+quando: 2026-11-05T15:10:38Z
+----
+conta de serviço: firebase-adminsdk-fbsvc@sistema-fja.iam.gserviceaccount.com
+importar.json sem "pasta": nada a fazer
