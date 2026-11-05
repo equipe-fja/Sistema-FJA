@@ -26,7 +26,7 @@
   auth.languageCode='pt-BR';   // e-mails e páginas de senha do Firebase em português
   const ACAO={url:location.origin+'/',handleCodeInApp:false};   // botão "Continuar" volta ao sistema depois de trocar a senha
   let pronto; const logado=new Promise(r=>pronto=r);
-  let perfil=null;   // acessos/<uid>: {email, nome, nivel:'admin'|'usuario', trocarSenha}
+  let perfil=null, senhaDigitada=null;   // senha usada no login desta janela (só em memória)   // acessos/<uid>: {email, nome, nivel:'admin'|'usuario', trocarSenha}
   const lsGet=()=>{try{return localStorage.getItem(LS)||''}catch{return ''}}, lsSet=v=>{try{localStorage.setItem(LS,v)}catch{}};
   const ERROS={'auth/invalid-credential':'E-mail ou senha incorretos.','auth/wrong-password':'E-mail ou senha incorretos.','auth/user-not-found':'E-mail ou senha incorretos.',
     'auth/invalid-email':'E-mail inválido.','auth/too-many-requests':'Muitas tentativas. Aguarde alguns minutos ou use "Esqueci a senha".',
@@ -48,7 +48,7 @@
     const ir=async()=>{
       const e=em.value.trim().toLowerCase(); if(!e||!sn.value){m.className='msg err';m.textContent='Preencha e-mail e senha.';return}
       bt.disabled=true; m.className='msg'; m.textContent='Entrando…';
-      try{await auth.signInWithEmailAndPassword(e,sn.value); lsSet(e)}catch(x){m.className='msg err';m.textContent=msgErro(x);bt.disabled=false}
+      try{senhaDigitada=sn.value; await auth.signInWithEmailAndPassword(e,sn.value); lsSet(e)}catch(x){m.className='msg err';m.textContent=msgErro(x);bt.disabled=false}
     };
     bt.onclick=ir; sn.onkeydown=em.onkeydown=ev=>{if(ev.key==='Enter')ir()};
     d.querySelector('#fbEsq').onclick=async()=>{
@@ -90,7 +90,16 @@
     }
     if(!g.exists){await auth.signOut();entrar('A conta '+u.email+' não tem acesso ao sistema. Fale com um administrador.',true);return}
     perfil={...g.data(),uid:u.uid};
-    if(perfil.trocarSenha) await definirSenha(u,true);
+    if(perfil.trocarSenha){
+      // quem já criou a própria senha pelo link do e-mail não precisa trocar de novo:
+      // se entrou com uma senha diferente da provisória, a troca já foi feita
+      let prov=null; try{const g2=await fs.collection('senhasProvisorias').doc(u.uid).get(); prov=g2.exists?g2.data().senha:null}catch{}
+      if(prov&&senhaDigitada&&senhaDigitada!==prov){
+        try{await fs.collection('acessos').doc(u.uid).update({trocarSenha:false})}catch{} try{await fs.collection('senhasProvisorias').doc(u.uid).delete()}catch{}
+        perfil.trocarSenha=false;
+      } else await definirSenha(u,true);
+    }
+    senhaDigitada=null;
     try{await fs.collection('acessos').doc(u.uid).update({ultimoAcesso:Date.now()})}catch{}
     document.getElementById('fbLogin')?.remove();
     pronto(u);

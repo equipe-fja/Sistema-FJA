@@ -29,7 +29,8 @@ service cloud.firestore {
     }
     // senha provisória (para reenviar a mensagem enquanto a pessoa não entrou); apagada no 1º acesso
     match /senhasProvisorias/{uid} {
-      allow read, write: if admin();
+      allow read: if admin() || (logado() && request.auth.uid == uid);
+      allow write: if admin();
       allow delete: if logado() && request.auth.uid == uid;
     }
     // demais coleções (o curinga também casaria com acessos, por isso a exclusão explícita)
