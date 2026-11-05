@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~16h10 — commit 4086d38
+- Contas: quem cria a senha pelo link do e-mail não precisa trocar de novo ao entrar; link de senha enviado pelo admin dispensa a troca; "aguardando 1º acesso" depende do primeiro login (regra: a pessoa lê a própria senha provisória).
+
 ## oficial Firebase — 05/11, ~16h00 — commit 6774122
 - Usuários e acesso: Remover vira ícone de X.
 
