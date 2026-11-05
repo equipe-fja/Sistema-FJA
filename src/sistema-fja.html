@@ -7471,11 +7471,12 @@ if(AMB==='firebase'){
   MANUT.push({id:'conta',nome:'Minha conta',resumo:'Trocar a senha e sair do sistema.'});
   FB()?.pronto?.then(()=>{if(FB().admin()){MANUT.push({id:'acesso',nome:'Usuários e acesso',resumo:'Criar contas com senha provisória, definir quem é administrador e remover acessos. Só administradores.'}); if(S.carregado&&!S.dirty) render()}});
 }
-const ACS={lista:null,ouvindo:false,erro:null,criada:null};
+const ACS={lista:null,pend:[],ouvindo:false,erro:null,criada:null};
 function acsOuvir(){
   if(ACS.ouvindo||!db) return; ACS.ouvindo=true;
   db.collection('acessos').onSnapshot(snap=>{ACS.lista=snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>(a.nome||a.email||'').localeCompare(b.nome||b.email||'','pt')); ACS.erro=null; if(S.view?.f==='acesso'&&!S.dirty) renderMain()},
     e=>{ACS.lista=[];ACS.erro=e.message; if(S.view?.f==='acesso') renderMain()});
+  db.collection('acessosPendentes').onSnapshot(snap=>{ACS.pend=snap.docs.map(d=>({...d.data(),id:d.id})); if(S.view?.f==='acesso'&&!S.dirty) renderMain()},()=>{});
 }
 const ACS_NOVO='__novo__';
 const acsEmpNome=id=>id?(S.itens.get(id)?.nome||'(parceiro removido)'):'';
@@ -7530,7 +7531,10 @@ function telaAcesso(h){
      <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
      <td>${x.id===eu?'Administrador':`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Usuário</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select>`}</td>
      <td class="muted">${x.trocarSenha?'aguardando 1º acesso':fmt(x.ultimoAcesso)}</td>
-     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-reset" data-id="${esc(x.id)}" title="Envia à pessoa um e-mail com link para criar uma nova senha">Redefinir senha</button>${x.id===eu?'':` <button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}">Remover</button>`}</td></tr>`).join('')}</tbody></table>`}
+     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-reset" data-id="${esc(x.id)}" title="Envia à pessoa um e-mail com link para criar uma nova senha">Redefinir senha</button>${x.id===eu?'':` <button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}">Remover</button>`}</td></tr>`).join('')}
+   ${(ACS.pend||[]).filter(p=>!L.some(x=>(x.email||'')===p.email)).map(p=>`<tr><td>${esc(p.nome||'')}</td><td class="mono">${esc(p.email)}</td><td>${esc(acsEmpNome(p.empresa)||'—')}</td><td>${p.nivel==='admin'?'Administrador':'Usuário'}</td>
+     <td class="muted" title="O e-mail já tinha conta no sistema: o acesso fica liberado e a conta aparece aqui depois que a pessoa entrar">liberado · entra com a senha atual ou “Esqueci a senha”</td>
+     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-reset-em" data-em="${esc(p.email)}">Redefinir senha</button> <button class="btn sm ghost" data-act="acs-rm-pend" data-id="${esc(p.id)}">Remover</button></td></tr>`).join('')}</tbody></table>`}
   </div></section></div>`;
   return h;
 }
@@ -7555,6 +7559,7 @@ document.addEventListener('click',async ev=>{
       if(e?.code==='auth/email-already-in-use'){
         // conta antiga (ex.: login por link): fica liberada e é vinculada no próximo login da pessoa
         try{await db.collection('acessosPendentes').doc(em).set({email:em,nome,nivel,empresa,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+          ['acsEm','acsNome'].forEach(k=>{const el=$(k); if(el) el.value=''}); ACS.emp='';
           toast('Este e-mail já tinha conta: acesso liberado. A pessoa entra com a senha atual dela ou usa "Esqueci a senha".')}
         catch(x){toast('Não foi possível liberar: '+x.message)}
       } else toast('Não foi possível criar: '+fb.mensagemErro(e));
@@ -7562,6 +7567,8 @@ document.addEventListener('click',async ev=>{
   } else if(a==='acs-copiar'){
     const t=acsMsgConvite(ACS.criada||{}); try{await navigator.clipboard.writeText(t); toast('Mensagem copiada')}catch{toast(t)}
   } else if(a==='acs-fechar'){ACS.criada=null; renderMain()}
+  else if(a==='acs-reset-em'){try{await fb.auth.sendPasswordResetEmail(b.dataset.em); toast('E-mail de redefinição enviado para '+b.dataset.em)}catch(e){toast('Não foi possível enviar: '+fb.mensagemErro(e))}}
+  else if(a==='acs-rm-pend'){try{await db.collection('acessosPendentes').doc(b.dataset.id).delete(); toast('Liberação removida')}catch(e){toast('Não foi possível remover: '+e.message)}}
   else if(a==='acs-reset'){
     const x=(ACS.lista||[]).find(y=>y.id===b.dataset.id); if(!x) return;
     try{await fb.auth.sendPasswordResetEmail(x.email); toast('E-mail de redefinição enviado para '+x.email)}catch(e){toast('Não foi possível enviar: '+fb.mensagemErro(e))}
