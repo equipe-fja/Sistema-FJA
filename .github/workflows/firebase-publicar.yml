@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
       - name: Gerar páginas
         run: ./scripts/gerar.sh
       - name: Publicar no Firebase (Hosting + regras do Firestore)
@@ -20,7 +22,9 @@ jobs:
           printf '%s' "$CHAVE" > "$RUNNER_TEMP/chave.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
           set -o pipefail
-          npx -y firebase-tools@13 deploy --only hosting,firestore:rules --project sistema-fja --non-interactive 2>&1 | tee "$RUNNER_TEMP/log.txt"
+          npx -y firebase-tools@13 deploy --only hosting --project sistema-fja --non-interactive 2>&1 | grep -v "npm warn" | tee "$RUNNER_TEMP/log.txt"
+          echo "---- regras do Firestore" >> "$RUNNER_TEMP/log.txt"
+          npx -y firebase-tools@13 deploy --only firestore:rules --project sistema-fja --non-interactive 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
       - name: Registrar resultado (branch firebase-log)
         if: always()
         env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
