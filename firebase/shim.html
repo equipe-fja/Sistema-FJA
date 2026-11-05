@@ -23,6 +23,8 @@
   const LS='fja.fbEmail';
   firebase.initializeApp(CFG);
   const auth=firebase.auth(), fs=firebase.firestore();
+  // cache local: ao reabrir, o banco manda só o que mudou (menos leituras e abertura mais rápida); várias abas compartilham o cache
+  try{fs.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('cache do banco indisponível:',e?.code||e))}catch(e){console.warn('cache',e)}
   auth.languageCode='pt-BR';   // e-mails e páginas de senha do Firebase em português
   const ACAO={url:location.origin+'/',handleCodeInApp:false};   // botão "Continuar" volta ao sistema depois de trocar a senha
   let pronto; const logado=new Promise(r=>pronto=r);
