@@ -3860,7 +3860,7 @@ function blocoEquipeProj(it){
   const fb=AMB==='firebase'; if(fb) acsOuvir();
   const ro=S.ro, adm=!ro&&(!fb||FB()?.admin()), L=ACS.lista||[], ps=partsDe(it), emps=empresasProj(it);
   const discsDe=eid=>(it.disciplinas||[]).filter(l=>l.parceiro===eid||(l.apoio||[]).includes(eid)).map(l=>l.sigla||l.cod);
-  const chip=u=>`<span class="chip chip-c" title="${esc(u.email||'')}"><span>${esc(u.nome||u.email)}</span><span class="muted" style="font-size:12px">${esc(acsNivelTxt(u.nivel))}${u.ultimoAcesso?'':' · aguardando 1º acesso'}</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(u.id)}" aria-label="Tirar ${esc(u.nome||'')} do projeto">${IC.x}</button>`:''}</span>`;
+  const chip=u=>`<span class="chip chip-c" title="${esc(u.email||'')}"><span>${esc(u.nome||u.email)}</span><span class="muted" style="font-size:12px">${esc(acsNivelTxt(u.nivel))}${ehPh(u)?' · sem acesso':u.ultimoAcesso?'':' · aguardando 1º acesso'}</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(u.id)}" aria-label="Tirar ${esc(u.nome||'')} do projeto">${IC.x}</button>`:''}</span>`;
   const addSel=(lista,rot,eid)=>adm?`<button class="btn sm ghost" data-act="eqp-abrir" data-tipo="pessoa" data-id="${esc(it.id)}" data-e="${esc(eid||'')}">${IC.plus}${esc(rot)}</button>`:'';
   const ordN=(a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt');
   let h=`<section class="sheet"><div class="sheet-h"><h2>Equipe do projeto</h2><span class="hint">${emps.length} empresa${emps.length===1?'':'s'}${fb?` · ${ps.length} pessoa${ps.length===1?'':'s'}`:''}</span>
@@ -3910,16 +3910,16 @@ function eqpRender(){
     const emp=dr.e?S.itens.get(dr.e):null; tit=`Adicionar pessoa${emp?' · '+emp.nome:' · sem empresa'}`;
     const ps=partsDe(it), L=(ACS.lista||[]).filter(u=>!ps.includes(u.id)&&(dr.e?u.empresa===dr.e:!u.empresa||!S.itens.get(u.empresa))&&casa((u.nome||'')+' '+u.email)).sort((a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt'));
     corpo=`<div class="fl">Pessoas com conta${emp?' nesta empresa':' sem empresa'}${busca}</div><div class="eqp-lista">${L.map(u=>`<button class="ml-b" data-act="eqp-pes" data-u="${esc(u.id)}"><b>${esc(u.nome||u.email)}</b> <span class="muted">${esc(u.email)} · ${acsNivelTxt(u.nivel)}</span></button>`).join('')||'<p class="muted">Ninguém disponível.</p>'}</div>
-      <h3 style="margin:14px 0 4px;font-size:14px">Ou crie a conta de uma pessoa nova</h3>
+      <h3 style="margin:14px 0 4px;font-size:14px">Ou cadastre uma pessoa nova</h3>
       <label class="fl">Nome *<input class="fld" id="eqpNome"></label>
-      <label class="fl">E-mail *<input class="fld" id="eqpEmail" type="email"></label>
+      <label class="fl">E-mail <span style="font-size:11px">(vazio = pessoa sem acesso; o e-mail e o acesso podem vir depois, em Usuários e acesso)</span><input class="fld" id="eqpEmail" type="email"></label>
       <label class="fl">Empresa<select class="fld" id="eqpEmp">${acsEmpOpcoes(dr.e||'')}</select></label>
       <label class="fl">Nível<select class="fld" id="eqpNivel"><option value="usuario">Convidado</option><option value="admin">Administrador</option></select></label>
       <label class="fl">Senha provisória<input class="fld mono" id="eqpSenha" value="${esc(dr.senha||=FB().senhaProvisoria())}"></label>
       ${dr.criada?`<div class="banner pub"><span class="sp">Conta criada: <b>${esc(dr.criada.email)}</b> · senha <b class="mono">${esc(dr.criada.senha)}</b></span><button class="btn sm" data-act="eqp-copiar">Copiar mensagem</button></div>`:''}`;
   }
   d.innerHTML=`<div class="cro-dr-h"><b>${esc(tit)}</b><button class="icb" data-act="eqp-fechar" aria-label="Fechar">${IC.x}</button></div><div class="cro-dr-b">${corpo}</div>
-    <div class="cro-dr-f"><span class="sp"></span><button class="btn ghost" data-act="eqp-fechar">Fechar</button><button class="btn pri" data-act="eqp-criar">${dr.tipo==='empresa'?'Cadastrar e adicionar':'Criar conta e adicionar'}</button></div>`;
+    <div class="cro-dr-f"><span class="sp"></span><button class="btn ghost" data-act="eqp-fechar">Fechar</button><button class="btn pri" data-act="eqp-criar">${dr.tipo==='empresa'?'Cadastrar e adicionar':'Cadastrar e adicionar'}</button></div>`;
   const b=$('eqpBusca'); if(b&&dr.focoBusca){b.focus(); b.setSelectionRange(b.value.length,b.value.length)}
 }
 document.addEventListener('input',ev=>{if(ev.target.id==='eqpBusca'&&EQP.dr){EQP.dr.q=ev.target.value; EQP.dr.focoBusca=true; eqpRender()}},true);
@@ -3945,7 +3945,9 @@ document.addEventListener('click',async ev=>{
   if(a==='eqp-criar'){
     const fb=FB(); if(!fb?.admin()){toast('Somente administradores criam contas');return}
     const nome=v('eqpNome'), em=v('eqpEmail').toLowerCase(), empresa=v('eqpEmp').replace(ACS_NOVO,''), nivel=v('eqpNivel')==='admin'?'admin':'usuario', senha=v('eqpSenha');
-    if(!nome||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('Informe nome e e-mail válidos');return}
+    if(!nome){toast('Informe o nome');return}
+    if(!em){const id=await acsCriarPlaceholder({nome,nivel,empresa}); if(id){await partsGravar(it.id,[...partsDe(it),id]); eqpRender()} return}
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
     if(senha.length<8){toast('A senha provisória precisa ter pelo menos 8 caracteres');return}
     const ja=(ACS.lista||[]).find(x=>x.email===em); if(ja){await partsGravar(it.id,[...new Set([...partsDe(it),ja.id])]); toast(em+' já tinha conta: adicionada ao projeto'); eqpRender(); return}
     b.disabled=true;
@@ -7916,7 +7918,7 @@ const acsMsgConvite=(c)=>`Olá${c.nome?' '+c.nome:''}! Sua conta no Sistema FJA 
 /* ---- lista de contas: Master sempre no topo; demais agrupadas e ordenadas pela escolha guardada no navegador ---- */
 const acsPref=()=>{try{return JSON.parse(localStorage.getItem('fja.acsLista')||'{}')}catch{return {}}};
 const acsNivelTxt=n=>n==='master'?'Master':n==='admin'?'Administrador':'Convidado';
-const acsSituacao=x=>x.pend?'Liberado (conta antiga)':x.ultimoAcesso?'Ativo':'Aguardando 1º acesso';
+const acsSituacao=x=>x.pend?'Liberado (conta antiga)':ehPh(x)?'Sem acesso':x.ultimoAcesso?'Ativo':'Aguardando 1º acesso';
 const ACS_X='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const acsCasaX=(btn)=>`<span style="display:inline-block;width:30px;text-align:right">${btn||''}</span>`;
 function acsLinha(x,eu,fmt){
@@ -7925,6 +7927,11 @@ function acsLinha(x,eu,fmt){
      <td class="muted" title="O e-mail já tinha conta no sistema: o acesso fica liberado e a conta aparece aqui depois que a pessoa entrar">liberado · aguardando 1º acesso${link}</td>
      <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-email-pend" data-id="${esc(x.id)}">Alterar e-mail</button> ${acsBtSenha('acs-reset-em',`data-id="${esc(x.id)}" data-em="${esc(x.email)}"`,true,x.linkSenhaEm)}${acsCasaX(`<button class="btn sm ghost" data-act="acs-rm-pend" data-id="${esc(x.id)}" title="Remover liberação" aria-label="Remover liberação de ${esc(x.email||'')}" style="padding:4px 6px">${ACS_X}</button>`)}</td></tr>`;
   const fixo=master||x.id===eu;
+  if(ehPh(x)) return `<tr><td>${esc(x.nome||'')}</td><td class="mono">${x.email?esc(x.email):'<span class="muted">sem e-mail</span>'}</td>
+     <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
+     <td><select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select></td>
+     <td class="muted">sem acesso</td>
+     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-ph-email" data-id="${esc(x.id)}">${x.email?'Alterar e-mail':'Definir e-mail'}</button> ${x.email?`<button class="btn sm ghost" data-act="acs-ph-ativar" data-id="${esc(x.id)}" ${ACS_VERM} title="Cria a conta e envia o link para a pessoa criar a senha">Enviar acesso</button>`:''}${acsCasaX(`<button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}" title="Remover" aria-label="Remover ${esc(x.nome||'')}" style="padding:4px 6px">${ACS_X}</button>`)}</td></tr>`;
   return `<tr${master?' style="background:var(--bg2,#F2F2EF)"':''}><td>${master?'<b>':''}${esc(x.nome||'')}${master?'</b>':''}${x.id===eu?' <span class="muted">(você)</span>':''}</td><td class="mono">${esc(x.email||'')}</td>
      <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
      <td>${fixo?acsNivelTxt(x.nivel):`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select>`}</td>
@@ -7968,6 +7975,36 @@ function blocoParceiroPessoas(d){
     ${P.map(x=>`<tr><td>${esc(x.nome||'')}</td><td class="mono">${esc(x.email||'')}</td><td>${acsNivelTxt(x.nivel)}</td><td class="muted">liberado · aguardando 1º acesso</td></tr>`).join('')}</tbody></table>`
     :`<p class="note">Ninguém desta empresa tem conta no sistema.${adm?' Crie em Manutenção › Usuários e acesso, escolhendo esta empresa.':''}</p>`}</div></section>`;
 }
+/* ---- pessoas sem acesso ("placeholder"): só nome, empresa e nível; entram em projetos e RFIs.
+   acessos/ph-<id> {placeholder:true}. Com o e-mail preenchido, "Enviar acesso" cria a conta de verdade, troca o id
+   em projetos e RFIs e manda o link para a pessoa criar a senha. */
+const ehPh=x=>!!x?.placeholder||String(x?.id||'').startsWith('ph-');
+async function acsCriarPlaceholder({nome,nivel,empresa,email}){
+  const fb=FB(); if(!fb?.admin()){toast('Somente administradores');return null}
+  const id='ph-'+crypto.randomUUID().replace(/-/g,'').slice(0,20);
+  try{await db.collection('acessos').doc(id).set({nome,nivel:nivel==='admin'?'admin':'usuario',empresa:empresa||'',email:email||'',placeholder:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+    toast(`${nome} cadastrado sem acesso. Preencha o e-mail depois para enviar o acesso.`); return id}
+  catch(e){toast('Não foi possível cadastrar: '+(e?.message||e)); return null}
+}
+async function acsAtivarPlaceholder(x){
+  const fb=FB(); if(!fb?.admin()) return;
+  if(!x.email){toast('Preencha o e-mail antes');return}
+  if((ACS.lista||[]).some(y=>y.id!==x.id&&y.email===x.email&&!ehPh(y))){toast('Já existe uma conta com '+x.email);return}
+  let uid;
+  try{uid=await fb.criarConta(x.email,fb.senhaProvisoria())}
+  catch(e){if(e?.code==='auth/email-already-in-use'){toast('Esse e-mail já tem conta antiga no Firebase: libere em "Nova conta" com o e-mail e depois remova esta pessoa sem acesso');return} toast('Não foi possível criar a conta: '+fb.mensagemErro(e)); return}
+  const {id:_,placeholder,...dados}=x;
+  try{
+    await db.collection('acessos').doc(uid).set({...dados,trocarSenha:false,ativadoEm:Date.now()});
+    // troca o id antigo pelo novo em projetos (participantes) e RFIs (requerente/requerido)
+    for(const p of itensDe('projetos')) if(partsDe(p).includes(x.id)) await partsGravar(p.id,partsDe(p).map(u=>u===x.id?uid:u));
+    for(const r of S.rfis.values()) for(const k of ['requerente','requerido']) if(r[k]?.tipo==='u'&&r[k].id===x.id) await rfiColl().doc(r.id).update({[k]:{...r[k],id:uid}});
+    await db.collection('acessos').doc(x.id).delete();
+    await fb.auth.sendPasswordResetEmail(x.email,fb.acaoEmail);
+    await db.collection('acessos').doc(uid).update({linkSenhaEm:Date.now(),linkSenhaPor:fb.perfil()?.email||''});
+    toast('Acesso criado: link para criar a senha enviado a '+x.email);
+  }catch(e){toast('A conta foi criada, mas faltou um passo: '+(e?.message||e))}
+}
 function telaConta(h){
   const p=FB()?.perfil()||{};
   h+=`<div class="page"><div class="crumb"><button data-act="manut">Manutenção</button><span>/</span><span>Minha conta</span></div>
@@ -7992,7 +8029,7 @@ function telaAcesso(h){
   </div></section>`:''}
   <section class="sheet"><div class="sheet-h"><h2>Nova conta</h2></div><div class="pad ferr-pad">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <input class="fld" id="acsEm" type="email" placeholder="e-mail" style="flex:2 1 220px">
+      <input class="fld" id="acsEm" type="email" placeholder="e-mail (vazio = pessoa sem acesso, preencher depois)" style="flex:2 1 220px">
       <input class="fld" id="acsNome" placeholder="nome" style="flex:1 1 160px">
       <select class="fld" id="acsEmp" data-act="acs-emp-novo" style="flex:1 1 200px" title="Empresa (Biblioteca › Parceiros)">${acsEmpOpcoes(ACS.emp||'')}</select>
       <select class="fld" id="acsNivel" style="flex:0 0 auto"><option value="usuario">Convidado</option><option value="admin">Administrador</option></select>
@@ -8016,8 +8053,9 @@ document.addEventListener('click',async ev=>{
   if(!fb.admin()){toast('Somente administradores');return}
   if(a==='acs-add'){
     const em=($('acsEm')?.value||'').trim().toLowerCase(), nome=($('acsNome')?.value||'').trim(), nivel=$('acsNivel')?.value==='admin'?'admin':'usuario', empresa=($('acsEmp')?.value||'').replace(ACS_NOVO,''), senha=($('acsSenha')?.value||'').trim();
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
     if(!nome){toast('Informe o nome');return}
+    if(!em){if(await acsCriarPlaceholder({nome,nivel,empresa})){['acsEm','acsNome'].forEach(k=>{const el=$(k); if(el) el.value=''}); ACS.emp=''}; return}
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
     if(senha.length<8){toast('A senha provisória precisa ter pelo menos 8 caracteres');return}
     b.disabled=true;
     try{
@@ -8079,6 +8117,17 @@ document.addEventListener('click',async ev=>{
       if(e?.code==='auth/email-already-in-use'){try{await db.collection('acessosPendentes').doc(novo).set({email:novo,nome:p.nome||'',nivel:p.nivel,empresa:p.empresa||'',criadoPor:p.criadoPor||'',em:Date.now()}); await db.collection('acessosPendentes').doc(p.id).delete(); toast('Liberação passada para '+novo)}catch(x2){toast('Não foi possível alterar: '+x2.message)}}
       else toast('Não foi possível alterar: '+fb.mensagemErro(e));
     }
+  }
+  else if(a==='acs-ph-email'){
+    const x=(ACS.lista||[]).find(y=>y.id===b.dataset.id); if(!x) return;
+    const r0=await pedirNome({titulo:'E-mail de '+(x.nome||''),rotulo:'E-mail',padrao:x.email||'',ok:'Salvar',bruto:true}); if(r0==null) return; const em=String(r0).trim().toLowerCase();
+    if(em&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
+    try{await db.collection('acessos').doc(x.id).update({email:em}); toast(em?'E-mail salvo. Use "Enviar acesso" quando quiser liberar a entrada.':'E-mail removido')}catch(e){toast('Não foi possível salvar: '+e.message)}
+  }
+  else if(a==='acs-ph-ativar'){
+    const x=(ACS.lista||[]).find(y=>y.id===b.dataset.id); if(!x) return;
+    if(!await confirmar(`Criar o acesso de ${x.nome} (${x.email}) e enviar o link para criar a senha?`,{ok:'Enviar acesso'})) return;
+    b.disabled=true; await acsAtivarPlaceholder(x);
   }
   else if(a==='acs-reset-em'){try{await fb.auth.sendPasswordResetEmail(b.dataset.em,fb.acaoEmail);
       if(b.dataset.id){try{await db.collection('acessosPendentes').doc(b.dataset.id).update({linkSenhaEm:Date.now(),linkSenhaPor:fb.perfil()?.email||''})}catch{}}
