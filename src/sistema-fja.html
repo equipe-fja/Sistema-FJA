@@ -912,6 +912,7 @@ body.cro-arr,body.cro-arr *{cursor:grabbing!important}
 .cro-dr-h{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);font-size:15px}
 .cro-dr-b{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
 .cro-dr-f{display:flex;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.eqp-lista{display:flex;flex-direction:column;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:6px}.eqp-lista .ml-b{justify-content:flex-start;text-align:left;gap:6px}
 .cro-dr .fl{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
 .cro-dr .fld{padding:6px 8px;font-size:13px;min-width:0}
 .cro-g2{display:grid;grid-template-columns:90px 1fr;gap:10px}
@@ -3860,22 +3861,22 @@ function blocoEquipeProj(it){
   const ro=S.ro, adm=!ro&&(!fb||FB()?.admin()), L=ACS.lista||[], ps=partsDe(it), emps=empresasProj(it);
   const discsDe=eid=>(it.disciplinas||[]).filter(l=>l.parceiro===eid||(l.apoio||[]).includes(eid)).map(l=>l.sigla||l.cod);
   const chip=u=>`<span class="chip chip-c" title="${esc(u.email||'')}"><span>${esc(u.nome||u.email)}</span><span class="muted" style="font-size:12px">${esc(acsNivelTxt(u.nivel))}${u.ultimoAcesso?'':' · aguardando 1º acesso'}</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(u.id)}" aria-label="Tirar ${esc(u.nome||'')} do projeto">${IC.x}</button>`:''}</span>`;
-  const addSel=(lista,rot)=>adm&&lista.length?`<span class="tag-add"><select class="fld" data-act="part-add" data-id="${esc(it.id)}" aria-label="${esc(rot)}"><option value="">+ ${esc(rot)}</option>${lista.map(u=>`<option value="${esc(u.id)}">${esc(u.nome||u.email)} (${acsNivelTxt(u.nivel)})</option>`).join('')}</select></span>`:'';
+  const addSel=(lista,rot,eid)=>adm?`<button class="btn sm ghost" data-act="eqp-abrir" data-tipo="pessoa" data-id="${esc(it.id)}" data-e="${esc(eid||'')}">${IC.plus}${esc(rot)}</button>`:'';
   const ordN=(a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt');
   let h=`<section class="sheet"><div class="sheet-h"><h2>Equipe do projeto</h2><span class="hint">${emps.length} empresa${emps.length===1?'':'s'}${fb?` · ${ps.length} pessoa${ps.length===1?'':'s'}`:''}</span>
     ${fb?'<span class="muted" style="font-size:12px;margin-left:8px">Convidados só veem os projetos em que estão aqui (apenas a RFI).</span>':''}<span class="sp"></span>
-    ${adm?`<select class="fld" data-act="emp-add" data-id="${esc(it.id)}" style="width:auto" aria-label="Adicionar empresa ao projeto"><option value="">+ Adicionar empresa</option>${parceiros().filter(p=>!emps.includes(p.id)).sort(ordena).map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join('')}<option value="${ACS_NOVO}">+ Cadastrar nova empresa…</option></select>`:''}</div>`;
+    ${adm?`<button class="btn sm" data-act="eqp-abrir" data-tipo="empresa" data-id="${esc(it.id)}">${IC.plus}Adicionar empresa</button>`:''}</div>`;
   h+=`<div class="tablewrap"><table class="list"><thead><tr><th style="width:26%">Empresa</th><th style="width:18%">Disciplinas</th><th>${fb?'Pessoas no projeto':''}</th>${adm?'<th style="width:40px"></th>':''}</tr></thead><tbody>`;
   for(const eid of emps){const p=S.itens.get(eid), ds=discsDe(eid), noProj=L.filter(u=>u.empresa===eid&&ps.includes(u.id)).sort(ordN), fora=L.filter(u=>u.empresa===eid&&!ps.includes(u.id)).sort(ordN);
     const extra=(it.empresasExtra||[]).includes(eid), podeTirar=extra&&!ds.length&&!noProj.length;
     h+=`<tr><td><button class="dc-lk" data-act="item" data-id="${esc(eid)}" title="Ficha da empresa"><b>${esc(p.nome)}</b></button><div class="muted dc-sub">${esc(p.campos?.papel||'')}</div></td>
       <td>${ds.length?ds.map(c=>`<span class="mono">${esc(c)}</span>`).join(' '):'<span class="muted">sem disciplina</span>'}</td>
-      <td>${fb?`<div class="tags-ed" style="padding:0">${noProj.map(chip).join('')}${addSel(fora,'adicionar pessoa')}${!noProj.length&&!fora.length?'<span class="muted" style="font-size:12.5px">Nenhuma pessoa desta empresa tem conta.</span>':''}</div>`:''}</td>
+      <td>${fb?`<div class="tags-ed" style="padding:0">${noProj.map(chip).join('')}${addSel(fora,'pessoa',eid)}</div>`:''}</td>
       ${adm?`<td>${podeTirar?`<button class="icb del" data-act="emp-rm" data-id="${esc(it.id)}" data-e="${esc(eid)}" title="Tirar a empresa do projeto" aria-label="Tirar a empresa do projeto">${IC.trash}</button>`:''}</td>`:''}</tr>`}
   if(fb){const semE=L.filter(u=>!u.empresa||!S.itens.get(u.empresa)), noProj=semE.filter(u=>ps.includes(u.id)).sort(ordN), fora=semE.filter(u=>!ps.includes(u.id)).sort(ordN);
     const sumidos=ps.filter(uid=>!L.some(u=>u.id===uid));
-    if(semE.length||sumidos.length) h+=`<tr><td><b>Sem empresa</b><div class="muted dc-sub">defina a empresa em Usuários e acesso</div></td><td></td>
-      <td><div class="tags-ed" style="padding:0">${noProj.map(chip).join('')}${sumidos.map(uid=>`<span class="chip chip-c"><span class="muted">(conta removida)</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(uid)}" aria-label="Tirar">${IC.x}</button>`:''}</span>`).join('')}${addSel(fora,'adicionar pessoa')}</div></td>${adm?'<td></td>':''}</tr>`}
+    h+=`<tr><td><b>Sem empresa</b><div class="muted dc-sub">defina a empresa em Usuários e acesso</div></td><td></td>
+      <td><div class="tags-ed" style="padding:0">${noProj.map(chip).join('')}${sumidos.map(uid=>`<span class="chip chip-c"><span class="muted">(conta removida)</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(uid)}" aria-label="Tirar">${IC.x}</button>`:''}</span>`).join('')}${addSel(fora,'pessoa','')}</div></td>${adm?'<td></td>':''}</tr>`}
   if(!emps.length&&!fb) h+=`<tr><td colspan="4" class="muted">Defina os parceiros das disciplinas acima ou adicione empresas.</td></tr>`;
   return h+`</tbody></table></div></section>`;
 }
@@ -3883,6 +3884,79 @@ async function empresasExtraGravar(pid,lista){
   const it=S.itens.get(pid); if(!it) return;
   try{await coll().doc(pid).update({empresasExtra:lista}); it.empresasExtra=lista; if(S.draft?.id===pid) S.draft.empresasExtra=lista; renderMain()}catch(e){toast('Não foi possível alterar: '+(e?.message||e))}
 }
+/* ficha lateral da equipe: escolher uma empresa/pessoa já cadastrada ou cadastrar uma nova */
+const EQP={dr:null};
+function eqpFechar(){EQP.dr=null; $('eqpDr')?.remove(); document.body.classList.remove('cro-dr-on')}
+function eqpRender(){
+  const dr=EQP.dr; if(!dr){eqpFechar();return}
+  let d=$('eqpDr'); if(!d){d=document.createElement('aside');d.id='eqpDr';d.className='cro-dr';document.body.appendChild(d)}
+  document.body.classList.add('cro-dr-on');
+  const it=S.itens.get(dr.pid); if(!it){eqpFechar();return}
+  const q=semAc(String(dr.q||'')).toLowerCase(), casa=t=>!q||semAc(String(t||'')).toLowerCase().includes(q);
+  const busca=`<input class="fld" id="eqpBusca" type="search" placeholder="Buscar…" value="${esc(dr.q||'')}" aria-label="Buscar">`;
+  let corpo='', tit='';
+  if(dr.tipo==='empresa'){
+    tit='Adicionar empresa ao projeto';
+    const ja=empresasProj(it), L=parceiros().filter(p=>!ja.includes(p.id)&&casa(p.nome)).sort(ordena);
+    corpo=`<div class="fl">Empresas cadastradas${busca}</div><div class="eqp-lista">${L.map(p=>`<button class="ml-b" data-act="eqp-emp" data-e="${esc(p.id)}"><b>${esc(p.nome)}</b> <span class="muted">${esc([p.campos?.papel,discsParc(p).join(' ')].filter(Boolean).join(' · '))}</span></button>`).join('')||'<p class="muted">Nenhuma empresa encontrada.</p>'}</div>
+      <h3 style="margin:14px 0 4px;font-size:14px">Ou cadastre uma nova</h3>
+      <label class="fl">Nome *<input class="fld" id="eqpNome"></label>
+      <label class="fl">Papel<select class="fld" id="eqpPapel"><option value="">—</option>${['Projetista','Consultor','Arquitetura autora','Cliente','Órgão / concessionária','Interno (FJA)'].map(o=>`<option>${o}</option>`).join('')}</select></label>
+      <label class="fl">Contato principal<input class="fld" id="eqpContato"></label>
+      <label class="fl">E-mail<input class="fld" id="eqpEmail" type="email"></label>
+      <label class="fl">Telefone / WhatsApp<input class="fld" id="eqpTel"></label>
+      <label class="fl">CNPJ / CPF<input class="fld" id="eqpCnpj"></label>`;
+  } else {
+    const emp=dr.e?S.itens.get(dr.e):null; tit=`Adicionar pessoa${emp?' · '+emp.nome:' · sem empresa'}`;
+    const ps=partsDe(it), L=(ACS.lista||[]).filter(u=>!ps.includes(u.id)&&(dr.e?u.empresa===dr.e:!u.empresa||!S.itens.get(u.empresa))&&casa((u.nome||'')+' '+u.email)).sort((a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt'));
+    corpo=`<div class="fl">Pessoas com conta${emp?' nesta empresa':' sem empresa'}${busca}</div><div class="eqp-lista">${L.map(u=>`<button class="ml-b" data-act="eqp-pes" data-u="${esc(u.id)}"><b>${esc(u.nome||u.email)}</b> <span class="muted">${esc(u.email)} · ${acsNivelTxt(u.nivel)}</span></button>`).join('')||'<p class="muted">Ninguém disponível.</p>'}</div>
+      <h3 style="margin:14px 0 4px;font-size:14px">Ou crie a conta de uma pessoa nova</h3>
+      <label class="fl">Nome *<input class="fld" id="eqpNome"></label>
+      <label class="fl">E-mail *<input class="fld" id="eqpEmail" type="email"></label>
+      <label class="fl">Empresa<select class="fld" id="eqpEmp">${acsEmpOpcoes(dr.e||'')}</select></label>
+      <label class="fl">Nível<select class="fld" id="eqpNivel"><option value="usuario">Convidado</option><option value="admin">Administrador</option></select></label>
+      <label class="fl">Senha provisória<input class="fld mono" id="eqpSenha" value="${esc(dr.senha||=FB().senhaProvisoria())}"></label>
+      ${dr.criada?`<div class="banner pub"><span class="sp">Conta criada: <b>${esc(dr.criada.email)}</b> · senha <b class="mono">${esc(dr.criada.senha)}</b></span><button class="btn sm" data-act="eqp-copiar">Copiar mensagem</button></div>`:''}`;
+  }
+  d.innerHTML=`<div class="cro-dr-h"><b>${esc(tit)}</b><button class="icb" data-act="eqp-fechar" aria-label="Fechar">${IC.x}</button></div><div class="cro-dr-b">${corpo}</div>
+    <div class="cro-dr-f"><span class="sp"></span><button class="btn ghost" data-act="eqp-fechar">Fechar</button><button class="btn pri" data-act="eqp-criar">${dr.tipo==='empresa'?'Cadastrar e adicionar':'Criar conta e adicionar'}</button></div>`;
+  const b=$('eqpBusca'); if(b&&dr.focoBusca){b.focus(); b.setSelectionRange(b.value.length,b.value.length)}
+}
+document.addEventListener('input',ev=>{if(ev.target.id==='eqpBusca'&&EQP.dr){EQP.dr.q=ev.target.value; EQP.dr.focoBusca=true; eqpRender()}},true);
+document.addEventListener('change',async ev=>{if(ev.target.id==='eqpEmp'&&ev.target.value===ACS_NOVO){const id=await acsNovoParceiro(); ev.target.innerHTML=acsEmpOpcoes(id||'')}},true);
+document.addEventListener('click',async ev=>{
+  const b=ev.target.closest?.('[data-act^="eqp-"]'); if(!b) return; ev.stopPropagation(); ev.preventDefault();
+  const a=b.dataset.act, dr=EQP.dr;
+  if(a==='eqp-abrir'){EQP.dr={tipo:b.dataset.tipo,pid:b.dataset.id,e:b.dataset.e||'',q:''}; eqpRender(); return}
+  if(a==='eqp-fechar'){eqpFechar(); return}
+  if(!dr) return; const it=S.itens.get(dr.pid); if(!it) return;
+  const v=id=>String($(id)?.value||'').trim();
+  if(a==='eqp-emp'){await empresasExtraGravar(it.id,[...(it.empresasExtra||[]),b.dataset.e]); toast('Empresa adicionada ao projeto'); eqpFechar(); return}
+  if(a==='eqp-pes'){await partsGravar(it.id,[...partsDe(it),b.dataset.u]); toast('Pessoa adicionada ao projeto'); eqpRender(); return}
+  if(a==='eqp-copiar'){try{await navigator.clipboard.writeText(acsMsgConvite(dr.criada)); toast('Mensagem copiada')}catch{} return}
+  if(a==='eqp-criar'&&dr.tipo==='empresa'){
+    const nome=v('eqpNome'); if(!nome){toast('Informe o nome da empresa');$('eqpNome')?.focus();return}
+    const ex=parceiros().find(p=>(p.nome||'').trim().toLowerCase()===nome.toLowerCase());
+    let eid=ex?.id;
+    if(!eid){const campos={natureza:'Empresa'}; for(const [k,id] of [['papel','eqpPapel'],['contato','eqpContato'],['email','eqpEmail'],['telefone','eqpTel'],['cnpj','eqpCnpj']]) if(v(id)) campos[k]=v(id);
+      const ref=coll().doc(), body={secao:'parceiros',nome,pasta:'',status:STATUS.parceiros[0],campos,criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me,atualizadoPor:me}:{})};
+      try{await ref.set(body); S.itens.set(ref.id,{...body,id:ref.id}); eid=ref.id}catch(e){toast('Não foi possível cadastrar: '+(e?.message||e));return}}
+    await empresasExtraGravar(it.id,[...(it.empresasExtra||[]),eid]); toast(ex?'Já existia: '+ex.nome+' adicionada ao projeto':'Empresa cadastrada e adicionada'); eqpFechar(); return}
+  if(a==='eqp-criar'){
+    const fb=FB(); if(!fb?.admin()){toast('Somente administradores criam contas');return}
+    const nome=v('eqpNome'), em=v('eqpEmail').toLowerCase(), empresa=v('eqpEmp').replace(ACS_NOVO,''), nivel=v('eqpNivel')==='admin'?'admin':'usuario', senha=v('eqpSenha');
+    if(!nome||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('Informe nome e e-mail válidos');return}
+    if(senha.length<8){toast('A senha provisória precisa ter pelo menos 8 caracteres');return}
+    const ja=(ACS.lista||[]).find(x=>x.email===em); if(ja){await partsGravar(it.id,[...new Set([...partsDe(it),ja.id])]); toast(em+' já tinha conta: adicionada ao projeto'); eqpRender(); return}
+    b.disabled=true;
+    try{const uid=await fb.criarConta(em,senha);
+      await db.collection('acessos').doc(uid).set({email:em,nome,nivel,empresa,trocarSenha:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+      try{await fb.fs.collection('senhasProvisorias').doc(uid).set({email:em,senha,em:Date.now()})}catch{}
+      await partsGravar(it.id,[...partsDe(it),uid]);
+      dr.criada={email:em,nome,senha}; dr.senha=null; toast('Conta criada e adicionada ao projeto'); eqpRender()}
+    catch(e){b.disabled=false; toast(e?.code==='auth/email-already-in-use'?'Esse e-mail já tem conta antiga: libere em Usuários e acesso e depois adicione aqui':'Não foi possível criar: '+fb.mensagemErro(e))}
+  }
+},true);
 document.addEventListener('change',async ev=>{const s=ev.target.closest?.('select[data-act="emp-add"]'); if(!s||!s.value) return;
   const it=S.itens.get(s.dataset.id); if(!it) return; let eid=s.value;
   if(eid===ACS_NOVO){eid=await acsNovoParceiro(); if(!eid){s.value='';return}}
