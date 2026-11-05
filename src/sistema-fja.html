@@ -1343,7 +1343,6 @@ function telaItem(h,id){
   if(d.secao==='projetos') h+=blocoPadronizacao(d)+blocoProjeto(d);
   if(d.secao==='familias') h+=blocoUsadoEm(d);
   if(d.secao==='parceiros') h+=blocoParceiroProj(d);
-  if(d.secao==='projetos') h+=blocoParticipantes(d);
   if(d.secao==='parceiros') h+=blocoParceiroPessoas(d);
   if(AJUSTAVEIS.includes(d.secao)) h+=blocoPadrao(d);
   h+=d.secao==='projetos'?blocoPastasProjeto(d):blocoArquivos(d);
@@ -2770,15 +2769,6 @@ iniciarMod({id:'rfi',lk:'fja.rfi.',T:RFI_TCOLS,padrao:RFI_TCOLS.filter(c=>c[2]).
    é mantido pelos navegadores da equipe (admins) a partir dos projetos. */
 /* participantes do projeto (contas do sistema): convidados só veem os projetos de que participam */
 const partsDe=it=>Array.isArray(it?.participantes)?it.participantes:[];
-function blocoParticipantes(d){
-  if(AMB!=='firebase') return '';
-  acsOuvir();
-  const it=S.itens.get(d.id)||d, ps=partsDe(it), L=ACS.lista||[], adm=FB()?.admin()&&!S.ro;
-  const pessoa=uid=>L.find(x=>x.id===uid), fora=L.filter(x=>!ps.includes(x.id)).sort((a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt'));
-  return `<section class="sheet"><div class="sheet-h"><h2>Participantes</h2><span class="hint">${ps.length||'Nenhum'}</span><span class="muted" style="font-size:12px;margin-left:8px">Convidados só veem os projetos de que participam (apenas a RFI).</span></div>
-  <div class="pad tags-ed">${ps.map(uid=>{const u=pessoa(uid); return `<span class="chip chip-c" title="${esc(u?.email||'')}"><span>${esc(u?.nome||u?.email||'(conta removida)')}</span><span class="muted" style="font-size:12px">${esc([u&&acsNivelTxt(u.nivel),u?.empresa&&acsEmpNome(u.empresa)].filter(Boolean).join(' · '))}</span>${adm?`<button data-act="part-rm" data-id="${esc(d.id)}" data-u="${esc(uid)}" aria-label="Remover ${esc(u?.nome||'')}">${IC.x}</button>`:''}</span>`}).join('')}
-  ${adm?`<span class="tag-add"><select class="fld" data-act="part-add" data-id="${esc(d.id)}" aria-label="Adicionar participante"><option value="">+ adicionar participante</option>${fora.map(u=>`<option value="${esc(u.id)}">${esc(u.nome||u.email)}${u.empresa?' · '+esc(acsEmpNome(u.empresa)):''} (${acsNivelTxt(u.nivel)})</option>`).join('')}</select></span>`:''}</div></section>`;
-}
 async function partsGravar(pid,lista){
   const it=S.itens.get(pid); if(!it) return;
   try{await coll().doc(pid).update({participantes:lista}); it.participantes=lista; if(S.draft?.id===pid) S.draft.participantes=lista; projetosRfiSincronizar().catch(()=>{}); renderMain()}
@@ -3841,7 +3831,7 @@ function telaDisc(h,v){
     const grupos=[...new Set(livres.map(d=>d.grupo||'Outras'))];
     h+=`<section class="sheet"><div class="sheet-h"><h2>Adicionar disciplinas ao projeto</h2><span class="hint">Clique para incluir · o parceiro pode ser definido depois</span></div><div class="pad dc-cat">${livres.length?grupos.map(g=>`<div class="dc-g"><span class="dc-gl">${esc(g)}</span>${livres.filter(d=>(d.grupo||'Outras')===g).map(d=>`<button class="chip link" data-act="dc-add" data-cod="${esc(d.cod)}" title="${esc(d.nome)}"><span class="mono">${esc(d.cod)}</span> ${esc(d.nome)}</button>`).join('')}</div>`).join(''):'<span class="muted">Todas as disciplinas do catálogo já estão no projeto.</span>'}</div></section>`;
   }
-  if(!L.length) return h+`<div class="esp-vazio"><h2>Nenhuma disciplina no projeto</h2><p>Inclua as disciplinas envolvidas. Depois, conforme o projeto evolui, defina o parceiro de cada uma. Pendências e comentários passam a apontar para essas disciplinas.</p></div></div>`;
+  if(!L.length) return h+`<div class="esp-vazio"><h2>Nenhuma disciplina no projeto</h2><p>Inclua as disciplinas envolvidas. Depois, conforme o projeto evolui, defina o parceiro de cada uma. Pendências e comentários passam a apontar para essas disciplinas.</p></div>`+blocoEquipeProj(it)+`</div>`;
   const ord=L.map((l,i)=>[l,i]).sort((a,b)=>(cat.get(a[0].cod)?.grupo||'~').localeCompare(cat.get(b[0].cod)?.grupo||'~','pt')||a[0].cod.localeCompare(b[0].cod));
   h+=`<section class="sheet"><div class="tablewrap"><table class="list dc-tab"><thead><tr><th style="width:30%">Disciplina</th><th style="width:120px" title="Deixe vazio para usar a sigla padrão">Sigla no projeto</th><th style="width:26%">Parceiro</th><th>Pendências / comentários</th>${ro?'':'<th style="width:40px"></th>'}</tr></thead><tbody>`;
   for(const [l,i] of ord){
@@ -3855,8 +3845,50 @@ function telaDisc(h,v){
       <td class="dc-cont">${pa.length?`<button class="dc-lk" data-act="dash-ir" data-mod="pd" data-pid="${esc(v.id)}" data-k="disciplinas" data-v="${esc(l.cod)}" title="Ver as pendências de ${esc(l.cod)}">${pa.length} pendência${pa.length===1?'':'s'}</button> <span class="muted">${paA.length} aberta${paA.length===1?'':'s'}</span>${atr?` · <b class="atras">${atr} atrasada${atr===1?'':'s'}</b>`:''}`:'<span class="muted">sem pendências</span>'}${ca?`<div class="muted">${ca} comentário${ca===1?'':'s'} em aberto</div>`:''}</td>
       ${ro?'':`<td><button class="icb del" data-act="dc-rm" data-i="${i}" title="Tirar do projeto" aria-label="Tirar do projeto">${IC.trash}</button></td>`}</tr>`;
   }
-  return h+`</tbody></table></div></section></div>`;
+  return h+`</tbody></table></div></section>`+blocoEquipeProj(it)+`</div>`;
 }
+/* ---- equipe do projeto: empresas (das disciplinas ou avulsas) e, dentro delas, as pessoas com conta que participam ----
+   item.empresasExtra = [ids de parceiros sem disciplina]; item.participantes = [uids]. Pessoa sem empresa vai em "Sem empresa". */
+function empresasProj(it){
+  const ids=new Set(); for(const l of (it.disciplinas||[])){if(l.parceiro) ids.add(l.parceiro); for(const a of (l.apoio||[])) ids.add(a)}
+  for(const e of (it.empresasExtra||[])) ids.add(e);
+  const L=ACS.lista||[]; for(const uid of partsDe(it)){const u=L.find(x=>x.id===uid); if(u?.empresa) ids.add(u.empresa)}
+  return [...ids].filter(id=>S.itens.get(id)).sort((a,b)=>String(S.itens.get(a).nome).localeCompare(String(S.itens.get(b).nome),'pt'));
+}
+function blocoEquipeProj(it){
+  const fb=AMB==='firebase'; if(fb) acsOuvir();
+  const ro=S.ro, adm=!ro&&(!fb||FB()?.admin()), L=ACS.lista||[], ps=partsDe(it), emps=empresasProj(it);
+  const discsDe=eid=>(it.disciplinas||[]).filter(l=>l.parceiro===eid||(l.apoio||[]).includes(eid)).map(l=>l.sigla||l.cod);
+  const chip=u=>`<span class="chip chip-c" title="${esc(u.email||'')}"><span>${esc(u.nome||u.email)}</span><span class="muted" style="font-size:12px">${esc(acsNivelTxt(u.nivel))}${u.ultimoAcesso?'':' · aguardando 1º acesso'}</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(u.id)}" aria-label="Tirar ${esc(u.nome||'')} do projeto">${IC.x}</button>`:''}</span>`;
+  const addSel=(lista,rot)=>adm&&lista.length?`<span class="tag-add"><select class="fld" data-act="part-add" data-id="${esc(it.id)}" aria-label="${esc(rot)}"><option value="">+ ${esc(rot)}</option>${lista.map(u=>`<option value="${esc(u.id)}">${esc(u.nome||u.email)} (${acsNivelTxt(u.nivel)})</option>`).join('')}</select></span>`:'';
+  const ordN=(a,b)=>String(a.nome||a.email).localeCompare(String(b.nome||b.email),'pt');
+  let h=`<section class="sheet"><div class="sheet-h"><h2>Equipe do projeto</h2><span class="hint">${emps.length} empresa${emps.length===1?'':'s'}${fb?` · ${ps.length} pessoa${ps.length===1?'':'s'}`:''}</span>
+    ${fb?'<span class="muted" style="font-size:12px;margin-left:8px">Convidados só veem os projetos em que estão aqui (apenas a RFI).</span>':''}<span class="sp"></span>
+    ${adm?`<select class="fld" data-act="emp-add" data-id="${esc(it.id)}" style="width:auto" aria-label="Adicionar empresa ao projeto"><option value="">+ Adicionar empresa</option>${parceiros().filter(p=>!emps.includes(p.id)).sort(ordena).map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join('')}<option value="${ACS_NOVO}">+ Cadastrar nova empresa…</option></select>`:''}</div>`;
+  h+=`<div class="tablewrap"><table class="list"><thead><tr><th style="width:26%">Empresa</th><th style="width:18%">Disciplinas</th><th>${fb?'Pessoas no projeto':''}</th>${adm?'<th style="width:40px"></th>':''}</tr></thead><tbody>`;
+  for(const eid of emps){const p=S.itens.get(eid), ds=discsDe(eid), noProj=L.filter(u=>u.empresa===eid&&ps.includes(u.id)).sort(ordN), fora=L.filter(u=>u.empresa===eid&&!ps.includes(u.id)).sort(ordN);
+    const extra=(it.empresasExtra||[]).includes(eid), podeTirar=extra&&!ds.length&&!noProj.length;
+    h+=`<tr><td><button class="dc-lk" data-act="item" data-id="${esc(eid)}" title="Ficha da empresa"><b>${esc(p.nome)}</b></button><div class="muted dc-sub">${esc(p.campos?.papel||'')}</div></td>
+      <td>${ds.length?ds.map(c=>`<span class="mono">${esc(c)}</span>`).join(' '):'<span class="muted">sem disciplina</span>'}</td>
+      <td>${fb?`<div class="tags-ed" style="padding:0">${noProj.map(chip).join('')}${addSel(fora,'adicionar pessoa')}${!noProj.length&&!fora.length?'<span class="muted" style="font-size:12.5px">Nenhuma pessoa desta empresa tem conta.</span>':''}</div>`:''}</td>
+      ${adm?`<td>${podeTirar?`<button class="icb del" data-act="emp-rm" data-id="${esc(it.id)}" data-e="${esc(eid)}" title="Tirar a empresa do projeto" aria-label="Tirar a empresa do projeto">${IC.trash}</button>`:''}</td>`:''}</tr>`}
+  if(fb){const semE=L.filter(u=>!u.empresa||!S.itens.get(u.empresa)), noProj=semE.filter(u=>ps.includes(u.id)).sort(ordN), fora=semE.filter(u=>!ps.includes(u.id)).sort(ordN);
+    const sumidos=ps.filter(uid=>!L.some(u=>u.id===uid));
+    if(semE.length||sumidos.length) h+=`<tr><td><b>Sem empresa</b><div class="muted dc-sub">defina a empresa em Usuários e acesso</div></td><td></td>
+      <td><div class="tags-ed" style="padding:0">${noProj.map(chip).join('')}${sumidos.map(uid=>`<span class="chip chip-c"><span class="muted">(conta removida)</span>${adm?`<button data-act="part-rm" data-id="${esc(it.id)}" data-u="${esc(uid)}" aria-label="Tirar">${IC.x}</button>`:''}</span>`).join('')}${addSel(fora,'adicionar pessoa')}</div></td>${adm?'<td></td>':''}</tr>`}
+  if(!emps.length&&!fb) h+=`<tr><td colspan="4" class="muted">Defina os parceiros das disciplinas acima ou adicione empresas.</td></tr>`;
+  return h+`</tbody></table></div></section>`;
+}
+async function empresasExtraGravar(pid,lista){
+  const it=S.itens.get(pid); if(!it) return;
+  try{await coll().doc(pid).update({empresasExtra:lista}); it.empresasExtra=lista; if(S.draft?.id===pid) S.draft.empresasExtra=lista; renderMain()}catch(e){toast('Não foi possível alterar: '+(e?.message||e))}
+}
+document.addEventListener('change',async ev=>{const s=ev.target.closest?.('select[data-act="emp-add"]'); if(!s||!s.value) return;
+  const it=S.itens.get(s.dataset.id); if(!it) return; let eid=s.value;
+  if(eid===ACS_NOVO){eid=await acsNovoParceiro(); if(!eid){s.value='';return}}
+  if(!(it.empresasExtra||[]).includes(eid)) empresasExtraGravar(it.id,[...(it.empresasExtra||[]),eid])},true);
+document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="emp-rm"]'); if(!b) return; ev.stopPropagation();
+  const it=S.itens.get(b.dataset.id); if(it) empresasExtraGravar(it.id,(it.empresasExtra||[]).filter(x=>x!==b.dataset.e))},true);
 /* etiqueta de disciplina com a cor do projeto */
 const corDP=(pid,cod)=>{const it=S.itens.get(pid);return it?corDisc(it,linhaDisc(pid,cod)||{cod}):''};
 const pintaD=(pid,cod)=>{const c=pid&&corDP(pid,cod);return c?` style="--cd:${c}"`:''};
@@ -6100,7 +6132,7 @@ async function salvarItem(){
   if(body.ajustes) for(const k of Object.keys(body.ajustes)) if(!String(body.ajustes[k]).trim()) delete body.ajustes[k];
   if(body.secao==='parceiros'&&discsParc(body)[0]) body.pasta=discNome(discsParc(body)[0]);
   if(body.secao==='disciplinas'&&body.campos?.codigo) body.campos={...body.campos,codigo:String(body.campos.codigo).trim().toUpperCase()};
-  const atual=S.itens.get(d.id); if(atual){if(atual.disciplinas) body.disciplinas=atual.disciplinas; if(atual.participantes) body.participantes=atual.participantes; body.arquivos=atual.arquivos||[]; if(atual.pastasArq) body.pastasArq=atual.pastasArq; if(body.padronizacao||atual.padronizacao) body.padronizacao={...(body.padronizacao||{}),peb:atual.padronizacao?.peb??null}}
+  const atual=S.itens.get(d.id); if(atual){if(atual.disciplinas) body.disciplinas=atual.disciplinas; if(atual.participantes) body.participantes=atual.participantes; if(atual.empresasExtra) body.empresasExtra=atual.empresasExtra; body.arquivos=atual.arquivos||[]; if(atual.pastasArq) body.pastasArq=atual.pastasArq; if(body.padronizacao||atual.padronizacao) body.padronizacao={...(body.padronizacao||{}),peb:atual.padronizacao?.peb??null}}
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
   try{await coll().doc(d.id).set(body);S.dirty=false;S.draft={...body,id:d.id};toast('Salvo');return true}
   catch(e){toast(e?.code==='invalid_argument'?'Você não tem permissão para editar o sistema':'Não foi possível salvar. Tente de novo.');if(e?.code==='invalid_argument'){S.ro=true;render()}return false}
@@ -7784,7 +7816,7 @@ if(AMB==='firebase'){
 const ACS={lista:null,pend:[],ouvindo:false,erro:null,criada:null};
 function acsOuvir(){
   if(ACS.ouvindo||!db||S.convidado) return; ACS.ouvindo=true;
-  db.collection('acessos').onSnapshot(snap=>{ACS.lista=snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>(a.nome||a.email||'').localeCompare(b.nome||b.email||'','pt')); ACS.erro=null; if((S.view?.f==='acesso'||S.view?.t==='item'||S.view?.t==='rfii'||S.view?.t==='rfi')&&!S.dirty) renderMain()},
+  db.collection('acessos').onSnapshot(snap=>{ACS.lista=snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>(a.nome||a.email||'').localeCompare(b.nome||b.email||'','pt')); ACS.erro=null; if((S.view?.f==='acesso'||S.view?.t==='item'||S.view?.t==='disc'||S.view?.t==='rfii'||S.view?.t==='rfi')&&!S.dirty) renderMain()},
     e=>{ACS.lista=[];ACS.erro=e.message; if(S.view?.f==='acesso') renderMain()});
   db.collection('acessosPendentes').onSnapshot(snap=>{ACS.pend=snap.docs.map(d=>({...d.data(),id:d.id})); if(S.view?.f==='acesso'&&!S.dirty) renderMain()},()=>{});
 }
