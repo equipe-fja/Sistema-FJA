@@ -20,6 +20,8 @@ from Autodesk.Revit import DB
 from Autodesk.Revit.DB.ExtensibleStorage import Schema, SchemaBuilder, Entity, AccessLevel
 from System.Collections.Generic import List
 
+import fja_nuvem as N
+
 PASTA_REVIT = u"G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT"
 PASTA_DEV = os.path.join(PASTA_REVIT, u"DEV")
 
@@ -79,11 +81,17 @@ class Dados(object):
     def __init__(self, dev=False):
         self.dev = dev
         self.pasta = PASTA_DEV if dev else PASTA_REVIT
-        arq = _mais_recente(self.pasta, "biblioteca")
-        if not arq:
-            raise IOError(u"Não encontrei biblioteca.json em {}".format(self.pasta))
-        self.arquivo = arq
-        self.bib = _ler_json(arq)
+        self.nuvem = False       # True: dados e pedidos direto no banco do sistema (Firebase)
+        self.aviso = u""
+        self.bib = None
+        if not dev:
+            self._da_nuvem()
+        if self.bib is None:
+            arq = _mais_recente(self.pasta, "biblioteca")
+            if not arq:
+                raise IOError(u"Não encontrei biblioteca.json em {}".format(self.pasta))
+            self.arquivo = arq
+            self.bib = _ler_json(arq)
         self.geradoEm = self.bib.get("geradoEm", "")
         self.itens = dict((x["id"], x) for x in self.bib.get("itens", []))
         self.siglas = dict((s["sigla"], s) for s in self.bib.get("siglas", []))
@@ -93,6 +101,28 @@ class Dados(object):
         self.porItem = {}        # id do item central → linha da especificação
         self.pendentes = []      # pedidos gravados pelo Revit e ainda não processados pelo sistema
         self.pastaPedidos = os.path.join(self.pasta, u"pedidos")
+        if dev:
+            self.rotulo = u"Desenvolvimento (REVIT\\DEV)"
+        elif self.nuvem:
+            self.rotulo = u"Oficial (banco, {})".format(N.email_atual())
+        else:
+            self.rotulo = u"Oficial (cópia do G:{})".format(u" — " + self.aviso if self.aviso else u"")
+
+    def _da_nuvem(self):
+        """Lê a biblioteca direto do banco; pede login se preciso. Sem conexão, fica com a cópia do G:."""
+        for tentativa in range(3):
+            try:
+                self.bib = N.publicado("biblioteca")
+                if self.bib is not None:
+                    self.nuvem, self.arquivo = True, u"banco do sistema"
+                return
+            except N.SemLogin as e:
+                if not N.pedir_login(u"" if tentativa == 0 and not N.email_atual() else u"{}".format(e)):
+                    self.aviso = u"sem login no banco"
+                    return
+            except Exception as e:
+                self.aviso = u"banco indisponível: {}".format(e)[:120]
+                return
 
     def composicoes(self):
         return [x for x in self.bib.get("itens", []) if x.get("tipo") == "sistema"]
@@ -115,14 +145,22 @@ class Dados(object):
     def carregar_projeto(self, proj):
         self.projeto = proj
         self.espec, self.porItem = [], {}
-        self.pendentes = ler_pendentes(self.pastaPedidos)
-        if not proj:
-            return
-        nome = os.path.splitext(proj.get("arquivo") or ("projeto-" + proj["codigo"] + ".json"))[0]
-        arq = _mais_recente(self.pasta, nome)
-        if not arq:
-            raise IOError(u"Não encontrei {}.json em {}".format(nome, self.pasta))
-        dados = _ler_json(arq)
+        nome = os.path.splitext(proj.get("arquivo") or ("projeto-" + proj["codigo"] + ".json"))[0] if proj else u""
+        if self.nuvem:
+            self.pendentes = N.pedidos_pendentes()
+            if not proj:
+                return
+            dados = N.publicado(nome)
+            if dados is None:
+                raise IOError(u"O sistema ainda não publicou {} no banco.".format(nome))
+        else:
+            self.pendentes = ler_pendentes(self.pastaPedidos)
+            if not proj:
+                return
+            arq = _mais_recente(self.pasta, nome)
+            if not arq:
+                raise IOError(u"Não encontrei {}.json em {}".format(nome, self.pasta))
+            dados = _ler_json(arq)
         self.espec = dados.get("itens", [])
         for e in self.espec:
             if e.get("item"):
@@ -218,6 +256,11 @@ def novo_id_pedido():
 
 
 def gravar_pedido(dados, pedido):
+    if getattr(dados, "nuvem", False):
+        N.enviar_pedido(pedido)
+        dados.pendentes.append(pedido)
+        dados.enviados = getattr(dados, "enviados", []) + [pedido["id"]]
+        return u"banco"
     if not os.path.isdir(dados.pastaPedidos):
         os.makedirs(dados.pastaPedidos)
     arq = os.path.join(dados.pastaPedidos, u"pedido-{}.json".format(pedido["id"]))
@@ -1185,3 +1228,23 @@ def gravar_valores(doc, dados, d, kn, desc, pedido=u""):
     _set(e, DB.BuiltInParameter.ALL_MODEL_DESCRIPTION, desc)
     gravar_vinculo(e, fja=item.get("fja"), itemCentral=item["id"], itemProjeto=u"",
                    projeto=dados.projeto["id"] if dados.projeto else u"", pedido=pedido)
+
+
+def resultado_pedidos(dados, segundos=8):
+    """Depois de enviar pedidos ao banco: espera o sistema processar e devolve um texto com o resultado
+    (vazio se os pedidos foram pelo G:)."""
+    ids = getattr(dados, "enviados", [])
+    dados.enviados = []
+    if not ids:
+        return u""
+    linhas, faltam = [], 0
+    for pid in ids:
+        d = N.aguardar_pedido(pid, segundos)
+        if not d:
+            faltam += 1
+            continue
+        r = d.get("resultado") or {}
+        linhas.append((u"✓ " if d.get("status") == "ok" else u"✗ ") + u"{}".format(r.get("msg") or d.get("status")))
+    if faltam:
+        linhas.append(u"{} pedido(s) aguardando: o sistema processa assim que alguém estiver com ele aberto.".format(faltam))
+    return u"\n".join(linhas)

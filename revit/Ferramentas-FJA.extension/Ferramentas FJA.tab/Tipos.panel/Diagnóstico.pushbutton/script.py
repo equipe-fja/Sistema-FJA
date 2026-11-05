@@ -121,7 +121,7 @@ class Janela(forms.WPFWindow):
             return
         d = self.dados
         self.txtFonte.Text = u"Modelo: {} · {} · publicado em {}".format(
-            doc.Title, u"Desenvolvimento (REVIT\\DEV)" if dev else u"Oficial", (d.geradoEm or u"")[:16].replace("T", " "))
+            doc.Title, d.rotulo, (d.geradoEm or u"")[:16].replace("T", " "))
         auto = d.projeto_do_documento(doc.Title)
         self._pronto = False
         self.cbProjeto.Items.Clear()
@@ -308,8 +308,9 @@ class Janela(forms.WPFWindow):
         except Exception as e:
             forms.alert(u"Não foi possível incluir:\n{}".format(e), title=TITULO)
             return
-        forms.alert(u"{} item(ns) enviados ao sistema para entrar no projeto ({}). Os keynotes ficam definitivos quando "
-                    u"alguém abrir o sistema.".format(len(feitos), u", ".join(x[0] for x in feitos.values())), title=TITULO)
+        res = F.resultado_pedidos(self.dados)
+        forms.alert(u"{} item(ns) enviados ao sistema para entrar no projeto ({}).".format(len(feitos), u", ".join(x[0] for x in feitos.values()))
+                    + (u"\n\nSistema:\n" + res if res else u" Os keynotes ficam definitivos quando alguém abrir o sistema."), title=TITULO)
         self.analisar([d["elem"].Id for d in alvo])
 
     def desvincular(self, sender, args):

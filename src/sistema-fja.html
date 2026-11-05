@@ -7210,7 +7210,52 @@ async function rvPedidos(manual){
   finally{RVP.procPed=false; rvUI()}
   return n;
 }
-function rvAgendar(){if(S.ro||S.publico||!AUTO_OK) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
+function rvAgendar(){rvDbAgendar(); if(S.ro||S.publico||!AUTO_OK) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
+/* ---- versão Firebase: o Revit (extensão 2.0) lê revitPub/<nome> e grava pedidos em revitPedidos/<id> direto no banco ----
+   revitPub/<biblioteca | projeto-…> = {json (mesmo conteúdo dos .json do G:), hash, em, por}
+   revitPedidos/<id> = {json (pedido), status:'pendente'|'processando'|'ok'|'erro', resultado, autor, email, modelo, em}
+   Gravado pelo banco "cru" (sem o desfazer). Qualquer navegador com o sistema aberto processa na hora; transação evita duplicar. */
+const RVDB={timer:null,hash:{},ouvindo:false,fazendo:new Set()};
+const fsCru=()=>AMB==='firebase'?window.FJA_FIREBASE?.fs:null;
+function rvDbAgendar(){if(!fsCru()||S.ro||S.publico) return; clearTimeout(RVDB.timer); RVDB.timer=setTimeout(()=>rvDbPublicar().catch(e=>console.warn('revitPub',e)),2500)}
+async function rvDbPublicar(){
+  const f=fsCru(); if(!f||!S.carregado) return 0; let n=0;
+  for(const a of rvMontar()){
+    const id=a.nome.replace(/\.json$/i,''), h=hashTxt(JSON.stringify(a.obj)); if(RVDB.hash[id]===h) continue;
+    const g=await f.collection('revitPub').doc(id).get(); if(g.exists&&g.data().hash===h){RVDB.hash[id]=h; continue}
+    const txt=JSON.stringify({...a.obj,geradoEm:new Date().toISOString(),geradoPor:S.meuNome||''});
+    if(txt.length>950000){console.warn('revitPub: grande demais',id,txt.length); continue}
+    await f.collection('revitPub').doc(id).set({json:txt,hash:h,em:Date.now(),por:S.meuNome||''}); RVDB.hash[id]=h; n++;
+  }
+  return n;
+}
+async function rvDbProcessar(id){
+  const f=fsCru(); if(!f||S.ro||!S.carregado||RVDB.fazendo.has(id)) return; RVDB.fazendo.add(id);
+  const ref=f.collection('revitPedidos').doc(id);
+  try{
+    const v=await f.runTransaction(async t=>{const g=await t.get(ref); const d=g.exists?g.data():null;
+      if(!d||!(d.status==='pendente'||(d.status==='processando'&&Date.now()-(d.inicio||0)>120e3))) return null;
+      t.update(ref,{status:'processando',inicio:Date.now(),por:S.meuNome||me||''}); return d});
+    if(!v) return;
+    let ped=null, res; try{ped=JSON.parse(v.json); res=await rvAplicarPedido(ped)}catch(e){console.warn('pedido',id,e); res={ok:false,msg:String(e?.message||e).slice(0,200)}}
+    await ref.update({status:res.ok?'ok':'erro',resultado:res,fim:Date.now()});
+    try{const lr=db.doc('config/revitPedidos'), g=await lr.get(), st=structuredClone(g.exists?g.data():{});
+      st.log=[{id,acao:ped?.acao||'?',autor:ped?.autor||v.autor||'',modelo:ped?.modelo||'',projeto:ped?.projeto?.codigo||'',em:Date.now(),...res},...(st.log||[])].slice(0,60); await lr.set(st); RVP.ped=st}catch{}
+    toast(`Pedido do Revit: ${res.ok?res.msg:'erro — '+res.msg}`); rvAgendar(); rvUI();
+  }catch(e){console.warn('pedido',id,e)}
+  finally{RVDB.fazendo.delete(id)}
+}
+function rvDbOuvir(){
+  const f=fsCru(); if(!f||RVDB.ouvindo) return; RVDB.ouvindo=true;
+  f.collection('revitPedidos').where('status','in',['pendente','processando']).onSnapshot(snap=>{for(const d of snap.docs) rvDbProcessar(d.id)},e=>console.warn('revitPedidos',e));
+  // limpeza: pedidos concluídos há mais de 7 dias
+  f.collection('revitPedidos').where('fim','<',Date.now()-7*864e5).get().then(s=>s.docs.forEach(d=>d.ref.delete().catch(()=>{}))).catch(()=>{});
+}
+(function rvDbIniciar(){
+  if(AMB!=='firebase') return;
+  const t=setInterval(()=>{if(!S.carregado||!fsCru()) return; clearInterval(t); if(S.ro) return;
+    rvDbOuvir(); rvDbAgendar(); setInterval(()=>rvDbPublicar().catch(()=>{}),30e3)},1000);
+})();
 function rvUI(){if(S.view?.t==='manut'&&S.view.f==='revit'&&!S.dirty) renderMain()}
 /* extensão do pyRevit embutida na geração (scripts/gerar.sh troca o marcador pelos arquivos de revit/) */
 const EXT_REVIT=null/*EXT_REVIT*/;

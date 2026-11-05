@@ -523,7 +523,7 @@ class Janela(forms.WPFWindow):
             return
         d = self.dados
         self.txtFonte.Text = u"Modelo: {} · {} · publicado em {} · {} composições".format(doc.Title,
-            u"Desenvolvimento (REVIT\\DEV)" if dev else u"Oficial", (d.geradoEm or u"")[:16].replace("T", " "),
+            d.rotulo, (d.geradoEm or u"")[:16].replace("T", " "),
             len(d.composicoes()))
         auto = d.projeto_do_documento(doc.Title)
         self._pronto = False
@@ -846,6 +846,9 @@ class Janela(forms.WPFWindow):
         elif p.get("novo") or p.get("reservas"):
             msg += u"\n\nPedido enviado ao sistema. Os códigos reservados ficam definitivos quando alguém abrir " \
                    u"o sistema; se algum mudar, use Atualizar nesta janela."
+        res = F.resultado_pedidos(self.dados)
+        if res:
+            msg = msg.split(u"\n\n")[0] + u"\n\nSistema:\n" + res
         if avisos:
             msg += u"\n\n" + u"\n".join(u"• " + a for a in avisos)
         forms.alert(msg, title=u"Composições")

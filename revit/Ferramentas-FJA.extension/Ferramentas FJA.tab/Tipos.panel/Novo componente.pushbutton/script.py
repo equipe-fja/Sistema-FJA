@@ -125,7 +125,7 @@ class Janela(forms.WPFWindow):
             return
         d = self.dados
         self.txtFonte.Text = u"Modelo: {} · {} · publicado em {} · {} elementos/famílias na biblioteca".format(
-            doc.Title, u"Desenvolvimento (REVIT\\DEV)" if dev else u"Oficial",
+            doc.Title, d.rotulo,
             (d.geradoEm or u"")[:16].replace("T", " "), len(F.elementos(d)))
         auto = d.projeto_do_documento(doc.Title)
         self._pronto = False
@@ -472,6 +472,9 @@ class Janela(forms.WPFWindow):
         msg = u"Família no modelo: {}\n{} tipo(s) com {} código(s).".format(nome, len(self.tipos), len(self.grupos))
         if any(g["plano"].get("novo") or g["plano"].get("reservas") for g in self.grupos):
             msg += u"\n\nPedido enviado ao sistema: códigos e keynotes ficam definitivos quando alguém abrir o sistema."
+        res = F.resultado_pedidos(self.dados)
+        if res:
+            msg = msg.split(u"\n\n")[0] + u"\n\nSistema:\n" + res
         if avisos:
             msg += u"\n\n" + u"\n".join(u"• " + a for a in avisos)
         forms.alert(msg, title=TITULO)
