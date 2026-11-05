@@ -5,6 +5,11 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~18h25 — commit b3802a7
+- RFI: vários requeridos (pessoas e empresas; regras do banco com requeridosIds, compatível com RFIs antigas); Notificar por e-mail (abre o e-mail com a mensagem pronta e registra).
+- RFI: disciplinas envolvidas e requeridos no quadro RFI, após o requerente; requeridos agrupados por disciplina (empresas que atendem e pessoas da equipe nessas empresas).
+- Fichas na tela dividida mantêm a rolagem ao editar.
+
 ## oficial Firebase — 05/11, ~17h55 — commit 2096970
 - RFI por projeto (no modelo das pendências): requerente/requerido ligados a pessoas e empresas, respostas e comentários, painel, PDF; RFIs no backup.
 - Convidados: veem só a RFI dos projetos de que participam; respondem só RFIs dirigidas a eles ou à empresa deles; comentam em qualquer uma (regras do banco: rfi.participantes, projetosRfi).
