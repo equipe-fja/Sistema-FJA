@@ -14,73 +14,96 @@
 #fbLogin button:disabled{opacity:.5;cursor:default}
 #fbLogin .msg{margin-top:12px;font-size:13px;min-height:1em}
 #fbLogin .err{color:#B3261E}
+#fbLogin .lk{background:none;color:#8E1B1B;padding:9px 0 0;font-size:13px;text-decoration:underline;display:block}
+#fbLogin .ok{color:#2E6B2E}
 </style>
 <script>
 (function(){
   const CFG=/*FB_CFG*/null;
-  const DOMINIO='@fj.arq.br', LS='fja.fbEmail';
+  const LS='fja.fbEmail';
   firebase.initializeApp(CFG);
   const auth=firebase.auth(), fs=firebase.firestore();
   let pronto; const logado=new Promise(r=>pronto=r);
-  const okEmail=e=>typeof e==='string'&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
-  const interno=e=>String(e||'').toLowerCase().endsWith(DOMINIO);
-  let papel='editar';
+  let perfil=null;   // acessos/<uid>: {email, nome, nivel:'admin'|'usuario', trocarSenha}
+  const lsGet=()=>{try{return localStorage.getItem(LS)||''}catch{return ''}}, lsSet=v=>{try{localStorage.setItem(LS,v)}catch{}};
+  const ERROS={'auth/invalid-credential':'E-mail ou senha incorretos.','auth/wrong-password':'E-mail ou senha incorretos.','auth/user-not-found':'E-mail ou senha incorretos.',
+    'auth/invalid-email':'E-mail inválido.','auth/too-many-requests':'Muitas tentativas. Aguarde alguns minutos ou use "Esqueci a senha".',
+    'auth/weak-password':'Senha fraca: use pelo menos 8 caracteres.','auth/email-already-in-use':'Já existe uma conta com este e-mail.','auth/requires-recent-login':'Por segurança, saia e entre de novo antes de trocar a senha.'};
+  const msgErro=x=>ERROS[x?.code]||(x?.message||String(x));
 
   function tela(html){
     let d=document.getElementById('fbLogin');
     if(!d){d=document.createElement('div');d.id='fbLogin';(document.body||document.documentElement).appendChild(d)}
     d.innerHTML='<div class="cx"><div class="lg">FJ</div>'+html+'</div>'; return d;
   }
-  function pedirEmail(msg,erro){
-    const d=tela('<h1>Sistema FJA</h1><p>Digite o seu e-mail. Você vai receber um link para entrar (não há senha). Quem não é da FJA precisa ter sido convidado.</p>'+
-      '<input id="fbEm" type="email" autocomplete="email" placeholder="seu e-mail"><button id="fbBt">Enviar link</button>'+
+  function entrar(msg,erro){
+    const d=tela('<h1>Sistema FJA</h1><p>Entre com o seu e-mail e senha.</p>'+
+      '<input id="fbEm" type="email" autocomplete="username" placeholder="e-mail"><input id="fbSn" type="password" autocomplete="current-password" placeholder="senha">'+
+      '<button id="fbBt">Entrar</button><button class="lk" id="fbEsq">Esqueci a senha</button>'+
       '<div class="msg'+(erro?' err':'')+'" id="fbMsg">'+(msg||'')+'</div>');
-    const em=d.querySelector('#fbEm'), bt=d.querySelector('#fbBt'), m=d.querySelector('#fbMsg');
-    try{em.value=localStorage.getItem(LS)||''}catch{}
-    const enviar=async()=>{
-      const e=em.value.trim().toLowerCase();
-      if(!okEmail(e)){m.className='msg err';m.textContent='E-mail inválido.';return}
-      bt.disabled=true; m.className='msg'; m.textContent='Enviando…';
-      try{
-        await auth.sendSignInLinkToEmail(e,{url:location.origin+location.pathname,handleCodeInApp:true});
-        try{localStorage.setItem(LS,e)}catch{}
-        m.textContent='Link enviado para '+e+'. Abra o e-mail neste mesmo navegador e clique no link.';
-      }catch(x){m.className='msg err';m.textContent='Não foi possível enviar: '+(x.message||x);bt.disabled=false}
+    const em=d.querySelector('#fbEm'), sn=d.querySelector('#fbSn'), bt=d.querySelector('#fbBt'), m=d.querySelector('#fbMsg');
+    em.value=lsGet();
+    const ir=async()=>{
+      const e=em.value.trim().toLowerCase(); if(!e||!sn.value){m.className='msg err';m.textContent='Preencha e-mail e senha.';return}
+      bt.disabled=true; m.className='msg'; m.textContent='Entrando…';
+      try{await auth.signInWithEmailAndPassword(e,sn.value); lsSet(e)}catch(x){m.className='msg err';m.textContent=msgErro(x);bt.disabled=false}
     };
-    bt.onclick=enviar; em.onkeydown=ev=>{if(ev.key==='Enter')enviar()}; setTimeout(()=>em.focus(),30);
+    bt.onclick=ir; sn.onkeydown=em.onkeydown=ev=>{if(ev.key==='Enter')ir()};
+    d.querySelector('#fbEsq').onclick=async()=>{
+      const e=em.value.trim().toLowerCase(); if(!e){m.className='msg err';m.textContent='Digite o seu e-mail acima e clique de novo em "Esqueci a senha".';return}
+      try{await auth.sendPasswordResetEmail(e); m.className='msg ok'; m.textContent='Se houver uma conta para '+e+', chegou um e-mail com o link para criar uma nova senha.'}
+      catch(x){m.className='msg err';m.textContent=msgErro(x)}
+    };
+    setTimeout(()=>(em.value?sn:em).focus(),30);
   }
-  async function concluirLink(){
-    let e=''; try{e=localStorage.getItem(LS)||''}catch{}
-    if(!e){
-      const d=tela('<h1>Confirme o e-mail</h1><p>Este link foi aberto em outro navegador. Digite o e-mail para o qual o link foi enviado.</p>'+
-        '<input id="fbEm" type="email" placeholder="seu e-mail"><button id="fbBt">Entrar</button><div class="msg err" id="fbMsg"></div>');
-      e=await new Promise(r=>{const bt=d.querySelector('#fbBt'),em=d.querySelector('#fbEm');bt.onclick=()=>r(em.value.trim().toLowerCase());em.onkeydown=ev=>{if(ev.key==='Enter')bt.click()}});
-    }
-    try{await auth.signInWithEmailLink(e,location.href); try{localStorage.setItem(LS,e)}catch{}}
-    catch(x){pedirEmail('O link expirou ou já foi usado. Peça um novo.',true)}
-    history.replaceState(null,'',location.origin+location.pathname+location.hash.replace(/[?&]?(apiKey|oobCode|mode|lang)=[^&]*/g,''));
+  function definirSenha(u,obrigatorio){
+    return new Promise(ok=>{
+      const d=tela('<h1>'+(obrigatorio?'Crie a sua senha':'Alterar senha')+'</h1><p>'+(obrigatorio?'Você entrou com uma senha provisória. Escolha uma senha sua (mínimo 8 caracteres).':'Mínimo 8 caracteres.')+'</p>'+
+        '<input id="fbN1" type="password" autocomplete="new-password" placeholder="nova senha"><input id="fbN2" type="password" autocomplete="new-password" placeholder="repita a nova senha">'+
+        '<button id="fbBt">Salvar senha</button>'+(obrigatorio?'':'<button class="lk" id="fbCanc">Cancelar</button>')+'<div class="msg" id="fbMsg"></div>');
+      const n1=d.querySelector('#fbN1'), n2=d.querySelector('#fbN2'), bt=d.querySelector('#fbBt'), m=d.querySelector('#fbMsg');
+      const salvar=async()=>{
+        if(n1.value.length<8){m.className='msg err';m.textContent='Use pelo menos 8 caracteres.';return}
+        if(n1.value!==n2.value){m.className='msg err';m.textContent='As duas senhas não são iguais.';return}
+        bt.disabled=true; m.className='msg'; m.textContent='Salvando…';
+        try{await u.updatePassword(n1.value); try{await fs.collection('acessos').doc(u.uid).update({trocarSenha:false})}catch{}
+          if(perfil) perfil.trocarSenha=false; d.remove(); ok(true)}
+        catch(x){m.className='msg err';m.textContent=msgErro(x);bt.disabled=false}
+      };
+      bt.onclick=salvar; n2.onkeydown=ev=>{if(ev.key==='Enter')salvar()};
+      const c=d.querySelector('#fbCanc'); if(c) c.onclick=()=>{d.remove();ok(false)};
+      setTimeout(()=>n1.focus(),30);
+    });
   }
 
-  if(auth.isSignInWithEmailLink(location.href)) concluirLink();
   auth.onAuthStateChanged(async u=>{
-    if(!u){if(!auth.isSignInWithEmailLink(location.href)) pedirEmail();return}
-    if(!interno(u.email)){
-      let c=null; try{const g=await fs.collection('convites').doc(u.email.toLowerCase()).get(); c=g.exists?g.data():null}catch{}
-      if(!c){await auth.signOut();pedirEmail('O endereço '+u.email+' não foi convidado. Peça acesso à FJA.',true);return}
-      papel=c.papel==='editar'?'editar':'consultar';
-    }
-    try{await fs.collection('usuarios').doc(u.uid).set({email:u.email,nome:u.email.split('@')[0],ultimoAcesso:Date.now()},{merge:true})}catch(x){console.warn('usuarios',x)}
+    if(!u){entrar();return}
+    let g=null; try{g=await fs.collection('acessos').doc(u.uid).get()}catch(x){console.warn('acessos',x)}
+    if(!g||!g.exists){await auth.signOut();entrar('A conta '+u.email+' não tem acesso ao sistema. Fale com um administrador.',true);return}
+    perfil={...g.data(),uid:u.uid};
+    if(perfil.trocarSenha) await definirSenha(u,true);
+    try{await fs.collection('acessos').doc(u.uid).update({ultimoAcesso:Date.now()})}catch{}
     document.getElementById('fbLogin')?.remove();
     pronto(u);
   });
 
+  /* cria a conta de outra pessoa sem trocar a sessão atual: usa uma segunda instância do app */
+  async function criarConta(email,senha){
+    const aux=firebase.apps.find(a=>a.name==='aux')||firebase.initializeApp(CFG,'aux');
+    const r=await aux.auth().createUserWithEmailAndPassword(email,senha);
+    const uid=r.user.uid; await aux.auth().signOut(); return uid;
+  }
+  function senhaProvisoria(){
+    const A='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789', b=new Uint32Array(10); crypto.getRandomValues(b);
+    return Array.from(b,x=>A[x%A.length]).join('');
+  }
+
   const userApi={
     id:async()=>(await logado).uid,
-    can:async()=>papel==='editar',
+    can:async()=>true,
     profiles:async ids=>{
-      const r={}; for(const id of ids||[]){try{const g=await fs.collection('usuarios').doc(id).get(); if(g.exists) r[id]={name:g.data().nome||g.data().email}}catch{}}
+      const r={}; for(const id of ids||[]){try{const g=await fs.collection('acessos').doc(id).get(); if(g.exists) r[id]={name:g.data().nome||g.data().email}}catch{}}
       return r},
-    sair:()=>auth.signOut().then(()=>location.reload())
   };
   const downloadsApi={save:async({filename,data})=>{
     const url=URL.createObjectURL(data instanceof Blob?data:new Blob([data])), a=document.createElement('a');
@@ -88,7 +111,10 @@
     return {status:'saved'}}};
 
   if(window.FJA_FB_HOMOLOG){document.documentElement.classList.add('amb-dev'); document.title='HOMOLOGAÇÃO · Sistema FJA'}
-  window.FJA_FIREBASE={auth,fs,sair:userApi.sair};
+  window.FJA_FIREBASE={auth,fs,pronto:logado,perfil:()=>perfil,admin:()=>perfil?.nivel==='admin',
+    criarConta,senhaProvisoria,mensagemErro:msgErro,
+    alterarSenha:()=>auth.currentUser?definirSenha(auth.currentUser,false):Promise.resolve(false),
+    sair:()=>auth.signOut().then(()=>location.reload())};
   window.claude={use:async nome=>{
     await logado;
     if(nome==='db') return fs;

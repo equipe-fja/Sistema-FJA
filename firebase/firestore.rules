@@ -1,28 +1,24 @@
 rules_version = '2';
-// Entra quem fez login com link no e-mail (e-mail confirmado):
-//  - endereços @fj.arq.br: sempre, com edição;
-//  - outros: só se houver convites/<email>; papel "editar" grava, "consultar" só lê.
-// Só @fj.arq.br altera a lista de convites.
+// Acesso por conta (e-mail e senha). Só entra quem tem acessos/<uid>, criado por um administrador.
+//  nivel "admin": gerencia acessos; nivel "usuario": usa o sistema.
+// A pessoa só pode alterar no próprio registro: trocarSenha (para false), ultimoAcesso e nome.
 service cloud.firestore {
   match /databases/{database}/documents {
-    function email() { return request.auth.token.email.lower(); }
-    function confirmado() { return request.auth != null && request.auth.token.email_verified == true; }
-    function interno() { return confirmado() && email().matches('.*@fj[.]arq[.]br$'); }
-    function convite() { return get(/databases/$(database)/documents/convites/$(email())).data; }
-    function convidado() { return confirmado() && exists(/databases/$(database)/documents/convites/$(email())); }
-    function editor() { return interno() || (convidado() && convite().papel == 'editar'); }
+    function logado() { return request.auth != null; }
+    function ativo() { return logado() && exists(/databases/$(database)/documents/acessos/$(request.auth.uid)); }
+    function admin() { return ativo() && get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.nivel == 'admin'; }
 
-    match /convites/{em} {
-      allow read: if interno() || (confirmado() && em == email());
-      allow write: if interno();
+    match /acessos/{uid} {
+      allow read: if ativo();
+      allow create, delete: if admin();
+      allow update: if admin()
+        || (logado() && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trocarSenha', 'ultimoAcesso', 'nome'])
+            && request.resource.data.get('trocarSenha', false) == false);
     }
-    match /usuarios/{uid} {
-      allow read: if interno() || convidado();
-      allow write: if (interno() || convidado()) && request.auth.uid == uid;
-    }
-    match /{documento=**} {
-      allow read: if interno() || convidado();
-      allow write: if editor();
+    // demais coleções (o curinga também casaria com acessos, por isso a exclusão explícita)
+    match /{colecao}/{resto=**} {
+      allow read, write: if ativo() && colecao != 'acessos';
     }
   }
 }

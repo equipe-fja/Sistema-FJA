@@ -1,0 +1,31 @@
+name: Firebase · administradores iniciais
+# Dispara quando firebase/admin-inicial.json muda: {"projetos":["homolog","oficial"],"admins":[{"email":"...","nome":"..."}]}
+on:
+  push:
+    branches: [main]
+    paths: ['firebase/admin-inicial.json']
+  workflow_dispatch:
+permissions: {contents: write}
+jobs:
+  admins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - name: Garantir administradores
+        env:
+          CHAVE_OFICIAL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CHAVE_HOMOLOG: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HOMOLOG }}
+        run: |
+          cd firebase/importador && npm install --silent --no-audit --no-fund
+          set -o pipefail
+          : > "$RUNNER_TEMP/log.txt"
+          for P in $(node -p "require('../admin-inicial.json').projetos.join(' ')"); do
+            if [ "$P" = oficial ]; then printf '%s' "$CHAVE_OFICIAL" > "$RUNNER_TEMP/chave.json"; else printf '%s' "$CHAVE_HOMOLOG" > "$RUNNER_TEMP/chave.json"; fi
+            GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json" node admin-inicial.js ../admin-inicial.json 2>&1 | tee -a "$RUNNER_TEMP/log.txt"
+          done
+      - name: Registrar resultado (branch firebase-log)
+        if: always()
+        env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
+        run: ./scripts/firebase-log.sh "admin" "${{ job.status }}"

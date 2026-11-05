@@ -26,6 +26,6 @@ Responder ao usuário em português. O usuário é a equipe da FJA (a FJA decide
 - Planos pendentes em `docs/` (ex.: `docs/backup-diario.md`).
 
 ## Firebase (teste, em paralelo)
-- Oficial: https://sistema-fja.web.app (projeto sistema-fja; publica com push na branch `oficial`). Homologação: https://sistema-fja-homolog.web.app (publica a cada push na `main`; importa o último backup da oficial todo dia às 04h). Gerados de `src/` com `AMB='firebase'` + `firebase/shim.html` (login por link no e-mail @fj.arq.br; assets e mcp ainda não).
+- Oficial: https://sistema-fja.web.app (projeto sistema-fja; publica com push na branch `oficial`). Homologação: https://sistema-fja-homolog.web.app (publica a cada push na `main`; importa o último backup da oficial todo dia às 04h). Gerados de `src/` com `AMB='firebase'` + `firebase/shim.html` (login com e-mail e senha; contas em acessos/<uid> com nível admin/usuario, criadas em Manutenção › Usuários e acesso com senha provisória; assets e mcp ainda não). Administradores iniciais: `firebase/admin-inicial.json` + push.
 - Importar manualmente: `firebase/importar.json` {"projeto":"homolog"|"oficial","pasta":"<id>"|"ultimo"} + push.
 - Resultado das execuções: branch `firebase-log` (`logs/publicar-homolog.txt`, `logs/publicar-oficial.txt`, `logs/importar.txt`). A chave fica só no segredos `FIREBASE_SERVICE_ACCOUNT` (oficial) e `FIREBASE_SERVICE_ACCOUNT_HOMOLOG` do GitHub.
