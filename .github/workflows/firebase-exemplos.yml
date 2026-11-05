@@ -22,7 +22,7 @@ jobs:
           : > "$RUNNER_TEMP/log.txt"
           for P in $(node -p "require('../exemplos.json').projetos.join(' ')"); do
             if [ "$P" = oficial ]; then printf '%s' "$CHAVE_OFICIAL" > "$RUNNER_TEMP/chave.json"; else printf '%s' "$CHAVE_HOMOLOG" > "$RUNNER_TEMP/chave.json"; fi
-            GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json" node exemplos-usuarios.js 2>&1 | tee -a "$RUNNER_TEMP/log.txt"
+            GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json" node "$(node -p "require('../exemplos.json').script||'exemplos-usuarios.js'")" 2>&1 | tee -a "$RUNNER_TEMP/log.txt"
           done
       - name: Registrar resultado (branch firebase-log)
         if: always()
