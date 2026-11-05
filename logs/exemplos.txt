@@ -1,0 +1,58 @@
+tarefa: exemplos
+status: success
+commit: c2f41ea54378798e82cd8078b871cb503b10104d
+quando: 2026-11-05T20:48:31Z
+----
+projeto: sistema-fja-homolog
+conta   A+P · Ana Ribeiro · ana.ribeiro@ap.example.com
+sem acesso A+P · Bruno Tavares
+conta   AQUALAR · Diego Fontes · diego.fontes@aqualar.example.com
+sem acesso AQUALAR · Elisa Prado
+sem acesso AQUALAR · Fábio Nogueira
+conta   CAD · Gabriela Lins · gabriela.lins@cad.example.com
+sem acesso CAD · Henrique Sá
+conta   CONSULTAR · João Valente · joao.valente@consultar.example.com
+sem acesso CONSULTAR · Karina Dias
+sem acesso CONSULTAR · Leonardo Paz
+conta   ELETRIZE · Marina Couto · marina.couto@eletrize.example.com
+sem acesso ELETRIZE · Nicolas Faria
+conta   FJA · Paulo Teixeira · paulo.teixeira@fja.example.com
+sem acesso FJA · Quésia Moura
+conta   GANEXA · Sabrina Guedes · sabrina.guedes@ganexa.example.com
+sem acesso GANEXA · Tiago Amaral
+conta   INFRAS · Vitor Campos · vitor.campos@infras.example.com
+sem acesso INFRAS · Wesley Moreira
+sem acesso INFRAS · Yasmin Cardoso
+conta   Ivan de Oliveira Joppert Junior · Zeca Albuquerque · zeca.albuquerque@ivandeoliveirajopper.example.com
+sem acesso Ivan de Oliveira Joppert Junior · Bianca Leal
+conta   JUGEND Engenharia e Tecnologia · Débora Matos · debora.matos@jugendengenhariaetec.example.com
+sem acesso JUGEND Engenharia e Tecnologia · Eduardo Reis
+sem acesso JUGEND Engenharia e Tecnologia · Fernanda Sales
+conta   MEPE · Ana Ribeiro · ana.ribeiro@mepe.example.com
+sem acesso MEPE · Bruno Tavares
+conta   MHA · Diego Fontes · diego.fontes@mha.example.com
+sem acesso MHA · Elisa Prado
+sem acesso MHA · Fábio Nogueira
+conta   MVS · Gabriela Lins · gabriela.lins@mvs.example.com
+sem acesso MVS · Henrique Sá
+conta   PLANEP · João Valente · joao.valente@planep.example.com
+sem acesso PLANEP · Karina Dias
+sem acesso PLANEP · Leonardo Paz
+conta   RBF · Marina Couto · marina.couto@rbf.example.com
+sem acesso RBF · Nicolas Faria
+conta   STUDIO23 · Paulo Teixeira · paulo.teixeira@studio23.example.com
+sem acesso STUDIO23 · Quésia Moura
+sem acesso STUDIO23 · Rafael Lobo
+conta   TANTAS Projetos Culturais · Sabrina Guedes · sabrina.guedes@tantasprojetoscultur.example.com
+sem acesso TANTAS Projetos Culturais · Tiago Amaral
+conta   TECFIRE · Vitor Campos · vitor.campos@tecfire.example.com
+sem acesso TECFIRE · Wesley Moreira
+sem acesso TECFIRE · Yasmin Cardoso
+conta   TECMED · Zeca Albuquerque · zeca.albuquerque@tecmed.example.com
+sem acesso TECMED · Bianca Leal
+conta   TOPPAR · Débora Matos · debora.matos@toppar.example.com
+sem acesso TOPPAR · Eduardo Reis
+sem acesso TOPPAR · Fernanda Sales
+sem empresa Roberto Lima (fiscal da obra)
+sem empresa Sônia Barros (cliente)
+CONCLUÍDO: 20 empresas · 20 contas · 31 sem acesso
