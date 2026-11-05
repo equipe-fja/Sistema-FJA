@@ -24,3 +24,8 @@ Responder ao usuário em português. O usuário é a equipe da FJA (a FJA decide
 - Ver `docs/notas-tecnicas.md` (banco, módulos, Drive/Sheets, PDF, Windows).
 - `confirm()`/`alert()` são bloqueados no claude.ai: usar `confirmar()` / `pedirNome()`.
 - Planos pendentes em `docs/` (ex.: `docs/backup-diario.md`).
+
+## Firebase (teste, em paralelo)
+- https://sistema-fja.web.app — gerado de `src/` com `AMB='firebase'` + `firebase/shim.html` (login por link no e-mail @fj.arq.br; imita `claude.use` para db/user/downloads; assets e mcp ainda não).
+- Push na `main` publica sozinho (GitHub Actions `firebase-publicar`). Importar backup: pôr o id da pasta do backup no Drive em `firebase/importar.json` e dar push.
+- Resultado das execuções: branch `firebase-log` (`logs/publicar.txt`, `logs/importar.txt`). A chave fica só no segredo `FIREBASE_SERVICE_ACCOUNT` do GitHub.
