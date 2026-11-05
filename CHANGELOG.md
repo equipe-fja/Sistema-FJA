@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~18h40 — commit d199a45
+- Cache local do banco (menos leituras ao reabrir). Contexto: a cota gratuita de leituras (50 mil/dia) estourou em 05/11 (74 mil).
+
 ## oficial Firebase — 05/11, ~18h25 — commit b3802a7
 - RFI: vários requeridos (pessoas e empresas; regras do banco com requeridosIds, compatível com RFIs antigas); Notificar por e-mail (abre o e-mail com a mensagem pronta e registra).
 - RFI: disciplinas envolvidas e requeridos no quadro RFI, após o requerente; requeridos agrupados por disciplina (empresas que atendem e pessoas da equipe nessas empresas).
