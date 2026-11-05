@@ -1280,9 +1280,9 @@ function renderMain(){
   else if(v.t==='peni') h=telaSplit(h,v,'pen',telaPd,telaPdItem);
   else if(v.t==='reli') h=telaSplit(h,v,'rel',telaRd,telaRdItem);
   const chave=JSON.stringify(v), mesma=S._ultVista===chave, tw=m.querySelector('.rolagem');
-  const pos=mesma?{t:m.scrollTop,wl:tw?.scrollLeft||0,wt:tw?.scrollTop||0}:null;
+  const pos=mesma?{t:m.scrollTop,wl:tw?.scrollLeft||0,wt:tw?.scrollTop||0,r:$('splitR')?.scrollTop||0}:null;
   m.innerHTML=h; S._ultVista=chave;
-  if(pos){m.scrollTop=pos.t; const t2=m.querySelector('.rolagem'); if(t2){t2.scrollLeft=pos.wl;t2.scrollTop=pos.wt}}
+  if(pos){m.scrollTop=pos.t; const t2=m.querySelector('.rolagem'); if(t2){t2.scrollLeft=pos.wl;t2.scrollTop=pos.wt} const r2=$('splitR'); if(r2) r2.scrollTop=pos.r}
   posSplit();
   resolverNomes();
   desenharMiniaturas();
@@ -2858,18 +2858,21 @@ const rfiDiscsDaEmpresa=(e,eid)=>discsRfi(e).filter(c=>{const l=linhaDisc(e.proj
 function rfiReqOpcoes(e){
   if(S.convidado) return rfiPessoaOpcoes(null).replace('<option value="">—</option>','<option value="">+ adicionar requerido</option>');
   acsOuvir();
-  const ja=new Set(reqsRfi(e).map(q=>q.tipo+':'+q.id)), emps=rfiEmpresasDisc(e), it=S.itens.get(e.projeto), parts=partsDe(it);
+  const ja=new Set(reqsRfi(e).map(q=>q.tipo+':'+q.id)), it=S.itens.get(e.projeto), parts=partsDe(it), L=ACS.lista||[];
   const nomeU=u=>u.nome||u.email, ordN=(a,b)=>String(nomeU(a)).localeCompare(String(nomeU(b)),'pt');
   const op=(v,t)=>ja.has(v)?'':`<option value="${esc(v)}">${esc(t)}</option>`;
-  const L=ACS.lista||[], sugE=[...emps].filter(id=>S.itens.get(id)), sugU=L.filter(u=>u.empresa&&emps.has(u.empresa)&&parts.includes(u.id)).sort(ordN);
-  const outE=parceiros().filter(p=>!emps.has(p.id)).sort(ordena), outU=L.filter(u=>!sugU.includes(u)).sort(ordN);
   const g=(rot,html)=>html.replace(/\s/g,'')?`<optgroup label="${esc(rot)}">${html}</optgroup>`:'';
-  const ds=discsRfi(e).map(c=>siglaP(e.projeto,c)).join(', ');
-  return `<option value="">+ adicionar requerido</option>`
-    +(emps.size?g('Empresas de '+ds,sugE.map(id=>op('e:'+id,S.itens.get(id).nome+' ('+rfiDiscsDaEmpresa(e,id).join(' ')+')')).join(''))+g('Pessoas da equipe nessas empresas',sugU.map(u=>op('u:'+u.id,nomeU(u)+' · '+acsEmpNome(u.empresa))).join('')):'')
-    +g(emps.size?'Outras pessoas':'Pessoas',outU.map(u=>op('u:'+u.id,nomeU(u)+(u.empresa?' · '+acsEmpNome(u.empresa):''))).join(''))
-    +g(emps.size?'Outras empresas':'Empresas',outE.map(p=>op('e:'+p.id,p.nome)).join(''))
-    +`<optgroup label="Cadastrar">${AMB==='firebase'&&FB()?.admin()?'<option value="+u">+ Nova pessoa (conta no sistema)…</option>':''}<option value="+e">+ Nova empresa…</option></optgroup>`;
+  let h='<option value="">+ adicionar requerido</option>'; const usados=new Set();
+  // um grupo por disciplina marcada: a(s) empresa(s) que a atendem e as pessoas da equipe do projeto nessas empresas
+  for(const c of discsRfi(e)){const l=linhaDisc(e.projeto,c); const emps=[l?.parceiro,...(l?.apoio||[])].filter(id=>id&&S.itens.get(id));
+    const pes=L.filter(u=>parts.includes(u.id)&&emps.includes(u.empresa)).sort(ordN);
+    h+=g(`${siglaP(e.projeto,c)} · ${discNome(c)}`,emps.map(id=>op('e:'+id,`${S.itens.get(id).nome} (empresa${id===l.parceiro?'':', apoio'})`)).join('')+pes.map(u=>op('u:'+u.id,`${nomeU(u)} · ${acsEmpNome(u.empresa)}`)).join(''));
+    emps.forEach(id=>usados.add('e:'+id)); pes.forEach(u=>usados.add('u:'+u.id))}
+  const resto=x=>!usados.has(x);
+  h+=g(discsRfi(e).length?'Outras pessoas da equipe do projeto':'Equipe do projeto',L.filter(u=>parts.includes(u.id)&&resto('u:'+u.id)).sort(ordN).map(u=>op('u:'+u.id,nomeU(u)+(u.empresa?' · '+acsEmpNome(u.empresa):''))).join(''));
+  h+=g('Empresas',parceiros().filter(p=>resto('e:'+p.id)).sort(ordena).map(p=>op('e:'+p.id,p.nome)).join(''));
+  h+=g('Pessoas fora da equipe do projeto',L.filter(u=>!parts.includes(u.id)).sort(ordN).map(u=>op('u:'+u.id,nomeU(u)+(u.empresa?' · '+acsEmpNome(u.empresa):''))).join(''));
+  return h+`<optgroup label="Cadastrar">${AMB==='firebase'&&FB()?.admin()?'<option value="+u">+ Nova pessoa (conta no sistema)…</option>':''}<option value="+e">+ Nova empresa…</option></optgroup>`;
 }
 function rfiDirigidaAMim(e){const eu=FB()?.perfil(); if(!eu) return false; return reqsRfi(e).some(r=>r.tipo==='u'?r.id===eu.uid:r.tipo==='e'&&!!eu.empresa&&r.id===eu.empresa)}
 function telaRfiItem(h,v){
@@ -2977,9 +2980,6 @@ async function rfiAcao(a,b){
 document.addEventListener('change',async ev=>{
   const el=ev.target; if(!S.qdraft||S.view?.t!=='rfii') return;
   if(el.id==='rfiTagIn'&&el.value){rfiGarantir(); if(!S.qdraft.disciplinas.includes(el.value)) S.qdraft.disciplinas.push(el.value);
-    // atalho: a empresa responsável pela disciplina entra como requerida (dá para tirar no X)
-    const l=linhaDisc(S.qdraft.projeto,el.value), eid=l?.parceiro, emp=eid&&S.itens.get(eid);
-    if(emp){const L=reqsRfi(S.qdraft); if(!L.some(q=>q.tipo==='e'&&q.id===eid)){L.push({tipo:'e',id:eid,nome:emp.nome||''}); S.qdraft.requeridos=L; delete S.qdraft.requerido; toast(`${emp.nome} (responsável por ${siglaP(S.qdraft.projeto,el.value)}) incluída como requerida`)}}
     marcaSujo(); renderMain(); return}
   if(el.dataset.rfip){const k=el.dataset.rfip, v=el.value; let p=null;
     if(v==='+u') p=await rfiNovaPessoa();
