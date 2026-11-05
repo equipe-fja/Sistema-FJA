@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~16h00 — commit 6774122
+- Usuários e acesso: Remover vira ícone de X.
+
 ## oficial Firebase — 05/11, ~15h50 — commit 4ff4cc7
 - Contas: nível Usuário passa a se chamar Convidado; e-mails e páginas de senha do Firebase em português, com botão Continuar de volta ao sistema.
 
