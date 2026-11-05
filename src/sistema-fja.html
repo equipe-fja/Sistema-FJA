@@ -7498,8 +7498,6 @@ async function acsNovoParceiro(){
 }
 const acsMsgConvite=(c)=>`Olá${c.nome?' '+c.nome:''}! Sua conta no Sistema FJA foi criada.\n\nEndereço: ${location.origin}\nE-mail: ${c.email}\nSenha provisória: ${c.senha}\n\nNo primeiro acesso o sistema pede que você crie a sua própria senha.`;
 /* ---- lista de contas: Master sempre no topo; demais agrupadas e ordenadas pela escolha guardada no navegador ---- */
-const ACS_GRUPOS=[['','Sem grupos'],['empresa','Empresa'],['nivel','Nível'],['situacao','Situação']];
-const ACS_ORDENS=[['nome','Nome'],['email','E-mail'],['empresa','Empresa'],['acesso','Último acesso'],['criado','Criação']];
 const acsPref=()=>{try{return JSON.parse(localStorage.getItem('fja.acsLista')||'{}')}catch{return {}}};
 const acsNivelTxt=n=>n==='master'?'Master':n==='admin'?'Administrador':'Convidado';
 const acsSituacao=x=>x.pend?'Liberado (conta antiga)':x.ultimoAcesso?'Ativo':'Aguardando 1º acesso';
@@ -7517,19 +7515,30 @@ function acsLinha(x,eu,fmt){
      <td class="muted">${!x.ultimoAcesso?'aguardando 1º acesso':fmt(x.ultimoAcesso)}${link}</td>
      <td style="text-align:right;white-space:nowrap">${!x.ultimoAcesso?`<button class="btn sm ghost" data-act="acs-reenviar" data-id="${esc(x.id)}" title="Mostra de novo a mensagem com a senha provisória, para copiar">Copiar mensagem</button> <button class="btn sm ghost" data-act="acs-email" data-id="${esc(x.id)}">Alterar e-mail</button> `:''}${acsBtSenha('acs-reset',`data-id="${esc(x.id)}"`,!x.ultimoAcesso,x.linkSenhaEm)}${acsCasaX(fixo?'':`<button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}" title="Remover acesso" aria-label="Remover acesso de ${esc(x.nome||x.email||'')}" style="padding:4px 6px">${ACS_X}</button>`)}</td></tr>`;
 }
+/* mesmo sistema das outras planilhas: seta no título ordena (crescente → decrescente → padrão); bolinha agrupa */
+const ACS_COLS=[['nome','Nome'],['email','E-mail'],['empresa','Empresa',1],['nivel','Nível',1],['acesso','Último acesso',1]];
+function acsVal(k,x){const t=v=>String(v||'');
+  return k==='nome'?t(x.nome||x.email):k==='email'?t(x.email):k==='empresa'?(acsEmpNome(x.empresa)||''):k==='nivel'?acsNivelTxt(x.nivel):k==='acesso'?x.ultimoAcesso||0:''}
+const acsGrupoVal=(k,x)=>k==='acesso'?acsSituacao(x):k==='empresa'?(acsEmpNome(x.empresa)||'Sem empresa'):acsVal(k,x);
+function acsTh(k,rot,grp){const pr=acsPref(), at=pr.o?.k===k?pr.o.dir:'', on=pr.g===k;
+  const tit=at==='asc'?'Ordenado crescente. Clique para decrescente':at==='desc'?'Ordenado decrescente. Clique para voltar à ordem padrão':'Ordenar por esta coluna';
+  const tg=on?'Desagrupar: voltar à lista contínua':'Agrupar por '+(k==='acesso'?'situação':rot.toLowerCase());
+  return `<th style="text-align:left">${esc(rot)}<button class="th-ord ${at?'on':''}" data-act="acs-ord" data-k="${k}" title="${tit}" aria-label="${tit}">${SETA_ORD[at||'off']}</button>${grp?`<button class="th-ord th-grp ${on?'on':''}" data-act="acs-agrupar" data-k="${k}" title="${tg}" aria-label="${tg}" aria-pressed="${on}"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="${on?3.6:3.2}" fill="${on?'currentColor':'none'}" stroke="currentColor" stroke-width="1.4"/></svg></button>`:''}</th>`}
 function acsTabela(L,eu,fmt){
   const pr=acsPref(), todos=[...L,...(ACS.pend||[]).filter(p=>!L.some(x=>(x.email||'')===p.email)).map(p=>({...p,pend:true}))];
-  const master=todos.filter(x=>x.nivel==='master'), resto=todos.filter(x=>x.nivel!=='master');
-  const txt=v=>String(v||'').toLowerCase(), cmp={nome:(a,b)=>txt(a.nome||a.email).localeCompare(txt(b.nome||b.email),'pt'),email:(a,b)=>txt(a.email).localeCompare(txt(b.email)),
-    empresa:(a,b)=>txt(acsEmpNome(a.empresa)||'~').localeCompare(txt(acsEmpNome(b.empresa)||'~'),'pt')||cmp.nome(a,b),acesso:(a,b)=>(b.ultimoAcesso||0)-(a.ultimoAcesso||0)||cmp.nome(a,b),criado:(a,b)=>(b.em||0)-(a.em||0)};
-  resto.sort(cmp[pr.o]||cmp.nome);
-  const chave={empresa:x=>acsEmpNome(x.empresa)||'Sem empresa',nivel:x=>acsNivelTxt(x.nivel),situacao:acsSituacao}[pr.g];
+  const master=todos.filter(x=>x.nivel==='master'); let resto=todos.filter(x=>x.nivel!=='master');
+  const base=(a,b)=>acsVal('nome',a).localeCompare(acsVal('nome',b),'pt',{sensitivity:'base'});
+  const o=pr.o, d=o?.dir==='desc'?-1:1;
+  resto.sort((a,b)=>{if(!o) return base(a,b); const A=acsVal(o.k,a), B=acsVal(o.k,b);
+    if(!A&&!B) return base(a,b); if(!A) return 1; if(!B) return -1;
+    return (typeof A==='number'?A-B:String(A).localeCompare(String(B),'pt',{numeric:true,sensitivity:'base'}))*d||base(a,b)});
   let corpo='';
-  if(chave){const grupos=new Map(); for(const x of resto){const k=chave(x); if(!grupos.has(k)) grupos.set(k,[]); grupos.get(k).push(x)}
-    for(const k of [...grupos.keys()].sort((a,b)=>a.localeCompare(b,'pt'))) corpo+=`<tr><td colspan="6" style="padding-top:14px;font-weight:600;border-bottom:1px solid var(--line,#E2E2DF)">${esc(k)} <span class="muted" style="font-weight:400">${grupos.get(k).length}</span></td></tr>`+grupos.get(k).map(x=>acsLinha(x,eu,fmt)).join('')}
-  else corpo=resto.map(x=>acsLinha(x,eu,fmt)).join('');
-  return `<table class="tbl" style="width:100%"><thead><tr><th style="text-align:left">Nome</th><th style="text-align:left">E-mail</th><th style="text-align:left">Empresa</th><th style="text-align:left">Nível</th><th style="text-align:left">Último acesso</th><th></th></tr></thead><tbody>
-   ${master.map(x=>acsLinha(x,eu,fmt)).join('')}${corpo}</tbody></table>`;
+  if(pr.g&&ACS_COLS.some(c=>c[0]===pr.g&&c[2])){
+    const grupos=new Map(); for(const x of resto){const v=acsGrupoVal(pr.g,x); if(!grupos.has(v)) grupos.set(v,[]); grupos.get(v).push(x)}
+    for(const [v,l] of grupos) corpo+=`<tr class="grp"><td colspan="6">${esc(v)} <span class="cnt">${l.length}</span></td></tr>`+l.map(x=>acsLinha(x,eu,fmt)).join('');
+  } else corpo=resto.map(x=>acsLinha(x,eu,fmt)).join('');
+  return `<div class="tablewrap"><table class="list esp" style="width:100%"><thead><tr>${ACS_COLS.map(([k,r,g])=>acsTh(k,r,g)).join('')}<th></th></tr></thead><tbody>
+   ${master.map(x=>acsLinha(x,eu,fmt)).join('')}${corpo}</tbody></table></div>`;
 }
 function telaConta(h){
   const p=FB()?.perfil()||{};
@@ -7563,9 +7572,7 @@ function telaAcesso(h){
       <button class="btn pri" data-act="acs-add">Criar conta</button></div>
   </div></section>
   <section class="sheet"><div class="sheet-h"><h2>Contas</h2><span class="hint">${L?L.length+(ACS.pend||[]).length:''}</span>
-    <span class="sp"></span>
-    <label class="muted" style="font-size:12px">Agrupar <select class="fld" data-act="acs-grupo" style="width:auto;display:inline-block;margin-left:4px">${ACS_GRUPOS.map(([k,t])=>`<option value="${k}"${acsPref().g===k?' selected':''}>${t}</option>`).join('')}</select></label>
-    <label class="muted" style="font-size:12px;margin-left:10px">Ordenar <select class="fld" data-act="acs-ordem" style="width:auto;display:inline-block;margin-left:4px">${ACS_ORDENS.map(([k,t])=>`<option value="${k}"${acsPref().o===k?' selected':''}>${t}</option>`).join('')}</select></label></div><div class="pad ferr-pad">
+</div><div class="pad ferr-pad">
   ${ACS.erro?`<p style="color:var(--danger)">${esc(ACS.erro)}</p>`:!L?'<p class="muted">Carregando…</p>':acsTabela(L,eu,fmt)}
   </div></section></div>`;
   return h;
@@ -7573,6 +7580,9 @@ function telaAcesso(h){
 document.addEventListener('click',async ev=>{
   const b=ev.target.closest?.('[data-act^="acs-"]'); if(!b||b.tagName==='SELECT') return; ev.stopPropagation();
   const a=b.dataset.act, fb=FB(); if(!fb) return;
+  if(a==='acs-ord'||a==='acs-agrupar'){const p=acsPref(), k=b.dataset.k;
+    if(a==='acs-ord'){const o=p.o; p.o=!o||o.k!==k?{k,dir:'asc'}:o.dir==='asc'?{k,dir:'desc'}:null} else p.g=p.g===k?'':k;
+    try{localStorage.setItem('fja.acsLista',JSON.stringify(p))}catch{} renderMain(); return}
   if(a==='acs-senha'){if(await fb.alterarSenha()) toast('Senha alterada');return}
   if(a==='acs-sair'){fb.sair();return}
   if(!fb.admin()){toast('Somente administradores');return}
@@ -7660,8 +7670,6 @@ document.addEventListener('click',async ev=>{
   }
 },true);
 document.addEventListener('change',async ev=>{
-  const pf=ev.target.closest?.('select[data-act="acs-grupo"],select[data-act="acs-ordem"]');
-  if(pf){const p=acsPref(); p[pf.dataset.act==='acs-grupo'?'g':'o']=pf.value; try{localStorage.setItem('fja.acsLista',JSON.stringify(p))}catch{} renderMain(); return}
   const e=ev.target.closest?.('select[data-act="acs-emp"],select[data-act="acs-emp-novo"]');
   if(e&&FB()?.admin()){
     let v=e.value;
