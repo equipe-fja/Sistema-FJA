@@ -129,7 +129,7 @@
     return {status:'saved'}}};
 
   if(window.FJA_FB_HOMOLOG){document.documentElement.classList.add('amb-dev'); document.title='HOMOLOGAÇÃO · Sistema FJA'}
-  window.FJA_FIREBASE={auth,fs,pronto:logado,perfil:()=>perfil,admin:()=>perfil?.nivel==='admin',
+  window.FJA_FIREBASE={auth,fs,pronto:logado,perfil:()=>perfil,admin:()=>perfil?.nivel==='admin'||perfil?.nivel==='master',master:()=>perfil?.nivel==='master',
     criarConta,senhaProvisoria,mensagemErro:msgErro,acaoEmail:ACAO,
     alterarSenha:()=>auth.currentUser?definirSenha(auth.currentUser,false):Promise.resolve(false),
     sair:()=>auth.signOut().then(()=>location.reload())};

@@ -12,9 +12,9 @@ console.log('projeto:', chave.project_id);
     let u; try { u = await admin.auth().getUserByEmail(email); console.log(email, ': conta já existia'); }
     catch { u = await admin.auth().createUser({ email }); console.log(email, ': conta criada'); }
     const ref = admin.firestore().collection('acessos').doc(u.uid), g = await ref.get();
-    await ref.set({ email, nome: a.nome || (g.exists && g.data().nome) || email.split('@')[0], nivel: 'admin', trocarSenha: false,
+    await ref.set({ email, nome: a.nome || (g.exists && g.data().nome) || email.split('@')[0], nivel: a.nivel || 'admin', trocarSenha: false,
       criadoPor: 'configuração inicial', em: (g.exists && g.data().em) || Date.now() }, { merge: true });
-    console.log(email, ': administrador');
+    console.log(email, ':', a.nivel || 'admin');
   }
   console.log('CONCLUÍDO');
 })().catch(e => { console.error('ERRO:', e.message || e); process.exit(1); });

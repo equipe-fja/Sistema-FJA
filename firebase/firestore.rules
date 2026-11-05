@@ -1,30 +1,33 @@
 rules_version = '2';
 // Acesso por conta (e-mail e senha). Só entra quem tem acessos/<uid>, criado por um administrador.
-//  nivel "admin": gerencia acessos; nivel "usuario": usa o sistema.
+//  nivel "master" (único, equipe@): como admin, mas fixo; "admin": gerencia acessos; "usuario" (Convidado): usa o sistema.
 // A pessoa só pode alterar no próprio registro: trocarSenha (para false), ultimoAcesso e nome.
 service cloud.firestore {
   match /databases/{database}/documents {
     function logado() { return request.auth != null; }
     function ativo() { return logado() && exists(/databases/$(database)/documents/acessos/$(request.auth.uid)); }
-    function admin() { return ativo() && get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.nivel == 'admin'; }
+    function admin() { return ativo() && get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.nivel in ['admin', 'master']; }
 
+    // a conta Master (equipe@fj.arq.br) é única: só se define pela configuração inicial e não pode ser removida nem rebaixada
     match /acessos/{uid} {
       allow read: if ativo();
-      allow delete: if admin();
+      allow delete: if admin() && resource.data.nivel != 'master';
       // admin cria; ou a própria pessoa, a partir de uma liberação em acessosPendentes/<email> (conta que já existia)
-      allow create: if admin()
+      allow create: if (admin() && request.resource.data.nivel != 'master')
         || (logado() && request.auth.uid == uid
             && exists(/databases/$(database)/documents/acessosPendentes/$(request.auth.token.email.lower()))
             && request.resource.data.nivel == get(/databases/$(database)/documents/acessosPendentes/$(request.auth.token.email.lower())).data.nivel
+            && request.resource.data.nivel in ['admin', 'usuario']
             && request.resource.data.email == request.auth.token.email.lower());
-      allow update: if admin()
+      allow update: if (admin() && request.resource.data.nivel == resource.data.nivel)
+        || (admin() && resource.data.nivel != 'master' && request.resource.data.nivel in ['admin', 'usuario'])
         || (logado() && request.auth.uid == uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trocarSenha', 'ultimoAcesso', 'nome'])
             && request.resource.data.get('trocarSenha', false) == false);
     }
     match /acessosPendentes/{em} {
       allow read: if admin() || (logado() && em == request.auth.token.email.lower());
-      allow create, update: if admin();
+      allow create, update: if admin() && request.resource.data.nivel in ['admin', 'usuario'];
       allow delete: if admin() || (logado() && em == request.auth.token.email.lower());
     }
     // senha provisória (para reenviar a mensagem enquanto a pessoa não entrou); apagada no 1º acesso

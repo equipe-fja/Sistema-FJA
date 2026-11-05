@@ -7497,12 +7497,46 @@ async function acsNovoParceiro(){
   catch(e){toast('Não foi possível cadastrar o parceiro: '+e.message);return null}
 }
 const acsMsgConvite=(c)=>`Olá${c.nome?' '+c.nome:''}! Sua conta no Sistema FJA foi criada.\n\nEndereço: ${location.origin}\nE-mail: ${c.email}\nSenha provisória: ${c.senha}\n\nNo primeiro acesso o sistema pede que você crie a sua própria senha.`;
+/* ---- lista de contas: Master sempre no topo; demais agrupadas e ordenadas pela escolha guardada no navegador ---- */
+const ACS_GRUPOS=[['','Sem grupos'],['empresa','Empresa'],['nivel','Nível'],['situacao','Situação']];
+const ACS_ORDENS=[['nome','Nome'],['email','E-mail'],['empresa','Empresa'],['acesso','Último acesso'],['criado','Criação']];
+const acsPref=()=>{try{return JSON.parse(localStorage.getItem('fja.acsLista')||'{}')}catch{return {}}};
+const acsNivelTxt=n=>n==='master'?'Master':n==='admin'?'Administrador':'Convidado';
+const acsSituacao=x=>x.pend?'Liberado (conta antiga)':x.ultimoAcesso?'Ativo':'Aguardando 1º acesso';
+const ACS_X='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const acsCasaX=(btn)=>`<span style="display:inline-block;width:30px;text-align:right">${btn||''}</span>`;
+function acsLinha(x,eu,fmt){
+  const master=x.nivel==='master', link=x.linkSenhaEm?`<br><span style="font-size:12px">link de senha enviado ${esc(acsFmtDH(x.linkSenhaEm))}</span>`:'';
+  if(x.pend) return `<tr><td>${esc(x.nome||'')}</td><td class="mono">${esc(x.email)}</td><td>${esc(acsEmpNome(x.empresa)||'—')}</td><td>${acsNivelTxt(x.nivel)}</td>
+     <td class="muted" title="O e-mail já tinha conta no sistema: o acesso fica liberado e a conta aparece aqui depois que a pessoa entrar">liberado · aguardando 1º acesso${link}</td>
+     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-email-pend" data-id="${esc(x.id)}">Alterar e-mail</button> ${acsBtSenha('acs-reset-em',`data-id="${esc(x.id)}" data-em="${esc(x.email)}"`,true,x.linkSenhaEm)}${acsCasaX(`<button class="btn sm ghost" data-act="acs-rm-pend" data-id="${esc(x.id)}" title="Remover liberação" aria-label="Remover liberação de ${esc(x.email||'')}" style="padding:4px 6px">${ACS_X}</button>`)}</td></tr>`;
+  const fixo=master||x.id===eu;
+  return `<tr${master?' style="background:var(--bg2,#F2F2EF)"':''}><td>${master?'<b>':''}${esc(x.nome||'')}${master?'</b>':''}${x.id===eu?' <span class="muted">(você)</span>':''}</td><td class="mono">${esc(x.email||'')}</td>
+     <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
+     <td>${fixo?acsNivelTxt(x.nivel):`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select>`}</td>
+     <td class="muted">${!x.ultimoAcesso?'aguardando 1º acesso':fmt(x.ultimoAcesso)}${link}</td>
+     <td style="text-align:right;white-space:nowrap">${!x.ultimoAcesso?`<button class="btn sm ghost" data-act="acs-reenviar" data-id="${esc(x.id)}" title="Mostra de novo a mensagem com a senha provisória, para copiar">Copiar mensagem</button> <button class="btn sm ghost" data-act="acs-email" data-id="${esc(x.id)}">Alterar e-mail</button> `:''}${acsBtSenha('acs-reset',`data-id="${esc(x.id)}"`,!x.ultimoAcesso,x.linkSenhaEm)}${acsCasaX(fixo?'':`<button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}" title="Remover acesso" aria-label="Remover acesso de ${esc(x.nome||x.email||'')}" style="padding:4px 6px">${ACS_X}</button>`)}</td></tr>`;
+}
+function acsTabela(L,eu,fmt){
+  const pr=acsPref(), todos=[...L,...(ACS.pend||[]).filter(p=>!L.some(x=>(x.email||'')===p.email)).map(p=>({...p,pend:true}))];
+  const master=todos.filter(x=>x.nivel==='master'), resto=todos.filter(x=>x.nivel!=='master');
+  const txt=v=>String(v||'').toLowerCase(), cmp={nome:(a,b)=>txt(a.nome||a.email).localeCompare(txt(b.nome||b.email),'pt'),email:(a,b)=>txt(a.email).localeCompare(txt(b.email)),
+    empresa:(a,b)=>txt(acsEmpNome(a.empresa)||'~').localeCompare(txt(acsEmpNome(b.empresa)||'~'),'pt')||cmp.nome(a,b),acesso:(a,b)=>(b.ultimoAcesso||0)-(a.ultimoAcesso||0)||cmp.nome(a,b),criado:(a,b)=>(b.em||0)-(a.em||0)};
+  resto.sort(cmp[pr.o]||cmp.nome);
+  const chave={empresa:x=>acsEmpNome(x.empresa)||'Sem empresa',nivel:x=>acsNivelTxt(x.nivel),situacao:acsSituacao}[pr.g];
+  let corpo='';
+  if(chave){const grupos=new Map(); for(const x of resto){const k=chave(x); if(!grupos.has(k)) grupos.set(k,[]); grupos.get(k).push(x)}
+    for(const k of [...grupos.keys()].sort((a,b)=>a.localeCompare(b,'pt'))) corpo+=`<tr><td colspan="6" style="padding-top:14px;font-weight:600;border-bottom:1px solid var(--line,#E2E2DF)">${esc(k)} <span class="muted" style="font-weight:400">${grupos.get(k).length}</span></td></tr>`+grupos.get(k).map(x=>acsLinha(x,eu,fmt)).join('')}
+  else corpo=resto.map(x=>acsLinha(x,eu,fmt)).join('');
+  return `<table class="tbl" style="width:100%"><thead><tr><th style="text-align:left">Nome</th><th style="text-align:left">E-mail</th><th style="text-align:left">Empresa</th><th style="text-align:left">Nível</th><th style="text-align:left">Último acesso</th><th></th></tr></thead><tbody>
+   ${master.map(x=>acsLinha(x,eu,fmt)).join('')}${corpo}</tbody></table>`;
+}
 function telaConta(h){
   const p=FB()?.perfil()||{};
   h+=`<div class="page"><div class="crumb"><button data-act="manut">Manutenção</button><span>/</span><span>Minha conta</span></div>
   <h1>Minha conta</h1>
   <section class="sheet"><div class="pad ferr-pad">
-    <p><b>${esc(p.nome||'')}</b> <span class="mono">${esc(p.email||'')}</span> · ${p.nivel==='admin'?'Administrador':'Convidado'}${p.empresa?` · <button class="btn sm ghost" data-act="item" data-id="${esc(p.empresa)}">${esc(acsEmpNome(p.empresa))}</button>`:''}</p>
+    <p><b>${esc(p.nome||'')}</b> <span class="mono">${esc(p.email||'')}</span> · ${acsNivelTxt(p.nivel)}${p.empresa?` · <button class="btn sm ghost" data-act="item" data-id="${esc(p.empresa)}">${esc(acsEmpNome(p.empresa))}</button>`:''}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="acs-senha">Alterar senha</button><button class="btn ghost" data-act="acs-sair">Sair</button></div>
   </div></section></div>`;
   return h;
@@ -7528,17 +7562,11 @@ function telaAcesso(h){
       <input class="fld mono" id="acsSenha" value="${esc(ACS.senha||=FB().senhaProvisoria())}" title="Senha provisória (pode trocar)" style="flex:0 1 140px">
       <button class="btn pri" data-act="acs-add">Criar conta</button></div>
   </div></section>
-  <section class="sheet"><div class="sheet-h"><h2>Contas</h2><span class="hint">${L?L.length:''}</span></div><div class="pad ferr-pad">
-  ${ACS.erro?`<p style="color:var(--danger)">${esc(ACS.erro)}</p>`:!L?'<p class="muted">Carregando…</p>':
-   `<table class="tbl" style="width:100%"><thead><tr><th style="text-align:left">Nome</th><th style="text-align:left">E-mail</th><th style="text-align:left">Empresa</th><th style="text-align:left">Nível</th><th style="text-align:left">Último acesso</th><th></th></tr></thead><tbody>
-   ${L.map(x=>`<tr><td>${esc(x.nome||'')}${x.id===eu?' <span class="muted">(você)</span>':''}</td><td class="mono">${esc(x.email||'')}</td>
-     <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
-     <td>${x.id===eu?'Administrador':`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select>`}</td>
-     <td class="muted">${!x.ultimoAcesso?'aguardando 1º acesso':fmt(x.ultimoAcesso)}${x.linkSenhaEm?`<br><span style="font-size:12px">link de senha enviado ${esc(acsFmtDH(x.linkSenhaEm))}</span>`:''}</td>
-     <td style="text-align:right;white-space:nowrap">${!x.ultimoAcesso?`<button class="btn sm ghost" data-act="acs-reenviar" data-id="${esc(x.id)}" title="Mostra de novo a mensagem com a senha provisória, para copiar">Copiar mensagem</button> <button class="btn sm ghost" data-act="acs-email" data-id="${esc(x.id)}">Alterar e-mail</button> `:''}${acsBtSenha('acs-reset',`data-id="${esc(x.id)}"`,!x.ultimoAcesso,x.linkSenhaEm)}${x.id===eu?'':` <button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}" title="Remover acesso" aria-label="Remover acesso de ${esc(x.nome||x.email||'')}" style="padding:4px 6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`}</td></tr>`).join('')}
-   ${(ACS.pend||[]).filter(p=>!L.some(x=>(x.email||'')===p.email)).map(p=>`<tr><td>${esc(p.nome||'')}</td><td class="mono">${esc(p.email)}</td><td>${esc(acsEmpNome(p.empresa)||'—')}</td><td>${p.nivel==='admin'?'Administrador':'Convidado'}</td>
-     <td class="muted" title="O e-mail já tinha conta no sistema: o acesso fica liberado e a conta aparece aqui depois que a pessoa entrar">liberado · aguardando 1º acesso${p.linkSenhaEm?`<br><span style="font-size:12px">link de senha enviado ${esc(acsFmtDH(p.linkSenhaEm))}</span>`:''}</td>
-     <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-email-pend" data-id="${esc(p.id)}">Alterar e-mail</button> ${acsBtSenha('acs-reset-em',`data-id="${esc(p.id)}" data-em="${esc(p.email)}"`,true,p.linkSenhaEm)} <button class="btn sm ghost" data-act="acs-rm-pend" data-id="${esc(p.id)}" title="Remover liberação" aria-label="Remover liberação de ${esc(p.email||'')}" style="padding:4px 6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></td></tr>`).join('')}</tbody></table>`}
+  <section class="sheet"><div class="sheet-h"><h2>Contas</h2><span class="hint">${L?L.length+(ACS.pend||[]).length:''}</span>
+    <span class="sp"></span>
+    <label class="muted" style="font-size:12px">Agrupar <select class="fld" data-act="acs-grupo" style="width:auto;display:inline-block;margin-left:4px">${ACS_GRUPOS.map(([k,t])=>`<option value="${k}"${acsPref().g===k?' selected':''}>${t}</option>`).join('')}</select></label>
+    <label class="muted" style="font-size:12px;margin-left:10px">Ordenar <select class="fld" data-act="acs-ordem" style="width:auto;display:inline-block;margin-left:4px">${ACS_ORDENS.map(([k,t])=>`<option value="${k}"${acsPref().o===k?' selected':''}>${t}</option>`).join('')}</select></label></div><div class="pad ferr-pad">
+  ${ACS.erro?`<p style="color:var(--danger)">${esc(ACS.erro)}</p>`:!L?'<p class="muted">Carregando…</p>':acsTabela(L,eu,fmt)}
   </div></section></div>`;
   return h;
 }
@@ -7626,12 +7654,14 @@ document.addEventListener('click',async ev=>{
       toast('Link de senha enviado para '+x.email)}catch(e){toast('Não foi possível enviar: '+fb.mensagemErro(e))}
   } else if(a==='acs-rm'){
     const x=(ACS.lista||[]).find(y=>y.id===b.dataset.id); if(!x) return;
-    if(x.nivel==='admin'&&(ACS.lista||[]).filter(y=>y.nivel==='admin').length<=1){toast('É preciso manter pelo menos um administrador');return}
+    if(x.nivel==='master'){toast('A conta Master não pode ser removida');return}
     if(!await confirmar(`Remover o acesso de ${x.nome||x.email}? A pessoa deixa de conseguir entrar no sistema.`,{ok:'Remover',perigo:true})) return;
     try{await db.collection('acessos').doc(x.id).delete(); toast('Acesso removido')}catch(e){toast('Não foi possível remover: '+e.message)}
   }
 },true);
 document.addEventListener('change',async ev=>{
+  const pf=ev.target.closest?.('select[data-act="acs-grupo"],select[data-act="acs-ordem"]');
+  if(pf){const p=acsPref(); p[pf.dataset.act==='acs-grupo'?'g':'o']=pf.value; try{localStorage.setItem('fja.acsLista',JSON.stringify(p))}catch{} renderMain(); return}
   const e=ev.target.closest?.('select[data-act="acs-emp"],select[data-act="acs-emp-novo"]');
   if(e&&FB()?.admin()){
     let v=e.value;
@@ -7642,8 +7672,7 @@ document.addEventListener('change',async ev=>{
     return;
   }
   const s=ev.target.closest?.('select[data-act="acs-nivel"]'); if(!s||!FB()?.admin()) return;
-  const outrosAdmins=(ACS.lista||[]).filter(y=>y.nivel==='admin'&&y.id!==s.dataset.id).length;
-  if(s.value!=='admin'&&!outrosAdmins){toast('É preciso manter pelo menos um administrador');s.value='admin';return}
+  
   try{await db.collection('acessos').doc(s.dataset.id).update({nivel:s.value}); toast('Nível atualizado')}catch(e){toast('Não foi possível alterar: '+e.message)}
 },true);
 (function bkpIniciar(){
