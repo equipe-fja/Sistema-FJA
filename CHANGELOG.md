@@ -5,6 +5,12 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial v102 (Claude) — 05/11, ~15h15 — VIRADA PARA O FIREBASE
+- A oficial passa a ser https://sistema-fja.web.app (Firebase): login por e-mail e senha, contas e níveis (Administrador/Usuário) com empresa, Google Drive/Sheets pelas APIs do Google, imagens e anexos na pasta ARQUIVOS DO SISTEMA, backup diário automático.
+- Dados importados do backup SISTEMA-FJA_BACKUP_2026-11-05_15h04; arquivos do SISTEMA-FJA_ARQUIVOS.zip. O histórico de exportações de keynotes (knexp) não está no backup e não foi migrado.
+- A oficial do Claude (v102) fica somente leitura, com aviso do endereço novo e sem rotinas automáticas.
+- Homologação: https://sistema-fja-homolog.web.app. Desenvolvimento continua no Claude (dev).
+
 ## oficial v101 = dev v119 — 05/11, ~14h20 — commit a29ed0b
 - Revit: ferramenta Diagnóstico (sincronização de tipos e materiais vinculados; ressincronizar, incluir no projeto, desvincular); Componentes com tabela de tipos e código por tipo (todos obrigatórios, renomear tipos opcional); siglas novas criadas pelo Revit; ferramentas agem só no modelo ativo; correções para o Revit 2026 (extensão v1.9.0).
 - Especificação: ao puxar da biblioteca, a sigla do keynote fica travada na do código central.
