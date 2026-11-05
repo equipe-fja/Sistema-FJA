@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~16h45 — commit 4aa7bb3
+- Usuários e acesso: ordenar e agrupar pelo cabeçalho, no mesmo sistema das outras planilhas.
+
 ## oficial Firebase — 05/11, ~16h40 — commit f3879d1
 - Contas: nível Master (único, equipe@fj.arq.br) sempre no topo, protegido nas regras do banco; ações alinhadas; agrupar e ordenar a lista.
 - Dados: equipe@fj.arq.br passa de Administrador para Master (firebase/admin-inicial.json).
