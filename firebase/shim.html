@@ -23,6 +23,8 @@
   const LS='fja.fbEmail';
   firebase.initializeApp(CFG);
   const auth=firebase.auth(), fs=firebase.firestore();
+  auth.languageCode='pt-BR';   // e-mails e páginas de senha do Firebase em português
+  const ACAO={url:location.origin+'/',handleCodeInApp:false};   // botão "Continuar" volta ao sistema depois de trocar a senha
   let pronto; const logado=new Promise(r=>pronto=r);
   let perfil=null;   // acessos/<uid>: {email, nome, nivel:'admin'|'usuario', trocarSenha}
   const lsGet=()=>{try{return localStorage.getItem(LS)||''}catch{return ''}}, lsSet=v=>{try{localStorage.setItem(LS,v)}catch{}};
@@ -51,7 +53,7 @@
     bt.onclick=ir; sn.onkeydown=em.onkeydown=ev=>{if(ev.key==='Enter')ir()};
     d.querySelector('#fbEsq').onclick=async()=>{
       const e=em.value.trim().toLowerCase(); if(!e){m.className='msg err';m.textContent='Digite o seu e-mail acima e clique de novo em "Esqueci a senha".';return}
-      try{await auth.sendPasswordResetEmail(e); m.className='msg ok'; m.textContent='Se houver uma conta para '+e+', chegou um e-mail com o link para criar uma nova senha.'}
+      try{await auth.sendPasswordResetEmail(e,ACAO); m.className='msg ok'; m.textContent='Se houver uma conta para '+e+', chegou um e-mail com o link para criar uma nova senha.'}
       catch(x){m.className='msg err';m.textContent=msgErro(x)}
     };
     setTimeout(()=>(em.value?sn:em).focus(),30);
@@ -119,7 +121,7 @@
 
   if(window.FJA_FB_HOMOLOG){document.documentElement.classList.add('amb-dev'); document.title='HOMOLOGAÇÃO · Sistema FJA'}
   window.FJA_FIREBASE={auth,fs,pronto:logado,perfil:()=>perfil,admin:()=>perfil?.nivel==='admin',
-    criarConta,senhaProvisoria,mensagemErro:msgErro,
+    criarConta,senhaProvisoria,mensagemErro:msgErro,acaoEmail:ACAO,
     alterarSenha:()=>auth.currentUser?definirSenha(auth.currentUser,false):Promise.resolve(false),
     sair:()=>auth.signOut().then(()=>location.reload())};
   window.claude={use:async nome=>{
