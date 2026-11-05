@@ -7381,12 +7381,33 @@ function telaBkp(h){
     ${s.erro?`<p style="color:var(--danger)">Última falha (${fmt(s.erro.em)}): ${esc(s.erro.msg||'')}</p>`:''}
     <div><button class="btn pri" data-act="bkp-agora"${BKP.rodando||S.ro||!mcp?' disabled':''}>${BKP.rodando?'Gravando backup…':'Fazer backup agora'}</button></div>
   </div></section>
+  ${AMB!=='firebase'?`<section class="sheet"><div class="sheet-h"><h2>Migração para o Firebase</h2></div><div class="pad ferr-pad">
+    <p class="muted">Baixa num .zip todas as imagens e anexos guardados no Claude (capas, PEB, imagens, PDFs). Coloque o .zip em <span class="mono">SISTEMA FJA\\ARQUIVOS DO SISTEMA</span> no G: e avise: a cópia é extraída lá para a versão Firebase.</p>
+    <div><button class="btn" data-act="mig-arqs"${BKP.migrando?' disabled':''}>${BKP.migrando?esc(BKP.migrando):'Baixar arquivos para a migração'}</button></div>
+  </div></section>`:''}
   <section class="sheet"><div class="sheet-h"><h2>Como funciona</h2></div><div class="pad ferr-pad">
     <p class="muted">${auto?'Todo dia, a primeira pessoa com permissão de edição que abrir o sistema dispara o backup em segundo plano (cerca de 45 s depois de abrir; quem deixa o sistema aberto passa a meia-noite e também dispara). Um registro no banco evita que duas pessoas gravem o mesmo dia. ':'No ambiente de desenvolvimento o backup só é feito pelo botão, e o arquivo começa com DEV-. '}Os arquivos não são apagados: cada dia fica guardado com data e hora no nome. Imagens (capas, fotos, croquis) não entram no arquivo; os originais dos croquis já ficam no Drive.</p>
     <p>Pasta: <span class="mono">${esc(BKP.caminho)}</span> · <a href="https://drive.google.com/drive/folders/${BKP.pasta}" target="_blank" rel="noopener">abrir no Drive</a></p>
   </div></section></div>`;
   return h;
 }
+/* migração: todos os arquivos citados no banco (ids de 32 hex) num .zip, com o nome igual ao id */
+async function migBaixarArquivos(){
+  if(!downloads){toast('O download não está disponível nesta visualização.');return}
+  const ids=new Set(), varrer=v=>{if(typeof v==='string'){if(/^[0-9a-f]{32}$/.test(v)) ids.add(v)} else if(v&&typeof v==='object') for(const x of Object.values(v)) varrer(x)};
+  for(const v of Object.values(S)) if(v instanceof Map) for(const x of v.values()) varrer(x);
+  const L=[...ids], arqs=[], falhas=[]; let bytes=0;
+  for(let i=0;i<L.length;i++){
+    BKP.migrando=`Baixando ${i+1} de ${L.length}…`; if(i%10===0) bkpUI();
+    try{const r=await fetch('/_blob/'+L[i]); if(!r.ok) throw 0; const u=new Uint8Array(await r.arrayBuffer()); bytes+=u.length; arqs.push({nome:'ARQUIVOS/'+L[i],dados:u})}catch{falhas.push(L[i])}
+  }
+  arqs.push({nome:'ARQUIVOS/00-lista.txt',dados:`${arqs.length} arquivos, ${(bytes/1048576).toFixed(1)} MB\nnão encontrados (${falhas.length}):\n${falhas.join('\n')}\n`});
+  BKP.migrando='Montando o .zip…'; bkpUI();
+  try{const r=await downloads.save({filename:'SISTEMA-FJA_ARQUIVOS.zip',data:zipArquivos(arqs)}); if(r) toast(`${arqs.length-1} arquivos salvos (${(bytes/1048576).toFixed(0)} MB)${falhas.length?' · '+falhas.length+' não encontrados':''}`)}
+  catch(e){toast('Não foi possível salvar o .zip: '+(e?.message||e))}
+  finally{BKP.migrando=null; bkpUI()}
+}
+document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="mig-arqs"]'); if(!b) return; ev.stopPropagation(); if(!b.disabled&&!BKP.migrando) migBaixarArquivos()},true);
 document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="bkp-agora"]'); if(!b) return; ev.stopPropagation(); if(!b.disabled) bkpExecutar(true)},true);
 /* ---------- Contas e acesso (só na versão Firebase) ----------
    acessos/<uid> = {email, nome, nivel:'admin'|'usuario', trocarSenha, criadoPor, em, ultimoAcesso}.
