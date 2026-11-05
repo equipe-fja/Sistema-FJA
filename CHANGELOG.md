@@ -5,6 +5,13 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial v101 = dev v119 — 05/11, ~14h20 — commit a29ed0b
+- Revit: ferramenta Diagnóstico (sincronização de tipos e materiais vinculados; ressincronizar, incluir no projeto, desvincular); Componentes com tabela de tipos e código por tipo (todos obrigatórios, renomear tipos opcional); siglas novas criadas pelo Revit; ferramentas agem só no modelo ativo; correções para o Revit 2026 (extensão v1.9.0).
+- Especificação: ao puxar da biblioteca, a sigla do keynote fica travada na do código central.
+- Descrições: variações e diagnóstico consideram só projetos em andamento.
+- Backup: botão "Baixar arquivos para a migração" (.zip com as imagens e anexos guardados no Claude).
+- Código das versões Firebase incluído (inativo no Claude).
+
 ## oficial v100 = dev v106 — 04/11, ~11h50 — commit 9de9681
 - Especificação técnica: banco central (`espb`) com códigos FJ.SIGLA.NNNN, siglas de keynote (`etsig`), especificação por projeto (`espec`), importação de planilha ET-, exportação de keynotes com histórico de 100 exportações por projeto (`knexp/<projeto>/exp`).
 - Descrição simplificada com variações e principal; diagnóstico na planilha do projeto e no banco central.
