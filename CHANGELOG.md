@@ -5,6 +5,15 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~17h55 — commit 2096970
+- RFI por projeto (no modelo das pendências): requerente/requerido ligados a pessoas e empresas, respostas e comentários, painel, PDF; RFIs no backup.
+- Convidados: veem só a RFI dos projetos de que participam; respondem só RFIs dirigidas a eles ou à empresa deles; comentam em qualquer uma (regras do banco: rfi.participantes, projetosRfi).
+- Disciplinas e equipe: quadro Equipe do projeto (empresas e pessoas participantes, "Sem empresa"), seleção direta com busca, ficha lateral para cadastro novo e dados da pessoa.
+- Pessoas sem acesso (placeholder) e "Enviar acesso" quando o e-mail for definido.
+- Relação de documentos: cada parte do nome do arquivo editável direto na tabela.
+- Ficha do parceiro mostra as pessoas com conta ligadas à empresa.
+- Atenção: participantes começam vazios; convidados só passam a ver um projeto depois de incluídos na equipe.
+
 ## oficial Firebase — 05/11, ~16h45 — commit 4aa7bb3
 - Usuários e acesso: ordenar e agrupar pelo cabeçalho, no mesmo sistema das outras planilhas.
 
