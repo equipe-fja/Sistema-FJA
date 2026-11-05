@@ -2886,19 +2886,24 @@ function telaRfiItem(h,v){
   h+=`<div class="eq-top eq-top2">${conv?'':blocoCapaEq(e)}<div class="eq-acts"><button class="btn" data-act="eq-pdf" title="Gerar o registro da RFI em PDF, em papel timbrado">${IC.pdf}Exportar PDF</button></div></div>`;
   const camposRO=html=>conv?html.replace(/<(input|textarea|select)(?![^>]*disabled)/g,'<$1 disabled'):html;
   // ordem: RFI → disciplinas envolvidas → requeridos (sugeridos pelas disciplinas) → prazos → respostas → comentários
+  const mails=reqsEmails(e), rq=reqsRfi(e), roD=!!dis;
+  // ordem: assunto, pergunta, status, requerente → disciplinas envolvidas → requeridos (sugeridos pelas disciplinas)
   h+=`<section class="sheet"><div class="sheet-h"><h2>RFI</h2></div><div class="grid">${camposRO(RFI_CAMPOS.map(f=>eqCampoHTML(f,e[f[0]])).join(''))}
-    <label class="fl" for="q_requerente">Requerente<select class="fld" id="q_requerente" data-rfip="requerente" ${dis}>${rfiPessoaOpcoes(e.requerente)}</select></label></div></section>`;
-  h+=conv?camposRO(blocoDiscRfi(e)).replace(/<button data-act="rfi-tag-rm"[^>]*>.*?<\/button>/g,'').replace(/<span class="tag-add">.*?<\/span>/s,''):blocoDiscRfi(e);
-  const mails=reqsEmails(e), rq=reqsRfi(e);
-  h+=`<section class="sheet"><div class="sheet-h"><h2>Requeridos</h2><span class="hint">${rq.length||'Nenhum'}</span><span class="muted" style="font-size:12px;margin-left:8px">quem deve responder${discsRfi(e).length?' · sugestões pelas disciplinas envolvidas':''}</span></div>
-    <div class="pad tags-ed">${rq.map((r,i)=>`<span class="chip chip-c"><span>${esc(rfiPessoaNome(r))}</span><span class="muted" style="font-size:11.5px">${r.tipo==='e'?'empresa'+(rfiEmpresasDisc(e).has(r.id)?' · '+esc(rfiDiscsDaEmpresa(e,r.id).join(' ')):''):(()=>{const m=(ACS.lista||[]).find(x=>x.id===r.id)?.email; return m?esc(m):'sem e-mail'})()}</span>${dis?'':`<button data-act="rfi-req-rm" data-i="${i}" aria-label="Tirar ${esc(rfiPessoaNome(r))}">${IC.x}</button>`}</span>`).join('')}
-      ${dis?(rq.length?'':'<span class="muted">nenhum</span>'):`<span class="tag-add"><select class="fld" id="q_requerido" data-rfip="requeridos" aria-label="Adicionar requerido">${rfiReqOpcoes(e)}</select></span>`}</div>
+    <label class="fl" for="q_requerente">Requerente<select class="fld" id="q_requerente" data-rfip="requerente" ${dis}>${rfiPessoaOpcoes(e.requerente)}</select></label>
+    ${campoDiscRfi(e,roD)}
+    <div class="fl wide">Requeridos <span class="muted" style="font-size:11.5px">(quem deve responder${discsRfi(e).length?'; sugestões pelas disciplinas envolvidas':''})</span><div class="tags-ed" style="padding:4px 0 0">${rq.map((r,i)=>`<span class="chip chip-c"><span>${esc(rfiPessoaNome(r))}</span><span class="muted" style="font-size:11.5px">${r.tipo==='e'?'empresa'+(rfiEmpresasDisc(e).has(r.id)?' · '+esc(rfiDiscsDaEmpresa(e,r.id).join(' ')):''):(()=>{const m=(ACS.lista||[]).find(x=>x.id===r.id)?.email; return m?esc(m):'sem e-mail'})()}</span>${roD?'':`<button data-act="rfi-req-rm" data-i="${i}" aria-label="Tirar ${esc(rfiPessoaNome(r))}">${IC.x}</button>`}</span>`).join('')||(roD?'<span class="muted">nenhum</span>':'')}
+      ${roD?'':`<span class="tag-add"><select class="fld" id="q_requerido" data-rfip="requeridos" aria-label="Adicionar requerido">${rfiReqOpcoes(e)}</select></span>`}</div></div></div>
     ${!conv&&!S.ro?`<div class="pad" style="padding-top:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="muted" style="font-size:12.5px;flex:1">${mails.length?`E-mail: <span class="mono">${esc(mails.join(', '))}</span>${(e.notificacoes||[]).length?` · última notificação ${esc(acsFmtDH(e.notificacoes[e.notificacoes.length-1].em))}`:''}`:'A notificação por e-mail fica disponível quando algum requerido for uma pessoa com e-mail.'}</span><button class="btn sm${mails.length?' pri':''}" data-act="rfi-notificar" ${mails.length&&!S.dirty?'':'disabled'} title="${S.dirty?'Salve antes de notificar':'Abre o seu e-mail com a mensagem pronta'}">Notificar por e-mail</button></div>`:''}</section>`;
   h+=`<section class="sheet"><div class="sheet-h"><h2>Prazos</h2></div><div class="grid">${camposRO([['abertura','Abertura','date'],['prazo','Prazo para resposta','date'],['fechamento','Fechamento','date']].map(f=>eqCampoHTML(f,e[f[0]])).join(''))}</div></section>`;
   h+=blocoEvRfi(e,'respostas','Respostas','Registre a resposta: quem respondeu, o que foi definido…',!podeResp)+blocoEvRfi(e,'comentarios','Comentários','Comentário sobre a RFI…',S.ro);
   h+=`<div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button>${S.convidado?'':`<button class="btn danger" data-act="rfi-del">${IC.trash}Excluir</button>`}<button class="btn pri" data-act="rfi-salvar">Salvar alterações</button></div>`;
   return h;
+}
+function campoDiscRfi(e,ro){
+  const ds=discsRfi(e);
+  return `<div class="fl wide">Disciplinas envolvidas<div class="tags-ed" style="padding:4px 0 0">${ds.map((d,i)=>`<span class="chip chip-c"${pintaD(e.projeto,d)} title="${esc(discNome(d))}"><span class="mono">${esc(siglaP(e.projeto,d))}</span><span class="muted" style="font-size:12px">${esc(discNome(d))}</span>${ro?'':`<button data-act="rfi-tag-rm" data-i="${i}" aria-label="Remover ${esc(d)}">${IC.x}</button>`}</span>`).join('')||(ro?'<span class="muted">nenhuma</span>':'')}
+  ${ro?'':`<span class="tag-add"><select class="fld" id="rfiTagIn" aria-label="Adicionar disciplina"><option value="">+ escolher disciplina</option>${optsDisc(e.projeto,ds)}</select></span>`}</div></div>`;
 }
 function blocoDiscRfi(e){
   const ds=discsRfi(e), ro=S.ro;
