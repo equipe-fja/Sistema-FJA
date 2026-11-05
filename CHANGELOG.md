@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~15h30 — commit 23d9577
+- Usuários e acesso: e-mails que já tinham conta aparecem na lista como liberados (com redefinir senha e remover).
+
 ## oficial Firebase — 05/11, ~15h25 — commit 306f695
 - Revit direto no banco: o sistema publica revitPub/<arquivo> e processa revitPedidos na hora; extensão do pyRevit v2.0.0 (login com e-mail e senha do sistema, leitura do banco, resultado dos pedidos na janela; sem conexão usa a cópia do G:).
 
