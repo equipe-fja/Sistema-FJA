@@ -15,10 +15,11 @@ sed "s/const AMB='oficial'/const AMB='dev'/; s#<title>Sistema FJA</title>#<title
 
 # versões Firebase: dist/firebase (oficial, projeto sistema-fja) e dist/homolog (projeto sistema-fja-homolog)
 mkdir -p dist/firebase dist/homolog
+cp firebase/sw.js dist/firebase/sw.js; cp firebase/sw.js dist/homolog/sw.js
 python3 - "$SRC" <<'PY'
 import sys, re
 src=open(sys.argv[1],encoding='utf-8').read()
-shim=open('firebase/shim.html',encoding='utf-8').read()
+shim=open('firebase/shim.html',encoding='utf-8').read()+'\n'+open('firebase/google.html',encoding='utf-8').read().replace("/*G_CLIENT*/''",repr(open('firebase/google-client.txt').read().strip()))
 def cfg(arq):
     t=open(arq,encoding='utf-8').read()
     return re.search(r'\{.*\}',t,re.S).group(0)
@@ -27,6 +28,9 @@ for saida,arq,homolog,titulo in [('dist/firebase/index.html','firebase/config.js
     s=src.replace("const AMB='oficial'","const AMB='firebase'",1).replace("<title>Sistema FJA</title>","<title>"+titulo+"</title>",1)
     sh=shim.replace('/*FB_CFG*/null',cfg(arq))
     if homolog: sh='<script>window.FJA_FB_HOMOLOG=true</script>\n'+sh
+    else:
+        import json; v=json.load(open('firebase/virada.json')).get('virada',False)
+        sh='<script>window.FJA_FB_VIRADA='+('true' if v else 'false')+'</script>\n'+sh
     i=s.index('<script>\nconst AMB=')
     open(saida,'w',encoding='utf-8').write(s[:i]+sh+'\n'+s[i:])
 PY

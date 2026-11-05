@@ -968,6 +968,10 @@ body.cro-arr,body.cro-arr *{cursor:grabbing!important}
 <script>
 const AMB='oficial';
 if(AMB==='dev'){document.documentElement.classList.add('amb-dev');document.title='DEV · Sistema FJA'}
+/* versões Firebase: a homologação se comporta como dev em tudo que grava fora do banco (Revit, espelhos);
+   rotinas automáticas (Revit, espelhos, backup) só rodam na oficial Firebase depois da virada (FJA_FB_VIRADA) */
+const AMB_DEV=AMB==='dev'||!!window.FJA_FB_HOMOLOG;
+const AUTO_OK=AMB!=='firebase'||(!!window.FJA_FB_VIRADA&&!window.FJA_FB_HOMOLOG);
 const IC = {
   manut:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   ferr:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.3 5.3L4 17l3 3 5.4-5.4a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.3-.7-.7-2.3z"/></svg>',
@@ -3620,6 +3624,12 @@ const numBR=v=>{const s=String(v??'').trim();if(!s||s==='-')return '';const n=+s
 const slugId=s=>String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9_.~:@+-]+/g,'-').replace(/^[.-]+|-+$/g,'').slice(0,80)||'x';
 function msgMcp(e){
   const c=e?.code;
+  if(AMB==='firebase'){
+    if(c==='server_not_connected'||c==='needs_reauth') return 'Sem conexão com o Google. Clique em "Conectar" na barra do rodapé (entre com a conta Google da FJA) e tente de novo.';
+    if(c==='rate_limited') return 'O Google não respondeu agora. Tente de novo em alguns instantes.';
+    if(c==='tool_error') return 'O Google recusou a operação: '+String(e.message||'').slice(0,200);
+    return 'Erro no Google: '+String(e?.message||c||e).slice(0,200);
+  }
   if(c==='server_not_connected'||c==='server_not_found') return 'Conecte o Google Sheets em claude.ai, em Configurações › Conectores, e tente de novo.';
   if(c==='needs_reauth') return 'A conexão com o Google Sheets expirou. Reconecte em Configurações › Conectores.';
   if(c==='selection_required') return 'Há mais de uma conexão do Google Sheets. Escolha qual usar no aviso do Claude e tente de novo.';
@@ -3980,7 +3990,7 @@ function espCaminhos(mod,it){
   if(o.planilha&&!o.caminho&&!S.ro&&mcp) espCaminhoOrigem(mod,it.id);
   const ativo=!!(c?.planilha&&c.planilha===o.planilha), pronto=bkPronto(mod,it);
   // na versão de desenvolvimento não assume sozinho: a planilha vinculada é a real da equipe
-  const devTrava=AMB==='dev'&&!it[ESP[mod].key+'Dev'];
+  const devTrava=AMB_DEV&&!it[ESP[mod].key+'Dev'];
   if(pronto&&!ativo&&!off&&!devTrava&&!S.ro&&mcp) setTimeout(()=>espAssumir(mod,it.id),0);
   const pc=pcAtivo()&&!S.ro, id=esc(it.id), st=ESPST.get(espK(mod,it.id));
   const ics=[
@@ -4316,7 +4326,7 @@ function espVerificar(){
     if(espDesatualizado(mod,it.id)&&Date.now()-espUltima(mod,it.id)>15000){atraso+=2000+Math.random()*4000; espAgendar(mod,it.id,atraso)}
   }
 }
-setInterval(espVerificar,90000); setTimeout(espVerificar,20000);
+if(AUTO_OK){setInterval(espVerificar,90000); setTimeout(espVerificar,20000)}
 
 /* ---------- exportações por módulo ---------- */
 Object.assign(MODS.eq,{
@@ -7048,9 +7058,9 @@ async function baixarConexaoPC(){
 // O pyRevit (aba Ferramentas FJA) lê esses arquivos pelo Google Drive para Desktop.
 // O conector do Drive não reescreve conteúdo: cada publicação cria o arquivo novo e manda o anterior para a lixeira.
 // Estado em config/revit: {arquivos:{<nome>:{id,hash,em,por}}, erro}
-const RVP={pasta:AMB==='dev'?'18ga9uZxZs0yFTs0xgTdmeXleAJLBfG0f':'10c0Ebbm2ubHoM_LrXGZ40dbw3HP-xgkw',
-  caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT'+(AMB==='dev'?'\\DEV':''),rodando:false,st:null,timer:null,ult:0,
-  pedidos:AMB==='dev'?'1uYMM0omRerTOC6xSrLjQPtEmGN5mUm8w':'1cneCDb1Z8PjkwQcRrif7iQhdpqPSyOC_',procPed:false,ped:null};
+const RVP={pasta:AMB_DEV?'18ga9uZxZs0yFTs0xgTdmeXleAJLBfG0f':'10c0Ebbm2ubHoM_LrXGZ40dbw3HP-xgkw',
+  caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT'+(AMB_DEV?'\\DEV':''),rodando:false,st:null,timer:null,ult:0,
+  pedidos:AMB_DEV?'1uYMM0omRerTOC6xSrLjQPtEmGN5mUm8w':'1cneCDb1Z8PjkwQcRrif7iQhdpqPSyOC_',procPed:false,ped:null};
 const hashTxt=s=>{let h=0x811c9dc5; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,0x01000193)} return (h>>>0).toString(16)};
 const rvCod=it=>String(it?.campos?.codigo||'').trim();
 const rvNomeProj=it=>`projeto-${(rvCod(it)||it.id).replace(/[\\/:*?"<>|\s]+/g,'_')}.json`;
@@ -7199,7 +7209,7 @@ async function rvPedidos(manual){
   finally{RVP.procPed=false; rvUI()}
   return n;
 }
-function rvAgendar(){if(S.ro||S.publico) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
+function rvAgendar(){if(S.ro||S.publico||!AUTO_OK) return; clearTimeout(RVP.timer); RVP.timer=setTimeout(()=>rvPublicar(false),8000)}
 function rvUI(){if(S.view?.t==='manut'&&S.view.f==='revit'&&!S.dirty) renderMain()}
 /* extensão do pyRevit embutida na geração (scripts/gerar.sh troca o marcador pelos arquivos de revit/) */
 const EXT_REVIT=null/*EXT_REVIT*/;
@@ -7233,7 +7243,7 @@ function telaRevit(h){
   const fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}), nComp=[...S.espb.values()].filter(ehComp), sem=nComp.filter(b=>!cpCamadas(b).length).length;
   h+=`<div class="page"><div class="crumb"><button data-act="manut">Manutenção</button><span>/</span><span>Conexão com o Revit</span></div>
   <h1>Conexão com o Revit</h1><p class="lead">A especificação técnica (biblioteca central, siglas e especificação de cada projeto) é publicada como arquivos .json numa pasta do G:, lida pela aba <b>Ferramentas FJA</b> do pyRevit. A publicação é automática alguns segundos depois de qualquer alteração, por quem estiver com o sistema aberto.</p>
-  <section class="sheet"><div class="sheet-h"><h2>Arquivos publicados</h2><span class="hint">${AMB==='dev'?'desenvolvimento: pasta DEV':''}</span><span class="sp"></span>${S.ro?'':`<button class="btn sm${RVP.rodando?'':' pri'}" data-act="rv-publicar" ${RVP.rodando||!mcp?'disabled':''}>${RVP.rodando?'Publicando…':'Publicar agora'}</button>`}</div>
+  <section class="sheet"><div class="sheet-h"><h2>Arquivos publicados</h2><span class="hint">${AMB_DEV?'desenvolvimento: pasta DEV':''}</span><span class="sp"></span>${S.ro?'':`<button class="btn sm${RVP.rodando?'':' pri'}" data-act="rv-publicar" ${RVP.rodando||!mcp?'disabled':''}>${RVP.rodando?'Publicando…':'Publicar agora'}</button>`}</div>
   ${A.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th>Arquivo</th><th style="width:160px">Atualizado</th><th style="width:180px">Por</th></tr></thead><tbody>${A.map(([n,a])=>`<tr><td class="mono">${a.id?`<a href="https://drive.google.com/file/d/${esc(a.id)}/view" target="_blank" rel="noopener">${esc(n)}</a>`:esc(n)}</td><td class="mono">${a.em?fmt(a.em):''}</td><td>${esc(a.por||'')}</td></tr>`).join('')}</tbody></table></div>`:`<p class="pad muted">Nada publicado ainda.</p>`}
   ${st.erro?`<p class="pad" style="color:var(--danger);margin:0">Última falha (${fmt(st.erro.em)}): ${esc(st.erro.msg||'')}</p>`:''}${st.erroLixeira?`<p class="pad" style="color:var(--warn);margin:0">A versão anterior de ${esc(st.erroLixeira.arquivo)} não foi para a lixeira (${fmt(st.erroLixeira.em)}): ${esc(st.erroLixeira.msg||'')}</p>`:''}</section>
   <section class="sheet"><div class="sheet-h"><h2>Pedidos do Revit</h2><span class="hint">itens criados ou incluídos pelas ferramentas Composições e Componentes · lidos a cada 90 s</span><span class="sp"></span>${S.ro?'':`<button class="btn sm" data-act="rv-pedidos" ${RVP.procPed||!mcp?'disabled':''}>${RVP.procPed?'Lendo…':'Ler pedidos agora'}</button>`}</div>
@@ -7249,6 +7259,7 @@ function telaRevit(h){
     if(!S.carregado||!db) return; clearInterval(t);
     db.doc('config/revit').onSnapshot(s=>{RVP.st=s.exists?s.data():null; rvUI()},()=>{});
     db.doc('config/revitPedidos').onSnapshot(s=>{RVP.ped=s.exists?s.data():null; rvUI()},()=>{});
+    if(!AUTO_OK) return;
     setTimeout(()=>rvPedidos(false).catch(()=>{}),25e3); setInterval(()=>rvPedidos(false).catch(()=>{}),90e3);
     setTimeout(()=>rvPublicar(false).then(()=>{if(!RVP.rodando) return rvLimpar(false)}).catch(()=>{}),20e3); setInterval(()=>{if(Date.now()-RVP.ult>55e3) rvPublicar(false)},60e3);
   },1000);
@@ -7317,7 +7328,7 @@ async function bkpCriar(titulo,txt,parentId,pasta){
 }
 async function bkpGravar(obj){
   const d=new Date(), p=n=>String(n).padStart(2,'0');
-  const nome=`${AMB==='dev'?'DEV-':''}SISTEMA-FJA_BACKUP_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}h${p(d.getMinutes())}`;
+  const nome=`${AMB_DEV?'DEV-':AMB==='firebase'&&!window.FJA_FB_VIRADA?'FB-':''}SISTEMA-FJA_BACKUP_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}h${p(d.getMinutes())}`;
   const pasta=await bkpCriar(nome,'',BKP.pasta,true);
   const partes=[]; let bytes=0;
   for(const [col,docs] of Object.entries(obj.colecoes)){
@@ -7359,7 +7370,7 @@ async function bkpExecutar(manual){
 }
 function bkpUI(){if(S.view?.f==='bkp'&&!S.dirty) renderMain()}
 function telaBkp(h){
-  const s=BKP.st||{}, auto=AMB==='oficial', fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+  const s=BKP.st||{}, auto=AMB==='oficial'||(AMB==='firebase'&&AUTO_OK), fmt=t=>new Date(t).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
   const cont=s.contagem?Object.entries(s.contagem).map(([k,n])=>`${esc(BKP_ROT[k]||k)}: <b>${n}</b>`).join(' · '):'';
   h+=`<div class="page"><div class="crumb"><button data-act="manut">Manutenção</button><span>/</span><span>Backup do sistema</span></div>
   <h1>Backup do sistema</h1><p class="lead">Cópia completa do banco de dados (todos os projetos, módulos, catálogos e configurações) gravada na pasta BACKUP do Drive: uma pasta por backup, com um arquivo .json por coleção (dividido em partes) e um índice.</p>
@@ -7507,7 +7518,7 @@ document.addEventListener('change',async ev=>{
     if(S.publico){clearInterval(t);return}
     if(!S.carregado||!db) return; clearInterval(t);
     Promise.resolve(db).then(rdb=>rdb.doc('config/backup').onSnapshot(s=>{BKP.st=s.exists?s.data():null; bkpUI()},()=>{})).catch(()=>{});
-    if(AMB==='oficial'){setTimeout(()=>bkpExecutar(false),45e3); setInterval(()=>bkpExecutar(false),30*60e3)}
+    if(AMB==='oficial'||(AMB==='firebase'&&AUTO_OK)){setTimeout(()=>bkpExecutar(false),45e3); setInterval(()=>bkpExecutar(false),30*60e3)}
   },1000);
 })();
 

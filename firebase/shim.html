@@ -126,7 +126,9 @@
     if(nome==='db') return fs;
     if(nome==='user') return userApi;
     if(nome==='downloads') return downloadsApi;
-    throw new Error(nome+' indisponível na versão Firebase');   // assets e mcp: próxima etapa
+    if(nome==='mcp'&&window.FJA_GOOGLE) return window.FJA_GOOGLE.mcp;
+    if(nome==='assets'&&window.FJA_GOOGLE) return window.FJA_GOOGLE.assets;
+    throw new Error(nome+' indisponível na versão Firebase');
   }};
 })();
 </script>

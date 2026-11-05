@@ -1,0 +1,131 @@
+<!-- Inserido por scripts/gerar.sh nas versões Firebase, depois de shim.html.
+     Substitui os conectores do Claude (mcp: Google Drive / Google Sheets) e o armazenamento de arquivos (assets)
+     por chamadas diretas às APIs do Google, com o login Google (OAuth) da própria pessoa. -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+#gBar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9998;background:#1D1D1D;color:#fff;font:13px "Segoe UI",system-ui,sans-serif;padding:8px 8px 8px 14px;display:none;align-items:center;gap:12px;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+#gBar button{font:inherit;background:#8E1B1B;color:#fff;border:0;padding:6px 12px;cursor:pointer}
+#gBar .x{background:none;padding:6px 8px;color:#bbb}
+</style>
+<script>
+(function(){
+  const CLIENT_ID=/*G_CLIENT*/'';
+  const PASTA_ARQ='1eqBPYKFhy_xzHL7r9G6ExWKxI9mK2DJ8';   // SISTEMA FJA › ARQUIVOS DO SISTEMA (imagens e anexos)
+  const ESCOPOS='https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets';
+  const SS='fja.gtoken';
+  let tok=null; try{tok=JSON.parse(sessionStorage.getItem(SS)||'null')}catch{}
+  let cliente=null, esperando=[];
+  const valido=()=>tok&&tok.exp>Date.now()+60e3;
+
+  /* ---- barra "Conectar ao Google Drive" (o Google só abre a janela a partir de um clique) ---- */
+  function barra(mostrar,txt){
+    let b=document.getElementById('gBar');
+    if(!b){b=document.createElement('div');b.id='gBar';b.innerHTML='<span id="gBarT"></span><button id="gBarB">Conectar</button><button class="x" id="gBarX" title="Agora não">✕</button>';
+      document.body.appendChild(b); b.querySelector('#gBarB').onclick=()=>pedir(''); b.querySelector('#gBarX').onclick=()=>{b.style.display='none'}}
+    b.querySelector('#gBarT').textContent=txt||'Conecte o Google Drive para usar planilhas, backups, Revit e imagens.';
+    b.style.display=mostrar?'flex':'none';
+  }
+  function iniciar(){
+    if(cliente||!window.google?.accounts?.oauth2||!CLIENT_ID) return !!cliente;
+    cliente=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:ESCOPOS,
+      callback:r=>{
+        if(r.error){esperando.splice(0).forEach(f=>f.nao({code:'needs_reauth',message:r.error}));return}
+        tok={t:r.access_token,exp:Date.now()+(+r.expires_in||3600)*1000}; try{sessionStorage.setItem(SS,JSON.stringify(tok))}catch{}
+        barra(false); avisarSW(); esperando.splice(0).forEach(f=>f.sim(tok.t));
+      },
+      error_callback:e=>{esperando.splice(0).forEach(f=>f.nao({code:'needs_reauth',message:e?.type||'janela fechada'}))}});
+    return true;
+  }
+  function pedir(prompt){ if(!iniciar()) return; try{cliente.requestAccessToken({prompt})}catch(e){console.warn('google',e)} }
+  // renova perto de expirar aproveitando qualquer clique da pessoa (o navegador só permite a janela com um clique)
+  document.addEventListener('click',()=>{if(tok&&!valido()||tok&&tok.exp-Date.now()<10*60e3) pedir('')},true);
+
+  async function token(){
+    if(valido()) return tok.t;
+    if(!CLIENT_ID) throw {code:'server_not_connected',message:'Google não configurado'};
+    barra(true,tok?'A conexão com o Google Drive expirou. Clique em Conectar.':undefined);
+    return new Promise((sim,nao)=>{esperando.push({sim,nao}); setTimeout(()=>{const i=esperando.findIndex(f=>f.sim===sim); if(i>=0){esperando.splice(i,1); nao({code:'needs_reauth',message:'sem conexão com o Google'})}},120e3)});
+  }
+  async function api(url,op={}){
+    const t=await token();
+    const r=await fetch(url,{...op,headers:{...(op.headers||{}),Authorization:'Bearer '+t}});
+    if(r.status===401){tok=null; try{sessionStorage.removeItem(SS)}catch{} throw {code:'needs_reauth',message:'conexão expirada'}}
+    if(r.status===429||r.status>=500) throw {code:'rate_limited',message:'HTTP '+r.status};
+    if(!r.ok){let m=''; try{m=(await r.json()).error?.message||''}catch{} throw {code:'tool_error',message:m||('HTTP '+r.status)}}
+    return r;
+  }
+  const D='https://www.googleapis.com/drive/v3/', U='https://www.googleapis.com/upload/drive/v3/', TODOS='supportsAllDrives=true';
+  const CAMPOS='id,name,mimeType,parents,driveId,size,webViewLink,trashed,createdTime,modifiedTime';
+  const meta=f=>f&&({id:f.id,title:f.name,mimeType:f.mimeType,parentId:(f.parents||[])[0]||'',sharedDriveId:f.driveId||undefined,fileSize:f.size,viewUrl:f.webViewLink,trashed:!!f.trashed,createdTime:f.createdTime,modifiedTime:f.modifiedTime});
+  // consulta no formato do conector (title, parentId) -> formato da API do Drive (name, 'x' in parents)
+  const consulta=q=>String(q||'').replace(/\bparentId\s*=\s*('(?:[^'\\]|\\.)*')/g,'$1 in parents').replace(/\bparentId\s*!=\s*('(?:[^'\\]|\\.)*')/g,'not $1 in parents').replace(/\btitle\b/g,'name');
+  const CONVERTE={'text/html':'application/vnd.google-apps.document','text/plain':'application/vnd.google-apps.document','application/vnd.openxmlformats-officedocument.wordprocessingml.document':'application/vnd.google-apps.document',
+    'text/csv':'application/vnd.google-apps.spreadsheet','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'application/vnd.google-apps.spreadsheet'};
+  const deB64=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u};
+  const paraB64=buf=>{const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+
+  async function criar({title,contentMimeType,textContent,base64Content,parentId,disableConversionToGoogleType,mimeType}){
+    const tipo=contentMimeType||mimeType||'application/octet-stream';
+    const m={name:title,...(parentId?{parents:[parentId]}:{})};
+    if(tipo==='application/vnd.google-apps.folder'||(textContent==null&&base64Content==null)){
+      m.mimeType=tipo; const r=await api(D+'files?'+TODOS+'&fields='+CAMPOS,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(m)}); return meta(await r.json());
+    }
+    if(!disableConversionToGoogleType&&CONVERTE[tipo]) m.mimeType=CONVERTE[tipo];
+    const corpo=textContent!=null?new Blob([textContent],{type:tipo}):new Blob([deB64(base64Content)],{type:tipo});
+    const fd=new FormData(); fd.append('metadata',new Blob([JSON.stringify(m)],{type:'application/json'})); fd.append('file',corpo);
+    const r=await api(U+'files?uploadType=multipart&'+TODOS+'&fields='+CAMPOS,{method:'POST',body:fd}); return meta(await r.json());
+  }
+  const S_='https://sheets.googleapis.com/v4/spreadsheets/';
+  const FERR={
+    'Google Drive':{
+      get_file_metadata:async a=>meta(await (await api(D+'files/'+encodeURIComponent(a.fileId)+'?'+TODOS+'&fields='+CAMPOS)).json()),
+      search_files:async a=>{
+        const p=new URLSearchParams({q:consulta(a.query),pageSize:String(a.pageSize||50),fields:'nextPageToken,files('+CAMPOS+')',supportsAllDrives:'true',includeItemsFromAllDrives:'true',corpora:'allDrives'});
+        if(a.pageToken) p.set('pageToken',a.pageToken);
+        const j=await (await api(D+'files?'+p)).json(); return {files:(j.files||[]).map(meta),...(j.nextPageToken?{nextPageToken:j.nextPageToken}:{})};
+      },
+      download_file_content:async a=>paraB64(await (await api(D+'files/'+encodeURIComponent(a.fileId)+'?alt=media&'+TODOS)).arrayBuffer()),
+      create_file:criar,
+      trash_file:async a=>meta(await (await api(D+'files/'+encodeURIComponent(a.fileId)+'?'+TODOS+'&fields='+CAMPOS,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({trashed:true})})).json()),
+    },
+    'Google Sheets':{
+      get_spreadsheet:async a=>{const f=Array.isArray(a.fields)?a.fields.join(','):(a.fields||''); return (await api(S_+a.spreadsheetId+(f?'?fields='+encodeURIComponent(f):''))).json()},
+      get_values:async a=>(await api(S_+a.spreadsheetId+'/values/'+encodeURIComponent(a.range))).json(),
+      update_values:async a=>(await api(S_+a.spreadsheetId+'/values/'+encodeURIComponent(a.range)+'?valueInputOption='+(a.valueInputOption||'RAW'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({range:a.range,majorDimension:'ROWS',values:a.values})})).json(),
+      update_spreadsheet:async a=>(await api(S_+a.spreadsheetId+':batchUpdate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requests:a.requests})})).json(),
+    }
+  };
+  const mcpApi={callTool:async(servidor,ferramenta,args)=>{
+    const f=FERR[servidor]?.[ferramenta]; if(!f) throw {code:'not_in_manifest',message:servidor+' › '+ferramenta};
+    return {payload:await f(args||{})};
+  }};
+
+  /* ---- arquivos (imagens e anexos) na pasta ARQUIVOS DO SISTEMA; o service worker (sw.js) serve /_blob/<id> ---- */
+  const idsDrive=new Map();
+  async function idDrive(nome){
+    if(idsDrive.has(nome)) return idsDrive.get(nome);
+    const r=await FERR['Google Drive'].search_files({query:`'${PASTA_ARQ}' in parents and name = '${nome.replace(/'/g,"\\'")}' and trashed = false`,pageSize:2});
+    const id=r.files[0]?.id||null; if(id) idsDrive.set(nome,id); return id;
+  }
+  const assetsApi={
+    upload:async(blob,op={})=>{
+      const id=crypto.randomUUID().replace(/-/g,'');
+      const f=await criar({title:id,contentMimeType:op.type||blob.type||'application/octet-stream',base64Content:paraB64(await blob.arrayBuffer()),parentId:PASTA_ARQ,disableConversionToGoogleType:true});
+      idsDrive.set(id,f.id); return {id};
+    },
+    delete:async id=>{const d=await idDrive(id); if(d) await FERR['Google Drive'].trash_file({fileId:d}); idsDrive.delete(id)}
+  };
+  // o service worker pede ao sistema o arquivo (com o token) quando o navegador carrega /_blob/<id>
+  navigator.serviceWorker?.addEventListener('message',async ev=>{
+    if(ev.data?.tipo!=='blob') return; const porta=ev.ports[0];
+    try{const d=await idDrive(ev.data.id); if(!d) throw new Error('não encontrado');
+      const r=await api(D+'files/'+d+'?alt=media&'+TODOS); porta.postMessage({ok:true,tipo:r.headers.get('content-type'),buf:await r.arrayBuffer()})}
+    catch(e){porta.postMessage({ok:false,msg:String(e?.message||e)})}
+  });
+  function avisarSW(){}
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('sw',e));
+
+  window.FJA_GOOGLE={conectar:()=>pedir(''),conectado:valido,mcp:mcpApi,assets:assetsApi};
+  window.FJA_FIREBASE?.pronto?.then(()=>{if(!valido()) barra(true)});
+})();
+</script>
