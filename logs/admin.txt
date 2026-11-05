@@ -1,9 +1,9 @@
 tarefa: admin
 status: success
-commit: aaf91be8131aa925579e91285e33b7af65c4b574
-quando: 2026-11-05T16:53:48Z
+commit: f3879d192830f06d303e90260f577b2c073c05ca
+quando: 2026-11-05T19:33:21Z
 ----
 projeto: sistema-fja-homolog
-bruno@fj.arq.br : conta já existia
-bruno@fj.arq.br : administrador
+equipe@fj.arq.br : conta já existia
+equipe@fj.arq.br : master
 CONCLUÍDO
