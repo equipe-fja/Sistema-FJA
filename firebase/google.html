@@ -151,6 +151,6 @@
     return {ok,pul,err};
   }
   window.FJA_GOOGLE={importarZip,conectar:()=>pedir(''),conectado:valido,mcp:mcpApi,assets:assetsApi};
-  window.FJA_FIREBASE?.pronto?.then(()=>{if(!valido()) barra(true)});
+  window.FJA_FIREBASE?.pronto?.then(()=>{if(!valido()&&window.FJA_FIREBASE.perfil()?.nivel!=='usuario') barra(true)});
 })();
 </script>
