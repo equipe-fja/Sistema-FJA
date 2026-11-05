@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~16h40 — commit f3879d1
+- Contas: nível Master (único, equipe@fj.arq.br) sempre no topo, protegido nas regras do banco; ações alinhadas; agrupar e ordenar a lista.
+- Dados: equipe@fj.arq.br passa de Administrador para Master (firebase/admin-inicial.json).
+
 ## oficial Firebase — 05/11, ~16h30 — commit f1ab40b
 - Usuários e acesso: controle do link de senha (data e quem enviou); "Definir senha" em vermelho até o link ser enviado a quem ainda não entrou; Reenviar vira "Copiar mensagem".
 
