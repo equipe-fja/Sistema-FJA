@@ -17,8 +17,7 @@
 </style>
 <script>
 (function(){
-  const CFG={apiKey:"AIzaSyD05OgqpjI0mcEQSBh8srC96QyVvwPuh-M",authDomain:"sistema-fja.firebaseapp.com",projectId:"sistema-fja",
-    storageBucket:"sistema-fja.firebasestorage.app",messagingSenderId:"957716305391",appId:"1:957716305391:web:f89b2e172ba8ad1905921a"};
+  const CFG=/*FB_CFG*/null;
   const DOMINIO='@fj.arq.br', LS='fja.fbEmail';
   firebase.initializeApp(CFG);
   const auth=firebase.auth(), fs=firebase.firestore();
@@ -82,7 +81,7 @@
     a.href=url;a.download=filename||'arquivo';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60e3);
     return {status:'saved'}}};
 
-  document.documentElement.classList.add('amb-dev'); document.title='TESTE FIREBASE · Sistema FJA';
+  if(window.FJA_FB_HOMOLOG){document.documentElement.classList.add('amb-dev'); document.title='HOMOLOGAÇÃO · Sistema FJA'}
   window.FJA_FIREBASE={auth,fs,sair:userApi.sair};
   window.claude={use:async nome=>{
     await logado;

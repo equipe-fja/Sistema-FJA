@@ -1,6 +1,9 @@
 name: Firebase · importar backup
-# Dispara quando firebase/importar.json muda: {"pasta": "<id da pasta do backup no Drive>", "pedidoEm": "..."}
+# Diário (04h de Brasília): último backup da oficial -> homologação.
+# Manual: editar firebase/importar.json {"projeto": "homolog"|"oficial", "pasta": "<id da pasta>"|"ultimo"} e dar push.
 on:
+  schedule:
+    - cron: '7 7 * * *'
   push:
     branches: [main]
     paths: ['firebase/importar.json']
@@ -16,13 +19,19 @@ jobs:
         with: {node-version: 20}
       - name: Importar
         env:
-          CHAVE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CHAVE_OFICIAL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CHAVE_HOMOLOG: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HOMOLOG }}
+          EVENTO: ${{ github.event_name }}
         run: |
+          if [ "$EVENTO" = schedule ]; then echo '{"projeto":"homolog","pasta":"ultimo"}' > "$RUNNER_TEMP/pedido.json"
+          else cp firebase/importar.json "$RUNNER_TEMP/pedido.json"; fi
+          PROJ=$(node -p "require('$RUNNER_TEMP/pedido.json').projeto||'homolog'")
+          if [ "$PROJ" = oficial ]; then CHAVE="$CHAVE_OFICIAL"; else CHAVE="$CHAVE_HOMOLOG"; fi
           printf '%s' "$CHAVE" > "$RUNNER_TEMP/chave.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
           cd firebase/importador && npm install --silent --no-audit --no-fund
           set -o pipefail
-          node importar.js ../importar.json 2>&1 | tee "$RUNNER_TEMP/log.txt"
+          node importar.js "$RUNNER_TEMP/pedido.json" 2>&1 | tee "$RUNNER_TEMP/log.txt"
       - name: Registrar resultado (branch firebase-log)
         if: always()
         env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}

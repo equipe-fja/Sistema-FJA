@@ -9,7 +9,8 @@ const chave = JSON.parse(fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTI
 console.log('conta de serviço:', chave.client_email);
 if (!cfg.pasta) { console.log('importar.json sem "pasta": nada a fazer'); process.exit(0); }
 
-admin.initializeApp({ credential: admin.credential.cert(chave), projectId: 'sistema-fja' });
+admin.initializeApp({ credential: admin.credential.cert(chave), projectId: chave.project_id });
+console.log('projeto:', chave.project_id);
 const db = admin.firestore();
 const gauth = new GoogleAuth({ credentials: chave, scopes: ['https://www.googleapis.com/auth/drive.readonly'] });
 
@@ -39,7 +40,13 @@ async function gravarLote(ops) {
   }
 }
 
+const BACKUP = '1uRdXSx8JnBNegGSD4y59klSfSyLB9HuC';   // SISTEMA FJA › BACKUP
 (async () => {
+  if (cfg.pasta === 'ultimo') {   // backup mais recente da oficial (sem o prefixo DEV-)
+    const ps = (await listar(BACKUP)).filter(f => /^SISTEMA-FJA_BACKUP_/.test(f.name)).sort((a, b) => b.name.localeCompare(a.name));
+    if (!ps.length) throw new Error('nenhum backup da oficial encontrado');
+    cfg.pasta = ps[0].id; console.log('último backup:', ps[0].name);
+  }
   const arqs = await listar(cfg.pasta);
   const porNome = Object.fromEntries(arqs.map(a => [a.name, a.id]));
   if (!porNome['00-indice.json']) throw new Error('00-indice.json não encontrado na pasta ' + cfg.pasta + ' (a pasta foi compartilhada com a conta de serviço?)');

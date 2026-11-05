@@ -1,0 +1,8 @@
+{
+  "hosting": {
+    "public": "dist/homolog",
+    "ignore": ["**/.*"],
+    "headers": [{"source": "**", "headers": [{"key": "Cache-Control", "value": "no-cache"}]}]
+  },
+  "firestore": {"rules": "firebase/firestore.rules"}
+}
