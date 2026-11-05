@@ -1,0 +1,95 @@
+<!-- Inserido por scripts/gerar.sh só na versão Firebase (dist/firebase/index.html), antes do script principal.
+     Faz o papel do runtime do claude.ai: window.claude.use('db'|'user'|'downloads'|...) sobre o Firebase. -->
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-firestore-compat.js"></script>
+<style>
+#fbLogin{position:fixed;inset:0;z-index:99999;background:#F6F6F5;display:flex;align-items:center;justify-content:center;font-family:"Segoe UI",system-ui,sans-serif;color:#1D1D1D}
+#fbLogin .cx{background:#fff;border:1px solid #E2E2DF;padding:28px 30px;width:min(420px,calc(100vw - 32px));box-sizing:border-box}
+#fbLogin .lg{width:38px;height:38px;border:1px solid #C9C9C5;display:flex;align-items:center;justify-content:center;font:700 16px Arial;color:#8E1B1B;margin-bottom:14px}
+#fbLogin h1{font-size:19px;font-weight:600;margin:0 0 4px}
+#fbLogin p{font-size:13px;color:#5E5E5C;margin:0 0 14px;line-height:1.45}
+#fbLogin input{width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid #C9C9C5;margin-bottom:10px}
+#fbLogin button{font:inherit;font-size:14px;padding:9px 16px;border:0;background:#8E1B1B;color:#fff;cursor:pointer}
+#fbLogin button:disabled{opacity:.5;cursor:default}
+#fbLogin .msg{margin-top:12px;font-size:13px;min-height:1em}
+#fbLogin .err{color:#B3261E}
+</style>
+<script>
+(function(){
+  const CFG={apiKey:"AIzaSyD05OgqpjI0mcEQSBh8srC96QyVvwPuh-M",authDomain:"sistema-fja.firebaseapp.com",projectId:"sistema-fja",
+    storageBucket:"sistema-fja.firebasestorage.app",messagingSenderId:"957716305391",appId:"1:957716305391:web:f89b2e172ba8ad1905921a"};
+  const DOMINIO='@fj.arq.br', LS='fja.fbEmail';
+  firebase.initializeApp(CFG);
+  const auth=firebase.auth(), fs=firebase.firestore();
+  let pronto; const logado=new Promise(r=>pronto=r);
+  const okEmail=e=>typeof e==='string'&&e.toLowerCase().endsWith(DOMINIO);
+
+  function tela(html){
+    let d=document.getElementById('fbLogin');
+    if(!d){d=document.createElement('div');d.id='fbLogin';(document.body||document.documentElement).appendChild(d)}
+    d.innerHTML='<div class="cx"><div class="lg">FJ</div>'+html+'</div>'; return d;
+  }
+  function pedirEmail(msg,erro){
+    const d=tela('<h1>Sistema FJA</h1><p>Digite o seu e-mail @fj.arq.br. Você vai receber um link para entrar (não há senha).</p>'+
+      '<input id="fbEm" type="email" autocomplete="email" placeholder="nome@fj.arq.br"><button id="fbBt">Enviar link</button>'+
+      '<div class="msg'+(erro?' err':'')+'" id="fbMsg">'+(msg||'')+'</div>');
+    const em=d.querySelector('#fbEm'), bt=d.querySelector('#fbBt'), m=d.querySelector('#fbMsg');
+    try{em.value=localStorage.getItem(LS)||''}catch{}
+    const enviar=async()=>{
+      const e=em.value.trim().toLowerCase();
+      if(!okEmail(e)){m.className='msg err';m.textContent='Use um endereço terminado em '+DOMINIO+'.';return}
+      bt.disabled=true; m.className='msg'; m.textContent='Enviando…';
+      try{
+        await auth.sendSignInLinkToEmail(e,{url:location.origin+location.pathname,handleCodeInApp:true});
+        try{localStorage.setItem(LS,e)}catch{}
+        m.textContent='Link enviado para '+e+'. Abra o e-mail neste mesmo navegador e clique no link.';
+      }catch(x){m.className='msg err';m.textContent='Não foi possível enviar: '+(x.message||x);bt.disabled=false}
+    };
+    bt.onclick=enviar; em.onkeydown=ev=>{if(ev.key==='Enter')enviar()}; setTimeout(()=>em.focus(),30);
+  }
+  async function concluirLink(){
+    let e=''; try{e=localStorage.getItem(LS)||''}catch{}
+    if(!e){
+      const d=tela('<h1>Confirme o e-mail</h1><p>Este link foi aberto em outro navegador. Digite o e-mail para o qual o link foi enviado.</p>'+
+        '<input id="fbEm" type="email" placeholder="nome@fj.arq.br"><button id="fbBt">Entrar</button><div class="msg err" id="fbMsg"></div>');
+      e=await new Promise(r=>{const bt=d.querySelector('#fbBt'),em=d.querySelector('#fbEm');bt.onclick=()=>r(em.value.trim().toLowerCase());em.onkeydown=ev=>{if(ev.key==='Enter')bt.click()}});
+    }
+    try{await auth.signInWithEmailLink(e,location.href); try{localStorage.setItem(LS,e)}catch{}}
+    catch(x){pedirEmail('O link expirou ou já foi usado. Peça um novo.',true)}
+    history.replaceState(null,'',location.origin+location.pathname+location.hash.replace(/[?&]?(apiKey|oobCode|mode|lang)=[^&]*/g,''));
+  }
+
+  if(auth.isSignInWithEmailLink(location.href)) concluirLink();
+  auth.onAuthStateChanged(async u=>{
+    if(!u){if(!auth.isSignInWithEmailLink(location.href)) pedirEmail();return}
+    if(!okEmail(u.email)){await auth.signOut();pedirEmail('Somente endereços '+DOMINIO+'.',true);return}
+    try{await fs.collection('usuarios').doc(u.uid).set({email:u.email,nome:u.email.split('@')[0],ultimoAcesso:Date.now()},{merge:true})}catch(x){console.warn('usuarios',x)}
+    document.getElementById('fbLogin')?.remove();
+    pronto(u);
+  });
+
+  const userApi={
+    id:async()=>(await logado).uid,
+    can:async()=>true,
+    profiles:async ids=>{
+      const r={}; for(const id of ids||[]){try{const g=await fs.collection('usuarios').doc(id).get(); if(g.exists) r[id]={name:g.data().nome||g.data().email}}catch{}}
+      return r},
+    sair:()=>auth.signOut().then(()=>location.reload())
+  };
+  const downloadsApi={save:async({filename,data})=>{
+    const url=URL.createObjectURL(data instanceof Blob?data:new Blob([data])), a=document.createElement('a');
+    a.href=url;a.download=filename||'arquivo';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60e3);
+    return {status:'saved'}}};
+
+  document.documentElement.classList.add('amb-dev'); document.title='TESTE FIREBASE · Sistema FJA';
+  window.FJA_FIREBASE={auth,fs,sair:userApi.sair};
+  window.claude={use:async nome=>{
+    await logado;
+    if(nome==='db') return fs;
+    if(nome==='user') return userApi;
+    if(nome==='downloads') return downloadsApi;
+    throw new Error(nome+' indisponível na versão Firebase');   // assets e mcp: próxima etapa
+  }};
+})();
+</script>

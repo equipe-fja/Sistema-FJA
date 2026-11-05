@@ -1,0 +1,11 @@
+rules_version = '2';
+// Só entra quem fez login com link no e-mail de um endereço @fj.arq.br (o link confirma o e-mail).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{documento=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@fj[.]arq[.]br$');
+    }
+  }
+}

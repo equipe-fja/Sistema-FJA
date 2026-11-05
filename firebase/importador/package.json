@@ -1,0 +1,1 @@
+{"name":"fja-importador","private":true,"type":"commonjs","dependencies":{"firebase-admin":"12.7.0","google-auth-library":"9.15.0"}}

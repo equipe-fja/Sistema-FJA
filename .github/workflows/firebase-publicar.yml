@@ -1,0 +1,27 @@
+name: Firebase · publicar
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'firebase/**', 'scripts/**', 'revit/**', 'firebase.json', '.github/workflows/firebase-publicar.yml']
+  workflow_dispatch:
+concurrency: firebase-publicar
+permissions: {contents: write}
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gerar páginas
+        run: ./scripts/gerar.sh
+      - name: Publicar no Firebase (Hosting + regras do Firestore)
+        env:
+          CHAVE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$CHAVE" > "$RUNNER_TEMP/chave.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
+          set -o pipefail
+          npx -y firebase-tools@13 deploy --only hosting,firestore:rules --project sistema-fja --non-interactive 2>&1 | tee "$RUNNER_TEMP/log.txt"
+      - name: Registrar resultado (branch firebase-log)
+        if: always()
+        env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
+        run: ./scripts/firebase-log.sh "publicar" "${{ job.status }}"

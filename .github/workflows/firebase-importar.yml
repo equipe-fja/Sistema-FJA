@@ -1,0 +1,29 @@
+name: Firebase · importar backup
+# Dispara quando firebase/importar.json muda: {"pasta": "<id da pasta do backup no Drive>", "pedidoEm": "..."}
+on:
+  push:
+    branches: [main]
+    paths: ['firebase/importar.json']
+  workflow_dispatch:
+concurrency: firebase-importar
+permissions: {contents: write}
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - name: Importar
+        env:
+          CHAVE: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$CHAVE" > "$RUNNER_TEMP/chave.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
+          cd firebase/importador && npm install --silent --no-audit --no-fund
+          set -o pipefail
+          node importar.js ../importar.json 2>&1 | tee "$RUNNER_TEMP/log.txt"
+      - name: Registrar resultado (branch firebase-log)
+        if: always()
+        env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
+        run: ./scripts/firebase-log.sh "importar" "${{ job.status }}"
