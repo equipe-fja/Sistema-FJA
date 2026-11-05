@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 05/11, ~15h50 — commit 4ff4cc7
+- Contas: nível Usuário passa a se chamar Convidado; e-mails e páginas de senha do Firebase em português, com botão Continuar de volta ao sistema.
+
 ## oficial Firebase — 05/11, ~15h35 — commit ac89a75
 - Usuários e acesso: Reenviar e Alterar e-mail para contas aguardando o 1º acesso (senha provisória guardada só para administradores até o 1º acesso; regra nova `senhasProvisorias`); Alterar e-mail também nas liberações.
 
