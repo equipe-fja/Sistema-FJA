@@ -2545,7 +2545,7 @@ document.addEventListener('contextmenu',ev=>{
 });
 document.addEventListener('click',ev=>{const m=$('menuLinha');if(m&&!m.contains(ev.target))fecharMenuLinha()},true);
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&$('menuLinha')){fecharMenuLinha();ev.stopPropagation()}},true);
-document.addEventListener('scroll',ev=>{const m=$('menuLinha'); if(m&&ev.target instanceof Node&&m.contains(ev.target)) return; fecharMenuLinha()},true);
+document.addEventListener('scroll',ev=>{const m=$('menuLinha'); if(m&&(m.classList.contains('eqp-menu')||ev.target instanceof Node&&m.contains(ev.target))) return; fecharMenuLinha()},true);
 async function salvarCm(){
   const e=S.qdraft; if(!e) return true;
   const body={...e}; delete body.id;
