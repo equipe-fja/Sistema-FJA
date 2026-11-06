@@ -59,6 +59,8 @@ jobs:
           if echo " $OUTRAS " | grep -q " drive "; then printf '%s' "$CHAVE" | $FB functions:secrets:set DRIVE_SA --data-file - --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
             echo "drive: conta de serviço $(node -e "console.log(JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)).client_id)") (autorizar este ID no Workspace)" | tee -a "$RUNNER_TEMP/log.txt"; fi
           $FB deploy --config "$CONF" --only functions --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
+          # imagens de build antigas das funções: apagar depois de 1 dia (evita cobrança de armazenamento)
+          npx -y firebase-tools@14 functions:artifacts:setpolicy --project "$PROJ" --location southamerica-east1 --days 1 --force 2>&1 | grep -v "npm warn" | tail -2 | tee -a "$RUNNER_TEMP/log.txt" || true
       - name: Registrar resultado (branch firebase-log)
         if: always()
         env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
