@@ -924,6 +924,9 @@ body.cro-arr,body.cro-arr *{cursor:grabbing!important}
 .rh-c{margin:0;padding:0;list-style:none;font-size:12.5px;display:flex;flex-direction:column;gap:3px;color:var(--ink,inherit)}
 .rh-c .rh-k{color:var(--muted)}
 .rh-c s{color:var(--muted)}
+.rh-rfi{display:flex;gap:6px;align-items:center;background:none;border:0;padding:0 0 2px;font:inherit;font-size:12.5px;font-weight:600;color:var(--accent,#8E1B1B);cursor:pointer;text-align:left}
+.rh-rfi:hover{text-decoration:underline}
+.rh-rfi .cm-num{font-size:11px;padding:0 5px}
 .cro-g2{display:grid;grid-template-columns:90px 1fr;gap:10px}
 .cro-sec{display:flex;align-items:center;justify-content:space-between;margin-top:8px;border-bottom:1px solid var(--line);padding-bottom:4px}
 .cro-sec>span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--muted)}
@@ -2861,8 +2864,10 @@ function telaRfi(h,v){
   h+=`<div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="eqBusca" type="search" placeholder="Buscar por assunto, pergunta, requerente, requerido, resposta…" aria-label="Buscar nas RFIs" value="${esc(MS().busca)}"></div>
     <span class="muted eq-count" id="eqCount">${(()=>{const n=eqFiltrados(it.id).length,t=todos.length;return n===t?t+' itens':n+' de '+t+' itens'})()}</span><button class="btn sm ghost" id="eqLimpar" data-act="eq-limpar" ${temFiltroEq()?'':'hidden'}>Limpar filtros</button>
     <button class="btn" id="btnCols" data-act="eq-cols" aria-expanded="${!!MS().colsOpen}">Colunas <span class="cnt">${MS().cols.length}/${M().T.length}</span></button>
+    ${S.convidado?'':`<button class="btn" data-act="rfi-hist-geral" data-id="${esc(it.id)}" title="Histórico geral: tudo o que aconteceu nas RFIs deste projeto, com autor e hora" aria-label="Histórico geral">${IC.hist}Histórico</button>`}
     ${S.ro?'':`<button class="btn pri" data-act="rfi-novo" data-id="${esc(it.id)}">${IC.plus}Nova</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
   h+=`<section class="sheet" id="eqTabela">${eqTabelaHTML(it.id)}</section></div>`;
+  if(RH.on) setTimeout(rfiHistRender);
   return h;
 }
 const RFI_CAMPOS=[['assunto','Assunto','text','wide'],['descricao','Pergunta / descrição','longtext'],['status','Status','select',STATUS_RFI]];
@@ -2921,24 +2926,47 @@ function rfiHistEntrada(a,b){
   const so=t=>!campos.filter(c=>c.c!=='Status').length&&ev.length&&ev.every(c=>c.c.startsWith(t+' adicionad'));
   return {em:Date.now(),por:rfiEuNome(),porId:rfiEuId(),acao:so('Resposta')?'Respondeu':so('Comentário')?'Comentou':'Alterou',campos:[...campos,...ev]};
 }
-const RH={on:false};
-function rfiHistFechar(){RH.on=false; $('rfiHistDr')?.remove(); if(!$('eqpDr')&&!$('cqDr')) document.body.classList.remove('cro-dr-on')}
-function rfiHistRender(){
-  if(!RH.on||S.view?.t!=='rfii'||!S.qdraft){rfiHistFechar();return}
-  const e=S.rfis.get(S.qdraft.id)||S.qdraft; let d=$('rfiHistDr');
-  if(!d){d=document.createElement('aside');d.id='rfiHistDr';d.className='cro-dr';d.setAttribute('aria-label','Histórico da RFI');document.body.appendChild(d)}
-  document.body.classList.add('cro-dr-on');
+const RH={on:false,geral:null,q:''};
+function rfiHistFechar(){RH.on=false; RH.geral=null; $('rfiHistDr')?.remove(); if(!$('eqpDr')&&!$('cqDr')) document.body.classList.remove('cro-dr-on')}
+const rfiHistDH=x=>x.em?new Date(x.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):(x.data||'');
+/* registros de uma RFI, do mais recente ao mais antigo (inclui o que já havia antes do histórico existir) */
+function rfiHistLinhas(e){
   const H=[...(e.historico||[])], ini=H.length?H[0].em:Infinity, ant=[];
   if(!H.some(x=>x.acao==='Criou a RFI')&&(e.criadoEm||e.abertura)) ant.push({em:e.criadoEm||0,data:e.criadoEm?'':e.abertura,por:rfiAutorNome(e)||'',acao:'Criou a RFI'});
-  // antes do histórico existir: respostas e comentários que já tinham autor e hora
   for(const [c,t] of [['respostas','Respondeu'],['comentarios','Comentou']]) for(const x of (e[c]||[])) if(x.em&&x.em<ini) ant.push({em:x.em,por:x.por||'',acao:t,campos:[{c:c==='respostas'?'Resposta':'Comentário',para:rfiCurto(x.texto)}]});
-  const L=[...ant,...H].sort((a,b)=>(b.em||0)-(a.em||0));
-  const dh=x=>x.em?new Date(x.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):(x.data||'');
-  const item=x=>`<li class="rh-i"><div class="rh-m">${esc(dh(x))}${x.por?' · '+esc(x.por):''}</div><div class="rh-a">${esc(x.acao||'Alterou')}</div>${(x.campos||[]).length?`<ul class="rh-c">${x.campos.map(c=>`<li><span class="rh-k">${esc(c.c)}:</span> ${c.de!=null&&c.de!==''?`<s>${esc(c.de)}</s> → `:''}${esc(c.para??'')}</li>`).join('')}</ul>`:''}</li>`;
-  const aut=rfiAutorNome(e);
+  return [...ant,...H].sort((a,b)=>(b.em||0)-(a.em||0));
+}
+function rfiHistItem(x,e){
+  return `<li class="rh-i">${e?`<button class="rh-rfi" data-act="rfi-abrir" data-id="${esc(e.projeto)}" data-eid="${esc(e.id)}" title="Abrir a RFI"><span class="cm-num">${esc(e.num??'')}</span>${esc(e.assunto||'(sem assunto)')}</button>`:''}<div class="rh-m">${esc(rfiHistDH(x))}${x.por?' · '+esc(x.por):''}</div><div class="rh-a">${esc(x.acao||'Alterou')}</div>${(x.campos||[]).length?`<ul class="rh-c">${x.campos.map(c=>`<li><span class="rh-k">${esc(c.c)}:</span> ${c.de!=null&&c.de!==''?`<s>${esc(c.de)}</s> → `:''}${esc(c.para??'')}</li>`).join('')}</ul>`:''}</li>`;
+}
+function rfiHistRender(){
+  if(!RH.on||S.convidado){rfiHistFechar();return}
+  const geral=RH.geral;
+  if(geral?!(S.view?.t==='rfi'&&S.view.id===geral):!(S.view?.t==='rfii'&&S.qdraft)){rfiHistFechar();return}
+  let d=$('rfiHistDr');
+  if(!d){d=document.createElement('aside');d.id='rfiHistDr';d.className='cro-dr';document.body.appendChild(d)}
+  document.body.classList.add('cro-dr-on');
+  let tit, corpo;
+  if(geral){
+    const it=S.itens.get(geral), foco=document.activeElement?.id==='rhBusca';
+    const q=semAc(RH.q.trim()).toLowerCase(), todos=rfiDe(geral).flatMap(e=>rfiHistLinhas(e).map(x=>[x,e])).sort((a,b)=>(b[0].em||0)-(a[0].em||0));
+    const casa=([x,e])=>!q||semAc([e.num,e.assunto,x.por,x.acao,...(x.campos||[]).flatMap(c=>[c.c,c.de,c.para])].join(' ')).toLowerCase().includes(q);
+    const L=todos.filter(casa), MAX=400;
+    tit=`Histórico geral · RFI${it?' · '+esc((it.campos?.codigo?it.campos.codigo+' ':'')+it.nome):''}`;
+    corpo=`<input class="fld" id="rhBusca" type="search" placeholder="Filtrar por RFI, pessoa, campo, texto…" aria-label="Filtrar histórico" value="${esc(RH.q)}" style="width:100%;margin-bottom:6px">
+      <p class="muted" style="font-size:12px;margin:0 0 6px">${L.length} registro${L.length===1?'':'s'}${q?` de ${todos.length}`:''} em ${rfiDe(geral).length} RFI${rfiDe(geral).length===1?'':'s'}. Clique no nome da RFI para abri-la.</p>
+      ${L.length?`<ol class="rh-l">${L.slice(0,MAX).map(([x,e])=>rfiHistItem(x,e)).join('')}</ol>${L.length>MAX?`<p class="muted" style="font-size:12px">Mostrando os ${MAX} mais recentes. Use o filtro para achar os anteriores.</p>`:''}`:'<p class="note">Nada encontrado.</p>'}`;
+    d.setAttribute('aria-label','Histórico geral das RFIs');
+    d.innerHTML=`<div class="cro-dr-h"><b>${tit}</b><button class="icb" data-act="rfi-hist-x" aria-label="Fechar">${IC.x}</button></div><div class="cro-dr-b">${corpo}</div>
+      <div class="cro-dr-f"><span class="sp"></span><button class="btn ghost" data-act="rfi-hist-x">Fechar</button></div>`;
+    const b=$('rhBusca'); b.oninput=()=>{RH.q=b.value; rfiHistRender()}; if(foco){b.focus(); b.setSelectionRange(b.value.length,b.value.length)}
+    return;
+  }
+  const e=S.rfis.get(S.qdraft.id)||S.qdraft, L=rfiHistLinhas(e), aut=rfiAutorNome(e);
+  d.setAttribute('aria-label','Histórico da RFI');
   d.innerHTML=`<div class="cro-dr-h"><b>Histórico · RFI Nº ${esc(e.num??'')}</b><button class="icb" data-act="rfi-hist-x" aria-label="Fechar">${IC.x}</button></div>
     <div class="cro-dr-b"><p class="muted" style="font-size:12.5px;margin:0 0 4px">${aut?`Autor: <b>${esc(aut)}</b>. `:''}Só o autor altera os dados da RFI; cada resposta ou comentário, só quem escreveu. O Master pode tudo.</p>
-    ${L.length?`<ol class="rh-l">${L.map(item).join('')}</ol>`:'<p class="note">Nada registrado ainda.</p>'}
+    ${L.length?`<ol class="rh-l">${L.map(x=>rfiHistItem(x)).join('')}</ol>`:'<p class="note">Nada registrado ainda.</p>'}
     ${(e.historico||[]).length?'':'<p class="muted" style="font-size:12px">O registro detalhado das alterações começa a partir da próxima gravação.</p>'}</div>
     <div class="cro-dr-f"><span class="sp"></span><button class="btn ghost" data-act="rfi-hist-x">Fechar</button></div>`;
 }
@@ -2956,7 +2984,7 @@ function telaRfiItem(h,v){
   <h1 style="margin-bottom:6px">${e.num!=null?`<span class="cm-num">${esc(e.num)}</span>`:''}${esc(e.assunto||'RFI')}</h1><p class="lead" style="margin-bottom:14px">${[e.requerente&&'De: '+esc(rfiPessoaNome(e.requerente)),e.requerido&&'Para: '+esc(rfiPessoaNome(e.requerido)),e.prazo&&'prazo '+esc(e.prazo)].filter(Boolean).join(' · ')}${e.status?' &nbsp;'+statusRfi(e):''}${atrasadaRfi(e)?' <span class="st-cm st-crit">Prazo vencido</span>':''}</p>`;
   if(conv) h+=`<div class="banner pub" style="margin-bottom:12px"><span class="sp">${minha?'Você abriu esta RFI: pode editar os dados, os requeridos e comentar. Respostas ficam com quem foi requerido.':podeResp?'Esta RFI é dirigida a você ou à sua empresa: registre a resposta abaixo. Comentários ficam abertos a todos.':'Você pode acompanhar esta RFI e adicionar comentários. Respostas só de quem foi requerido.'}</span></div>`;
   else if(!minha&&!S.ro) h+=`<div class="banner pub" style="margin-bottom:12px"><span class="sp">${autN?`RFI aberta por <b>${esc(autN)}</b>: só o autor`:'Só o autor'} (ou o Master) altera os dados. Você pode responder e comentar; cada resposta ou comentário só pode ser alterado por quem escreveu.</span></div>`;
-  h+=`<div class="eq-top eq-top2">${conv?'':blocoCapaEq(e,!minha)}<div class="eq-acts"><button class="btn" data-act="rfi-hist" title="Histórico: criação, alterações, quem fez e quando" aria-label="Histórico">${IC.hist}Histórico</button><button class="btn" data-act="eq-pdf" title="Gerar o registro da RFI em PDF, em papel timbrado">${IC.pdf}Exportar PDF</button></div></div>`;
+  h+=`<div class="eq-top eq-top2">${conv?'':blocoCapaEq(e,!minha)}<div class="eq-acts">${conv?'':`<button class="btn" data-act="rfi-hist" title="Histórico: criação, alterações, quem fez e quando" aria-label="Histórico">${IC.hist}Histórico</button>`}<button class="btn" data-act="eq-pdf" title="Gerar o registro da RFI em PDF, em papel timbrado">${IC.pdf}Exportar PDF</button></div></div>`;
   const camposRO=html=>!minha?html.replace(/<(input|textarea|select)(?![^>]*disabled)/g,'<$1 disabled'):html;
   // ordem: RFI → disciplinas envolvidas → requeridos (sugeridos pelas disciplinas) → prazos → respostas → comentários
   const mails=reqsEmails(e), rq=reqsRfi(e), roD=!!dis;
@@ -3047,7 +3075,8 @@ async function rfiAcao(a,b){
   if(a==='rfi-abrir'){fecharMenuLinha();lembrarRolagemLista();ir({t:'rfii',id:b.dataset.id,eid:b.dataset.eid});return true}
   if(a==='rfi-novo'){novoRfi(b.dataset.id);return true}
   if(a==='rfi-salvar'){if(await salvarRfi()) render();return true}
-  if(a==='rfi-hist'){RH.on=!RH.on; RH.on?rfiHistRender():rfiHistFechar(); return true}
+  if(a==='rfi-hist'){if(RH.on&&!RH.geral) rfiHistFechar(); else {RH.on=true; RH.geral=null; rfiHistRender()} return true}
+  if(a==='rfi-hist-geral'){if(RH.on&&RH.geral===b.dataset.id) rfiHistFechar(); else {RH.on=true; RH.geral=b.dataset.id; RH.q=''; rfiHistRender()} return true}
   if(a==='rfi-hist-x'){rfiHistFechar(); return true}
   if(a==='rfi-del'){if(!rfiPodeEditar(S.rfis.get(S.qdraft?.id))){toast('Só o autor da RFI (ou o Master) pode excluir');return true}
     if(!await confirmar('Excluir esta RFI? Não dá para desfazer.',{ok:'Excluir',perigo:true})) return true;
@@ -6350,7 +6379,7 @@ function alternarTk(b){
 }
 function ir(view){
   if(S.dirty){S.pend=view;renderMain();$('main').scrollTop=0;return}
-  if(RH.on&&!(view.t==='rfii'&&view.eid===S.view?.eid)) rfiHistFechar();
+  if(RH.on&&!(RH.geral?view.t==='rfi'&&view.id===RH.geral:view.t==='rfii'&&view.eid===S.view?.eid)) rfiHistFechar();
   S.view=view; S.pend=null; S.fx.clear(); lsSet('fja.view',view);
   if(view.t!=='item') S.draft=null;
   if(view.t!=='espbi') S.edraft=null;
