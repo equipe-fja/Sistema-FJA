@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 06/11, ~14h45 — commit 6213333 (dev v157)
+- Extensão do Revit 2.1.0 (Biblioteca › Ferramentas › Extensão do Revit): novo painel Links › Copiar do link (módulo Equipamentos); a tela avisa a novidade e explica como atualizar.
+- Drive pelo servidor engatilhado (função driveToken), desligado em firebase/servidor.json — sem efeito até ser ligado.
+
 ## oficial Firebase — 06/11, ~13h45 — commit e61cf30
 - RFI passa a se chamar RI · Requisição de Informações (textos, PDF e e-mail; dados sem mudança).
 - Link direto para uma RI (#ri=<projeto>/<id>), usado pelos e-mails.
