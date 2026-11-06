@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: failure
-commit: 2c611e0eaf32ff58e54f8a1c8bb4e2e0aaa3a338
-quando: 2026-11-06T20:27:41Z
+commit: bc6793b605ecabc23c82e0583142752b94cc26d3
+quando: 2026-11-06T20:33:17Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -40,7 +40,7 @@ banco em: southamerica-east1 · funções em: southamerica-east1
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mpackage.json indicates an outdated version of firebase-functions. Please upgrade using [1mnpm install --save firebase-functions@latest[22m in your functions directory.
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mPlease note that there will be breaking changes when you upgrade.
 [36m[1mi  functions:[22m[39m Loading and analyzing source code for codebase default to determine what to deploy
-Serving at port 8539
+Serving at port 8346
 
 [36m[1mi  extensions:[22m[39m ensuring required API [1mfirebaseextensions.googleapis.com[22m is enabled...
 [32m[1m✔  extensions:[22m[39m required API [1mfirebaseextensions.googleapis.com[22m is enabled
@@ -52,11 +52,38 @@ Serving at port 8539
 [36m[1mi  functions:[22m[39m ensuring required API [1meventarc.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mpubsub.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mstorage.googleapis.com[22m is enabled...
-[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mpubsub.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1meventarc.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m generating the service identity for [1mpubsub.googleapis.com[22m...
 [36m[1mi  functions:[22m[39m generating the service identity for [1meventarc.googleapis.com[22m...
+[32m[1m✔ [22m[39m [32m[1mfunctions:[22m[39m [1mfirebase/functions[22m folder uploaded successfully
+[36m[1mi  functions:[22m[39m creating Node.js 22 (2nd Gen) function [1mequipeProjeto(southamerica-east1)[22m...
+[36m[1mi  functions:[22m[39m creating Node.js 22 (2nd Gen) function [1mequipeContas(southamerica-east1)[22m...
+[36m[1mi  functions:[22m[39m creating Node.js 22 (2nd Gen) function [1mequipeDiaria(southamerica-east1)[22m...
+[36m[1mi  functions:[22m[39m creating Node.js 22 (2nd Gen) function [1mautoriaRi(southamerica-east1)[22m...
+[33m[1m⚠  functions:[22m[39m Request to https://cloudfunctions.googleapis.com/v2/projects/sistema-fja-homolog/locations/southamerica-east1/functions?functionId=equipeProjeto had HTTP Error: 400, Validation failed for trigger projects/sistema-fja-homolog/locations/southamerica-east1/triggers/equipeprojeto-158027: Invalid resource state for "": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.
+[33m[1m⚠  functions:[22m[39m Since this is your first time using 2nd gen functions, we need a little bit longer to finish setting everything up. Retry the deployment in a few minutes.
+[33m[1m⚠  functions:[22m[39m  failed to create function projects/sistema-fja-homolog/locations/southamerica-east1/functions/equipeProjeto
+Failed to create function projects/sistema-fja-homolog/locations/southamerica-east1/functions/equipeProjeto
+[33m[1m⚠  functions:[22m[39m Request to https://cloudfunctions.googleapis.com/v2/projects/sistema-fja-homolog/locations/southamerica-east1/functions?functionId=equipeContas had HTTP Error: 400, Validation failed for trigger projects/sistema-fja-homolog/locations/southamerica-east1/triggers/equipecontas-901818: Invalid resource state for "": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.
+[33m[1m⚠  functions:[22m[39m Since this is your first time using 2nd gen functions, we need a little bit longer to finish setting everything up. Retry the deployment in a few minutes.
+[33m[1m⚠  functions:[22m[39m  failed to create function projects/sistema-fja-homolog/locations/southamerica-east1/functions/equipeContas
+Failed to create function projects/sistema-fja-homolog/locations/southamerica-east1/functions/equipeContas
+[33m[1m⚠  functions:[22m[39m Request to https://cloudfunctions.googleapis.com/v2/projects/sistema-fja-homolog/locations/southamerica-east1/functions?functionId=autoriaRi had HTTP Error: 400, Validation failed for trigger projects/sistema-fja-homolog/locations/southamerica-east1/triggers/autoriari-563176: Invalid resource state for "": Permission denied while using the Eventarc Service Agent. If you recently started to use Eventarc, it may take a few minutes before all necessary permissions are propagated to the Service Agent. Otherwise, verify that it has Eventarc Service Agent role.
+[33m[1m⚠  functions:[22m[39m Since this is your first time using 2nd gen functions, we need a little bit longer to finish setting everything up. Retry the deployment in a few minutes.
+[33m[1m⚠  functions:[22m[39m  failed to create function projects/sistema-fja-homolog/locations/southamerica-east1/functions/autoriaRi
+Failed to create function projects/sistema-fja-homolog/locations/southamerica-east1/functions/autoriaRi
+[32m[1m✔ [22m[39m [1m[32mfunctions[equipeDiaria(southamerica-east1)][39m[22m Successful create operation.
 
-[1m[31mError:[39m[22m Request to https://cloudbilling.googleapis.com/v1/projects/sistema-fja-homolog/billingInfo had HTTP Error: 403, Cloud Billing API has not been used in project 9602948770 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/cloudbilling.googleapis.com/overview?project=9602948770 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.
+Functions deploy had errors with the following functions:
+	autoriaRi(southamerica-east1)
+	equipeContas(southamerica-east1)
+	equipeProjeto(southamerica-east1)
+[36m[1mi [22m[39m [1m[36mfunctions: [39m[22mcleaning up build files...
+[33m[1m⚠  functions:[22m[39m Unhandled error cleaning up build images. This could result in a small monthly bill if not corrected. You can attempt to delete these images by redeploying or you can delete them manually at https://console.cloud.google.com/gcr/images/sistema-fja-homolog/us/gcf
+[1m[31mError:[39m[22m [4mThere was an error deploying functions[24m:
+- [1mError[22m Failed to create function equipeProjeto in region southamerica-east1
+- [1mError[22m Failed to create function equipeContas in region southamerica-east1
+- [1mError[22m Failed to create function autoriaRi in region southamerica-east1
