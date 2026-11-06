@@ -5,6 +5,12 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 06/11, ~12h20 — commit 68a80f2
+- RFI: só o autor altera os dados e exclui a RFI; cada resposta ou comentário só quem escreveu; o Master pode tudo (regras do banco: autorId; RFIs antigas usam o requerente).
+- RFI: histórico (ampulheta, ficha lateral) com criação, alterações campo a campo, respostas, comentários, imagem e notificações, com autor e hora; o banco só deixa acrescentar.
+- RFI: convidado escolhe como requerido qualquer envolvido no projeto (projetosRfi.envolvidos, sem e-mails).
+- RFI: coluna Imagem primeiro e visível por padrão; Ctrl+V com print vira a imagem do registro nas fichas com quadro de imagem.
+
 ## oficial Firebase — 05/11, ~19h05 — commit 8ce1283
 - RFI: respostas e comentários com autor e hora; convidado cria RFI nos projetos de que participa e edita as que abriu (regras: criaConvidado, minhaRfi).
 
