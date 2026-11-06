@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 06/11, ~15h10 — commit fcaf065 (dev v159)
+- Extensão do Revit 2.2.0: botão Ferramentas FJA › Suíte › Atualizar no Revit. A página publica o pacote da extensão no banco (revitPub/extensao-versao e revitPub/extensao) cerca de 20 s depois de aberta por alguém da equipe, quando a versão embutida é mais nova; o botão baixa, grava na pasta da extensão e recarrega o pyRevit.
+
 ## oficial Firebase — 06/11, ~14h55 — commit 5980850 (dev v158)
 - Extensão do Revit: botão "Baixar o instalador" — o .zip traz a extensão, instalar.cmd e LEIA-ME. O instalador copia para a pasta compartilhada do G: (sem substituir versão mais nova), cadastra a pasta no pyRevit do usuário e tira a cópia local antiga; sem o G:, instala só no computador.
 - Tela da extensão: caminhos do G: voltam a aparecer com as barras.
