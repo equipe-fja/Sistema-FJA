@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: success
-commit: 56d022255b28f188ed80def182c542b16f33fbc2
-quando: 2026-11-06T21:10:29Z
+commit: e06fcb9dcca82c46560cfc9379db782bd1963d21
+quando: 2026-11-06T21:22:15Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -9,7 +9,7 @@ quando: 2026-11-06T21:10:29Z
 [36m[1mi [22m[39m deploying [1mfirestore, hosting[22m
 [36m[1mi  cloud.firestore:[22m[39m checking [1mfirebase/firestore.rules[22m for compilation errors...
 [32m[1m✔  cloud.firestore:[22m[39m rules file [1mfirebase/firestore.rules[22m compiled successfully
-[36m[1mi  firestore:[22m[39m uploading rules [1mfirebase/firestore.rules[22m...
+[36m[1mi  firestore:[22m[39m latest version of [1mfirebase/firestore.rules[22m already up to date, skipping upload...
 [36m[1mi  hosting[sistema-fja-homolog]:[22m[39m beginning deploy...
 [36m[1mi  hosting[sistema-fja-homolog]:[22m[39m found 2 files in [1mdist/homolog[22m
 [36m[1mi  hosting:[22m[39m upload complete
@@ -26,7 +26,7 @@ quando: 2026-11-06T21:10:29Z
 [1mHosting URL:[22m https://sistema-fja-homolog.web.app
 servidor (homolog): e-mails=0 rotinas=[equipe autoria google]
 banco em: southamerica-east1 · funções em: southamerica-east1
-AVISO: segredo GOOGLE_CLIENT_SECRET não cadastrado no GitHub: conta Google do servidor (e Drive/e-mail por ela) ficam de fora
+[32m[1m✔ [22m[39m Created a new secret version projects/9602948770/secrets/GOOGLE_OAUTH_SECRET/versions/1
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
 
@@ -41,32 +41,39 @@ AVISO: segredo GOOGLE_CLIENT_SECRET não cadastrado no GitHub: conta Google do s
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mpackage.json indicates an outdated version of firebase-functions. Please upgrade using [1mnpm install --save firebase-functions@latest[22m in your functions directory.
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mPlease note that there will be breaking changes when you upgrade.
 [36m[1mi  functions:[22m[39m Loading and analyzing source code for codebase default to determine what to deploy
-Serving at port 8510
+Serving at port 8005
 
 [36m[1mi  extensions:[22m[39m ensuring required API [1mfirebaseextensions.googleapis.com[22m is enabled...
 [32m[1m✔  extensions:[22m[39m required API [1mfirebaseextensions.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m preparing [1mfirebase/functions[22m directory for uploading...
-[36m[1mi [22m[39m [36m[1mfunctions:[22m[39m packaged [1m/home/runner/work/Sistema-FJA/Sistema-FJA/firebase/functions[22m (46.05 KB) for uploading
+[36m[1mi [22m[39m [36m[1mfunctions:[22m[39m packaged [1m/home/runner/work/Sistema-FJA/Sistema-FJA/firebase/functions[22m (46.09 KB) for uploading
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudscheduler.googleapis.com[22m is enabled...
 [32m[1m✔  functions:[22m[39m required API [1mcloudscheduler.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m ensuring required API [1mrun.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1meventarc.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mpubsub.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mstorage.googleapis.com[22m is enabled...
+[32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mpubsub.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1meventarc.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m generating the service identity for [1mpubsub.googleapis.com[22m...
 [36m[1mi  functions:[22m[39m generating the service identity for [1meventarc.googleapis.com[22m...
+[36m[1mi  functions:[22m[39m ensuring [1m9602948770-compute@developer.gserviceaccount.com[22m access to secret [1mGOOGLE_OAUTH_SECRET[22m.
+[32m[1m✔  secretmanager:[22m[39m Granted roles/secretmanager.secretAccessor on projects/sistema-fja-homolog/secrets/GOOGLE_OAUTH_SECRET to 9602948770-compute@developer.gserviceaccount.com
+[32m[1m✔  functions:[22m[39m ensured [1m9602948770-compute@developer.gserviceaccount.com[22m access to [1mGOOGLE_OAUTH_SECRET[22m.
 [32m[1m✔ [22m[39m [32m[1mfunctions:[22m[39m [1mfirebase/functions[22m folder uploaded successfully
+[36m[1mi  functions:[22m[39m creating Node.js 22 (2nd Gen) function [1mgoogleAutorizar(southamerica-east1)[22m...
+[36m[1mi  functions:[22m[39m creating Node.js 22 (2nd Gen) function [1mgoogleEstado(southamerica-east1)[22m...
 [36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mequipeProjeto(southamerica-east1)[22m...
 [36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mequipeContas(southamerica-east1)[22m...
 [36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mequipeDiaria(southamerica-east1)[22m...
 [36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mautoriaRi(southamerica-east1)[22m...
-[32m[1m✔ [22m[39m [1m[32mfunctions[equipeProjeto(southamerica-east1)][39m[22m Successful update operation.
+[32m[1m✔ [22m[39m [1m[32mfunctions[googleAutorizar(southamerica-east1)][39m[22m Successful create operation.
 [32m[1m✔ [22m[39m [1m[32mfunctions[autoriaRi(southamerica-east1)][39m[22m Successful update operation.
 [32m[1m✔ [22m[39m [1m[32mfunctions[equipeContas(southamerica-east1)][39m[22m Successful update operation.
+[32m[1m✔ [22m[39m [1m[32mfunctions[equipeProjeto(southamerica-east1)][39m[22m Successful update operation.
+[32m[1m✔ [22m[39m [1m[32mfunctions[googleEstado(southamerica-east1)][39m[22m Successful create operation.
 [32m[1m✔ [22m[39m [1m[32mfunctions[equipeDiaria(southamerica-east1)][39m[22m Successful update operation.
 [36m[1mi [22m[39m [1m[36mfunctions: [39m[22mcleaning up build files...
 [33m[1m⚠  functions:[22m[39m Unhandled error cleaning up build images. This could result in a small monthly bill if not corrected. You can attempt to delete these images by redeploying or you can delete them manually at https://console.cloud.google.com/gcr/images/sistema-fja-homolog/us/gcf
