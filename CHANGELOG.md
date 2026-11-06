@@ -5,6 +5,15 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 06/11, ~13h10 — commit 2e80210
+- RFI: histórico geral do projeto (ampulheta na lista); ampulhetas ocultas para convidados.
+- Planilhas: sem o botão Colunas (botão direito no cabeçalho); barra horizontal própria, que segue o mouse sem saltos.
+- RFI: coluna Comentários sempre visível; status alterável por qualquer administrador (regras do banco).
+- Fichas novas (RFI, pendências, comentários, equipamentos, relação de documentos) só são gravadas ao Salvar; Descartar desiste.
+- RFI: imagem guardada no próprio registro; convidados enviam, colam (Ctrl+V) e veem imagens.
+- Convidado com acesso às RFIs de todos os projetos (opção na ficha da pessoa).
+- Homologação: seletor "Ver como" (só lá); conta Convidado Teste e 5 RFIs de teste no projeto 128 (só lá).
+
 ## oficial Firebase — 06/11, ~12h20 — commit 68a80f2
 - RFI: só o autor altera os dados e exclui a RFI; cada resposta ou comentário só quem escreveu; o Master pode tudo (regras do banco: autorId; RFIs antigas usam o requerente).
 - RFI: histórico (ampulheta, ficha lateral) com criação, alterações campo a campo, respostas, comentários, imagem e notificações, com autor e hora; o banco só deixa acrescentar.
