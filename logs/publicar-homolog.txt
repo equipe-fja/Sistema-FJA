@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: failure
-commit: 3f73867c0c68531d73051075c1ca8115122671e5
-quando: 2026-11-06T20:21:54Z
+commit: 2c611e0eaf32ff58e54f8a1c8bb4e2e0aaa3a338
+quando: 2026-11-06T20:27:41Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -35,12 +35,12 @@ banco em: southamerica-east1 · funções em: southamerica-east1
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudbuild.googleapis.com[22m is enabled...
 [36m[1mi  artifactregistry:[22m[39m ensuring required API [1martifactregistry.googleapis.com[22m is enabled...
 [32m[1m✔  functions:[22m[39m required API [1mcloudfunctions.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [32m[1m✔  artifactregistry:[22m[39m required API [1martifactregistry.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mpackage.json indicates an outdated version of firebase-functions. Please upgrade using [1mnpm install --save firebase-functions@latest[22m in your functions directory.
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mPlease note that there will be breaking changes when you upgrade.
 [36m[1mi  functions:[22m[39m Loading and analyzing source code for codebase default to determine what to deploy
-Serving at port 8880
+Serving at port 8539
 
 [36m[1mi  extensions:[22m[39m ensuring required API [1mfirebaseextensions.googleapis.com[22m is enabled...
 [32m[1m✔  extensions:[22m[39m required API [1mfirebaseextensions.googleapis.com[22m is enabled
@@ -54,14 +54,9 @@ Serving at port 8880
 [36m[1mi  functions:[22m[39m ensuring required API [1mstorage.googleapis.com[22m is enabled...
 [32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mpubsub.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1meventarc.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1meventarc.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m generating the service identity for [1mpubsub.googleapis.com[22m...
 [36m[1mi  functions:[22m[39m generating the service identity for [1meventarc.googleapis.com[22m...
-[36m[1mi  functions:[22m[39m Failed to verify the project has the correct IAM bindings for a successful deployment.
-[36m[1mi  functions:[22m[39m You can either re-run this command as a project owner or manually run the following set of `gcloud` commands:
-[36m[1mi  functions:[22m[39m `gcloud projects add-iam-policy-binding sistema-fja-homolog --member=serviceAccount:service-9602948770@gcp-sa-pubsub.iam.gserviceaccount.com --role=roles/iam.serviceAccountTokenCreator`
-[36m[1mi  functions:[22m[39m `gcloud projects add-iam-policy-binding sistema-fja-homolog --member=serviceAccount:9602948770-compute@developer.gserviceaccount.com --role=roles/run.invoker`
-[36m[1mi  functions:[22m[39m `gcloud projects add-iam-policy-binding sistema-fja-homolog --member=serviceAccount:9602948770-compute@developer.gserviceaccount.com --role=roles/eventarc.eventReceiver`
 
-[1m[31mError:[39m[22m We failed to modify the IAM policy for the project. The functions deployment requires specific roles to be granted to service agents, otherwise the deployment will fail.
+[1m[31mError:[39m[22m Request to https://cloudbilling.googleapis.com/v1/projects/sistema-fja-homolog/billingInfo had HTTP Error: 403, Cloud Billing API has not been used in project 9602948770 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/cloudbilling.googleapis.com/overview?project=9602948770 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.
