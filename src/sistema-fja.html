@@ -1405,10 +1405,11 @@ function telaSchema(h,sec){
 
 /* ---------- arquivos: imagens e PDFs ---------- */
 const TIPOS_ARQ = ['image/png','image/jpeg','image/gif','image/webp','application/pdf'];
-const urlArq = a => '/_blob/'+(a.prev||a.id);
-const urlThumb = a => '/_blob/'+(a.thumb||a.prev||a.id);
+const ehData=x=>typeof x==='string'&&x.startsWith('data:');
+const urlArq = a => ehData(a.prev)?a.prev:'/_blob/'+(a.prev||a.id);
+const urlThumb = a => ehData(a.thumb)?a.thumb:ehData(a.prev)?a.prev:'/_blob/'+(a.thumb||a.prev||a.id);
 const ehPdf = a => a.tipo==='application/pdf';
-const idsDe = a => [a.id,a.prev,a.thumb,...(a.pags||[])].filter(Boolean);
+const idsDe = a => [a.id,a.prev,a.thumb,...(a.pags||[])].filter(x=>x&&!ehData(x));
 const fmtTam = b => b>1048576 ? (b/1048576).toFixed(1).replace('.',',')+' MB' : Math.max(1,Math.round(b/1024))+' KB';
 const juntaCaminho=(dir,n)=>dir?String(dir).replace(/[\\/]+$/,'')+'\\'+n:'';
 function origemCtx(ctx){
@@ -1524,6 +1525,16 @@ async function gerarPrevia(f,maxImg){
   bmp.close?.();
   return {pags:[prev],thumb,paginas:1};
 }
+/* imagem da RFI guardada no próprio registro (sem Drive): assim convidados também enviam e veem. Até ~260 KB. */
+async function imagemEmbutida(f){
+  const bmp=await createImageBitmap(f);
+  const tela=m=>{const k=Math.min(1,m/Math.max(bmp.width,bmp.height)), c=document.createElement('canvas'); c.width=Math.max(1,Math.round(bmp.width*k)); c.height=Math.max(1,Math.round(bmp.height*k));
+    const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(bmp,0,0,c.width,c.height); return c};
+  let c=tela(1400), q=.8, u=c.toDataURL('image/jpeg',q);
+  while(u.length>350000&&q>.45){q-=.07; u=c.toDataURL('image/jpeg',q)}
+  if(u.length>350000){c=tela(1000); u=c.toDataURL('image/jpeg',.6)}
+  return {prev:u,thumb:tela(320).toDataURL('image/jpeg',.72),nome:f.name||'imagem',tipo:'image/jpeg',tamanho:Math.round(u.length*.75),embutida:true};
+}
 async function subirPrevia(f,maxImg){
   const g=await gerarPrevia(f,maxImg);
   const ids=[]; for(const b of g.pags) ids.push((await assets.upload(b,{type:'image/jpeg'})).id);
@@ -1548,7 +1559,7 @@ async function gravarCtx(ctx,fn){
   await gravarPasta(id,sub,ps=>{let p=ps.find(x=>chave(x)===data); if(!p){p={data,arquivos:[]};ps.push(p)} p.arquivos=p.arquivos||[]; fn(p.arquivos)});
 }
 async function enviarArquivos(files,ctx){
-  if(!assets||!ctx) return;
+  if(!ctx||(!assets&&!(ctx==='eqcapa'&&M().id==='rfi'))) return;
   if(ctx==='esp'){imagemEsp(files);return}
   if(ctx==='eqds'){enviarDatasheet(files);return}
   if(ctx==='eqcapa'){enviarCapaEq(files);return}
@@ -1860,7 +1871,7 @@ async function salvarEsp(){
   const dup=espDe(e.projeto).find(x=>x.id!==e.id&&x.codigo===body.codigo);
   if(dup){toast(`O código ${body.codigo} já é usado por “${dup.nome}”`);return false}
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  try{await espColl().doc(e.id).set(body);S.espec.set(e.id,{...body,id:e.id});S.edraft={...body,id:e.id};S.dirty=false;toast('Salvo');return true}
+  try{await espColl().doc(e.id).set(body);S.espec.set(e.id,{...body,id:e.id});S.edraft={...body,id:e.id};S.dirty=false;S.qnovo=null;toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar. Tente de novo.');return false}
 }
 async function novoEsp(pid,modelo){
@@ -2209,14 +2220,16 @@ async function salvarEq(){
   for(const k of NUM_EQ){const v=String(body[k]??'').replace(/\./g,'').replace(',','.').trim(); body[k]=v===''||isNaN(+v)?(body[k]===''?'':body[k]):+v}
   if(body.origem) body.editadoLocal=true;
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  try{await eqColl().doc(e.id).set(body);S.equip.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;toast('Salvo');return true}
+  try{await eqColl().doc(e.id).set(body);S.equip.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;S.qnovo=null;toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
+/* registro novo: abre a ficha como rascunho; só é gravado no banco ao clicar em "Salvar alterações" (Descartar desiste) */
+function rascunhoNovo(view,body){S.qdraft={...body,id:view.eid}; S.qnovo=view.eid; ir(view); S.dirty=true; renderMain()}
 async function novoEq(pid){
   if(S.dirty){toast('Salve ou descarte as alterações antes');return}
   const ref=eqColl().doc(), n=eqDe(pid).length+1;
   const body={projeto:pid,item:n,nome:'Novo equipamento',setor:'',qtd:1,tipo:'E',criadoEm:Date.now(),atualizadoEm:Date.now()};
-  try{await eqColl().doc(ref.id).set(body);S.equip.set(ref.id,{...body,id:ref.id});S.qdraft=null;ir({t:'eqi',id:pid,eid:ref.id})}catch{toast('Não foi possível criar.')}
+  rascunhoNovo({t:'eqi',id:pid,eid:ref.id},body);
 }
 
 /* ---------- comentários do projeto ---------- */
@@ -2562,14 +2575,14 @@ async function salvarCm(){
   regraAtendido(body);
   if(body.origem) body.editadoLocal=true;
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  try{await comColl().doc(e.id).set(body);S.coment.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;toast('Salvo');setTimeout(detectarExtsCm,300);return true}
+  try{await comColl().doc(e.id).set(body);S.coment.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;S.qnovo=null;toast('Salvo');setTimeout(detectarExtsCm,300);return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
 async function novoCm(pid){
   if(S.dirty){toast('Salve ou descarte as alterações antes');return}
   const ref=comColl().doc(), hoje=new Date().toLocaleDateString('pt-BR');
   const body={projeto:pid,num:proxNumCm(pid),texto:'',documento:'',status:'TRIAGEM',recebido:hoje,criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
-  try{await comColl().doc(ref.id).set(body);S.coment.set(ref.id,{...body,id:ref.id});S.qdraft=null;ir({t:'comi',id:pid,eid:ref.id})}catch{toast('Não foi possível criar.')}
+  rascunhoNovo({t:'comi',id:pid,eid:ref.id},body);
 }
 const COLS_CM=[
   ['num','Nº',6,'0'],['documento','Disciplina',28],['responsavel','Responsável',16],['emitido','emitido',11],['arquivo','arquivo comentado',30],['via','recebido via',12],['autor','responsável pelo comentário',16],
@@ -2739,7 +2752,7 @@ function rfiEscolherEmpresa(){
   });
 }
 const RFI_TCOLS=[
-  ['imagem','Imagem',1,e=>e.capa?`<img class="esp-th" src="${esc(urlThumb(e.capa))}" alt="" loading="lazy">`:'',''],
+  ['imagem','Imagem',1,e=>e.capa&&(!S.convidado||ehData(e.capa.thumb))?`<img class="esp-th" src="${esc(urlThumb(e.capa))}" alt="" loading="lazy">`:'',''],
   ['num','Nº',2,e=>e.num!=null?`<span class="mono">${esc(e.num)}</span>`:'','num r'],
   ['status','Status',1,e=>celEdCm(e,'status',statusRfi(e)),''],
   ['assunto','Assunto',2,e=>`<span class="cm-txt"><b>${esc(e.assunto||'Sem assunto')}</b></span>`,'mid'],
@@ -2981,7 +2994,7 @@ function telaRfiItem(h,v){
   <h1 style="margin-bottom:6px">${e.num!=null?`<span class="cm-num">${esc(e.num)}</span>`:''}${esc(e.assunto||'RFI')}</h1><p class="lead" style="margin-bottom:14px">${[e.requerente&&'De: '+esc(rfiPessoaNome(e.requerente)),e.requerido&&'Para: '+esc(rfiPessoaNome(e.requerido)),e.prazo&&'prazo '+esc(e.prazo)].filter(Boolean).join(' · ')}${e.status?' &nbsp;'+statusRfi(e):''}${atrasadaRfi(e)?' <span class="st-cm st-crit">Prazo vencido</span>':''}</p>`;
   if(conv) h+=`<div class="banner pub" style="margin-bottom:12px"><span class="sp">${minha?'Você abriu esta RFI: pode editar os dados, os requeridos e comentar. Respostas ficam com quem foi requerido.':podeResp?'Esta RFI é dirigida a você ou à sua empresa: registre a resposta abaixo. Comentários ficam abertos a todos.':'Você pode acompanhar esta RFI e adicionar comentários. Respostas só de quem foi requerido.'}</span></div>`;
   else if(!minha&&!S.ro) h+=`<div class="banner pub" style="margin-bottom:12px"><span class="sp">${autN?`RFI aberta por <b>${esc(autN)}</b>: só o autor`:'Só o autor'} (ou o Master) altera os dados. Você pode responder e comentar; cada resposta ou comentário só pode ser alterado por quem escreveu.</span></div>`;
-  h+=`<div class="eq-top eq-top2">${conv?'':blocoCapaEq(e,!minha)}<div class="eq-acts">${conv?'':`<button class="btn" data-act="rfi-hist" title="Histórico: criação, alterações, quem fez e quando" aria-label="Histórico">${IC.hist}Histórico</button>`}<button class="btn" data-act="eq-pdf" title="Gerar o registro da RFI em PDF, em papel timbrado">${IC.pdf}Exportar PDF</button></div></div>`;
+  h+=`<div class="eq-top eq-top2">${blocoCapaEq(e,!minha)}<div class="eq-acts">${conv?'':`<button class="btn" data-act="rfi-hist" title="Histórico: criação, alterações, quem fez e quando" aria-label="Histórico">${IC.hist}Histórico</button>`}<button class="btn" data-act="eq-pdf" title="Gerar o registro da RFI em PDF, em papel timbrado">${IC.pdf}Exportar PDF</button></div></div>`;
   const camposRO=html=>!minha?html.replace(/<(input|textarea|select)(?![^>]*disabled)/g,'<$1 disabled'):html;
   // ordem: RFI → disciplinas envolvidas → requeridos (sugeridos pelas disciplinas) → prazos → respostas → comentários
   const mails=reqsEmails(e), rq=reqsRfi(e), roD=!!dis;
@@ -3040,9 +3053,11 @@ async function salvarRfi(){
   body.disciplinas=[...new Set((body.disciplinas||[]).map(d=>String(d).trim().toUpperCase()).filter(Boolean))];
   body.requeridos=reqsRfi(body); body.requeridosIds=body.requeridos.map(q=>q.tipo+':'+q.id); delete body.requerido;
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  const aut=rfiAutorId(base); if(aut) body.autorId=aut; else delete body.autorId;
-  const hz=rfiHistEntrada(base,body); body.historico=[...(base.historico||[]),...(hz?[hz]:[])];
-  try{await rfiColl().doc(e.id).set(body);S.rfis.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;toast('Salvo');return true}
+  const nova=S.qnovo===e.id&&!S.rfis.has(e.id);
+  if(nova){body.criadoEm=Date.now(); body.historico=[{em:body.criadoEm,por:rfiEuNome(),porId:rfiEuId(),acao:'Criou a RFI'}]}
+  else {const aut=rfiAutorId(base); if(aut) body.autorId=aut; else delete body.autorId;
+    const hz=rfiHistEntrada(base,body); body.historico=[...(base.historico||[]),...(hz?[hz]:[])]}
+  try{await rfiColl().doc(e.id).set(body);S.rfis.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;S.qnovo=null;toast('Salvo');return true}
   catch(err){toast('Não foi possível salvar.');return false}
 }
 async function novoRfi(pid){
@@ -3052,7 +3067,7 @@ async function novoRfi(pid){
   const body={projeto:pid,num:proxNumRfi(pid),assunto:'',status:'ABERTA',abertura:hoje,disciplinas:[],respostas:[],comentarios:[],participantes:partsDe(S.itens.get(pid)),
     ...(eu?{requerente:{tipo:'u',id:eu.uid,nome:eu.nome||eu.email}}:{}),criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{}),
     ...(rfiEuId()?{autorId:rfiEuId()}:{}),...(rfiEuNome()?{autorNome:rfiEuNome()}:{}),historico:[{em:Date.now(),por:rfiEuNome(),porId:rfiEuId(),acao:'Criou a RFI'}]};
-  try{await ref.set(body);S.rfis.set(ref.id,{...body,id:ref.id});S.qdraft=null;ir({t:'rfii',id:pid,eid:ref.id})}catch{toast('Não foi possível criar.')}
+  rascunhoNovo({t:'rfii',id:pid,eid:ref.id},body);
 }
 /* notificação: abre o e-mail de quem clica (Gmail/Outlook) com destinatários, assunto e texto prontos; registra na RFI */
 async function rfiNotificar(){
@@ -3206,14 +3221,14 @@ async function salvarPd(){
   body.eventos=(body.eventos||[]).map(x=>({data:x.data||'',texto:String(x.texto||'').trim()})).filter(x=>x.texto||x.data); body.disciplinas=[...new Set((body.disciplinas||[]).map(d=>String(d).trim().toUpperCase()).filter(Boolean))];
   if(body.origem) body.editadoLocal=true;
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  try{await pendColl().doc(e.id).set(body);S.pends.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;toast('Salvo');return true}
+  try{await pendColl().doc(e.id).set(body);S.pends.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;S.qnovo=null;toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
 async function novoPd(pid){
   if(S.dirty){toast('Salve ou descarte as alterações antes');return}
   const ref=pendColl().doc(), hoje=new Date().toLocaleDateString('pt-BR');
   const body={projeto:pid,num:proxNumPd(pid),pendencia:'',status:'PENDENTE',inclusao:hoje,disciplinas:[],eventos:[],criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
-  try{await pendColl().doc(ref.id).set(body);S.pends.set(ref.id,{...body,id:ref.id});S.qdraft=null;ir({t:'peni',id:pid,eid:ref.id})}catch{toast('Não foi possível criar.')}
+  rascunhoNovo({t:'peni',id:pid,eid:ref.id},body);
 }
 async function duplicarPd(eid){
   const base=S.pends.get(eid); if(!base) return;
@@ -3497,7 +3512,7 @@ async function salvarRd(){
   delete body.arquivoNome;
   if(body.origem) body.editadoLocal=true;
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  try{await rdColl().doc(e.id).set(body);S.rdocs.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;toast('Salvo');return true}
+  try{await rdColl().doc(e.id).set(body);S.rdocs.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;S.qnovo=null;toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
 const proxLinhaRd=pid=>rdDe(pid).reduce((m,e)=>Math.max(m,+e.linha||0),0)+1;
@@ -3505,7 +3520,7 @@ async function novoRd(pid){
   if(S.dirty){toast('Salve ou descarte as alterações antes');return}
   const ref=rdColl().doc(), ult=rdDe(pid).sort(ordRd).at(-1);
   const body={projeto:pid,linha:proxLinhaRd(pid),descricao:'',fase:ult?.fase||'',codDisc:'',bloco:'',item:'',revisao:'R00',status:'PREVISÃO',criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
-  try{await rdColl().doc(ref.id).set(body);S.rdocs.set(ref.id,{...body,id:ref.id});S.qdraft=null;ir({t:'reli',id:pid,eid:ref.id})}catch{toast('Não foi possível criar.')}
+  rascunhoNovo({t:'reli',id:pid,eid:ref.id},body);
 }
 async function duplicarRd(eid,revisao){
   const base=S.rdocs.get(eid); if(!base) return;
@@ -3869,7 +3884,7 @@ document.addEventListener('dragleave',ev=>{ev.target.closest?.('#cqDrop')?.class
 document.addEventListener('drop',ev=>{const d=ev.target.closest?.('#cqDrop.on'); if(!d) return; ev.preventDefault(); d.classList.remove('sobre'); const c=cqAtual(); const f=[...(ev.dataTransfer?.files||[])]; if(c&&f.length) cqAdicionar(c,f)});
 // Ctrl+V com imagem (print) nas fichas com quadro de imagem (RFI, pendências, comentários, documentos, equipamentos): vira a imagem do registro
 document.addEventListener('paste',ev=>{
-  if(S.ro||!assets||$('cqEd')||$('cqLista')) return;
+  if(S.ro||(!assets&&M()?.id!=='rfi')||$('cqEd')||$('cqLista')) return;
   const box=document.querySelector('.eq-capa-box[data-ctx="eqcapa"]'); if(!box) return;
   const fs=[...(ev.clipboardData?.items||[])].filter(x=>x.kind==='file'&&/^image\//.test(x.type)).map(x=>x.getAsFile()).filter(Boolean); if(!fs.length) return;
   ev.preventDefault(); ev.stopPropagation();
@@ -5061,7 +5076,7 @@ function carregarPdfLib(){
   pdflibP=load('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js').catch(()=>load('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js'));
   pdflibP.catch(()=>{pdflibP=null}); return pdflibP;
 }
-async function bytesBlob(id){const r=await fetch('/_blob/'+id);if(!r.ok) throw new Error('blob');return new Uint8Array(await r.arrayBuffer())}
+async function bytesBlob(id){const r=await fetch(ehData(id)?id:'/_blob/'+id);if(!r.ok) throw new Error('blob');return new Uint8Array(await r.arrayBuffer())}
 async function montarPdfEq(e,it,P){
   const L=await carregarPdfLib(), {PDFDocument,StandardFonts,rgb,PDFName,PDFString}=L;
   const doc=await PDFDocument.create();
@@ -6234,7 +6249,8 @@ async function montarPdfLista(pid,op){
 
 /* ---------- capa do equipamento ---------- */
 function blocoCapaEq(e,soLeitura){
-  const c=e.capa, pode=!S.ro&&!soLeitura&&!!assets, ds=e.datasheet;
+  const c0=e.capa, emb=M().id==='rfi', pode=!S.ro&&!soLeitura&&(!!assets||emb), ds=e.datasheet;
+  const c=S.convidado&&c0&&!ehData(c0.prev)?null:c0; // imagem antiga, no Drive da FJA: o convidado não tem acesso
   const ov=pode?`<div class="eq-capa-ov">${ds&&(!c||c.prev!==ds.prev)?`<button class="ov-b" data-act="eq-capa-ds" title="Usar a primeira página do datasheet">${IC.pdf}<span>Do datasheet</span></button>`:''}<button class="ov-b" data-act="add-arq" data-ctx="eqcapa" title="${c?'Trocar imagem':'Escolher imagem'}">${IC.img}<span>${c?'Trocar':'Escolher'}</span></button>${c?`<button class="ov-b del" data-act="eq-capa-rm" title="Remover imagem">${IC.trash}<span>Remover</span></button>`:''}</div>`:'';
   let h=`<figure class="eq-capa"><div class="eq-capa-box${pode?' drop" data-ctx="eqcapa"':'"'}>`;
   h+=c?`<button class="eq-capa-img" data-act="eq-capa-ver" aria-label="Ampliar imagem"><img src="${esc(urlArq(c))}" alt="${esc(e.nome||e.documento||'')}"></button>`
@@ -6242,6 +6258,7 @@ function blocoCapaEq(e,soLeitura){
   return h+ov+`</div></figure>`;
 }
 async function gravarCapaEq(e,capa){
+  if(S.qnovo&&e.id===S.qnovo){e.capa=capa||null; marcaSujo(); return} // registro novo, ainda não salvo: vai junto ao salvar
   const md=M(), at=md.mapa().get(e.id), ant=at?.capa, upd={capa:capa||null};
   if(md.id==='rfi'){const h=rfiHistEntrada({...at,capa:ant||null},{...at,capa:capa||null}); if(h) upd.historico=[...(at?.historico||[]),h]}
   await md.coll().doc(e.id).update(upd);
@@ -6250,7 +6267,7 @@ async function gravarCapaEq(e,capa){
 }
 async function enviarCapaEq(files){
   const f=[...files].find(x=>/^image\//.test(x.type)&&TIPOS_ARQ.includes(x.type)); if(!f){toast('Escolha uma imagem PNG, JPG, GIF ou WebP');return}
-  try{const r=await subirPrevia(f,1600);await gravarCapaEq(S.qdraft,{prev:r.prev,thumb:r.thumb,nome:r.nome,tipo:r.tipo,tamanho:r.tamanho});toast('Imagem atualizada')}
+  try{if(M().id==='rfi'){await gravarCapaEq(S.qdraft,await imagemEmbutida(f))} else {const r=await subirPrevia(f,1600);await gravarCapaEq(S.qdraft,{prev:r.prev,thumb:r.thumb,nome:r.nome,tipo:r.tipo,tamanho:r.tamanho})} toast('Imagem atualizada')}
   catch{toast('Não foi possível usar esta imagem')}
   renderMain();
 }
@@ -6374,6 +6391,7 @@ function alternarTk(b){
 }
 function ir(view){
   if(S.dirty){S.pend=view;renderMain();$('main').scrollTop=0;return}
+  if(S.qnovo&&view.eid!==S.qnovo) S.qnovo=null;
   if(RH.on&&!(RH.geral?view.t==='rfi'&&view.id===RH.geral:view.t==='rfii'&&view.eid===S.view?.eid)) rfiHistFechar();
   S.view=view; S.pend=null; S.fx.clear(); lsSet('fja.view',view);
   if(view.t!=='item') S.draft=null;
@@ -6520,7 +6538,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='schema'){ir({t:'schema',sec:b.dataset.sec})}
   else if(a==='novo'){novoItem(b.dataset.sec)}
   else if(a==='salvar'){if(await salvarItem()) render()}
-  else if(a==='descartar'){S.dirty=false;S.draft=null;S.schemaDraft=null;S.edraft=null;S.qdraft=null;renderMain()}
+  else if(a==='descartar'){const nv=S.qnovo&&S.qdraft?.id===S.qnovo&&VISTA_LISTA[S.view.t]; S.dirty=false;S.draft=null;S.schemaDraft=null;S.edraft=null;S.qdraft=null;S.qnovo=null; if(nv) ir({t:nv,id:S.view.id}); else renderMain()}
   else if(a==='excluir'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
     const d=S.draft; const sec=d.secao;
