@@ -1,7 +1,7 @@
 tarefa: publicar-oficial
 status: success
-commit: 806f0cb650d1d747113916daafbec6f0580d9c27
-quando: 2026-11-06T16:06:57Z
+commit: 2340abfb3b972d1ac17e33e78184faac0e8160d7
+quando: 2026-11-06T16:40:40Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja'...[22m
@@ -24,3 +24,5 @@ quando: 2026-11-06T16:06:57Z
 
 [1mProject Console:[22m https://console.firebase.google.com/project/sistema-fja/overview
 [1mHosting URL:[22m https://sistema-fja.web.app
+servidor (oficial): e-mails=0 rotinas=[]
+nada ligado: funções não publicadas
