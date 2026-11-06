@@ -1,4 +1,4 @@
-# E-mails de aviso das RIs
+# Servidor (Cloud Functions): e-mails de aviso das RIs e outras rotinas
 
 Envio pelo servidor (Cloud Functions, exige plano **Blaze**), pela conta Google do remetente (SMTP do Gmail com senha de app).
 
@@ -19,3 +19,21 @@ Envio pelo servidor (Cloud Functions, exige plano **Blaze**), pela conta Google 
 - `firebase/functions/index.js` (gatilhos), `logica.js` (quem recebe o quê), `modelo.js` (HTML dos e-mails).
 - `firebase/email/modelo-ri.html`: modelo visual de referência.
 - Link dos e-mails: `https://<projeto>.web.app/#ri=<projeto>/<id>` abre direto a RI.
+
+# Outras rotinas do servidor (firebase/servidor.json)
+Ligar por ambiente (`"homolog": true`, depois `"oficial": true`) e fazer push. Exigem o Blaze; não precisam de senha.
+
+## equipe
+Mantém `projetosRfi/<projeto>` (o que o convidado vê: nome, disciplinas, participantes, envolvidos) e `rfi.participantes`
+no instante em que um projeto, uma empresa ou uma conta muda, e confere tudo às 3h30. Mesmo conteúdo que o navegador
+de um administrador grava hoje a cada 20 s (os dois convivem; o navegador pode deixar de fazer isso depois).
+
+## autoria
+A cada gravação de uma RI por uma pessoa (não pelo servidor), confere respostas e comentários: edição ou exclusão de registro
+de outra pessoa é desfeita, registro novo com autor trocado é corrigido, e o histórico ganha a entrada "Alteração desfeita".
+O Master pode tudo. Antes, isso era garantido só pela tela.
+
+## Revit (planejado, ainda não feito)
+Os pedidos do Revit (`revitPedidos`) e a publicação de `revitPub` dependem de um sistema aberto. Levar para o servidor exige
+tirar do arquivo do sistema a lógica da biblioteca (criar item central, reservar código FJ e keynote, incluir no projeto,
+montar biblioteca.json/projeto-*.json) para um módulo usado pelo navegador e pelo servidor, sem duplicar regras.

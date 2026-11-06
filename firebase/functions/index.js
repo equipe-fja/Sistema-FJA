@@ -3,7 +3,7 @@
 // - resumoDiario: dias úteis às 8h (horário de Brasília), o que está pendente com cada pessoa.
 // Remetente e liga/desliga: firebase/email/config.json (copiado para cá na publicação). Senha de app do Gmail: segredo SMTP_SENHA.
 // Na homologação, todos os e-mails vão para config.homologPara, com uma faixa dizendo para quem iriam.
-const { onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { onDocumentWritten, onDocumentWrittenWithAuthContext } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { setGlobalOptions, logger } = require('firebase-functions/v2');
@@ -11,10 +11,12 @@ const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const M = require('./modelo');
 const L = require('./logica');
+const SV = require('./servidor');
 
 admin.initializeApp();
 const db = admin.firestore();
 let CFG = {}; try { CFG = require('./config.json'); } catch { }
+let SRV = {}; try { SRV = require('./servidor.json'); } catch { }
 let REGIAO = 'southamerica-east1'; try { REGIAO = require('./regiao.json').regiao || REGIAO; } catch { }
 setGlobalOptions({ region: REGIAO, maxInstances: 3, memory: '256MiB' });
 const SMTP_SENHA = defineSecret('SMTP_SENHA');
@@ -22,7 +24,9 @@ const SMTP_SENHA = defineSecret('SMTP_SENHA');
 const PROJ = process.env.GCLOUD_PROJECT || (JSON.parse(process.env.FIREBASE_CONFIG || '{}').projectId) || '';
 const HOMOLOG = /homolog/.test(PROJ);
 const SITE = `https://${PROJ}.web.app`;
-const ligado = () => !!(CFG.remetente && CFG.ativo && CFG.ativo[HOMOLOG ? 'homolog' : 'oficial']);
+const AMBI = HOMOLOG ? 'homolog' : 'oficial';
+const ligado = () => !!(CFG.remetente && CFG.ativo && CFG.ativo[AMBI]);
+const rotina = nome => !!(SRV[nome] && SRV[nome][AMBI]);
 
 let transp = null;
 const smtp = () => transp || (transp = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: CFG.remetente, pass: SMTP_SENHA.value() } }));
@@ -45,7 +49,7 @@ async function contexto() {
 const nomeProj = p => p ? [p.codigo, p.nome].filter(Boolean).join(' ') : '';
 const quando = t => new Date(t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·');
 
-exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secrets: [SMTP_SENHA] }, async ev => {
+if (ligado()) exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secrets: [SMTP_SENHA] }, async ev => {
   if (!ligado()) return;
   const antes = ev.data.before.exists ? ev.data.before.data() : null, ri = ev.data.after.exists ? ev.data.after.data() : null;
   if (!ri) return;
@@ -63,7 +67,7 @@ exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secrets: [SMTP_SENH
   }
 });
 
-exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && CFG.resumo.hora) || 8} * * ${CFG.resumo && CFG.resumo.diasUteis === false ? '*' : '1-5'}`, timeZone: 'America/Sao_Paulo', secrets: [SMTP_SENHA] }, async () => {
+if (ligado()) exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && CFG.resumo.hora) || 8} * * ${CFG.resumo && CFG.resumo.diasUteis === false ? '*' : '1-5'}`, timeZone: 'America/Sao_Paulo', secrets: [SMTP_SENHA] }, async () => {
   if (!ligado()) return;
   const { contas, projetos } = await contexto();
   const ris = (await db.collection('rfi').get()).docs.map(d => ({ id: d.id, ...d.data() }));
@@ -78,3 +82,31 @@ exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && CFG.resumo.hor
     } catch (e) { logger.error('resumo', c.email, e.message || e); }
   }
 });
+
+/* ------------------------------------------------------------------ equipe dos projetos (servidor.json: equipe) */
+if (rotina('equipe')) {
+  exports.equipeProjeto = onDocumentWritten('itens/{id}', async ev => {
+    const a = ev.data.before.exists ? ev.data.before.data() : null, d = ev.data.after.exists ? ev.data.after.data() : null, sec = (d || a || {}).secao;
+    if (sec === 'projetos') return SV.sincronizarEquipe(db, d ? ev.params.id : null);
+    if (sec === 'parceiros' && (a || {}).nome !== (d || {}).nome) return SV.sincronizarEquipe(db, null); // nome de empresa aparece nos envolvidos
+  });
+  exports.equipeContas = onDocumentWritten('acessos/{uid}', async ev => {
+    const a = ev.data.before.exists ? ev.data.before.data() : {}, d = ev.data.after.exists ? ev.data.after.data() : {};
+    const k = x => JSON.stringify([x.nome, x.email, x.empresa, x.nivel, !!x.todosProjetos]);
+    if (k(a) !== k(d)) return SV.sincronizarEquipe(db, null);
+  });
+  exports.equipeDiaria = onSchedule({ schedule: '30 3 * * *', timeZone: 'America/Sao_Paulo' }, () => SV.sincronizarEquipe(db, null)); // conferência geral
+}
+
+/* ------------------------------------------------------------------ autoria das respostas e comentários (servidor.json: autoria) */
+if (rotina('autoria')) {
+  exports.autoriaRi = onDocumentWrittenWithAuthContext('rfi/{id}', async ev => {
+    if (ev.authType !== 'app_user' || !ev.authId) return; // gravações do próprio servidor não são conferidas
+    const antes = ev.data.before.exists ? ev.data.before.data() : null, depois = ev.data.after.exists ? ev.data.after.data() : null;
+    if (!antes || !depois) return;
+    const ac = await db.collection('acessos').doc(ev.authId).get(), conta = ac.exists ? ac.data() : {};
+    if (conta.nivel === 'master') return;
+    const upd = SV.verificarAutoria(antes, depois, ev.authId, conta.nome || conta.email || '');
+    if (upd) { await ev.data.after.ref.update(upd); logger.warn('autoria: alteração desfeita', { ri: ev.params.id, por: conta.email, campos: Object.keys(upd) }); }
+  });
+}

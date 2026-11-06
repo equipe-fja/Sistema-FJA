@@ -29,28 +29,31 @@ jobs:
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
           set -o pipefail
           npx -y firebase-tools@13 deploy --config "$CONF" --only hosting,firestore:rules --project "$PROJ" --non-interactive 2>&1 | grep -v "npm warn" | tee "$RUNNER_TEMP/log.txt"
-      - name: Funções de e-mail (só com firebase/email/config.json ativo para este ambiente; exige plano Blaze)
+      - name: Funções do servidor (e-mails, equipe, autoria; só se alguma estiver ligada para este ambiente; exige plano Blaze)
         env:
           CHAVE_OFICIAL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           CHAVE_HOMOLOG: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HOMOLOG }}
           SMTP: ${{ secrets.SMTP_SENHA_APP }}
         run: |
-          if ! node -e "const c=require('./firebase/email/config.json'); process.exit(c.ativo&&c.ativo[process.env.ALVO]&&c.remetente?0:1)"; then
-            echo "e-mails: desligados para $ALVO (firebase/email/config.json)" | tee -a "$RUNNER_TEMP/log.txt"; exit 0; fi
+          EMAIL=$(node -e "const c=require('./firebase/email/config.json'); console.log(c.ativo&&c.ativo[process.env.ALVO]&&c.remetente?1:0)")
+          OUTRAS=$(node -e "const s=require('./firebase/servidor.json'); console.log(Object.entries(s).filter(([k,v])=>k[0]!=='_'&&v&&v[process.env.ALVO]).map(([k])=>k).join(' '))")
+          echo "servidor ($ALVO): e-mails=$EMAIL rotinas=[${OUTRAS}]" | tee -a "$RUNNER_TEMP/log.txt"
+          if [ "$EMAIL" != 1 ] && [ -z "$OUTRAS" ]; then echo "nada ligado: funções não publicadas" | tee -a "$RUNNER_TEMP/log.txt"; exit 0; fi
           if [ "$ALVO" = oficial ]; then CHAVE="$CHAVE_OFICIAL"; PROJ=sistema-fja; CONF=firebase.json
           else CHAVE="$CHAVE_HOMOLOG"; PROJ=sistema-fja-homolog; CONF=firebase-homolog.json; fi
           printf '%s' "$CHAVE" > "$RUNNER_TEMP/chave.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
           set -o pipefail
           FB="npx -y firebase-tools@13"
-          cp firebase/email/config.json firebase/functions/config.json
+          cp firebase/email/config.json firebase/functions/config.json; cp firebase/servidor.json firebase/functions/servidor.json
           # a função que observa as RIs precisa ficar na mesma região do banco
           LOC=$($FB firestore:databases:get "(default)" --project "$PROJ" --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log((j.result||j).locationId||'')}catch{console.log('')}})")
           case "$LOC" in nam5) REG=us-central1;; nam7) REG=us-central1;; eur3) REG=europe-west1;; "") REG=southamerica-east1;; *) REG="$LOC";; esac
           echo "{\"regiao\":\"$REG\"}" > firebase/functions/regiao.json
           echo "banco em: ${LOC:-?} · funções em: $REG" | tee -a "$RUNNER_TEMP/log.txt"
           (cd firebase/functions && npm install --silent --no-audit --no-fund)
-          if [ -n "$SMTP" ]; then printf '%s' "$SMTP" | $FB functions:secrets:set SMTP_SENHA --data-file - --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
+          if [ "$EMAIL" != 1 ]; then :
+          elif [ -n "$SMTP" ]; then printf '%s' "$SMTP" | $FB functions:secrets:set SMTP_SENHA --data-file - --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
           else echo "AVISO: segredo SMTP_SENHA_APP não cadastrado no GitHub" | tee -a "$RUNNER_TEMP/log.txt"; fi
           $FB deploy --config "$CONF" --only functions --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
       - name: Registrar resultado (branch firebase-log)
