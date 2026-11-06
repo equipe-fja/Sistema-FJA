@@ -2865,7 +2865,8 @@ async function projetosRfiSincronizar(){
   const f=AMB==='firebase'?window.FJA_FIREBASE?.fs:null; if(!f||!FB()?.admin()||!S.carregado||S.convidado) return;
   if(!Array.isArray(ACS.lista)){acsOuvir(); return} // os nomes dos envolvidos vêm das contas
   const ps=itensDe('projetos'), ids=new Set(ps.map(p=>p.id));
-  for(const p of ps){const v={nome:p.nome||'',codigo:p.campos?.codigo||'',pasta:p.pasta||'',status:p.status||'',disciplinas:(p.disciplinas||[]).map(d=>({cod:d.cod,...(d.sigla?{sigla:d.sigla}:{})})),participantes:partsDe(p),envolvidos:rfiEnvolvidos(p)}, h=JSON.stringify(v);
+  const todos=ACS.lista.filter(u=>u.todosProjetos&&u.nivel==='usuario').map(u=>u.id); // convidados com acesso às RFIs de todos os projetos
+  for(const p of ps){const v={nome:p.nome||'',codigo:p.campos?.codigo||'',pasta:p.pasta||'',status:p.status||'',disciplinas:(p.disciplinas||[]).map(d=>({cod:d.cod,...(d.sigla?{sigla:d.sigla}:{})})),participantes:[...new Set([...partsDe(p),...todos])],envolvidos:rfiEnvolvidos(p)}, h=JSON.stringify(v);
     if(PRFI.hash[p.id]!==h){try{await f.collection('projetosRfi').doc(p.id).set(v); PRFI.hash[p.id]=h}catch(e){console.warn('projetosRfi',e);return}}
     // cada RFI leva a lista de participantes do projeto (as regras do banco usam para os convidados)
     const pj=JSON.stringify(v.participantes);
@@ -4144,13 +4145,14 @@ function eqpRender(){
   } else { // ver pessoa
     const u=(ACS.lista||[]).find(x=>x.id===dr.u); if(!u){eqpFechar();return}
     tit=u.nome||u.email;
-    const projs=itensDe('projetos').filter(p=>partsDe(p).includes(u.id)).sort(ordena), rf=[...S.rfis.values()].filter(r=>[r.requerente,...reqsRfi(r)].some(x=>x?.tipo==='u'&&x.id===u.id));
+    const projs=itensDe('projetos').filter(p=>u.todosProjetos||partsDe(p).includes(u.id)).sort(ordena), rf=[...S.rfis.values()].filter(r=>[r.requerente,...reqsRfi(r)].some(x=>x?.tipo==='u'&&x.id===u.id));
     const sit=ehPh(u)?'Sem acesso':u.ultimoAcesso?'Ativo · último acesso '+new Date(u.ultimoAcesso).toLocaleDateString('pt-BR'):'Aguardando 1º acesso'+(u.linkSenhaEm?' · link enviado '+acsFmtDH(u.linkSenhaEm):'');
     const ro=!adm||u.nivel==='master'?'disabled':'';
     corpo=`<label class="fl">Nome<input class="fld" id="eqpNome" value="${esc(u.nome||'')}" ${adm?'':'disabled'}></label>
       <label class="fl">E-mail<input class="fld mono" value="${esc(u.email||'')}" disabled placeholder="sem e-mail"></label>
       <label class="fl">Empresa<select class="fld" id="eqpEmp" ${adm?'':'disabled'}>${acsEmpOpcoes(u.empresa||'')}</select></label>
       <label class="fl">Nível${u.nivel==='master'?`<input class="fld" value="Master" disabled>`:`<select class="fld" id="eqpNivel" ${ro}><option value="usuario"${u.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${u.nivel==='admin'?' selected':''}>Administrador</option></select>`}</label>
+      ${u.nivel==='usuario'?`<label class="fl" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:13px"><input type="checkbox" id="eqpTodos" ${u.todosProjetos?'checked':''} ${ro}>Acesso às RFIs de todos os projetos</label>`:''}
       <div class="fl">Situação<span style="color:var(--ink);font-size:13.5px">${esc(sit)}</span></div>
       <div class="fl">Projetos (${projs.length})<span style="color:var(--ink);font-size:13.5px">${projs.map(p=>esc((p.campos?.codigo?p.campos.codigo+' ':'')+p.nome)).join('<br>')||'nenhum'}</span></div>
       <div class="fl">RFIs como requerente ou requerido<span style="color:var(--ink);font-size:13.5px">${rf.length}</span></div>
@@ -4175,7 +4177,7 @@ document.addEventListener('click',async ev=>{
   const dr=EQP.dr; if(!dr) return;
   if(a==='eqp-copiar'){try{await navigator.clipboard.writeText(acsMsgConvite(dr.criada)); toast('Mensagem copiada')}catch{} return}
   if(a==='eqp-salvar'){const u=(ACS.lista||[]).find(x=>x.id===dr.u); if(!u) return;
-    const upd={nome:v('eqpNome')||u.nome, empresa:v('eqpEmp').replace(ACS_NOVO,'')}; if(u.nivel!=='master'&&$('eqpNivel')) upd.nivel=v('eqpNivel')==='admin'?'admin':'usuario';
+    const upd={nome:v('eqpNome')||u.nome, empresa:v('eqpEmp').replace(ACS_NOVO,'')}; if($('eqpTodos')) upd.todosProjetos=$('eqpTodos').checked; if(u.nivel!=='master'&&$('eqpNivel')) upd.nivel=v('eqpNivel')==='admin'?'admin':'usuario';
     try{await db.collection('acessos').doc(u.id).update(upd); toast('Dados salvos'); eqpFechar()}catch(e){toast('Não foi possível salvar: '+(e?.message||e))} return}
   const it=dr.pid?S.itens.get(dr.pid):null;
   if(a==='eqp-criar'&&dr.tipo==='empresa'){
