@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: success
-commit: 1f129b7f4cf4ec119daeb56ed7e73fa25cd3fc0e
-quando: 2026-11-06T20:59:08Z
+commit: 56d022255b28f188ed80def182c542b16f33fbc2
+quando: 2026-11-06T21:10:29Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -9,7 +9,7 @@ quando: 2026-11-06T20:59:08Z
 [36m[1mi [22m[39m deploying [1mfirestore, hosting[22m
 [36m[1mi  cloud.firestore:[22m[39m checking [1mfirebase/firestore.rules[22m for compilation errors...
 [32m[1m✔  cloud.firestore:[22m[39m rules file [1mfirebase/firestore.rules[22m compiled successfully
-[36m[1mi  firestore:[22m[39m latest version of [1mfirebase/firestore.rules[22m already up to date, skipping upload...
+[36m[1mi  firestore:[22m[39m uploading rules [1mfirebase/firestore.rules[22m...
 [36m[1mi  hosting[sistema-fja-homolog]:[22m[39m beginning deploy...
 [36m[1mi  hosting[sistema-fja-homolog]:[22m[39m found 2 files in [1mdist/homolog[22m
 [36m[1mi  hosting:[22m[39m upload complete
@@ -24,8 +24,9 @@ quando: 2026-11-06T20:59:08Z
 
 [1mProject Console:[22m https://console.firebase.google.com/project/sistema-fja-homolog/overview
 [1mHosting URL:[22m https://sistema-fja-homolog.web.app
-servidor (homolog): e-mails=0 rotinas=[equipe autoria]
+servidor (homolog): e-mails=0 rotinas=[equipe autoria google]
 banco em: southamerica-east1 · funções em: southamerica-east1
+AVISO: segredo GOOGLE_CLIENT_SECRET não cadastrado no GitHub: conta Google do servidor (e Drive/e-mail por ela) ficam de fora
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
 
@@ -34,28 +35,28 @@ banco em: southamerica-east1 · funções em: southamerica-east1
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudfunctions.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudbuild.googleapis.com[22m is enabled...
 [36m[1mi  artifactregistry:[22m[39m ensuring required API [1martifactregistry.googleapis.com[22m is enabled...
+[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mcloudfunctions.googleapis.com[22m is enabled
 [32m[1m✔  artifactregistry:[22m[39m required API [1martifactregistry.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mpackage.json indicates an outdated version of firebase-functions. Please upgrade using [1mnpm install --save firebase-functions@latest[22m in your functions directory.
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mPlease note that there will be breaking changes when you upgrade.
 [36m[1mi  functions:[22m[39m Loading and analyzing source code for codebase default to determine what to deploy
-Serving at port 8535
+Serving at port 8510
 
 [36m[1mi  extensions:[22m[39m ensuring required API [1mfirebaseextensions.googleapis.com[22m is enabled...
 [32m[1m✔  extensions:[22m[39m required API [1mfirebaseextensions.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m preparing [1mfirebase/functions[22m directory for uploading...
-[36m[1mi [22m[39m [36m[1mfunctions:[22m[39m packaged [1m/home/runner/work/Sistema-FJA/Sistema-FJA/firebase/functions[22m (44.4 KB) for uploading
+[36m[1mi [22m[39m [36m[1mfunctions:[22m[39m packaged [1m/home/runner/work/Sistema-FJA/Sistema-FJA/firebase/functions[22m (46.05 KB) for uploading
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudscheduler.googleapis.com[22m is enabled...
 [32m[1m✔  functions:[22m[39m required API [1mcloudscheduler.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m ensuring required API [1mrun.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1meventarc.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mpubsub.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mstorage.googleapis.com[22m is enabled...
-[32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mpubsub.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1meventarc.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m generating the service identity for [1mpubsub.googleapis.com[22m...
 [36m[1mi  functions:[22m[39m generating the service identity for [1meventarc.googleapis.com[22m...
 [32m[1m✔ [22m[39m [32m[1mfunctions:[22m[39m [1mfirebase/functions[22m folder uploaded successfully
