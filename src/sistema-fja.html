@@ -3130,6 +3130,8 @@ async function rfiAcao(a,b){
   return false;
 }
 document.addEventListener('change',async ev=>{
+  if(ev.target.id==='contaAvisos'){const p=FB()?.perfil(), v=ev.target.value; if(!p) return;
+    try{await db.collection('acessos').doc(p.uid).update({avisos:v}); p.avisos=v; toast('Preferência de avisos salva')}catch(e){toast('Não foi possível salvar: '+(e?.message||e))} return}
   const el=ev.target; if(!S.qdraft||S.view?.t!=='rfii') return;
   if(el.id==='rfiTagIn'&&el.value){rfiGarantir(); if(!S.qdraft.disciplinas.includes(el.value)) S.qdraft.disciplinas.push(el.value);
     marcaSujo(); renderMain(); return}
@@ -6460,6 +6462,8 @@ function ir(view){
 }
 function render(){renderTree();renderMain()}
 function restaurarVista(){
+  // link dos e-mails de aviso: #ri=<projeto>/<id> abre direto a RI
+  const m=String(location.hash||'').match(/^#ri=([^/]+)\/(.+)$/); if(m){history.replaceState(null,'',location.pathname+location.search); try{ir({t:'rfii',id:decodeURIComponent(m[1]),eid:decodeURIComponent(m[2])});return true}catch{}}
   const v=lsGet('fja.view',null);
   if(!v||typeof v!=='object'||!v.t||v.t==='home') return false;
   try{ir(v);return true}catch{S.view={t:'home'};return false}
@@ -8279,6 +8283,10 @@ function telaConta(h){
   <section class="sheet"><div class="pad ferr-pad">
     <p><b>${esc(p.nome||'')}</b> <span class="mono">${esc(p.email||'')}</span> · ${acsNivelTxt(p.nivel)}${p.empresa?` · <button class="btn sm ghost" data-act="item" data-id="${esc(p.empresa)}">${esc(acsEmpNome(p.empresa))}</button>`:''}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="acs-senha">Alterar senha</button><button class="btn ghost" data-act="acs-sair">Sair</button></div>
+  </div></section>
+  <section class="sheet"><div class="sheet-h"><h2>Avisos por e-mail</h2></div><div class="pad ferr-pad">
+    <p class="muted" style="margin-top:0">Avisos das RIs: quando uma RI é dirigida a você, quando chega resposta numa RI sua e quando uma RI é fechada. O resumo diário (8h) lista o que está pendente com você e os prazos vencendo.</p>
+    <label class="fl" style="max-width:420px">Receber<select class="fld" id="contaAvisos" ${S.ro?'disabled':''}>${[['todos','Avisos na hora e resumo diário'],['resumo','Só o resumo diário'],['nenhum','Nenhum e-mail']].map(([v,t])=>`<option value="${v}"${(p.avisos||'todos')===v?' selected':''}>${t}</option>`).join('')}</select></label>
   </div></section></div>`;
   return h;
 }

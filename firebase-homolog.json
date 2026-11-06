@@ -1,8 +1,33 @@
 {
   "hosting": {
     "public": "dist/homolog",
-    "ignore": ["**/.*"],
-    "headers": [{"source": "**", "headers": [{"key": "Cache-Control", "value": "no-cache"}]}]
+    "ignore": [
+      "**/.*"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
   },
-  "firestore": {"rules": "firebase/firestore.rules"}
+  "firestore": {
+    "rules": "firebase/firestore.rules"
+  },
+  "functions": [
+    {
+      "source": "firebase/functions",
+      "codebase": "default",
+      "runtime": "nodejs20",
+      "ignore": [
+        "node_modules",
+        ".git"
+      ]
+    }
+  ]
 }

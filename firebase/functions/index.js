@@ -1,0 +1,80 @@
+// Envio de e-mails do Sistema FJA (Cloud Functions, plano Blaze).
+// - avisosRi: a cada gravação de uma RI, avisa na hora (RI dirigida a você, resposta nova, RI fechada/cancelada).
+// - resumoDiario: dias úteis às 8h (horário de Brasília), o que está pendente com cada pessoa.
+// Remetente e liga/desliga: firebase/email/config.json (copiado para cá na publicação). Senha de app do Gmail: segredo SMTP_SENHA.
+// Na homologação, todos os e-mails vão para config.homologPara, com uma faixa dizendo para quem iriam.
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { defineSecret } = require('firebase-functions/params');
+const { setGlobalOptions, logger } = require('firebase-functions/v2');
+const admin = require('firebase-admin');
+const nodemailer = require('nodemailer');
+const M = require('./modelo');
+const L = require('./logica');
+
+admin.initializeApp();
+const db = admin.firestore();
+let CFG = {}; try { CFG = require('./config.json'); } catch { }
+let REGIAO = 'southamerica-east1'; try { REGIAO = require('./regiao.json').regiao || REGIAO; } catch { }
+setGlobalOptions({ region: REGIAO, maxInstances: 3, memory: '256MiB' });
+const SMTP_SENHA = defineSecret('SMTP_SENHA');
+
+const PROJ = process.env.GCLOUD_PROJECT || (JSON.parse(process.env.FIREBASE_CONFIG || '{}').projectId) || '';
+const HOMOLOG = /homolog/.test(PROJ);
+const SITE = `https://${PROJ}.web.app`;
+const ligado = () => !!(CFG.remetente && CFG.ativo && CFG.ativo[HOMOLOG ? 'homolog' : 'oficial']);
+
+let transp = null;
+const smtp = () => transp || (transp = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: CFG.remetente, pass: SMTP_SENHA.value() } }));
+
+async function enviar(conta, assunto, html, meta) {
+  const para = HOMOLOG ? (CFG.homologPara || CFG.remetente) : conta.email;
+  const corpo = HOMOLOG ? html.replace(/<body([^>]*)>/, `<body$1>${M.faixaHomolog(conta.email)}`) : html;
+  const ass = (HOMOLOG ? '[HOMOLOG] ' : '') + assunto;
+  await smtp().sendMail({ from: `"${CFG.nomeRemetente || 'Sistema FJA'}" <${CFG.remetente}>`, to: para, subject: ass, html: corpo, text: M.texto(corpo) });
+  await db.collection('emailsEnviados').add({ em: Date.now(), para: conta.email, enviadoA: para, assunto: ass, ...meta });
+}
+
+async function contexto() {
+  const [ac, pr, pa] = await Promise.all([db.collection('acessos').get(), db.collection('projetosRfi').get(), db.collection('itens').where('secao', '==', 'parceiros').get()]);
+  const contas = ac.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.email && !c.placeholder);
+  const projetos = Object.fromEntries(pr.docs.map(d => [d.id, d.data()]));
+  const empresas = Object.fromEntries(pa.docs.map(d => [d.id, d.data().nome || '']));
+  return { contas, projetos, empresas };
+}
+const nomeProj = p => p ? [p.codigo, p.nome].filter(Boolean).join(' ') : '';
+const quando = t => new Date(t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·');
+
+exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secrets: [SMTP_SENHA] }, async ev => {
+  if (!ligado()) return;
+  const antes = ev.data.before.exists ? ev.data.before.data() : null, ri = ev.data.after.exists ? ev.data.after.data() : null;
+  if (!ri) return;
+  const { contas, projetos, empresas } = await contexto();
+  const avisos = L.planejarAvisos(antes, ri, contas, empresas); if (!avisos.length) return;
+  const proj = nomeProj(projetos[ri.projeto]) || 'Projeto', id = ev.params.id, url = `${SITE}/#ri=${encodeURIComponent(ri.projeto)}/${encodeURIComponent(id)}`;
+  const dados = { ...ri, requerenteNome: L.nomeQ(ri.requerente, contas, empresas), requeridosNomes: L.reqs(ri).map(q => L.nomeQ(q, contas, empresas)).filter(Boolean).join(', ') };
+  const mov = (ri.historico || []).slice(-3).reverse().map(h => ({ quando: quando(h.em), quem: h.por || '', oque: String(h.acao || 'alterou').replace(/^./, c => c.toLowerCase()).replace(/\bRFI\b/, 'RI') }));
+  for (const a of avisos) {
+    try {
+      const html = M.avisoRi({ chamada: a.chamada, frase: `Olá, <b>${M.esc((a.conta.nome || '').split(' ')[0] || a.conta.email)}</b>. ${a.frase}`, ri: dados, proj, prazoTxt: L.prazoTxt(ri.prazo), destaque: a.destaque, mov, url, urlConta: SITE,
+        rodape: a.tipo === 'dirigida' ? 'Você recebeu este aviso porque é requerido nesta RI no Sistema FJA.' : 'Você recebeu este aviso porque participa desta RI no Sistema FJA.', preview: `${a.chamada} · RI ${ri.num ?? ''} · ${proj}` });
+      await enviar(a.conta, `[RI ${ri.num ?? ''}] ${proj} · ${ri.assunto || 'Requisição de informações'}`, html, { tipo: a.tipo, rfi: id, projeto: ri.projeto });
+    } catch (e) { logger.error('aviso', a.conta.email, e.message || e); }
+  }
+});
+
+exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && CFG.resumo.hora) || 8} * * ${CFG.resumo && CFG.resumo.diasUteis === false ? '*' : '1-5'}`, timeZone: 'America/Sao_Paulo', secrets: [SMTP_SENHA] }, async () => {
+  if (!ligado()) return;
+  const { contas, projetos } = await contexto();
+  const ris = (await db.collection('rfi').get()).docs.map(d => ({ id: d.id, ...d.data() }));
+  const data = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: '2-digit', month: '2-digit' });
+  for (const c of contas) {
+    try {
+      const grupos = L.planejarResumo(c, ris); if (!grupos.length) continue;
+      const g2 = grupos.map(g => ({ titulo: g.titulo, itens: g.itens.map(r => ({ num: 'Nº ' + (r.num ?? ''), assunto: r.assunto, proj: nomeProj(projetos[r.projeto]), url: `${SITE}/#ri=${encodeURIComponent(r.projeto)}/${encodeURIComponent(r.id)}`, nota: r.prazo ? L.prazoTxt(r.prazo) : '', alerta: !!g.alerta })) }));
+      const n = grupos.reduce((s, g) => s + g.itens.length, 0);
+      const html = M.resumo({ nome: (c.nome || '').split(' ')[0] || c.email, grupos: g2, url: SITE, urlConta: SITE, data, preview: `${n} RI${n === 1 ? '' : 's'} pedem a sua atenção hoje` });
+      await enviar(c, `Resumo do dia · ${n} RI${n === 1 ? '' : 's'} para você`, html, { tipo: 'resumo' });
+    } catch (e) { logger.error('resumo', c.email, e.message || e); }
+  }
+});

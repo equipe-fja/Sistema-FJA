@@ -1,7 +1,7 @@
 rules_version = '2';
 // Acesso por conta (e-mail e senha). Só entra quem tem acessos/<uid>, criado por um administrador.
 //  nivel "master" (único, equipe@): como admin, mas fixo; "admin": gerencia acessos; "usuario" (Convidado): usa o sistema.
-// A pessoa só pode alterar no próprio registro: trocarSenha (para false), ultimoAcesso e nome.
+// A pessoa só pode alterar no próprio registro: trocarSenha (para false), ultimoAcesso, nome e avisos (preferência de e-mail).
 service cloud.firestore {
   match /databases/{database}/documents {
     function logado() { return request.auth != null; }
@@ -24,7 +24,7 @@ service cloud.firestore {
       allow update: if (admin() && request.resource.data.nivel == resource.data.nivel)
         || (admin() && resource.data.nivel != 'master' && request.resource.data.nivel in ['admin', 'usuario'])
         || (logado() && request.auth.uid == uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trocarSenha', 'ultimoAcesso', 'nome'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trocarSenha', 'ultimoAcesso', 'nome', 'avisos'])
             && request.resource.data.get('trocarSenha', false) == false);
     }
     match /acessosPendentes/{em} {
@@ -96,13 +96,17 @@ service cloud.firestore {
         || (participa() && dirigida() && histOk() && mudouStatusParaRespondida()
             && muda(['comentarios', 'respostas', 'status', 'historico', 'atualizadoEm', 'atualizadoPor']));
     }
+    // registro dos e-mails enviados pelo servidor (Cloud Functions): a equipe consulta; ninguém grava pelo sistema
+    match /emailsEnviados/{id} {
+      allow read: if interno();
+    }
     match /projetosRfi/{id} {
       allow read: if interno() || participa();
       allow write: if interno();
     }
     // demais coleções: só a equipe (o curinga também casaria com as coleções acima, por isso a exclusão explícita)
     match /{colecao}/{resto=**} {
-      allow read, write: if interno() && !(colecao in ['acessos', 'acessosPendentes', 'senhasProvisorias', 'rfi', 'projetosRfi']);
+      allow read, write: if interno() && !(colecao in ['acessos', 'acessosPendentes', 'senhasProvisorias', 'rfi', 'projetosRfi', 'emailsEnviados']);
     }
   }
 }
