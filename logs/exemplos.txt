@@ -1,7 +1,13 @@
 tarefa: exemplos
 status: success
-commit: 13778bf36c028e807846523e78c08625db25e8c1
-quando: 2026-11-06T15:52:16Z
+commit: 8ee5d20fbeff8f09ed31d005132ba877e4de7bbe
+quando: 2026-11-06T15:55:21Z
 ----
 projeto: sistema-fja-homolog
-CONCLUÍDO: Convidado Teste <equipe+convidado@fj.arq.br> · conta criada · 24 projetos · 2 RFIs · senha provisória em Usuários e acesso
+projeto 128: CBPF
+RFI 1 · ABERTA · Cota de piso acabado do térreo · para Convidado Teste
+RFI 2 · ABERTA · Compatibilização de shafts com a estrutura · para MEPE
+RFI 3 · RESPONDIDA · Especificação do revestimento externo · para Convidado Teste
+RFI 4 · ABERTA · Altura das bancadas dos sanitários acessíveis · para FJA
+RFI 5 · FECHADA · Posição da caixa d'água · para FJA
+CONCLUÍDO: 5 RFIs no projeto 128 · convidado Convidado Teste
