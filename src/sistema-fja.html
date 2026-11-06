@@ -6312,19 +6312,24 @@ document.addEventListener('scroll',ev=>{if(ev.target?.id==='main') fixarCabecalh
 addEventListener('resize',fixarCabecalho);
 new MutationObserver(()=>requestAnimationFrame(fixarCabecalho)).observe(document.getElementById('main'),{childList:true});
 /* ---------- barra de rolagem horizontal sempre visível ---------- */
-let barraRO=null, barraTb=null, sincBarra=false;
+// sincronia barra ↔ tabela: cada lado ignora o "eco" da rolagem que o outro provocou (antes, os dois brigavam e a barra
+// não acompanhava o mouse e dava saltos); a barra tem a mesma largura rolável da tabela
+let barraRO=null, barraTb=null, progBx=null, progW=null;
+function barraPara(el,v,qual){if(Math.abs(el.scrollLeft-v)<1) return; if(qual==='bx') progBx=v; else progW=v; el.scrollLeft=v}
 function ajustarBarraX(){
   const bx=$('barraX'), w=bx?.previousElementSibling, tb=w?.querySelector('table, .gt-in'); if(!bx||!tb) return;
-  bx.firstElementChild.style.width=tb.scrollWidth+'px'; bx.style.width=w.clientWidth+'px';
-  bx.hidden=tb.scrollWidth<=w.clientWidth+1; if(!sincBarra){sincBarra=true;bx.scrollLeft=w.scrollLeft;requestAnimationFrame(()=>sincBarra=false)}
+  bx.firstElementChild.style.width=w.scrollWidth+'px'; bx.style.width=w.clientWidth+'px';
+  bx.hidden=w.scrollWidth<=w.clientWidth+1; barraPara(bx,w.scrollLeft,'bx');
   if(barraTb!==tb){barraRO?.disconnect();barraRO=new ResizeObserver(()=>ajustarBarraX());barraRO.observe(tb);barraRO.observe(w);barraTb=tb}
 }
 new MutationObserver(()=>requestAnimationFrame(ajustarBarraX)).observe(document.getElementById('main'),{childList:true,subtree:true});
 addEventListener('resize',ajustarBarraX);
 document.addEventListener('scroll',ev=>{
   const t=ev.target; if(!(t instanceof Element)) return;
-  if(t.id==='barraX'){const w=t.previousElementSibling; if(w&&!sincBarra){sincBarra=true;w.scrollLeft=t.scrollLeft;requestAnimationFrame(()=>sincBarra=false)}}
-  else if(t.classList.contains('rolagem')){const bx=$('barraX'); if(bx&&bx.previousElementSibling===t&&!sincBarra){sincBarra=true;bx.scrollLeft=t.scrollLeft;requestAnimationFrame(()=>sincBarra=false)}}
+  if(t.id==='barraX'){const w=t.previousElementSibling; if(!w) return;
+    if(progBx!=null&&Math.abs(t.scrollLeft-progBx)<1){progBx=null;return} progBx=null; barraPara(w,t.scrollLeft,'w')}
+  else if(t.classList.contains('rolagem')){const bx=$('barraX'); if(!bx||bx.previousElementSibling!==t) return;
+    if(progW!=null&&Math.abs(t.scrollLeft-progW)<1){progW=null;return} progW=null; barraPara(bx,t.scrollLeft,'bx')}
 },true);
 
 /* ---------- reordenar colunas arrastando ---------- */
