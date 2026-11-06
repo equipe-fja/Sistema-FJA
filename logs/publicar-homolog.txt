@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: success
-commit: 68a80f26f812d63bb11322ff7c1f4eadd31e7fd0
-quando: 2026-11-06T15:14:00Z
+commit: 18dfdf14c720d176179a3327a64c1019cf21b663
+quando: 2026-11-06T15:16:48Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
