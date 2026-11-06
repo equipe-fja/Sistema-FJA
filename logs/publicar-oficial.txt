@@ -1,7 +1,7 @@
 tarefa: publicar-oficial
 status: success
-commit: b900009fa41c4b6e60fcb725ff710aa74c0c05ab
-quando: 2026-11-06T17:50:51Z
+commit: f38d9be6556cdc6adca540af6d06e0e5e60f1bde
+quando: 2026-11-06T18:08:13Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja'...[22m
