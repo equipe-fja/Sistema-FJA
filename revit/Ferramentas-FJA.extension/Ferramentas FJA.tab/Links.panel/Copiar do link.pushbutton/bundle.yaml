@@ -1,0 +1,7 @@
+title:
+  pt_br: "Copiar\ndo link"
+  en_us: "Copiar\ndo link"
+tooltip:
+  pt_br: "Copia em massa elementos de um modelo linkado para este modelo, na mesma posição, por módulo (por enquanto: Equipamentos — mobiliário, equipamentos e pontos de instalações). Famílias face based vêm sem hospedeiro, no mesmo lugar. Cada cópia guarda a origem no link (FJA_CopiaLink), para não copiar duas vezes e para o monitoramento."
+  en_us: "Copia elementos de um link para o modelo, na mesma posição, por módulo."
+author: "Ferramentas FJA"

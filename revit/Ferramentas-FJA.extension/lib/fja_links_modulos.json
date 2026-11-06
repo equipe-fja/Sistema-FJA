@@ -1,0 +1,55 @@
+{
+  "versao": 1,
+  "observacao": "Módulos da ferramenta Links › Copiar do link. Cada categoria (nome do BuiltInCategory) pertence a um módulo só. 'ativo': false = ainda não liberado.",
+  "modulos": [
+    {
+      "id": "equipamentos",
+      "nome": "Equipamentos",
+      "descricao": "Mobiliário, equipamentos e pontos de instalações (luminárias, tomadas, aparelhos sanitários, terminais…).",
+      "ativo": true,
+      "categorias": [
+        "OST_Furniture",
+        "OST_FurnitureSystems",
+        "OST_Casework",
+        "OST_SpecialityEquipment",
+        "OST_MedicalEquipment",
+        "OST_FoodServiceEquipment",
+        "OST_PlumbingFixtures",
+        "OST_PlumbingEquipment",
+        "OST_MechanicalEquipment",
+        "OST_ElectricalEquipment",
+        "OST_ElectricalFixtures",
+        "OST_LightingFixtures",
+        "OST_LightingDevices",
+        "OST_DataDevices",
+        "OST_TelephoneDevices",
+        "OST_CommunicationDevices",
+        "OST_SecurityDevices",
+        "OST_FireAlarmDevices",
+        "OST_NurseCallDevices",
+        "OST_AudioVisualDevices",
+        "OST_FireProtection",
+        "OST_Sprinklers",
+        "OST_DuctTerminal"
+      ]
+    },
+    {
+      "id": "estrutura",
+      "nome": "Estrutura",
+      "ativo": false,
+      "categorias": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_StructuralFoundation", "OST_StructuralTruss"]
+    },
+    {
+      "id": "arquitetura",
+      "nome": "Arquitetura",
+      "ativo": false,
+      "categorias": ["OST_Walls", "OST_Floors", "OST_Ceilings", "OST_Roofs", "OST_Doors", "OST_Windows", "OST_Stairs", "OST_StairsRailing"]
+    },
+    {
+      "id": "encaminhamentos",
+      "nome": "Encaminhamentos",
+      "ativo": false,
+      "categorias": ["OST_PipeCurves", "OST_PipeFitting", "OST_PipeAccessory", "OST_DuctCurves", "OST_DuctFitting", "OST_DuctAccessory", "OST_CableTray", "OST_CableTrayFitting", "OST_Conduit", "OST_ConduitFitting"]
+    }
+  ]
+}
