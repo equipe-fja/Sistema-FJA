@@ -2,11 +2,11 @@
   "_leia": "Rotinas do servidor (Cloud Functions; exigem o plano Blaze). Ligue por ambiente e faça push. E-mails: firebase/email/config.json. drive: veja docs/servidor.md (precisa autorizar a conta de serviço no Google Workspace antes).",
   "equipe": {
     "homolog": true,
-    "oficial": false
+    "oficial": true
   },
   "autoria": {
     "homolog": true,
-    "oficial": false
+    "oficial": true
   },
   "drive": {
     "homolog": false,
