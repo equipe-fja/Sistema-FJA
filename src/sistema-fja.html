@@ -7287,7 +7287,7 @@ const MANUT=[
   {id:'bkp',nome:'Backup do sistema',resumo:'Cópia completa e diária do banco de dados na pasta BACKUP do Drive.'}
 ];
 const FERRAMENTAS=[
-  {id:'rvext',nome:'Extensão do Revit',resumo:'Baixa a aba Ferramentas FJA do pyRevit (Composições, Componentes, Renomear tipos, Legendas).'},
+  {id:'rvext',nome:'Extensão do Revit',resumo:'Baixa a aba Ferramentas FJA do pyRevit (Composições, Componentes, Copiar do link, Renomear tipos, Legendas).'},
   {id:'pc',nome:'Conexão com PC',resumo:'Abre no Windows Explorer as pastas e arquivos do G: quando você clica num caminho do sistema.'}
 ];
 const PC_LS='fja.conexaoPC', PC_PREFIXO='fja-abrir:', PC_VERSAO='6';
@@ -7957,7 +7957,8 @@ function telaExtRevit(h){
   h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="ferr">Ferramentas</button><span>/</span><span>Extensão do Revit</span></div>
   <h1>Extensão do Revit</h1><p class="lead">Aba Ferramentas FJA do pyRevit, que lê a especificação técnica do sistema e cria tipos no modelo.</p>
   <section class="sheet"><div class="sheet-h"><h2>Extensão Ferramentas FJA</h2>${EXT_REVIT?`<span class="hint">versão ${esc(EXT_REVIT.versao)}</span>`:''}<span class="sp"></span><button class="btn sm pri" data-act="rv-ext"${EXT_REVIT?'':' disabled'}>Baixar a extensão</button></div><div class="pad ferr-pad">
-    <p class="muted">Aba <b>Ferramentas FJA</b> do pyRevit (Composições, Componentes, Renomear tipos, Legendas). Para instalar num computador novo: extraia o .zip, copie a pasta <span class="mono">Ferramentas-FJA.extension</span> para uma pasta de extensões do pyRevit (no escritório: <span class="mono">G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit</span>, já cadastrada no pyRevit de quem usa) e, no Revit, clique em <b>pyRevit › Reload</b>. Num computador que ainda não lê essa pasta: pyRevit › Settings › Custom Extension Directories › adicionar a pasta.</p>
+    <p><b>Novo na versão 2.1.0:</b> painel <b>Links › Copiar do link</b> — copia em massa elementos de um modelo linkado para o modelo aberto, na mesma posição, por módulo (por enquanto <b>Equipamentos</b>: mobiliário, equipamentos, luminárias, tomadas, aparelhos sanitários, terminais…). Famílias face based vêm sem hospedeiro, no mesmo lugar; cada cópia guarda a origem no link para não ser copiada duas vezes.</p>
+    <p class="muted">Aba <b>Ferramentas FJA</b> do pyRevit (Composições, Componentes, Copiar do link, Renomear tipos, Legendas). Para atualizar: baixe o .zip e extraia por cima da pasta atual (os arquivos novos entram, os existentes são substituídos). Para instalar num computador novo: extraia o .zip, copie a pasta <span class="mono">Ferramentas-FJA.extension</span> para uma pasta de extensões do pyRevit (no escritório: <span class="mono">G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit</span>, já cadastrada no pyRevit de quem usa) e, no Revit, clique em <b>pyRevit › Reload</b>. Num computador que ainda não lê essa pasta: pyRevit › Settings › Custom Extension Directories › adicionar a pasta.</p>
   </div></section></div>`;
   return h;
 }
