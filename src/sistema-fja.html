@@ -2807,7 +2807,7 @@ function iniciarConvidado(){
   S.convidado=true; S.ro=false;
   const uid=FB()?.perfil()?.uid||'-';
   db.collection('projetosRfi').where('participantes','array-contains',uid).onSnapshot(snap=>{
-    const m=new Map(); for(const d of snap.docs){const v=d.data(); m.set(d.id,{secao:'projetos',nome:v.nome||'',pasta:v.pasta||'',status:v.status||'',campos:{codigo:v.codigo||''},disciplinas:v.disciplinas||[],participantes:v.participantes||[],id:d.id})}
+    const m=new Map(); for(const d of snap.docs){const v=d.data(); m.set(d.id,{secao:'projetos',nome:v.nome||'',pasta:v.pasta||'',status:v.status||'',campos:{codigo:v.codigo||''},disciplinas:v.disciplinas||[],participantes:v.participantes||[],envolvidos:v.envolvidos||[],id:d.id})}
     S.itens=m; if(!S.carregado){S.carregado=true;S.estado='ok';if(restaurarVista())return} if(S.dirty) renderTree(); else render();
   },e=>{console.warn('projetosRfi',e); S.carregado=true; S.estado='ok'; render()});
   rfiColl().where('participantes','array-contains',uid).onSnapshot(snap=>{
@@ -2816,12 +2816,19 @@ function iniciarConvidado(){
     if(S.carregado){if(S.dirty) renderTree(); else render()}
   },e=>console.warn('rfi',e));
 }
+/* envolvidos no projeto (para o convidado escolher requeridos): empresas da equipe, com as disciplinas que atendem, e as pessoas participantes. Sem e-mails. */
+function rfiEnvolvidos(p){const L=ACS.lista||[];
+  const es=empresasProj(p).map(id=>{const discs=(p.disciplinas||[]).filter(l=>l.parceiro===id||(l.apoio||[]).includes(id)).map(l=>l.sigla||l.cod); return {tipo:'e',id,nome:S.itens.get(id)?.nome||'',...(discs.length?{discs}:{})}});
+  const us=partsDe(p).map(uid=>L.find(x=>x.id===uid)).filter(Boolean).map(u=>({tipo:'u',id:u.id,nome:u.nome||u.email||'',...(u.empresa&&S.itens.get(u.empresa)?{empresa:u.empresa,empresaNome:acsEmpNome(u.empresa)}:{})}))
+    .sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt'));
+  return [...es,...us]}
 /* equipe: mantém projetosRfi (nome, código, pasta, status e disciplinas de cada projeto) para os convidados */
 const PRFI={hash:{}};
 async function projetosRfiSincronizar(){
   const f=AMB==='firebase'?window.FJA_FIREBASE?.fs:null; if(!f||!FB()?.admin()||!S.carregado||S.convidado) return;
+  if(!Array.isArray(ACS.lista)){acsOuvir(); return} // os nomes dos envolvidos vêm das contas
   const ps=itensDe('projetos'), ids=new Set(ps.map(p=>p.id));
-  for(const p of ps){const v={nome:p.nome||'',codigo:p.campos?.codigo||'',pasta:p.pasta||'',status:p.status||'',disciplinas:(p.disciplinas||[]).map(d=>({cod:d.cod,...(d.sigla?{sigla:d.sigla}:{})})),participantes:partsDe(p)}, h=JSON.stringify(v);
+  for(const p of ps){const v={nome:p.nome||'',codigo:p.campos?.codigo||'',pasta:p.pasta||'',status:p.status||'',disciplinas:(p.disciplinas||[]).map(d=>({cod:d.cod,...(d.sigla?{sigla:d.sigla}:{})})),participantes:partsDe(p),envolvidos:rfiEnvolvidos(p)}, h=JSON.stringify(v);
     if(PRFI.hash[p.id]!==h){try{await f.collection('projetosRfi').doc(p.id).set(v); PRFI.hash[p.id]=h}catch(e){console.warn('projetosRfi',e);return}}
     // cada RFI leva a lista de participantes do projeto (as regras do banco usam para os convidados)
     const pj=JSON.stringify(v.participantes);
@@ -2864,7 +2871,10 @@ const RFI_CAMPOS=[['assunto','Assunto','text','wide'],['descricao','Pergunta / d
 function rfiEmpresasDisc(e){const ids=new Set(); for(const c of discsRfi(e)){const l=linhaDisc(e.projeto,c); if(l?.parceiro) ids.add(l.parceiro); for(const a of (l?.apoio||[])) ids.add(a)} return ids}
 const rfiDiscsDaEmpresa=(e,eid)=>discsRfi(e).filter(c=>{const l=linhaDisc(e.projeto,c); return l&&(l.parceiro===eid||(l.apoio||[]).includes(eid))}).map(c=>siglaP(e.projeto,c));
 function rfiReqOpcoes(e){
-  if(S.convidado) return rfiPessoaOpcoes(null).replace('<option value="">—</option>','<option value="">+ adicionar requerido</option>');
+  if(S.convidado){const env=S.itens.get(e.projeto)?.envolvidos||[]; if(!env.length) return rfiPessoaOpcoes(null).replace('<option value="">—</option>','<option value="">+ adicionar requerido</option>');
+    const ja=new Set(reqsRfi(e).map(q=>q.tipo+':'+q.id)), op=x=>ja.has(x.tipo+':'+x.id)?'':`<option value="${esc(x.tipo+':'+x.id)}">${esc(x.nome)}${x.tipo==='e'?(x.discs?.length?' · '+esc(x.discs.join(' ')):''):x.empresaNome?' · '+esc(x.empresaNome):''}</option>`;
+    const g=(rot,L)=>{const h=L.map(op).join(''); return h?`<optgroup label="${esc(rot)}">${h}</optgroup>`:''};
+    return '<option value="">+ adicionar requerido</option>'+g('Empresas do projeto',env.filter(x=>x.tipo==='e'))+g('Pessoas do projeto',env.filter(x=>x.tipo==='u'))}
   acsOuvir();
   const ja=new Set(reqsRfi(e).map(q=>q.tipo+':'+q.id)), it=S.itens.get(e.projeto), parts=partsDe(it), L=ACS.lista||[];
   const nomeU=u=>u.nome||u.email, ordN=(a,b)=>String(nomeU(a)).localeCompare(String(nomeU(b)),'pt');
@@ -2954,7 +2964,7 @@ function telaRfiItem(h,v){
   h+=`<section class="sheet"><div class="sheet-h"><h2>RFI</h2></div><div class="grid">${camposRO(RFI_CAMPOS.map(f=>eqCampoHTML(f,e[f[0]])).join(''))}
     <label class="fl" for="q_requerente">Requerente<select class="fld" id="q_requerente" data-rfip="requerente" ${dis||(conv&&!rfiMaster()?'disabled':'')}>${rfiPessoaOpcoes(e.requerente)}</select></label>
     ${campoDiscRfi(e,roD)}
-    <div class="fl wide">Requeridos <span class="muted" style="font-size:11.5px">(quem deve responder${discsRfi(e).length?'; sugestões pelas disciplinas envolvidas':''})</span><div class="tags-ed" style="padding:4px 0 0">${rq.map((r,i)=>`<span class="chip chip-c"><span>${esc(rfiPessoaNome(r))}</span><span class="muted" style="font-size:11.5px">${r.tipo==='e'?'empresa'+(rfiEmpresasDisc(e).has(r.id)?' · '+esc(rfiDiscsDaEmpresa(e,r.id).join(' ')):''):(()=>{const m=(ACS.lista||[]).find(x=>x.id===r.id)?.email; return m?esc(m):'sem e-mail'})()}</span>${roD?'':`<button data-act="rfi-req-rm" data-i="${i}" aria-label="Tirar ${esc(rfiPessoaNome(r))}">${IC.x}</button>`}</span>`).join('')||(roD?'<span class="muted">nenhum</span>':'')}
+    <div class="fl wide">Requeridos <span class="muted" style="font-size:11.5px">(quem deve responder${discsRfi(e).length?'; sugestões pelas disciplinas envolvidas':''})</span><div class="tags-ed" style="padding:4px 0 0">${rq.map((r,i)=>`<span class="chip chip-c"><span>${esc(rfiPessoaNome(r))}</span><span class="muted" style="font-size:11.5px">${r.tipo==='e'?'empresa'+(rfiEmpresasDisc(e).has(r.id)?' · '+esc(rfiDiscsDaEmpresa(e,r.id).join(' ')):''):(()=>{if(S.convidado) return 'pessoa'; const m=(ACS.lista||[]).find(x=>x.id===r.id)?.email; return m?esc(m):'sem e-mail'})()}</span>${roD?'':`<button data-act="rfi-req-rm" data-i="${i}" aria-label="Tirar ${esc(rfiPessoaNome(r))}">${IC.x}</button>`}</span>`).join('')||(roD?'<span class="muted">nenhum</span>':'')}
       ${roD?'':`<span class="tag-add"><select class="fld" id="q_requerido" data-rfip="requeridos" aria-label="Adicionar requerido">${rfiReqOpcoes(e)}</select></span>`}</div></div></div>
     ${!conv&&!S.ro?`<div class="pad" style="padding-top:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="muted" style="font-size:12.5px;flex:1">${mails.length?`E-mail: <span class="mono">${esc(mails.join(', '))}</span>${(e.notificacoes||[]).length?` · última notificação ${esc(acsFmtDH(e.notificacoes[e.notificacoes.length-1].em))}`:''}`:'A notificação por e-mail fica disponível quando algum requerido for uma pessoa com e-mail.'}</span><button class="btn sm${mails.length?' pri':''}" data-act="rfi-notificar" ${mails.length&&!S.dirty?'':'disabled'} title="${S.dirty?'Salve antes de notificar':'Abre o seu e-mail com a mensagem pronta'}">Notificar por e-mail</button></div>`:''}</section>`;
   h+=`<section class="sheet"><div class="sheet-h"><h2>Prazos</h2></div><div class="grid">${camposRO([['abertura','Abertura','date'],['prazo','Prazo para resposta','date'],['fechamento','Fechamento','date']].map(f=>eqCampoHTML(f,e[f[0]])).join(''))}</div></section>`;
@@ -3055,12 +3065,13 @@ document.addEventListener('change',async ev=>{
   const el=ev.target; if(!S.qdraft||S.view?.t!=='rfii') return;
   if(el.id==='rfiTagIn'&&el.value){rfiGarantir(); if(!S.qdraft.disciplinas.includes(el.value)) S.qdraft.disciplinas.push(el.value);
     marcaSujo(); renderMain(); return}
-  if(el.dataset.rfip){const k=el.dataset.rfip, v=el.value; let p=null;
+  if(el.dataset.rfip){const k=el.dataset.rfip, v=el.value; let p=null, p0=null;
     if(v==='+u') p=await rfiNovaPessoa();
     else if(v==='+e'){const id=await acsNovoParceiro(); if(id) p={tipo:'e',id,nome:S.itens.get(id)?.nome||''}}
     else if(v){const [t,id]=[v[0],v.slice(2)]; let nm=t==='e'?S.itens.get(id)?.nome||'':((ACS.lista||[]).find(x=>x.id===id)?.nome||'');
+      const ev=S.convidado?(S.itens.get(S.qdraft.projeto)?.envolvidos||[]).find(x=>x.tipo===t&&x.id===id):null; if(ev){nm=ev.nome; p0=ev}
       if(!nm){for(const r of S.rfis.values()) for(const q of [r.requerente,...reqsRfi(r)]) if(q?.id===id&&q.nome) nm=q.nome; if(!nm&&id===FB()?.perfil()?.uid) nm=FB().perfil().nome||FB().perfil().email}
-      p={tipo:t,id,nome:nm}}
+      p={tipo:t,id,nome:nm,...(p0?.empresa?{empresa:p0.empresa,empresaNome:p0.empresaNome}:{})}}
     if(v&&v.startsWith('+')&&!p){el.innerHTML=k==='requeridos'?rfiReqOpcoes(S.qdraft):rfiPessoaOpcoes(S.qdraft[k]);return}
     if(p&&!S.convidado){const u=p.tipo==='u'?(ACS.lista||[]).find(x=>x.id===p.id):null; if(u?.empresa){p.empresa=u.empresa; p.empresaNome=acsEmpNome(u.empresa)}}
     if(k==='requeridos'){if(!p) return; const L=reqsRfi(S.qdraft); if(!L.some(q=>q.tipo===p.tipo&&q.id===p.id)) L.push(p); S.qdraft.requeridos=L; delete S.qdraft.requerido; marcaSujo(); renderMain(); return}
