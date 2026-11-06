@@ -27,17 +27,33 @@ const SITE = `https://${PROJ}.web.app`;
 const AMBI = HOMOLOG ? 'homolog' : 'oficial';
 const ligado = () => !!(CFG.remetente && CFG.ativo && CFG.ativo[AMBI]);
 const rotina = nome => !!(SRV[nome] && SRV[nome][AMBI]);
-// a senha do e-mail só é exigida quando o e-mail está ligado (senão a publicação pararia pedindo o valor)
-const SMTP_SENHA = ligado() ? defineSecret('SMTP_SENHA') : null;
+// Envio: "delegacao" (padrão) = API do Gmail em nome do remetente, com a conta de serviço autorizada no Workspace (escopo gmail.send),
+// sem senha de app; "smtp" = Gmail SMTP com senha de app (segredo SMTP_SENHA). Os segredos só são declarados quando usados.
+const VIA_SMTP = CFG.via === 'smtp';
+const usaChaveSA = (ligado() && !VIA_SMTP) || rotina('drive');
+const SMTP_SENHA = ligado() && VIA_SMTP ? defineSecret('SMTP_SENHA') : null;
+const DRIVE_SA = usaChaveSA ? defineSecret('DRIVE_SA') : null;
+const SEGREDOS_EMAIL = [VIA_SMTP ? SMTP_SENHA : DRIVE_SA].filter(Boolean);
 
 let transp = null;
 const smtp = () => transp || (transp = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: CFG.remetente, pass: SMTP_SENHA.value() } }));
+let jwtGmail = null;
+async function enviarGmail(msg) {
+  const { JWT } = require('google-auth-library');
+  if (!jwtGmail) { const k = JSON.parse(DRIVE_SA.value()); jwtGmail = new JWT({ email: k.client_email, key: k.private_key, scopes: ['https://www.googleapis.com/auth/gmail.send'], subject: CFG.remetente }); }
+  const MailComposer = require('nodemailer/lib/mail-composer');
+  const raw = (await new MailComposer(msg).compile().build()).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const t = (await jwtGmail.getAccessToken()).token;
+  const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw }) });
+  if (!r.ok) { jwtGmail = null; throw new Error('Gmail: HTTP ' + r.status + ' ' + (await r.text()).slice(0, 300)); }
+}
 
 async function enviar(conta, assunto, html, meta) {
   const para = HOMOLOG ? (CFG.homologPara || CFG.remetente) : conta.email;
   const corpo = HOMOLOG ? html.replace(/<body([^>]*)>/, `<body$1>${M.faixaHomolog(conta.email)}`) : html;
   const ass = (HOMOLOG ? '[HOMOLOG] ' : '') + assunto;
-  await smtp().sendMail({ from: `"${CFG.nomeRemetente || 'Sistema FJA'}" <${CFG.remetente}>`, to: para, subject: ass, html: corpo, text: M.texto(corpo) });
+  const msg = { from: `"${CFG.nomeRemetente || 'Sistema FJA'}" <${CFG.remetente}>`, to: para, subject: ass, html: corpo, text: M.texto(corpo) };
+  if (VIA_SMTP) await smtp().sendMail(msg); else await enviarGmail(msg);
   await db.collection('emailsEnviados').add({ em: Date.now(), para: conta.email, enviadoA: para, assunto: ass, ...meta });
 }
 
@@ -51,7 +67,7 @@ async function contexto() {
 const nomeProj = p => p ? [p.codigo, p.nome].filter(Boolean).join(' ') : '';
 const quando = t => new Date(t).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·');
 
-if (ligado()) exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secrets: [SMTP_SENHA] }, async ev => {
+if (ligado()) exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secrets: SEGREDOS_EMAIL }, async ev => {
   if (!ligado()) return;
   const antes = ev.data.before.exists ? ev.data.before.data() : null, ri = ev.data.after.exists ? ev.data.after.data() : null;
   if (!ri) return;
@@ -69,7 +85,7 @@ if (ligado()) exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secre
   }
 });
 
-if (ligado()) exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && CFG.resumo.hora) || 8} * * ${CFG.resumo && CFG.resumo.diasUteis === false ? '*' : '1-5'}`, timeZone: 'America/Sao_Paulo', secrets: [SMTP_SENHA] }, async () => {
+if (ligado()) exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && CFG.resumo.hora) || 8} * * ${CFG.resumo && CFG.resumo.diasUteis === false ? '*' : '1-5'}`, timeZone: 'America/Sao_Paulo', secrets: SEGREDOS_EMAIL }, async () => {
   if (!ligado()) return;
   const { contas, projetos } = await contexto();
   const ris = (await db.collection('rfi').get()).docs.map(d => ({ id: d.id, ...d.data() }));
@@ -120,7 +136,6 @@ if (rotina('autoria')) {
 if (rotina('drive')) {
   const { onCall, HttpsError } = require('firebase-functions/v2/https');
   const { JWT } = require('google-auth-library');
-  const DRIVE_SA = defineSecret('DRIVE_SA');
   let jwt = null;
   exports.driveToken = onCall({ region: 'southamerica-east1', secrets: [DRIVE_SA], cors: true }, async req => {
     if (!req.auth) throw new HttpsError('unauthenticated', 'entre no sistema');

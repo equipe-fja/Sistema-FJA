@@ -1,8 +1,15 @@
 {
-  "_leia": "Envio de e-mails (Cloud Functions). ativo.homolog/ativo.oficial ligam o envio em cada projeto (exige plano Blaze e o segredo SMTP_SENHA_APP no GitHub). Na homologação todos os e-mails vão para homologPara.",
-  "remetente": "",
+  "_leia": "Envio de e-mails (Cloud Functions). via: 'delegacao' (padrão: API do Gmail em nome do remetente, autorizada no Google Workspace, sem senha) ou 'smtp' (senha de app no segredo SMTP_SENHA_APP do GitHub). ativo.homolog/ativo.oficial ligam o envio. Na homologação todos os e-mails vão para homologPara.",
+  "remetente": "equipe@fj.arq.br",
   "nomeRemetente": "Sistema FJA",
-  "ativo": {"homolog": false, "oficial": false},
+  "ativo": {
+    "homolog": false,
+    "oficial": false
+  },
   "homologPara": "equipe@fj.arq.br",
-  "resumo": {"hora": "8", "diasUteis": true}
+  "resumo": {
+    "hora": "8",
+    "diasUteis": true
+  },
+  "via": "delegacao"
 }

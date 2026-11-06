@@ -11,9 +11,10 @@ Envio pelo servidor (Cloud Functions, exige plano **Blaze**), pela conta Google 
 - Na homologação tudo vai para `homologPara`, com uma faixa dizendo para quem iria.
 
 ## Como ligar
-1. Ativar o Blaze no projeto (homologação primeiro).
-2. Na conta remetente: verificação em duas etapas + senha de app. Cadastrar a senha de app no GitHub como segredo **`SMTP_SENHA_APP`** (Settings › Secrets and variables › Actions). Ela não passa pelo chat.
-3. Em `firebase/email/config.json`: `remetente` e `ativo.homolog: true` (depois `ativo.oficial: true`) + push. A publicação (workflow firebase-publicar) cria o segredo `SMTP_SENHA` no projeto e publica as funções; resultado em `logs/publicar-homolog.txt` / `publicar-oficial.txt` (branch firebase-log).
+Padrão (`"via": "delegacao"`): os e-mails saem pela API do Gmail em nome de `remetente` (equipe@fj.arq.br), com a mesma autorização
+do Workspace usada pelo Drive (escopo `gmail.send`, ver "drive" abaixo). Não há senha de app.
+Depois de autorizado: `ativo.homolog: true` (depois `ativo.oficial: true`) + push.
+Alternativa (`"via": "smtp"`): senha de app do Gmail no segredo do GitHub `SMTP_SENHA_APP`.
 
 ## Arquivos
 - `firebase/functions/index.js` (gatilhos), `logica.js` (quem recebe o quê), `modelo.js` (HTML dos e-mails).
@@ -46,5 +47,6 @@ A chave da conta de serviço do projeto (a mesma do segredo do GitHub usado para
 Antes de ligar, autorizar a conta de serviço (uma vez por projeto), no Google Workspace da FJA:
 1. admin.google.com › Segurança › Acesso e controle de dados › Controles de API › **Gerenciar delegação em todo o domínio** › Adicionar novo.
 2. ID do cliente: o número que aparece no log da publicação ("drive: conta de serviço …"), ou em Google Cloud Console › IAM › Contas de serviço › firebase-adminsdk › ID exclusivo.
-3. Escopos: `https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets`.
+3. Escopos (Drive, Planilhas e envio de e-mail): `https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/gmail.send`.
+4. Fazer para as duas contas de serviço: `firebase-adminsdk-fbsvc@sistema-fja.iam.gserviceaccount.com` e `firebase-adminsdk-fbsvc@sistema-fja-homolog.iam.gserviceaccount.com` (cada uma tem o seu ID).
 Alternativa sem delegação (`"modo": "compartilhado"`): as pastas do sistema num Drive compartilhado, com o e-mail da conta de serviço como membro (Administrador de conteúdo).
