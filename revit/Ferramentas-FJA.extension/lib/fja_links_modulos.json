@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "observacao": "Módulos da ferramenta Links › Copiar do link. Cada categoria (nome do BuiltInCategory) pertence a um módulo só. 'ativo': false = ainda não liberado.",
+  "observacao": "Módulos da ferramenta Links › Copiar do link / Verificar alterações. Cada categoria (nome do BuiltInCategory) pertence a um módulo só. 'parametros': parâmetros de instância acompanhados pela verificação (nome do BuiltInParameter em maiúsculas ou o nome do parâmetro). 'ativo': false = ainda não liberado.",
   "modulos": [
     {
       "id": "equipamentos",
@@ -31,25 +31,66 @@
         "OST_FireProtection",
         "OST_Sprinklers",
         "OST_DuctTerminal"
+      ],
+      "parametros": [
+        "ALL_MODEL_MARK",
+        "ALL_MODEL_INSTANCE_COMMENTS"
       ]
     },
     {
       "id": "estrutura",
       "nome": "Estrutura",
       "ativo": false,
-      "categorias": ["OST_StructuralColumns", "OST_StructuralFraming", "OST_StructuralFoundation", "OST_StructuralTruss"]
+      "categorias": [
+        "OST_StructuralColumns",
+        "OST_StructuralFraming",
+        "OST_StructuralFoundation",
+        "OST_StructuralTruss"
+      ],
+      "parametros": [
+        "ALL_MODEL_MARK",
+        "ALL_MODEL_INSTANCE_COMMENTS"
+      ]
     },
     {
       "id": "arquitetura",
       "nome": "Arquitetura",
       "ativo": false,
-      "categorias": ["OST_Walls", "OST_Floors", "OST_Ceilings", "OST_Roofs", "OST_Doors", "OST_Windows", "OST_Stairs", "OST_StairsRailing"]
+      "categorias": [
+        "OST_Walls",
+        "OST_Floors",
+        "OST_Ceilings",
+        "OST_Roofs",
+        "OST_Doors",
+        "OST_Windows",
+        "OST_Stairs",
+        "OST_StairsRailing"
+      ],
+      "parametros": [
+        "ALL_MODEL_MARK",
+        "ALL_MODEL_INSTANCE_COMMENTS"
+      ]
     },
     {
       "id": "encaminhamentos",
       "nome": "Encaminhamentos",
       "ativo": false,
-      "categorias": ["OST_PipeCurves", "OST_PipeFitting", "OST_PipeAccessory", "OST_DuctCurves", "OST_DuctFitting", "OST_DuctAccessory", "OST_CableTray", "OST_CableTrayFitting", "OST_Conduit", "OST_ConduitFitting"]
+      "categorias": [
+        "OST_PipeCurves",
+        "OST_PipeFitting",
+        "OST_PipeAccessory",
+        "OST_DuctCurves",
+        "OST_DuctFitting",
+        "OST_DuctAccessory",
+        "OST_CableTray",
+        "OST_CableTrayFitting",
+        "OST_Conduit",
+        "OST_ConduitFitting"
+      ],
+      "parametros": [
+        "ALL_MODEL_MARK",
+        "ALL_MODEL_INSTANCE_COMMENTS"
+      ]
     }
   ]
 }

@@ -4,12 +4,13 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.2.0)
+## Conteúdo atual (extensão 2.3.0)
 - Legendas › **Legenda LUM** — legenda de luminárias.
 - Legendas › **Legenda ELE** — legenda de pontos elétricos.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
 - Suíte › **Atualizar** — baixa a versão mais recente publicada pelo sistema (banco: `revitPub/extensao-versao` e `revitPub/extensao`, gravados por `extDbPublicar` na página Firebase), grava na pasta da extensão em uso (espelhando, menos `.pyc`) e recarrega o pyRevit (lógica em `lib/fja_suite.py`).
+- Links › **Verificar alterações** — compara cada cópia registrada com a origem no link (versão carregada): alterado no link (posição, rotação, tipo, espelhamento, nível, parâmetros do módulo, link movido), alterado no projeto (cópia mexida desde a última sincronização), apagado no link, novo no link, link ausente. Ações em lote: atualizar pelo link (move/gira/troca o tipo no lugar; espelhamento, nível, orientação de face ou tipo ausente → copia de novo), aceitar como está, apagar cópias órfãs, copiar novos.
 - Links › **Copiar do link** — copia em massa elementos de um link para o modelo, na mesma posição, por módulo (lógica em `lib/fja_links.py`, módulos em `lib/fja_links_modulos.json`). Ver abaixo.
 
 Origem: cópia de `%APPDATA%\pyRevit\Extensions\Ferramentas-FJA.extension` de um computador do escritório (03/11/2026).
@@ -24,6 +25,7 @@ Origem: cópia de `%APPDATA%\pyRevit\Extensions\Ferramentas-FJA.extension` de um
 - Módulos: **Equipamentos** (liberado: mobiliário, marcenaria, equipamentos, aparelhos sanitários, luminárias, tomadas e demais dispositivos, sprinklers, terminais de ar), **Estrutura**, **Arquitetura** e **Encaminhamentos** (ainda "em breve"). As categorias de cada módulo ficam em `lib/fja_links_modulos.json`; cada categoria pertence a um módulo só.
 - Janela: escolha do link e do módulo; lista agrupada por categoria · família · tipo · nível, com filtros e situação (novos / já copiados / precisam de hospedeiro); workset de destino; "Escolher no modelo…" para selecionar elementos do link na vista (ou selecionar com Tab antes de abrir). Sem linhas selecionadas, copia os novos de todas as linhas visíveis.
 - Cópia com `ElementTransformUtils.CopyElements` usando a posição da instância do link: mesma posição e rotação, inclusive espelhados; tipos com o mesmo nome usam o tipo do modelo. Famílias **face based** vêm **sem hospedeiro**, no mesmo lugar. Famílias hospedadas em parede/forro/piso (não face based) não copiam e aparecem como "precisam de hospedeiro". Componentes aninhados compartilhados vêm com o pai; opções de projeto secundárias ficam de fora.
+- O registro guarda também a posição do link (`lt`), a posição da cópia (`c`) e os parâmetros do módulo (`p`, lista `parametros` em `fja_links_modulos.json`; padrão Marca e Comentários) — base do Verificar alterações. Cópias feitas antes da 2.3.0 são comparadas sem esses campos (só posição, tipo e nível).
 - Cada cópia recebe o registro `FJA_CopiaLink` (Extensible Storage): módulo, link, UniqueId da instância do link, UniqueId do elemento de origem, foto do estado da origem (família, tipo, posição e orientação no link, espelhado, nível), data e usuário. Serve para não copiar duas vezes e é a base do monitoramento (próxima etapa: "Verificar alterações").
 - Testado no Revit 2027 com modelos temporários (link deslocado e girado, nível com cota diferente, espelhado, face based em laje e em parede, tomada hospedada em parede).
 

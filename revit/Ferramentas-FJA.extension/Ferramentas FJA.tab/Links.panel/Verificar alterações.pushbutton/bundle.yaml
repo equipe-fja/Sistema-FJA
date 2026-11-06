@@ -1,0 +1,7 @@
+title:
+  pt_br: "Verificar\nalterações"
+  en_us: "Verificar\nalterações"
+tooltip:
+  pt_br: "Compara as cópias feitas pelo Copiar do link com a origem no link (versão carregada; recarregue o link antes) e mostra o que mudou no link (posição, rotação, tipo, espelhamento, nível, Marca e Comentários), o que foi mexido neste modelo, o que foi apagado no link e o que é novo. Atualiza pelo link, aceita como está, apaga cópias órfãs e copia os novos, em lote."
+  en_us: "Compara as cópias com a origem no link e sincroniza."
+author: "Ferramentas FJA"
