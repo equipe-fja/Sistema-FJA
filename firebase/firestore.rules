@@ -79,7 +79,7 @@ service cloud.firestore {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) || request.resource.data.status == 'RESPONDIDA';
     }
     // RFI: só o autor altera os dados ou exclui; o Master faz tudo. Os demais (equipe ou convidados participantes) comentam;
-    // respondem a equipe e os requeridos. Cada resposta ou comentário só é alterado por quem escreveu (controle feito pelo sistema).
+    // respondem a equipe e os requeridos; o status, qualquer administrador. Cada resposta ou comentário só é alterado por quem escreveu (controle feito pelo sistema).
     match /rfi/{id} {
       allow read: if interno() || participa();
       allow create: if master() || ((interno() || criaConvidado()) && request.resource.data.get('autorId', '') == request.auth.uid);
@@ -92,7 +92,8 @@ service cloud.firestore {
         || (interno() && muda(['requerente', 'requeridos', 'requeridosIds', 'requerido']))  // ativação de pessoa cadastrada sem acesso
         || (interno() && histOk() && muda(['notificacoes', 'historico']))
         || ((interno() || participa()) && histOk() && muda(['comentarios', 'historico', 'atualizadoEm', 'atualizadoPor']))
-        || ((interno() || (participa() && dirigida())) && histOk() && mudouStatusParaRespondida()
+        || (interno() && histOk() && muda(['comentarios', 'respostas', 'status', 'historico', 'atualizadoEm', 'atualizadoPor']))  // status: qualquer administrador
+        || (participa() && dirigida() && histOk() && mudouStatusParaRespondida()
             && muda(['comentarios', 'respostas', 'status', 'historico', 'atualizadoEm', 'atualizadoPor']));
     }
     match /projetosRfi/{id} {
