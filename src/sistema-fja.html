@@ -8284,10 +8284,10 @@ function telaConta(h){
     <p><b>${esc(p.nome||'')}</b> <span class="mono">${esc(p.email||'')}</span> · ${acsNivelTxt(p.nivel)}${p.empresa?` · <button class="btn sm ghost" data-act="item" data-id="${esc(p.empresa)}">${esc(acsEmpNome(p.empresa))}</button>`:''}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="acs-senha">Alterar senha</button><button class="btn ghost" data-act="acs-sair">Sair</button></div>
   </div></section>
-  <section class="sheet"><div class="sheet-h"><h2>Avisos por e-mail</h2></div><div class="pad ferr-pad">
+  ${window.FJA_EMAILS?`<section class="sheet"><div class="sheet-h"><h2>Avisos por e-mail</h2></div><div class="pad ferr-pad">
     <p class="muted" style="margin-top:0">Avisos das RIs: quando uma RI é dirigida a você, quando chega resposta numa RI sua e quando uma RI é fechada. O resumo diário (8h) lista o que está pendente com você e os prazos vencendo.</p>
     <label class="fl" style="max-width:420px">Receber<select class="fld" id="contaAvisos" ${S.ro?'disabled':''}>${[['todos','Avisos na hora e resumo diário'],['resumo','Só o resumo diário'],['nenhum','Nenhum e-mail']].map(([v,t])=>`<option value="${v}"${(p.avisos||'todos')===v?' selected':''}>${t}</option>`).join('')}</select></label>
-  </div></section></div>`;
+  </div></section>`:''}</div>`;
   return h;
 }
 function telaAcesso(h){

@@ -27,6 +27,9 @@ for saida,arq,homolog,titulo in [('dist/firebase/index.html','firebase/config.js
                                  ('dist/homolog/index.html','firebase/config-homolog.js',True,'Sistema FJA · Homologação')]:
     s=src.replace("const AMB='oficial'","const AMB='firebase'",1).replace("<title>Sistema FJA</title>","<title>"+titulo+"</title>",1)
     sh=shim.replace('/*FB_CFG*/null',cfg(arq))
+    import json
+    em=json.load(open('firebase/email/config.json')); emOn=bool(em.get('remetente')) and bool(em.get('ativo',{}).get('homolog' if homolog else 'oficial'))
+    sh='<script>window.FJA_EMAILS='+('true' if emOn else 'false')+'</script>\n'+sh
     if homolog: sh='<script>window.FJA_FB_HOMOLOG=true</script>\n'+sh
     else:
         import json; v=json.load(open('firebase/virada.json')).get('virada',False)
