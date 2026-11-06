@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 06/11, ~14h55 — commit 5980850 (dev v158)
+- Extensão do Revit: botão "Baixar o instalador" — o .zip traz a extensão, instalar.cmd e LEIA-ME. O instalador copia para a pasta compartilhada do G: (sem substituir versão mais nova), cadastra a pasta no pyRevit do usuário e tira a cópia local antiga; sem o G:, instala só no computador.
+- Tela da extensão: caminhos do G: voltam a aparecer com as barras.
+
 ## oficial Firebase — 06/11, ~14h45 — commit 6213333 (dev v157)
 - Extensão do Revit 2.1.0 (Biblioteca › Ferramentas › Extensão do Revit): novo painel Links › Copiar do link (módulo Equipamentos); a tela avisa a novidade e explica como atualizar.
 - Drive pelo servidor engatilhado (função driveToken), desligado em firebase/servidor.json — sem efeito até ser ligado.
