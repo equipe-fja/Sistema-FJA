@@ -1,7 +1,7 @@
 tarefa: exemplos
-status: failure
-commit: 99d88f04b93fe9fa266c6935cfea16a50cb3bd91
-quando: 2026-11-05T21:28:40Z
+status: success
+commit: 13778bf36c028e807846523e78c08625db25e8c1
+quando: 2026-11-06T15:52:16Z
 ----
-projeto: sistema-fja
-ERRO: 8 RESOURCE_EXHAUSTED: Quota exceeded.
+projeto: sistema-fja-homolog
+CONCLUÍDO: Convidado Teste <equipe+convidado@fj.arq.br> · conta criada · 24 projetos · 2 RFIs · senha provisória em Usuários e acesso
