@@ -5,6 +5,12 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 06/11, ~13h45 — commit e61cf30
+- RFI passa a se chamar RI · Requisição de Informações (textos, PDF e e-mail; dados sem mudança).
+- Link direto para uma RI (#ri=<projeto>/<id>), usado pelos e-mails.
+- Regras do banco: preferência de avisos (acessos.avisos) e registro emailsEnviados.
+- Servidor (Cloud Functions) pronto e desligado: e-mails de aviso e resumo diário, equipe dos projetos, autoria das respostas/comentários. Ligam depois do Blaze (firebase/email/config.json, firebase/servidor.json).
+
 ## oficial Firebase — 06/11, ~13h10 — commit 2e80210
 - RFI: histórico geral do projeto (ampulheta na lista); ampulhetas ocultas para convidados.
 - Planilhas: sem o botão Colunas (botão direito no cabeçalho); barra horizontal própria, que segue o mouse sem saltos.
