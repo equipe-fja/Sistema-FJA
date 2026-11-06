@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: failure
-commit: 1698965bf371baf98a976aba343af5170e1f30bb
-quando: 2026-11-06T20:17:07Z
+commit: 38644a4d476c9af3940221cef6a4cf5e6a092a9a
+quando: 2026-11-06T20:20:24Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -35,17 +35,15 @@ banco em: southamerica-east1 · funções em: southamerica-east1
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudbuild.googleapis.com[22m is enabled...
 [36m[1mi  artifactregistry:[22m[39m ensuring required API [1martifactregistry.googleapis.com[22m is enabled...
 [32m[1m✔  functions:[22m[39m required API [1mcloudfunctions.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [32m[1m✔  artifactregistry:[22m[39m required API [1martifactregistry.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mpackage.json indicates an outdated version of firebase-functions. Please upgrade using [1mnpm install --save firebase-functions@latest[22m in your functions directory.
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mPlease note that there will be breaking changes when you upgrade.
 [36m[1mi  functions:[22m[39m Loading and analyzing source code for codebase default to determine what to deploy
-Serving at port 8479
+Serving at port 8845
 
 [36m[1mi  extensions:[22m[39m ensuring required API [1mfirebaseextensions.googleapis.com[22m is enabled...
-[33m[1m⚠  extensions:[22m[39m missing required API [1mfirebaseextensions.googleapis.com[22m. Enabling now...
-
-[1m[31mError:[39m[22m Permissions denied enabling firebaseextensions.googleapis.com.
-        Please ask a project owner to visit the following URL to enable this service:
-        
-        https://console.cloud.google.com/apis/library/firebaseextensions.googleapis.com?project=sistema-fja-homolog
+[32m[1m✔  extensions:[22m[39m required API [1mfirebaseextensions.googleapis.com[22m is enabled
+? This secret will be stored in Cloud Secret Manager 
+(https://cloud.google.com/secret-manager/pricing) as SMTP_SENHA. Enter a value 
+for SMTP_SENHA: [input is hidden] [2A[34D[166C[2B
