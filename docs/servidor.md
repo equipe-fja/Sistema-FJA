@@ -37,3 +37,14 @@ O Master pode tudo. Antes, isso era garantido só pela tela.
 Os pedidos do Revit (`revitPedidos`) e a publicação de `revitPub` dependem de um sistema aberto. Levar para o servidor exige
 tirar do arquivo do sistema a lógica da biblioteca (criar item central, reservar código FJ e keynote, incluir no projeto,
 montar biblioteca.json/projeto-*.json) para um módulo usado pelo navegador e pelo servidor, sem duplicar regras.
+
+## drive (Drive e Planilhas pelo servidor)
+Com `drive.<ambiente>: true`, administradores não precisam mais conectar o Google: a tela pede ao servidor (função `driveToken`,
+região southamerica-east1) um acesso de 1 h em nome de `drive.conta`, renovado sozinho. Convidados não recebem.
+A chave da conta de serviço do projeto (a mesma do segredo do GitHub usado para publicar) vira o segredo `DRIVE_SA` do projeto.
+
+Antes de ligar, autorizar a conta de serviço (uma vez por projeto), no Google Workspace da FJA:
+1. admin.google.com › Segurança › Acesso e controle de dados › Controles de API › **Gerenciar delegação em todo o domínio** › Adicionar novo.
+2. ID do cliente: o número que aparece no log da publicação ("drive: conta de serviço …"), ou em Google Cloud Console › IAM › Contas de serviço › firebase-adminsdk › ID exclusivo.
+3. Escopos: `https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets`.
+Alternativa sem delegação (`"modo": "compartilhado"`): as pastas do sistema num Drive compartilhado, com o e-mail da conta de serviço como membro (Administrador de conteúdo).

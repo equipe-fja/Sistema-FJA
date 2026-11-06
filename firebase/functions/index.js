@@ -110,3 +110,28 @@ if (rotina('autoria')) {
     if (upd) { await ev.data.after.ref.update(upd); logger.warn('autoria: alteração desfeita', { ri: ev.params.id, por: conta.email, campos: Object.keys(upd) }); }
   });
 }
+
+/* ------------------------------------------------------------------ Drive pelo servidor (servidor.json: drive) */
+// Entrega à tela de um administrador um acesso temporário (1 h) ao Drive/Planilhas em nome da conta da FJA,
+// para ninguém precisar conectar o Google. Modo "delegacao": a conta de serviço do projeto age como servidor.json drive.conta
+// (autorizada uma vez no Admin Console do Google Workspace). Modo "compartilhado": a própria conta de serviço, membro do Drive compartilhado.
+if (rotina('drive')) {
+  const { onCall, HttpsError } = require('firebase-functions/v2/https');
+  const { JWT } = require('google-auth-library');
+  const DRIVE_SA = defineSecret('DRIVE_SA');
+  let jwt = null;
+  exports.driveToken = onCall({ region: 'southamerica-east1', secrets: [DRIVE_SA], cors: true }, async req => {
+    if (!req.auth) throw new HttpsError('unauthenticated', 'entre no sistema');
+    const ac = await db.collection('acessos').doc(req.auth.uid).get();
+    if (!ac.exists || !['admin', 'master'].includes(ac.data().nivel)) throw new HttpsError('permission-denied', 'só administradores usam o Drive');
+    if (!jwt) {
+      const k = JSON.parse(DRIVE_SA.value()), d = SRV.drive || {};
+      jwt = new JWT({ email: k.client_email, key: k.private_key, scopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'],
+        ...(d.modo === 'compartilhado' ? {} : { subject: d.conta || 'equipe@fj.arq.br' }) });
+    }
+    try {
+      const t = await jwt.getAccessToken(), exp = jwt.credentials.expiry_date || (Date.now() + 3300e3);
+      return { token: t.token, exp };
+    } catch (e) { jwt = null; logger.error('driveToken', e.message || e); throw new HttpsError('failed-precondition', 'o Google recusou o acesso (a conta de serviço foi autorizada no Workspace?)'); }
+  });
+}

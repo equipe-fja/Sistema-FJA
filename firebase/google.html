@@ -38,10 +38,21 @@
   }
   function pedir(prompt){ if(!iniciar()) return; try{cliente.requestAccessToken({prompt})}catch(e){console.warn('google',e)} }
   // renova perto de expirar aproveitando qualquer clique da pessoa (o navegador só permite a janela com um clique)
-  document.addEventListener('click',()=>{if(tok&&!valido()||tok&&tok.exp-Date.now()<10*60e3) pedir('')},true);
+  document.addEventListener('click',()=>{if(window.FJA_DRIVE_SERVIDOR) return; if(tok&&!valido()||tok&&tok.exp-Date.now()<10*60e3) pedir('')},true);
 
+  /* servidor ligado (firebase/servidor.json: drive): o acesso ao Drive vem do servidor, em nome da conta da FJA;
+     ninguém precisa conectar o Google. Só administradores recebem. */
+  let srvPend=null;
+  async function tokenServidor(){
+    const fb=window.FJA_FIREBASE; await fb?.pronto; if(!fb?.admin()) throw {code:'server_not_connected',message:'sem acesso ao Drive'};
+    const u=fb.auth.currentUser; if(!u) throw {code:'needs_reauth',message:'sem login'};
+    const r=await fetch(`https://southamerica-east1-${window.FJA_PROJETO}.cloudfunctions.net/driveToken`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await u.getIdToken()},body:'{"data":{}}'});
+    const j=await r.json().catch(()=>({})); if(!r.ok||!j.result?.token) throw {code:'server_not_connected',message:j.error?.message||('servidor: HTTP '+r.status)};
+    tok={t:j.result.token,exp:j.result.exp}; try{sessionStorage.setItem(SS,JSON.stringify(tok))}catch{} barra(false); avisarSW(); return tok.t;
+  }
   async function token(){
     if(valido()) return tok.t;
+    if(window.FJA_DRIVE_SERVIDOR){if(!srvPend) srvPend=tokenServidor().finally(()=>{srvPend=null}); return srvPend}
     if(!CLIENT_ID) throw {code:'server_not_connected',message:'Google não configurado'};
     barra(true,tok?'A conexão com o Google Drive expirou. Clique em Conectar.':undefined);
     return new Promise((sim,nao)=>{esperando.push({sim,nao}); setTimeout(()=>{const i=esperando.findIndex(f=>f.sim===sim); if(i>=0){esperando.splice(i,1); nao({code:'needs_reauth',message:'sem conexão com o Google'})}},120e3)});
@@ -151,6 +162,7 @@
     return {ok,pul,err};
   }
   window.FJA_GOOGLE={importarZip,conectar:()=>pedir(''),conectado:valido,mcp:mcpApi,assets:assetsApi};
-  window.FJA_FIREBASE?.pronto?.then(()=>{if(!valido()&&window.FJA_FIREBASE.perfil()?.nivel!=='usuario') barra(true)});
+  window.FJA_FIREBASE?.pronto?.then(()=>{if(window.FJA_DRIVE_SERVIDOR){if(window.FJA_FIREBASE.admin()) token().catch(e=>{console.warn('drive (servidor)',e); barra(true,'O servidor não liberou o Drive ('+(e?.message||e)+').')}); return}
+    if(!valido()&&window.FJA_FIREBASE.perfil()?.nivel!=='usuario') barra(true)});
 })();
 </script>

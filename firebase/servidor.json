@@ -1,5 +1,17 @@
 {
-  "_leia": "Rotinas do servidor (Cloud Functions; exigem o plano Blaze). Ligue por ambiente e faça push. E-mails: firebase/email/config.json.",
-  "equipe": {"homolog": false, "oficial": false},
-  "autoria": {"homolog": false, "oficial": false}
+  "_leia": "Rotinas do servidor (Cloud Functions; exigem o plano Blaze). Ligue por ambiente e faça push. E-mails: firebase/email/config.json. drive: veja docs/servidor.md (precisa autorizar a conta de serviço no Google Workspace antes).",
+  "equipe": {
+    "homolog": false,
+    "oficial": false
+  },
+  "autoria": {
+    "homolog": false,
+    "oficial": false
+  },
+  "drive": {
+    "homolog": false,
+    "oficial": false,
+    "conta": "equipe@fj.arq.br",
+    "modo": "delegacao"
+  }
 }

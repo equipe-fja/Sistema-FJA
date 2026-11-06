@@ -29,7 +29,9 @@ for saida,arq,homolog,titulo in [('dist/firebase/index.html','firebase/config.js
     sh=shim.replace('/*FB_CFG*/null',cfg(arq))
     import json
     em=json.load(open('firebase/email/config.json')); emOn=bool(em.get('remetente')) and bool(em.get('ativo',{}).get('homolog' if homolog else 'oficial'))
-    sh='<script>window.FJA_EMAILS='+('true' if emOn else 'false')+'</script>\n'+sh
+    sv=json.load(open('firebase/servidor.json')); amb='homolog' if homolog else 'oficial'
+    drOn=bool(sv.get('drive',{}).get(amb)); proj='sistema-fja-homolog' if homolog else 'sistema-fja'
+    sh='<script>window.FJA_EMAILS='+('true' if emOn else 'false')+';window.FJA_DRIVE_SERVIDOR='+('true' if drOn else 'false')+';window.FJA_PROJETO="'+proj+'"</script>\n'+sh
     if homolog: sh='<script>window.FJA_FB_HOMOLOG=true</script>\n'+sh
     else:
         import json; v=json.load(open('firebase/virada.json')).get('virada',False)
