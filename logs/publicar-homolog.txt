@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: failure
-commit: d921060e889579aabb41eb48f13ec669d73feef8
-quando: 2026-11-06T20:08:39Z
+commit: 19fd7f2031a5f3b74d56be66416c6d9eb20c8e8f
+quando: 2026-11-06T20:15:51Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -34,16 +34,8 @@ banco em: southamerica-east1 · funções em: southamerica-east1
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudfunctions.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudbuild.googleapis.com[22m is enabled...
 [36m[1mi  artifactregistry:[22m[39m ensuring required API [1martifactregistry.googleapis.com[22m is enabled...
-[33m[1m⚠  artifactregistry:[22m[39m missing required API [1martifactregistry.googleapis.com[22m. Enabling now...
-[33m[1m⚠  functions:[22m[39m missing required API [1mcloudfunctions.googleapis.com[22m. Enabling now...
-[33m[1m⚠  functions:[22m[39m missing required API [1mcloudbuild.googleapis.com[22m. Enabling now...
+[32m[1m✔  functions:[22m[39m required API [1mcloudfunctions.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
+[32m[1m✔  artifactregistry:[22m[39m required API [1martifactregistry.googleapis.com[22m is enabled
 
-[1m[31mError:[39m[22m Cloud Functions deployment requires the Cloud Build API to be enabled. The current credentials do not have permission to enable APIs for project [1msistema-fja-homolog[22m.
-
-Please ask a project owner to visit the following URL to enable Cloud Build:
-
-https://console.cloud.google.com/apis/library/cloudbuild.googleapis.com?project=sistema-fja-homolog
-
-For additional information about this requirement, see Firebase FAQs:
-https://firebase.google.com/support/faq#functions-runtime
-
+[1m[31mError:[39m[22m Runtime Node.js 20 was decommissioned on 2026-10-31. To deploy you must first upgrade your runtime version.
