@@ -1,0 +1,7 @@
+title:
+  pt_br: "Atualizar"
+  en_us: "Atualizar"
+tooltip:
+  pt_br: "Atualiza a aba Ferramentas FJA para a versão mais recente publicada pelo Sistema FJA (sistema-fja.web.app) e recarrega o pyRevit. No escritório a pasta da extensão é a compartilhada do G:, então a atualização vale para todos (os outros só precisam de pyRevit › Reload). Pede o e-mail e a senha do sistema na primeira vez."
+  en_us: "Atualiza a aba Ferramentas FJA a partir do Sistema FJA."
+author: "Ferramentas FJA"

@@ -7915,6 +7915,21 @@ async function rvDbPublicar(){
   }
   return n;
 }
+/* pacote da extensão do pyRevit no banco, para o botão Ferramentas FJA › Suíte › Atualizar:
+   revitPub/extensao-versao {versao,hash,arquivos,em,por} (pequeno, consultado pelo botão) e revitPub/extensao {versao,hash,json}.
+   Grava quando a versão embutida nesta página é mais nova que a do banco (ou igual com conteúdo diferente); nunca volta versão. */
+const verCmp=(a,b)=>{const x=String(a||0).split('.').map(n=>+n||0),y=String(b||0).split('.').map(n=>+n||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d}return 0};
+const EXTDB={st:null};
+async function extDbPublicar(){
+  const f=fsCru(); if(!f||!EXT_REVIT||S.ro||S.publico||S.convidado) return;
+  const txt=JSON.stringify({versao:EXT_REVIT.versao,arquivos:EXT_REVIT.arquivos}), h=hashTxt(txt);
+  const vref=f.collection('revitPub').doc('extensao-versao'), g=await vref.get(), v=g.exists?g.data():null; EXTDB.st=v;
+  if(v&&(verCmp(v.versao,EXT_REVIT.versao)>0||(v.versao===EXT_REVIT.versao&&v.hash===h))) return;
+  if(txt.length>1000000){console.warn('extensão: pacote grande demais para o banco',txt.length);return}
+  await f.collection('revitPub').doc('extensao').set({versao:EXT_REVIT.versao,hash:h,json:txt,em:Date.now(),por:S.meuNome||''});
+  EXTDB.st={versao:EXT_REVIT.versao,hash:h,arquivos:EXT_REVIT.arquivos.length,em:Date.now(),por:S.meuNome||''};
+  await vref.set(EXTDB.st);
+}
 async function rvDbProcessar(id){
   const f=fsCru(); if(!f||S.ro||!S.carregado||RVDB.fazendo.has(id)) return; RVDB.fazendo.add(id);
   const ref=f.collection('revitPedidos').doc(id);
@@ -7940,7 +7955,8 @@ function rvDbOuvir(){
 (function rvDbIniciar(){
   if(AMB!=='firebase') return;
   const t=setInterval(()=>{if(!S.carregado||!fsCru()) return; clearInterval(t); if(S.ro) return;
-    rvDbOuvir(); rvDbAgendar(); setInterval(()=>rvDbPublicar().catch(()=>{}),30e3)},1000);
+    rvDbOuvir(); rvDbAgendar(); setInterval(()=>rvDbPublicar().catch(()=>{}),30e3)
+    setTimeout(()=>extDbPublicar().catch(e=>console.warn('extensão no banco',e)),20e3)},1000);
 })();
 function rvUI(){if(S.view?.t==='manut'&&S.view.f==='revit'&&!S.dirty) renderMain()}
 /* extensão do pyRevit embutida na geração (scripts/gerar.sh troca o marcador pelos arquivos de revit/) */
@@ -7984,9 +8000,11 @@ function telaExtRevit(h){
   h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="ferr">Ferramentas</button><span>/</span><span>Extensão do Revit</span></div>
   <h1>Extensão do Revit</h1><p class="lead">Aba Ferramentas FJA do pyRevit, que lê a especificação técnica do sistema e cria tipos no modelo.</p>
   <section class="sheet"><div class="sheet-h"><h2>Extensão Ferramentas FJA</h2>${EXT_REVIT?`<span class="hint">versão ${esc(EXT_REVIT.versao)}</span>`:''}<span class="sp"></span><button class="btn sm pri" data-act="rv-ext"${EXT_REVIT?'':' disabled'}>Baixar o instalador</button></div><div class="pad ferr-pad">
-    <p><b>Novo na versão 2.1.0:</b> painel <b>Links › Copiar do link</b> — copia em massa elementos de um modelo linkado para o modelo aberto, na mesma posição, por módulo (por enquanto <b>Equipamentos</b>: mobiliário, equipamentos, luminárias, tomadas, aparelhos sanitários, terminais…). Famílias face based vêm sem hospedeiro, no mesmo lugar; cada cópia guarda a origem no link para não ser copiada duas vezes.</p>
+    <p><b>Novo na versão 2.2.0:</b> botão <b>Suíte › Atualizar</b>, que atualiza a aba direto do sistema.</p>
+    <p><b>Versão 2.1.0:</b> painel <b>Links › Copiar do link</b> — copia em massa elementos de um modelo linkado para o modelo aberto, na mesma posição, por módulo (por enquanto <b>Equipamentos</b>: mobiliário, equipamentos, luminárias, tomadas, aparelhos sanitários, terminais…). Famílias face based vêm sem hospedeiro, no mesmo lugar; cada cópia guarda a origem no link para não ser copiada duas vezes.</p>
     <p class="muted">Aba <b>Ferramentas FJA</b> do pyRevit (Composições, Componentes, Copiar do link, Renomear tipos, Legendas). </p>
-    <p><b>Para instalar ou atualizar:</b> baixe o pacote, extraia (botão direito › <i>Extrair tudo</i>) e dê dois cliques em <span class="mono">instalar.cmd</span>. Depois, no Revit, clique em <b>pyRevit › Reload</b> (ou abra o Revit). Precisa do pyRevit instalado; não precisa de administrador. Se aparecer “O Windows protegeu o computador”, clique em <i>Mais informações › Executar assim mesmo</i>.</p>
+    <p><b>Para atualizar quem já tem a aba:</b> no Revit, aba <b>Ferramentas FJA › Suíte › Atualizar</b> (a partir da versão 2.2.0). O botão baixa a versão mais recente publicada por este sistema, grava na pasta da extensão (a compartilhada do G: vale para todos) e recarrega o pyRevit.</p>
+    <p><b>Para instalar (ou se a aba ainda não tem o botão Atualizar):</b> baixe o pacote, extraia (botão direito › <i>Extrair tudo</i>) e dê dois cliques em <span class="mono">instalar.cmd</span>. Depois, no Revit, clique em <b>pyRevit › Reload</b> (ou abra o Revit). Precisa do pyRevit instalado; não precisa de administrador. Se aparecer “O Windows protegeu o computador”, clique em <i>Mais informações › Executar assim mesmo</i>.</p>
     <p class="muted">O instalador copia a extensão para a pasta compartilhada <span class="mono">G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT\\pyRevit</span> (uma atualização feita por qualquer pessoa vale para todos; não substitui uma versão mais nova), cadastra essa pasta no pyRevit do seu usuário e tira a cópia local antiga, para a aba não aparecer duas vezes. Sem acesso ao G:, instala só neste computador. O pacote traz um LEIA-ME.</p>
   </div></section></div>`;
   return h;

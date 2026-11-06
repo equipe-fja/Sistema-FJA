@@ -4,11 +4,12 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.1.0)
+## Conteúdo atual (extensão 2.2.0)
 - Legendas › **Legenda LUM** — legenda de luminárias.
 - Legendas › **Legenda ELE** — legenda de pontos elétricos.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
+- Suíte › **Atualizar** — baixa a versão mais recente publicada pelo sistema (banco: `revitPub/extensao-versao` e `revitPub/extensao`, gravados por `extDbPublicar` na página Firebase), grava na pasta da extensão em uso (espelhando, menos `.pyc`) e recarrega o pyRevit (lógica em `lib/fja_suite.py`).
 - Links › **Copiar do link** — copia em massa elementos de um link para o modelo, na mesma posição, por módulo (lógica em `lib/fja_links.py`, módulos em `lib/fja_links_modulos.json`). Ver abaixo.
 
 Origem: cópia de `%APPDATA%\pyRevit\Extensions\Ferramentas-FJA.extension` de um computador do escritório (03/11/2026).
