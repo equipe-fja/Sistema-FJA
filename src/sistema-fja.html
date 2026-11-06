@@ -35,6 +35,9 @@ header.top{display:flex;align-items:center;gap:14px;padding-block:10px;padding-l
 .amb-dev header.top{background:repeating-linear-gradient(-45deg,#ffe9b8 0 16px,#ffdf98 16px 32px);border-bottom:2px solid #c98a00}
 .amb-dev .amb-tag{display:inline-flex;align-items:center;background:#a86100;color:#fff;font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:999px;box-shadow:0 1px 0 rgba(0,0,0,.15)}
 .amb-dev .logo{outline:2px solid #a86100;outline-offset:1px}
+.sim-l{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#6b4a00;margin-left:10px}
+.sim-l .fld{font-weight:400;max-width:240px;padding:3px 6px}
+.simulando .sim-l .fld{background:#8E1B1B;color:#fff;border-color:#8E1B1B}
 .conn{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .conn::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--faint)}
 .conn.on::before{background:var(--ok)}.conn.err::before{background:var(--danger)}
@@ -948,6 +951,7 @@ body.cro-arr,body.cro-arr *{cursor:grabbing!important}
     <div class="logo" aria-hidden="true"><b>FJ</b></div>
     <div class="brand"><span class="sys">Sistema <span>FJA</span></span><span class="wm">Filipe Jacopucci <b>Arquitetura</b></span></div>
     <span class="amb-tag" title="Versão de testes: as mudanças aqui não afetam o sistema oficial">Desenvolvimento</span>
+    <span id="simWrap"></span>
     <div class="sp"></div>
     <button class="btn sm menu-toggle" id="menuToggle" aria-controls="side">Pastas</button>
     <div class="conn" id="conn"><span>Conectando</span></div>
@@ -2816,6 +2820,25 @@ function arvoreConvidado(){
   if(!ps.length) h+=`<p class="muted" style="padding:6px 28px;font-size:12.5px">Nenhum projeto liberado ainda.</p>`;
   h+=`<div class="secline"><button class="row sec-h ${S.view.t==='manut'?'sel':''}" data-act="manut" data-f="conta">${IC.manut}<span class="lbl">Minha conta</span></button></div>`;
   return h;
+}
+/* homologação: seletor "Ver como" no cabeçalho, só para o Master. Simula Master, Administrador ou Convidado (escolhendo a pessoa);
+   só a tela muda: o banco continua vendo a conta Master, então as regras do banco não barram nada durante a simulação. */
+async function simularMontar(){
+  const f=FB(), w=$('simWrap'); if(!w||AMB!=='firebase'||!window.FJA_FB_HOMOLOG||!f?.mestreReal?.()) return;
+  const eu=f.perfilReal(), at=f.perfil(); let L=[];
+  try{const s=await db.collection('acessos').get(); L=s.docs.map(d=>({...d.data(),uid:d.id})).filter(x=>!x.placeholder&&x.uid!==eu.uid)}catch{}
+  const nm=x=>x.nome||x.email||x.uid, ord=(a,b)=>String(nm(a)).localeCompare(String(nm(b)),'pt');
+  const atual=!at?.simulado?'m':at.uid===eu.uid?'a':'u:'+at.uid;
+  const op=(v,t)=>`<option value="${esc(v)}"${v===atual?' selected':''}>${esc(t)}</option>`;
+  const adm=L.filter(x=>x.nivel==='admin').sort(ord), conv=L.filter(x=>x.nivel==='usuario').sort(ord);
+  w.innerHTML=`<label class="sim-l" title="Só na homologação: veja o sistema como outro nível ou pessoa. O banco continua vendo a conta Master.">Ver como <select class="fld sm" id="simSel">${op('m','Master (eu)')}${op('a','Administrador (eu, sem Master)')}
+    ${adm.length?`<optgroup label="Administradores">${adm.map(x=>op('u:'+x.uid,nm(x))).join('')}</optgroup>`:''}
+    ${conv.length?`<optgroup label="Convidados">${conv.map(x=>op('u:'+x.uid,nm(x)+(x.empresa&&S.itens.get(x.empresa)?' · '+S.itens.get(x.empresa).nome:''))).join('')}</optgroup>`:'<option disabled>(nenhum convidado cadastrado)</option>'}</select></label>`;
+  if(at?.simulado) document.documentElement.classList.add('simulando');
+  $('simSel').onchange=ev=>{const v=ev.target.value;
+    if(v==='m') return f.simular(null);
+    if(v==='a') return f.simular({...eu,nivel:'admin'});
+    const x=L.find(y=>'u:'+y.uid===v); if(x) f.simular({uid:x.uid,nome:x.nome||'',email:x.email||'',nivel:x.nivel,empresa:x.empresa||''})};
 }
 function iniciarConvidado(){
   S.convidado=true; S.ro=false;
@@ -8497,6 +8520,7 @@ async function modoPublico(){
   if(AMB==='oficial'&&MIGRADO_PARA){S.ro=true; const d=document.createElement('div'); d.style.cssText='position:sticky;top:0;z-index:999;background:#8E1B1B;color:#fff;padding:10px 16px;font-size:14px;text-align:center';
     d.innerHTML=`O Sistema FJA mudou de endereço. Esta versão é <b>somente leitura</b>. Use <a href="${MIGRADO_PARA}" target="_blank" rel="noopener" style="color:#fff;font-weight:700">${MIGRADO_PARA.replace('https://','')}</a>`; document.body.prepend(d)}
   setConn(S.ro?'Somente leitura':'Conectado','on');
+  simularMontar();
   if(AMB==='firebase'&&FB()?.perfil()?.nivel==='usuario'){iniciarConvidado(); return}
   db.doc('config/espelhos').onSnapshot(snap=>{
     const v=snap.exists?snap.data():{}; S.espSec={disciplinas:v?.disciplinas||null,parceiros:v?.parceiros||null};

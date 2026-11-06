@@ -131,7 +131,12 @@
     return {status:'saved'}}};
 
   if(window.FJA_FB_HOMOLOG){document.documentElement.classList.add('amb-dev'); document.title='HOMOLOGAÇÃO · Sistema FJA'}
-  window.FJA_FIREBASE={auth,fs,pronto:logado,perfil:()=>perfil,admin:()=>perfil?.nivel==='admin'||perfil?.nivel==='master',master:()=>perfil?.nivel==='master',
+  // homologação: o Master pode simular outro nível/pessoa (só a tela muda; o banco continua vendo a conta Master)
+  let sim=null; if(window.FJA_FB_HOMOLOG){try{sim=JSON.parse(sessionStorage.getItem('fja.simular')||'null')}catch{}}
+  const ef=()=>sim&&perfil?.nivel==='master'?{...sim,simulado:true}:perfil;
+  window.FJA_FIREBASE={auth,fs,pronto:logado,perfil:ef,admin:()=>ef()?.nivel==='admin'||ef()?.nivel==='master',master:()=>ef()?.nivel==='master',
+    mestreReal:()=>perfil?.nivel==='master',perfilReal:()=>perfil,
+    simular:p=>{try{p?sessionStorage.setItem('fja.simular',JSON.stringify(p)):sessionStorage.removeItem('fja.simular')}catch{} location.reload()},
     criarConta,senhaProvisoria,mensagemErro:msgErro,acaoEmail:ACAO,
     alterarSenha:()=>auth.currentUser?definirSenha(auth.currentUser,false):Promise.resolve(false),
     sair:()=>auth.signOut().then(()=>location.reload())};
