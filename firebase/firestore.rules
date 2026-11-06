@@ -38,7 +38,7 @@ service cloud.firestore {
       allow write: if admin();
       allow delete: if logado() && request.auth.uid == uid;
     }
-    // RFI: a equipe faz tudo. Convidado só vê RFIs de projetos de que participa (rfi.participantes, copiado do projeto),
+    // RFI: a equipe vê todas. Convidado só vê RFIs de projetos de que participa (rfi.participantes, copiado do projeto),
     // comenta em qualquer uma e responde (respostas/status) só às dirigidas a ele ou à empresa dele.
     function participa() { return ativo() && request.auth.uid in resource.data.get('participantes', []); }
     function minhaEmpresa() { return get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.get('empresa', '-'); }
@@ -58,18 +58,42 @@ service cloud.firestore {
         && request.resource.data.get('requerente', {}).get('tipo', '') == 'u'
         && request.resource.data.get('requerente', {}).get('id', '') == request.auth.uid;
     }
-    // RFI aberta pelo próprio convidado: pode editar tudo, menos projeto, participantes e requerente
-    function minhaRfi() {
-      return participa() && resource.data.get('requerente', {}).get('tipo', '') == 'u' && resource.data.get('requerente', {}).get('id', '') == request.auth.uid
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['projeto', 'participantes', 'requerente']);
+    function master() { return ativo() && get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.nivel == 'master'; }
+    // autor da RFI = autorId (quem abriu); nas RFIs antigas, sem autorId, o requerente quando é uma pessoa
+    function souAutor() {
+      return resource.data.get('autorId', '') == request.auth.uid
+        || (resource.data.get('autorId', '') == '' && resource.data.get('requerente', {}).get('tipo', '') == 'u'
+            && resource.data.get('requerente', {}).get('id', '') == request.auth.uid);
     }
+    function mantemAutor() {
+      return request.resource.data.get('autorId', '') == resource.data.get('autorId', '')
+        || (resource.data.get('autorId', '') == '' && request.resource.data.get('autorId', '') == request.auth.uid);
+    }
+    // histórico: só acrescenta (o que já estava gravado não muda)
+    function hist(d) { return d.get('historico', []); }
+    function histOk() {
+      return hist(request.resource.data).size() >= hist(resource.data).size()
+        && hist(request.resource.data)[0:hist(resource.data).size()] == hist(resource.data);
+    }
+    function mudouStatusParaRespondida() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) || request.resource.data.status == 'RESPONDIDA';
+    }
+    // RFI: só o autor altera os dados ou exclui; o Master faz tudo. Os demais (equipe ou convidados participantes) comentam;
+    // respondem a equipe e os requeridos. Cada resposta ou comentário só é alterado por quem escreveu (controle feito pelo sistema).
     match /rfi/{id} {
       allow read: if interno() || participa();
-      allow create: if interno() || criaConvidado();
-      allow delete: if interno();
-      allow update: if interno() || minhaRfi()
-        || (participa() && muda(['comentarios', 'atualizadoEm', 'atualizadoPor']))
-        || (participa() && dirigida() && muda(['comentarios', 'respostas', 'status', 'atualizadoEm', 'atualizadoPor']));
+      allow create: if master() || ((interno() || criaConvidado()) && request.resource.data.get('autorId', '') == request.auth.uid);
+      allow delete: if master() || ((interno() || participa()) && souAutor());
+      allow update: if master()
+        || (interno() && souAutor() && mantemAutor() && histOk() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['projeto']))
+        || (participa() && souAutor() && mantemAutor() && histOk()
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['projeto', 'participantes', 'requerente']))
+        || (interno() && muda(['participantes']))                                            // sincronização com a equipe do projeto
+        || (interno() && muda(['requerente', 'requeridos', 'requeridosIds', 'requerido']))  // ativação de pessoa cadastrada sem acesso
+        || (interno() && histOk() && muda(['notificacoes', 'historico']))
+        || ((interno() || participa()) && histOk() && muda(['comentarios', 'historico', 'atualizadoEm', 'atualizadoPor']))
+        || ((interno() || (participa() && dirigida())) && histOk() && mudouStatusParaRespondida()
+            && muda(['comentarios', 'respostas', 'status', 'historico', 'atualizadoEm', 'atualizadoPor']));
     }
     match /projetosRfi/{id} {
       allow read: if interno() || participa();
