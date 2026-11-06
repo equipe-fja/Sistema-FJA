@@ -736,8 +736,10 @@ th.arr-orig{opacity:.45}
 th.arr-antes{box-shadow:inset 3px 0 0 var(--accent)!important}
 th.arr-depois{box-shadow:inset -3px 0 0 var(--accent)!important}
 .arr-fant{position:fixed;z-index:70;pointer-events:none;background:var(--accent);color:#fff;font-size:11.5px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;padding:4px 10px;border-radius:5px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
-.barra-x{position:sticky;bottom:0;z-index:5;overflow-x:scroll;overflow-y:hidden;height:16px;background:var(--side);border-top:1px solid var(--line);border-radius:0 0 8px 8px}
-.barra-x>div{height:1px}
+.barra-x{position:sticky;bottom:0;z-index:5;height:16px;background:var(--side);border-top:1px solid var(--line);border-radius:0 0 8px 8px;touch-action:none;user-select:none}
+.barra-x .bx-th{position:absolute;top:3px;left:0;height:9px;min-width:30px;border-radius:5px;background:var(--line-strong);cursor:grab}
+.barra-x .bx-th:hover,.barra-x.arr .bx-th{background:var(--faint)}
+.barra-x.arr .bx-th{cursor:grabbing}
 .barra-x[hidden]{display:none}
 .tablewrap.rolagem::-webkit-scrollbar:horizontal{height:0}
 .tablewrap.rolagem{border-radius:8px 8px 0 0}
@@ -2130,7 +2132,7 @@ function eqTabelaHTML(pid){
   const m=M(); if(!m.de(pid).length) return m.vazio(pid);
   const cols=colsVis(), W=MS().w;
   const fx=temLargEq(), tot=cols.reduce((a,[k])=>a+(W[k]||140),0);
-  return `<div class="tablewrap rolagem"><table class="list esp eq ${fx?'fixo':''}" ${fx?`style="table-layout:fixed;width:${tot}px"`:''}>${fx?`<colgroup>${cols.map(([k])=>`<col style="width:${W[k]||140}px">`).join('')}</colgroup>`:''}<thead><tr class="h1" title="Arraste um título para mudar a ordem das colunas. Clique com o botão direito para escolher quais aparecem">${cols.map(([k,lab,,,cls])=>`<th class="c-${k} ${(cls||'').includes('r')?'r':''}" data-k="${k}">${(cls||'').includes('r')?setaOrdHTML(k):''}<span class="th-lab">${esc(lab)}</span>${(cls||'').includes('r')?'':setaOrdHTML(k)}${m.grupos[k]?agruparHTML(k):''}<span class="rsz" data-rsz="${k}" title="Arraste para ajustar a largura. Clique duas vezes para ajustar ao conteúdo."></span></th>`).join('')}</tr><tr class="h2">${cols.map(([k])=>filtroCelEq(k,pid)).join('')}</tr></thead><tbody id="eqCorpo">${eqCorpoHTML(pid,cols)}</tbody></table></div><div class="barra-x" id="barraX" aria-hidden="true"><div></div></div>`;
+  return `<div class="tablewrap rolagem"><table class="list esp eq ${fx?'fixo':''}" ${fx?`style="table-layout:fixed;width:${tot}px"`:''}>${fx?`<colgroup>${cols.map(([k])=>`<col style="width:${W[k]||140}px">`).join('')}</colgroup>`:''}<thead><tr class="h1" title="Arraste um título para mudar a ordem das colunas. Clique com o botão direito para escolher quais aparecem">${cols.map(([k,lab,,,cls])=>`<th class="c-${k} ${(cls||'').includes('r')?'r':''}" data-k="${k}">${(cls||'').includes('r')?setaOrdHTML(k):''}<span class="th-lab">${esc(lab)}</span>${(cls||'').includes('r')?'':setaOrdHTML(k)}${m.grupos[k]?agruparHTML(k):''}<span class="rsz" data-rsz="${k}" title="Arraste para ajustar a largura. Clique duas vezes para ajustar ao conteúdo."></span></th>`).join('')}</tr><tr class="h2">${cols.map(([k])=>filtroCelEq(k,pid)).join('')}</tr></thead><tbody id="eqCorpo">${eqCorpoHTML(pid,cols)}</tbody></table></div><div class="barra-x" id="barraX" aria-hidden="true"><div class="bx-th"></div></div>`;
 }
 function atualizaCorpoEq(){
   const b=$('eqCorpo'); if(!b) return atualizaColsEq();
@@ -6312,25 +6314,32 @@ document.addEventListener('scroll',ev=>{if(ev.target?.id==='main') fixarCabecalh
 addEventListener('resize',fixarCabecalho);
 new MutationObserver(()=>requestAnimationFrame(fixarCabecalho)).observe(document.getElementById('main'),{childList:true});
 /* ---------- barra de rolagem horizontal sempre visível ---------- */
-// sincronia barra ↔ tabela: cada lado ignora o "eco" da rolagem que o outro provocou (antes, os dois brigavam e a barra
-// não acompanhava o mouse e dava saltos); a barra tem a mesma largura rolável da tabela
-let barraRO=null, barraTb=null, progBx=null, progW=null;
-function barraPara(el,v,qual){if(Math.abs(el.scrollLeft-v)<1) return; if(qual==='bx') progBx=v; else progW=v; el.scrollLeft=v}
+// barra horizontal própria (sempre visível embaixo da tela): o marcador segue o mouse exatamente; clicar no trilho leva o
+// marcador até o ponto; a roda do mouse sobre a barra rola para os lados. A tabela é a única dona da posição.
+let barraRO=null, barraTb=null, bxArr=null;
+function bxGeo(){const bx=$('barraX'), w=bx?.previousElementSibling; if(!bx||!w) return null;
+  const cw=w.clientWidth, sw=w.scrollWidth, tw=Math.max(30,Math.round(cw*cw/Math.max(sw,1))), max=Math.max(0,sw-cw), trilho=Math.max(1,cw-tw);
+  return {bx,w,th:bx.firstElementChild,cw,sw,tw,max,trilho}}
+function bxPos(){const g=bxGeo(); if(!g||!g.th) return; g.th.style.width=g.tw+'px'; g.th.style.transform=`translateX(${g.max?Math.round(g.w.scrollLeft/g.max*g.trilho):0}px)`}
 function ajustarBarraX(){
-  const bx=$('barraX'), w=bx?.previousElementSibling, tb=w?.querySelector('table, .gt-in'); if(!bx||!tb) return;
-  bx.firstElementChild.style.width=w.scrollWidth+'px'; bx.style.width=w.clientWidth+'px';
-  bx.hidden=w.scrollWidth<=w.clientWidth+1; barraPara(bx,w.scrollLeft,'bx');
-  if(barraTb!==tb){barraRO?.disconnect();barraRO=new ResizeObserver(()=>ajustarBarraX());barraRO.observe(tb);barraRO.observe(w);barraTb=tb}
+  const g=bxGeo(); if(!g) return; const tb=g.w.querySelector('table, .gt-in'); if(!tb) return;
+  g.bx.style.width=g.cw+'px'; g.bx.hidden=g.sw<=g.cw+1; bxPos();
+  if(barraTb!==tb){barraRO?.disconnect();barraRO=new ResizeObserver(()=>ajustarBarraX());barraRO.observe(tb);barraRO.observe(g.w);barraTb=tb}
 }
 new MutationObserver(()=>requestAnimationFrame(ajustarBarraX)).observe(document.getElementById('main'),{childList:true,subtree:true});
 addEventListener('resize',ajustarBarraX);
-document.addEventListener('scroll',ev=>{
-  const t=ev.target; if(!(t instanceof Element)) return;
-  if(t.id==='barraX'){const w=t.previousElementSibling; if(!w) return;
-    if(progBx!=null&&Math.abs(t.scrollLeft-progBx)<1){progBx=null;return} progBx=null; barraPara(w,t.scrollLeft,'w')}
-  else if(t.classList.contains('rolagem')){const bx=$('barraX'); if(!bx||bx.previousElementSibling!==t) return;
-    if(progW!=null&&Math.abs(t.scrollLeft-progW)<1){progW=null;return} progW=null; barraPara(bx,t.scrollLeft,'bx')}
-},true);
+document.addEventListener('scroll',ev=>{const t=ev.target; if(t instanceof Element&&t.classList.contains('rolagem')&&$('barraX')?.previousElementSibling===t) bxPos()},true);
+document.addEventListener('pointerdown',ev=>{
+  const bx=ev.target.closest?.('#barraX'); if(!bx||ev.button!==0) return; const g=bxGeo(); if(!g) return;
+  ev.preventDefault(); const r=bx.getBoundingClientRect(), x=ev.clientX-r.left, at=g.max?g.w.scrollLeft/g.max*g.trilho:0;
+  let ini=at; if(ev.target!==g.th){ini=Math.min(g.trilho,Math.max(0,x-g.tw/2)); g.w.scrollLeft=ini/g.trilho*g.max} // clique no trilho: o marcador vai até o ponto
+  bxArr={x:ev.clientX,ini,id:ev.pointerId}; bx.classList.add('arr'); try{bx.setPointerCapture(ev.pointerId)}catch{}
+});
+document.addEventListener('pointermove',ev=>{if(!bxArr) return; const g=bxGeo(); if(!g) return;
+  const pos=Math.min(g.trilho,Math.max(0,bxArr.ini+ev.clientX-bxArr.x)); g.w.scrollLeft=pos/g.trilho*g.max});
+const bxFim=()=>{if(!bxArr) return; bxArr=null; $('barraX')?.classList.remove('arr')};
+document.addEventListener('pointerup',bxFim); document.addEventListener('pointercancel',bxFim);
+document.addEventListener('wheel',ev=>{const bx=ev.target.closest?.('#barraX'); if(!bx) return; const g=bxGeo(); if(!g) return; ev.preventDefault(); g.w.scrollLeft+=(Math.abs(ev.deltaX)>Math.abs(ev.deltaY)?ev.deltaX:ev.deltaY)},{passive:false});
 
 /* ---------- reordenar colunas arrastando ---------- */
 let arrCol=null;
@@ -6873,7 +6882,7 @@ function croGantt(it,L){
   return `<div class="gt-wrap rolagem" id="gtWrap" data-px="${E.px}" data-a="${E.a}"><div class="gt-in" style="width:${CRO_LW+E.w}px">
     <div class="gt-head"><div class="gt-r h"><div class="gt-l">${S.ro?'':'<span class="gt-ck-h"></span>'}<span class="gt-n">Nº</span><span class="gt-nmh">Item</span><span class="gt-d">Disc.</span><span class="gt-per">Período</span></div><div class="gt-t"><div class="gt-ms">${cab.m}</div><div class="gt-ss">${cab.sub}</div></div></div></div>
     <div class="gt-body"><div class="gt-grid" style="left:${CRO_LW}px;width:${E.w}px">${croGrade(E)}</div>${rows}</div>
-  </div></div><div class="barra-x" id="barraX" aria-hidden="true"><div></div></div>`;
+  </div></div><div class="barra-x" id="barraX" aria-hidden="true"><div class="bx-th"></div></div>`;
 }
 function painelCronograma(d){
   const it=S.itens.get(d.id); if(!it) return '';
