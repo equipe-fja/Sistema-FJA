@@ -2351,8 +2351,7 @@ const CM_TCOLS=[
   ['emitido','Emitido em',0,e=>celEdCm(e,'emitido',esc(e.emitido&&e.emitido!=='-'?e.emitido:'')),'mono'],
   ['arquivo','Arquivo de comentários',0,e=>esc(e.arquivo||''),'mono mid'],
   ['obs','Observação',1,e=>esc(e.obs||''),'muted mid'],
-  ['grupo','Grupo',0,e=>esc(e.grupo||''),'muted mid'],
-  ['imagem','Imagem',0,e=>e.capa?`<img class="esp-th" src="${esc(urlThumb(e.capa))}" alt="" loading="lazy">`:'','']
+  ['grupo','Grupo',0,e=>esc(e.grupo||''),'muted mid']
 ];
 const ordCm=(a,b)=>(a.num??1e9)-(b.num??1e9)||(a.linha??1e9)-(b.linha??1e9)||(a.criadoEm||0)-(b.criadoEm||0);
 const proxNumCm=pid=>comDe(pid).reduce((m,e)=>Math.max(m,+e.num||0),0)+1;
@@ -2731,6 +2730,7 @@ function rfiEscolherEmpresa(){
   });
 }
 const RFI_TCOLS=[
+  ['imagem','Imagem',1,e=>e.capa?`<img class="esp-th" src="${esc(urlThumb(e.capa))}" alt="" loading="lazy">`:'',''],
   ['num','Nº',2,e=>e.num!=null?`<span class="mono">${esc(e.num)}</span>`:'','num r'],
   ['status','Status',1,e=>celEdCm(e,'status',statusRfi(e)),''],
   ['assunto','Assunto',2,e=>`<span class="cm-txt"><b>${esc(e.assunto||'Sem assunto')}</b></span>`,'mid'],
@@ -2742,8 +2742,7 @@ const RFI_TCOLS=[
   ['fechamento','Fechamento',1,e=>celEdCm(e,'fechamento',esc(e.fechamento||'')),'mono'],
   ['disciplinas','Disciplinas',1,e=>tagsCel(e.projeto,discsRfi(e)),''],
   ['respostas','Respostas',1,e=>rfiEvCel(e,'respostas'),'muted wide'],
-  ['comentarios','Comentários',0,e=>rfiEvCel(e,'comentarios'),'muted wide'],
-  ['imagem','Imagem',0,e=>e.capa?`<img class="esp-th" src="${esc(urlThumb(e.capa))}" alt="" loading="lazy">`:'','']
+  ['comentarios','Comentários',0,e=>rfiEvCel(e,'comentarios'),'muted wide']
 ];
 function rfiEvCel(e,c){const L=evOrdem(evRfi(e,c)); if(!L.length) return ''; const k=c+':'+e.id, ab=S.evAbertos.has(k), um=x=>`<span class="cm-txt ev-c">${x.data?`<span class="ev-d">${esc(x.data)}</span> `:''}${esc(x.texto)}${x.por?` <span class="ev-autor">— ${esc(x.por)}</span>`:''}</span>`;
   return um(L[0][0])+(L.length>1?(ab?`<div class="ev-ant">${L.slice(1).map(([x])=>um(x)).join('')}</div>`:'')+`<button class="ev-mais" data-act="pd-ev-ver" data-eid="${esc(k)}">${ab?'Ocultar anteriores':`Ver anteriores (${L.length-1})`}</button>`:'')}
@@ -2758,7 +2757,7 @@ iniciarMod({id:'rfi',lk:'fja.rfi.',T:RFI_TCOLS,padrao:RFI_TCOLS.filter(c=>c[2]).
     status:{ops:()=>[...STATUS_RFI.map(o=>[o,capCm(o)]),['!atr','Atrasadas'],['∅','(vazio)']],ok:(o,e)=>o==='∅'?!e.status:o==='!atr'?atrasadaRfi(e):e.status===o,rot:o=>o==='∅'?'(vazio)':o==='!atr'?'Atrasadas':capCm(o)}},
   rotGrupo(k,v){if(!v) return 'Sem '+({status:'status',requerente:'requerente',requerido:'requerido'})[k];return esc(v)},
   busca:e=>[e.num,e.assunto,e.descricao,e.status,rfiPessoaNome(e.requerente),reqsNomes(e),...discsRfi(e),...discsRfi(e).map(discNome),...evRfi(e,'respostas').map(x=>x.data+' '+x.texto),...evRfi(e,'comentarios').map(x=>x.data+' '+x.texto)].join(' '),
-  abrir:'rfi-abrir',dica:'Clique para abrir a RFI',nenhum:'Nenhuma RFI corresponde aos filtros.',fotoTxt:'Clique ou arraste uma imagem relacionada à RFI',
+  abrir:'rfi-abrir',dica:'Clique para abrir a RFI',nenhum:'Nenhuma RFI corresponde aos filtros.',fotoTxt:'Clique, arraste ou cole (Ctrl+V) uma imagem relacionada à RFI',
   vazio:pid=>`<div class="esp-vazio"><h2>Nenhuma RFI cadastrada</h2><p>Registre aqui os pedidos de informação do projeto: quem pergunta (requerente), quem deve responder (requerido), prazo, respostas e comentários.</p>${S.ro?'':`<button class="btn pri" data-act="rfi-novo" data-id="${esc(pid)}">${IC.plus}Nova RFI</button>`}</div>`,
   locais:['capa','disciplinas'],
   xVal:(k,e)=>k==='respostas'||k==='comentarios'?txtEvRfi(e,k):k==='disciplinas'?discsRfi(e).map(c=>siglaP(e.projeto,c)).join(', '):k==='requerente'?rfiPessoaNome(e[k]):k==='requerido'?reqsNomes(e):undefined,
@@ -3764,6 +3763,16 @@ document.addEventListener('change',ev=>{const t=ev.target;
 document.addEventListener('dragover',ev=>{const d=ev.target.closest?.('#cqDrop.on'); if(d){ev.preventDefault(); d.classList.add('sobre')}});
 document.addEventListener('dragleave',ev=>{ev.target.closest?.('#cqDrop')?.classList.remove('sobre')});
 document.addEventListener('drop',ev=>{const d=ev.target.closest?.('#cqDrop.on'); if(!d) return; ev.preventDefault(); d.classList.remove('sobre'); const c=cqAtual(); const f=[...(ev.dataTransfer?.files||[])]; if(c&&f.length) cqAdicionar(c,f)});
+// Ctrl+V com imagem (print) nas fichas com quadro de imagem (RFI, pendências, comentários, documentos, equipamentos): vira a imagem do registro
+document.addEventListener('paste',ev=>{
+  if(S.ro||!assets||$('cqEd')||$('cqLista')) return;
+  const box=document.querySelector('.eq-capa-box[data-ctx="eqcapa"]'); if(!box) return;
+  const fs=[...(ev.clipboardData?.items||[])].filter(x=>x.kind==='file'&&/^image\//.test(x.type)).map(x=>x.getAsFile()).filter(Boolean); if(!fs.length) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const st=new Date(), nm=`print-${st.toISOString().slice(0,10)}-${String(st.getHours()).padStart(2,'0')}${String(st.getMinutes()).padStart(2,'0')}${String(st.getSeconds()).padStart(2,'0')}`;
+  const f=fs[0], arq=f.name&&f.name!=='image.png'?f:new File([f],nm+'.'+((f.type.split('/')[1]||'png').replace('jpeg','jpg')),{type:f.type});
+  toast('Imagem colada: enviando…'); enviarCapaEq([arq]);
+},true);
 // Ctrl+V com imagem: na ficha, adiciona ao croqui; na lista, cria um croqui novo
 document.addEventListener('paste',ev=>{
   if(S.ro||PC_ESC) return; const ed=$('cqEd'), li=$('cqLista'); if(!ed&&!li) return;
