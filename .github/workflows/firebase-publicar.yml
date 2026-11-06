@@ -34,6 +34,7 @@ jobs:
           CHAVE_OFICIAL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           CHAVE_HOMOLOG: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HOMOLOG }}
           SMTP: ${{ secrets.SMTP_SENHA_APP }}
+          GSECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           EMAIL=$(node -e "const c=require('./firebase/email/config.json'); console.log(c.ativo&&c.ativo[process.env.ALVO]&&c.remetente?1:0)")
           OUTRAS=$(node -e "const s=require('./firebase/servidor.json'); console.log(Object.entries(s).filter(([k,v])=>k[0]!=='_'&&v&&v[process.env.ALVO]).map(([k])=>k).join(' '))")
@@ -45,7 +46,7 @@ jobs:
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
           set -o pipefail
           FB="npx -y firebase-tools@13"
-          cp firebase/email/config.json firebase/functions/config.json; cp firebase/servidor.json firebase/functions/servidor.json
+          cp firebase/email/config.json firebase/functions/config.json; cp firebase/servidor.json firebase/functions/servidor.json; cp firebase/google-client.txt firebase/functions/google-client.txt
           # a função que observa as RIs precisa ficar na mesma região do banco
           LOC=$($FB firestore:databases:get "(default)" --project "$PROJ" --json 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log((j.result||j).locationId||'')}catch{console.log('')}})")
           case "$LOC" in nam5) REG=us-central1;; nam7) REG=us-central1;; eur3) REG=europe-west1;; "") REG=southamerica-east1;; *) REG="$LOC";; esac
@@ -55,8 +56,14 @@ jobs:
           if [ "$EMAIL" != 1 ] || [ "$(node -e "console.log(require('./firebase/email/config.json').via||'delegacao')")" != smtp ]; then :
           elif [ -n "$SMTP" ]; then printf '%s' "$SMTP" | $FB functions:secrets:set SMTP_SENHA --data-file - --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
           else echo "AVISO: segredo SMTP_SENHA_APP não cadastrado no GitHub" | tee -a "$RUNNER_TEMP/log.txt"; fi
+          # conta Google do servidor (autorização única): segredo do cliente OAuth vem do segredo GOOGLE_CLIENT_SECRET do GitHub
+          if echo " $OUTRAS " | grep -q " google "; then
+            if [ -n "$GSECRET" ]; then printf '%s' "$GSECRET" | $FB functions:secrets:set GOOGLE_OAUTH_SECRET --data-file - --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tail -2 | tee -a "$RUNNER_TEMP/log.txt"
+            else echo "AVISO: segredo GOOGLE_CLIENT_SECRET não cadastrado no GitHub: conta Google do servidor (e Drive/e-mail por ela) ficam de fora" | tee -a "$RUNNER_TEMP/log.txt"
+              node -e "const f='firebase/functions/servidor.json',s=require('./'+f);for(const k of ['google','drive'])if(s[k])s[k][process.env.ALVO]=false;require('fs').writeFileSync(f,JSON.stringify(s));const c='firebase/functions/config.json',e=require('./'+c);if(e.via==='oauth'&&e.ativo)e.ativo[process.env.ALVO]=false;require('fs').writeFileSync(c,JSON.stringify(e))"; fi
+          fi
           # Drive pelo servidor: a chave da conta de serviço (o mesmo segredo do GitHub usado para publicar) vira o segredo DRIVE_SA do projeto
-          if echo " $OUTRAS " | grep -q " drive " || { [ "$EMAIL" = 1 ] && [ "$(node -e "console.log(require('./firebase/email/config.json').via||'delegacao')")" != smtp ]; }; then printf '%s' "$CHAVE" | $FB functions:secrets:set DRIVE_SA --data-file - --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
+          if { echo " $OUTRAS " | grep -q " drive " && [ "$(node -e "console.log((require('./firebase/servidor.json').drive||{}).modo||'')")" != oauth ]; } || { [ "$EMAIL" = 1 ] && [ "$(node -e "console.log(require('./firebase/email/config.json').via||'delegacao')")" = delegacao ]; }; then printf '%s' "$CHAVE" | $FB functions:secrets:set DRIVE_SA --data-file - --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
             echo "drive: conta de serviço $(node -e "console.log(JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)).client_id)") (autorizar este ID no Workspace)" | tee -a "$RUNNER_TEMP/log.txt"; fi
           $FB deploy --config "$CONF" --only functions --project "$PROJ" --non-interactive --force 2>&1 | grep -v "npm warn" | tee -a "$RUNNER_TEMP/log.txt"
           # imagens de build antigas das funções: apagar depois de 1 dia (evita cobrança de armazenamento)

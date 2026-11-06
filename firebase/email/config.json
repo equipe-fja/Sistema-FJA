@@ -1,5 +1,5 @@
 {
-  "_leia": "Envio de e-mails (Cloud Functions). via: 'delegacao' (padrão: API do Gmail em nome do remetente, autorizada no Google Workspace, sem senha) ou 'smtp' (senha de app no segredo SMTP_SENHA_APP do GitHub). ativo.homolog/ativo.oficial ligam o envio. Na homologação todos os e-mails vão para homologPara.",
+  "_leia": "Envio de e-mails (Cloud Functions). via: 'oauth' (padrão: API do Gmail com a autorização única da conta remetente, feita em Manutenção › Conta Google do servidor), 'delegacao' (delegação do Workspace) ou 'smtp' (senha de app no segredo SMTP_SENHA_APP do GitHub). ativo.homolog/ativo.oficial ligam o envio. Na homologação todos os e-mails vão para homologPara.",
   "remetente": "equipe@fj.arq.br",
   "nomeRemetente": "Sistema FJA",
   "ativo": {
@@ -11,5 +11,5 @@
     "hora": "8",
     "diasUteis": true
   },
-  "via": "delegacao"
+  "via": "oauth"
 }

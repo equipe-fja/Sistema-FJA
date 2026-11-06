@@ -50,3 +50,10 @@ Antes de ligar, autorizar a conta de serviço (uma vez por projeto), no Google W
 3. Escopos (Drive, Planilhas e envio de e-mail): `https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/gmail.send`.
 4. Fazer para as duas contas de serviço: `firebase-adminsdk-fbsvc@sistema-fja.iam.gserviceaccount.com` e `firebase-adminsdk-fbsvc@sistema-fja-homolog.iam.gserviceaccount.com` (cada uma tem o seu ID).
 Alternativa sem delegação (`"modo": "compartilhado"`): as pastas do sistema num Drive compartilhado, com o e-mail da conta de serviço como membro (Administrador de conteúdo).
+
+## google (conta Google do servidor: autorização única, sem o Admin do Workspace)
+Caminho escolhido pela FJA (06/11/2026). Ligado em `servidor.json` `google.<ambiente>`; Drive (`drive.modo: "oauth"`) e e-mails (`via: "oauth"`) usam essa autorização.
+1. Segredo do cliente OAuth (o mesmo cliente de `firebase/google-client.txt`): Google Cloud › APIs e serviços › Credenciais › cliente Web › copiar a **chave secreta do cliente** e cadastrar no GitHub como segredo **`GOOGLE_CLIENT_SECRET`**. Não passa pelo chat.
+2. Tela de consentimento OAuth desse projeto: **Tipo de usuário: Interno** (se estiver "Externo / Em teste", a autorização expira em 7 dias).
+3. No sistema, com o Master: Manutenção › **Conta Google do servidor** › Autorizar, entrando com equipe@fj.arq.br e mantendo as permissões marcadas.
+A chave de renovação fica em `servidor/google` (regras: ninguém lê pelo sistema). Cai se a senha da conta mudar ou o acesso for removido em myaccount.google.com/permissions: basta autorizar de novo.

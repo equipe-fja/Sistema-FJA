@@ -96,6 +96,10 @@ service cloud.firestore {
         || (participa() && dirigida() && histOk() && mudouStatusParaRespondida()
             && muda(['comentarios', 'respostas', 'status', 'historico', 'atualizadoEm', 'atualizadoPor']));
     }
+    // credenciais do servidor (autorização da conta Google): ninguém lê nem grava pelo sistema, só o servidor
+    match /servidor/{id} {
+      allow read, write: if false;
+    }
     // registro dos e-mails enviados pelo servidor (Cloud Functions): a equipe consulta; ninguém grava pelo sistema
     match /emailsEnviados/{id} {
       allow read: if interno();
@@ -106,7 +110,7 @@ service cloud.firestore {
     }
     // demais coleções: só a equipe (o curinga também casaria com as coleções acima, por isso a exclusão explícita)
     match /{colecao}/{resto=**} {
-      allow read, write: if interno() && !(colecao in ['acessos', 'acessosPendentes', 'senhasProvisorias', 'rfi', 'projetosRfi', 'emailsEnviados']);
+      allow read, write: if interno() && !(colecao in ['acessos', 'acessosPendentes', 'senhasProvisorias', 'rfi', 'projetosRfi', 'emailsEnviados', 'servidor']);
     }
   }
 }

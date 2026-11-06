@@ -12,6 +12,10 @@
     "homolog": false,
     "oficial": false,
     "conta": "equipe@fj.arq.br",
-    "modo": "delegacao"
+    "modo": "oauth"
+  },
+  "google": {
+    "homolog": true,
+    "oficial": false
   }
 }

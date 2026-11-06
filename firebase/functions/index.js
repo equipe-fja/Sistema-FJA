@@ -29,21 +29,37 @@ const ligado = () => !!(CFG.remetente && CFG.ativo && CFG.ativo[AMBI]);
 const rotina = nome => !!(SRV[nome] && SRV[nome][AMBI]);
 // Envio: "delegacao" (padrão) = API do Gmail em nome do remetente, com a conta de serviço autorizada no Workspace (escopo gmail.send),
 // sem senha de app; "smtp" = Gmail SMTP com senha de app (segredo SMTP_SENHA). Os segredos só são declarados quando usados.
-const VIA_SMTP = CFG.via === 'smtp';
-const usaChaveSA = (ligado() && !VIA_SMTP) || rotina('drive');
+const VIA_SMTP = CFG.via === 'smtp', VIA_OAUTH = CFG.via === 'oauth';
+const DRIVE_OAUTH = (SRV.drive || {}).modo === 'oauth';
+const GOOGLE = rotina('google'); // autorização única da conta da FJA (Drive, Planilhas e envio de e-mail), sem delegação do Workspace
+const usaChaveSA = (ligado() && !VIA_SMTP && !VIA_OAUTH) || (rotina('drive') && !DRIVE_OAUTH);
+const GOOGLE_SEGREDO = GOOGLE ? defineSecret('GOOGLE_OAUTH_SECRET') : null;
+let CLIENTE = ''; try { CLIENTE = require('fs').readFileSync(__dirname + '/google-client.txt', 'utf8').trim(); } catch { }
+const ESCOPOS_GOOGLE = ['openid', 'email', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/gmail.send'];
+let oauthCli = null, oauthRef = null;
+async function tokenGoogle() { // acesso de 1 h em nome da conta autorizada
+  const { OAuth2Client } = require('google-auth-library');
+  const g = await db.collection('servidor').doc('google').get(), d = g.exists ? g.data() : null;
+  if (!d || !d.refresh) throw new Error('a conta Google do servidor ainda não foi autorizada (Manutenção › Conta Google do servidor)');
+  if (!oauthCli || oauthRef !== d.refresh) { oauthCli = new OAuth2Client(CLIENTE, GOOGLE_SEGREDO.value()); oauthCli.setCredentials({ refresh_token: d.refresh }); oauthRef = d.refresh; }
+  try { const t = await oauthCli.getAccessToken(); return { token: t.token, exp: oauthCli.credentials.expiry_date || Date.now() + 3300e3 }; }
+  catch (e) { oauthCli = null; await g.ref.update({ erro: String(e.message || e).slice(0, 300), erroEm: Date.now() }); throw new Error('o Google recusou a autorização guardada (autorize de novo em Manutenção › Conta Google do servidor)'); }
+}
 const SMTP_SENHA = ligado() && VIA_SMTP ? defineSecret('SMTP_SENHA') : null;
 const DRIVE_SA = usaChaveSA ? defineSecret('DRIVE_SA') : null;
-const SEGREDOS_EMAIL = [VIA_SMTP ? SMTP_SENHA : DRIVE_SA].filter(Boolean);
+const SEGREDOS_EMAIL = [VIA_SMTP ? SMTP_SENHA : VIA_OAUTH ? GOOGLE_SEGREDO : DRIVE_SA].filter(Boolean);
 
 let transp = null;
 const smtp = () => transp || (transp = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: CFG.remetente, pass: SMTP_SENHA.value() } }));
 let jwtGmail = null;
 async function enviarGmail(msg) {
-  const { JWT } = require('google-auth-library');
-  if (!jwtGmail) { const k = JSON.parse(DRIVE_SA.value()); jwtGmail = new JWT({ email: k.client_email, key: k.private_key, scopes: ['https://www.googleapis.com/auth/gmail.send'], subject: CFG.remetente }); }
   const MailComposer = require('nodemailer/lib/mail-composer');
   const raw = (await new MailComposer(msg).compile().build()).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  const t = (await jwtGmail.getAccessToken()).token;
+  let t;
+  if (VIA_OAUTH) t = (await tokenGoogle()).token;
+  else { const { JWT } = require('google-auth-library');
+    if (!jwtGmail) { const k = JSON.parse(DRIVE_SA.value()); jwtGmail = new JWT({ email: k.client_email, key: k.private_key, scopes: ['https://www.googleapis.com/auth/gmail.send'], subject: CFG.remetente }); }
+    t = (await jwtGmail.getAccessToken()).token; }
   const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw }) });
   if (!r.ok) { jwtGmail = null; throw new Error('Gmail: HTTP ' + r.status + ' ' + (await r.text()).slice(0, 300)); }
 }
@@ -137,10 +153,11 @@ if (rotina('drive')) {
   const { onCall, HttpsError } = require('firebase-functions/v2/https');
   const { JWT } = require('google-auth-library');
   let jwt = null;
-  exports.driveToken = onCall({ region: 'southamerica-east1', secrets: [DRIVE_SA], cors: true }, async req => {
+  exports.driveToken = onCall({ region: 'southamerica-east1', secrets: [DRIVE_OAUTH ? GOOGLE_SEGREDO : DRIVE_SA].filter(Boolean), cors: true }, async req => {
     if (!req.auth) throw new HttpsError('unauthenticated', 'entre no sistema');
     const ac = await db.collection('acessos').doc(req.auth.uid).get();
     if (!ac.exists || !['admin', 'master'].includes(ac.data().nivel)) throw new HttpsError('permission-denied', 'só administradores usam o Drive');
+    if (DRIVE_OAUTH) { try { return await tokenGoogle(); } catch (e) { logger.error('driveToken', e.message || e); throw new HttpsError('failed-precondition', e.message || String(e)); } }
     if (!jwt) {
       const k = JSON.parse(DRIVE_SA.value()), d = SRV.drive || {};
       jwt = new JWT({ email: k.client_email, key: k.private_key, scopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'],
@@ -150,5 +167,36 @@ if (rotina('drive')) {
       const t = await jwt.getAccessToken(), exp = jwt.credentials.expiry_date || (Date.now() + 3300e3);
       return { token: t.token, exp };
     } catch (e) { jwt = null; logger.error('driveToken', e.message || e); throw new HttpsError('failed-precondition', 'o Google recusou o acesso (a conta de serviço foi autorizada no Workspace?)'); }
+  });
+}
+
+/* ------------------------------------------------------------------ conta Google do servidor (servidor.json: google) */
+// O Master abre Manutenção › Conta Google do servidor e autoriza uma vez, entrando com a conta da FJA (drive.conta / remetente).
+// O código da autorização vem para cá, é trocado por uma chave de renovação e guardado em servidor/google (o sistema não lê).
+if (GOOGLE) {
+  const { onCall, HttpsError } = require('firebase-functions/v2/https');
+  const soMaster = async req => { if (!req.auth) throw new HttpsError('unauthenticated', 'entre no sistema');
+    const a = await db.collection('acessos').doc(req.auth.uid).get(); if (!a.exists || a.data().nivel !== 'master') throw new HttpsError('permission-denied', 'só o Master'); return a.data(); };
+  const contaEsperada = () => ((SRV.drive || {}).conta || CFG.remetente || 'equipe@fj.arq.br').toLowerCase();
+  exports.googleAutorizar = onCall({ region: 'southamerica-east1', secrets: [GOOGLE_SEGREDO], cors: true }, async req => {
+    const quem = await soMaster(req);
+    const { OAuth2Client } = require('google-auth-library');
+    const cli = new OAuth2Client(CLIENTE, GOOGLE_SEGREDO.value(), 'postmessage');
+    let tk; try { tk = (await cli.getToken(String(req.data && req.data.code || ''))).tokens; } catch (e) { throw new HttpsError('invalid-argument', 'o Google recusou o código: ' + (e.message || e)); }
+    let email = ''; try { email = (await cli.verifyIdToken({ idToken: tk.id_token, audience: CLIENTE })).getPayload().email || ''; } catch { }
+    if (email.toLowerCase() !== contaEsperada()) throw new HttpsError('failed-precondition', `entre com a conta ${contaEsperada()} (foi usada ${email || 'outra conta'})`);
+    const tem = String(tk.scope || '').split(' '), faltam = ESCOPOS_GOOGLE.slice(2).filter(x => !tem.includes(x));
+    if (faltam.length) throw new HttpsError('failed-precondition', 'faltou marcar as permissões: ' + faltam.map(x => x.split('/').pop()).join(', '));
+    if (!tk.refresh_token) throw new HttpsError('failed-precondition', 'o Google não entregou a chave de renovação. Em myaccount.google.com/permissions, remova o acesso do "Sistema FJA" e autorize de novo.');
+    await db.collection('servidor').doc('google').set({ refresh: tk.refresh_token, conta: email, escopos: tem, por: quem.email || '', em: Date.now() });
+    oauthCli = null;
+    return { ok: true, conta: email };
+  });
+  exports.googleEstado = onCall({ region: 'southamerica-east1', secrets: [GOOGLE_SEGREDO], cors: true }, async req => {
+    await soMaster(req);
+    const g = await db.collection('servidor').doc('google').get(), d = g.exists ? g.data() : null;
+    if (!d || !d.refresh) return { autorizado: false, conta: contaEsperada(), escopos: ESCOPOS_GOOGLE };
+    let ok = true, erro = ''; try { await tokenGoogle(); } catch (e) { ok = false; erro = e.message || String(e); }
+    return { autorizado: true, funcionando: ok, erro, conta: d.conta, por: d.por, em: d.em, escopos: ESCOPOS_GOOGLE };
   });
 }

@@ -8015,6 +8015,7 @@ function telaManut(h,v){
   if(v.f==='bkp') return telaBkp(h);
   if(v.f==='acesso') return telaAcesso(h);
   if(v.f==='conta') return telaConta(h);
+  if(v.f==='gsrv') return telaGoogleSrv(h);
   h+=`<div class="page"><h1>Manutenção</h1><p class="lead">Rotinas técnicas do sistema: publicação para o Revit e backup do banco de dados.</p>
     <div class="ferr-lista">${MANUT.filter(x=>!S.convidado||x.id==='conta').map(x=>`<button class="card ferr-card" data-act="manut" data-f="${x.id}"><b>${esc(x.nome)}</b><span class="muted">${esc(x.resumo)}</span></button>`).join('')}</div></div>`;
   return h;
@@ -8204,7 +8205,9 @@ document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="b
 const FB=()=>window.FJA_FIREBASE||null;
 if(AMB==='firebase'){
   MANUT.push({id:'conta',nome:'Minha conta',resumo:'Trocar a senha e sair do sistema.'});
-  FB()?.pronto?.then(()=>{if(FB().admin()){MANUT.push({id:'acesso',nome:'Usuários e acesso',resumo:'Criar contas com senha provisória, definir quem é administrador e remover acessos. Só administradores.'}); if(S.carregado&&!S.dirty) render()}});
+  FB()?.pronto?.then(()=>{if(FB().admin()){MANUT.push({id:'acesso',nome:'Usuários e acesso',resumo:'Criar contas com senha provisória, definir quem é administrador e remover acessos. Só administradores.'});
+    if(FB().master()&&window.FJA_GOOGLE?.servidor) MANUT.push({id:'gsrv',nome:'Conta Google do servidor',resumo:'Autorização única da conta da FJA para o servidor usar o Drive, as Planilhas e enviar e-mails, sem cada pessoa conectar o Google. Só o Master.'});
+    if(S.carregado&&!S.dirty) render()}});
 }
 const ACS={lista:null,pend:[],ouvindo:false,erro:null,criada:null};
 function acsOuvir(){
@@ -8325,6 +8328,32 @@ async function acsAtivarPlaceholder(x){
     toast('Acesso criado: link para criar a senha enviado a '+x.email);
   }catch(e){toast('A conta foi criada, mas faltou um passo: '+(e?.message||e))}
 }
+/* Manutenção › Conta Google do servidor (só o Master) */
+const GSRV={estado:null,carregando:false,erro:''};
+function gsrvCarregar(){if(GSRV.carregando) return; GSRV.carregando=true; GSRV.erro='';
+  window.FJA_GOOGLE.servidor.estado().then(r=>{GSRV.estado=r}).catch(e=>{GSRV.erro=String(e?.message||e)}).finally(()=>{GSRV.carregando=false; if(S.view?.f==='gsrv'&&!S.dirty) renderMain()})}
+function telaGoogleSrv(h){
+  if(!FB()?.master()) return h+'<p class="note">Só o Master.</p></div>';
+  if(!GSRV.estado&&!GSRV.carregando&&!GSRV.erro) gsrvCarregar();
+  const e=GSRV.estado, conta=e?.conta||'equipe@fj.arq.br';
+  let st;
+  if(GSRV.carregando&&!e) st='<p class="muted">Consultando o servidor…</p>';
+  else if(GSRV.erro) st=`<div class="banner"><span class="sp">Não foi possível consultar o servidor: ${esc(GSRV.erro)}</span></div>`;
+  else if(!e?.autorizado) st=`<div class="banner"><span class="sp"><b>Ainda não autorizado.</b> Clique em Autorizar e entre com <b>${esc(conta)}</b>.</span></div>`;
+  else st=`<div class="banner ${e.funcionando?'pub':''}"><span class="sp">${e.funcionando?'<b>Funcionando.</b>':'<b>A autorização parou de funcionar.</b> Autorize de novo.'} Conta <b>${esc(e.conta)}</b>, autorizada por ${esc(e.por||'—')} em ${esc(fmtData(e.em))}.${e.erro?` <span class="muted">(${esc(e.erro)})</span>`:''}</span></div>`;
+  return h+`<div class="pg-h"><h1>Conta Google do servidor</h1></div>
+  <section class="sheet"><div class="pad ferr-pad">
+    <p style="margin-top:0">Para o servidor usar o Drive, as Planilhas e enviar os e-mails de aviso em nome de <b>${esc(conta)}</b>, sem cada pessoa precisar conectar o Google, a conta autoriza uma única vez. A autorização fica guardada no servidor; nenhuma senha passa pelo sistema.</p>
+    ${st}
+    <ol class="muted" style="font-size:13px;line-height:1.6;padding-left:18px">
+      <li>Clique em <b>Autorizar</b>. Abre a janela do Google.</li>
+      <li>Entre (ou escolha) a conta <b>${esc(conta)}</b>.</li>
+      <li>Deixe marcadas todas as permissões: ver e editar arquivos do Drive, planilhas e enviar e-mails.</li>
+    </ol>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="gsrv-aut">${e?.autorizado?'Autorizar de novo':'Autorizar'}</button><button class="btn ghost" data-act="gsrv-ver">Verificar</button></div>
+    <p class="muted" style="font-size:12px">Se trocar a senha de ${esc(conta)} ou remover o acesso do Sistema FJA em myaccount.google.com/permissions, é preciso autorizar de novo aqui.</p>
+  </div></section></div>`;
+}
 function telaConta(h){
   const p=FB()?.perfil()||{};
   h+=`<div class="page"><div class="crumb"><button data-act="manut">Manutenção</button><span>/</span><span>Minha conta</span></div>
@@ -8372,6 +8401,8 @@ document.addEventListener('click',async ev=>{
   if(a==='acs-ord'||a==='acs-agrupar'){const p=acsPref(), k=b.dataset.k;
     if(a==='acs-ord'){const o=p.o; p.o=!o||o.k!==k?{k,dir:'asc'}:o.dir==='asc'?{k,dir:'desc'}:null} else p.g=p.g===k?'':k;
     try{localStorage.setItem('fja.acsLista',JSON.stringify(p))}catch{} renderMain(); return}
+  if(a==='gsrv-ver'){GSRV.estado=null; gsrvCarregar(); renderMain(); return}
+  if(a==='gsrv-aut'){try{const r=await window.FJA_GOOGLE.servidor.autorizar(GSRV.estado?.conta||'equipe@fj.arq.br'); toast('Autorizado: '+r.conta); GSRV.estado=null; gsrvCarregar()}catch(e){toast('Não autorizado: '+(e?.message||e))} return}
   if(a==='acs-senha'){if(await fb.alterarSenha()) toast('Senha alterada');return}
   if(a==='acs-sair'){fb.sair();return}
   if(!fb.admin()){toast('Somente administradores');return}
