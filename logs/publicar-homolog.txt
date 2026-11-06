@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: success
-commit: 7c579467755dc5e716d30a41fc5a0ccce8bf8d38
-quando: 2026-11-06T16:22:48Z
+commit: b7838b4e52bbb28f10e3e7522956573adfeace66
+quando: 2026-11-06T16:27:34Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -9,7 +9,7 @@ quando: 2026-11-06T16:22:48Z
 [36m[1mi [22m[39m deploying [1mfirestore, hosting[22m
 [36m[1mi  cloud.firestore:[22m[39m checking [1mfirebase/firestore.rules[22m for compilation errors...
 [32m[1m✔  cloud.firestore:[22m[39m rules file [1mfirebase/firestore.rules[22m compiled successfully
-[36m[1mi  firestore:[22m[39m uploading rules [1mfirebase/firestore.rules[22m...
+[36m[1mi  firestore:[22m[39m latest version of [1mfirebase/firestore.rules[22m already up to date, skipping upload...
 [36m[1mi  hosting[sistema-fja-homolog]:[22m[39m beginning deploy...
 [36m[1mi  hosting[sistema-fja-homolog]:[22m[39m found 2 files in [1mdist/homolog[22m
 [36m[1mi  hosting:[22m[39m upload complete
@@ -24,4 +24,5 @@ quando: 2026-11-06T16:22:48Z
 
 [1mProject Console:[22m https://console.firebase.google.com/project/sistema-fja-homolog/overview
 [1mHosting URL:[22m https://sistema-fja-homolog.web.app
-e-mails: desligados para homolog (firebase/email/config.json)
+servidor (homolog): e-mails=0 rotinas=[]
+nada ligado: funções não publicadas
