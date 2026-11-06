@@ -19,6 +19,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## oficial Firebase — 06/11, ~17h50
 - Servidor (Cloud Functions, plano Blaze): ligadas as rotinas "equipe" (o que o convidado vê de cada projeto, atualizado na hora + conferência às 3h30) e "autoria" (desfaz edição/exclusão de resposta ou comentário alheio na RI). Funções em Node 22.
 
+## oficial Firebase — 06/11, ~17h50 — commit {C}
+- Servidor (Cloud Functions, plano Blaze) ligado na oficial: rotinas "equipe" (projetosRfi e participantes atualizados na hora + conferência às 3h30) e "autoria" (desfaz edição/exclusão de resposta ou comentário alheio). Funções em Node 22. E-mails e Drive pelo servidor seguem desligados.
+
 ## oficial Firebase — 06/11, ~13h45 — commit e61cf30
 - RFI passa a se chamar RI · Requisição de Informações (textos, PDF e e-mail; dados sem mudança).
 - Link direto para uma RI (#ri=<projeto>/<id>), usado pelos e-mails.
