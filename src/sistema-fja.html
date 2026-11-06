@@ -7945,20 +7945,49 @@ function rvDbOuvir(){
 function rvUI(){if(S.view?.t==='manut'&&S.view.f==='revit'&&!S.dirty) renderMain()}
 /* extensão do pyRevit embutida na geração (scripts/gerar.sh troca o marcador pelos arquivos de revit/) */
 const EXT_REVIT=null/*EXT_REVIT*/;
+const EXT_LEIAME=()=>crlf(`FERRAMENTAS FJA (pyRevit) - versao ${EXT_REVIT.versao}
+==========================================
+
+Aba "Ferramentas FJA" do Revit: Composicoes, Componentes, Copiar do link,
+Renomear tipos e Legendas.
+
+Como instalar ou atualizar (precisa do pyRevit instalado)
+  1. Extraia este .zip (botao direito > Extrair tudo).
+  2. De dois cliques em "instalar.cmd".
+     Se o Windows mostrar "O Windows protegeu o computador", clique em
+     "Mais informacoes" > "Executar assim mesmo".
+  3. No Revit: pyRevit > Reload (ou abra o Revit).
+
+O que o instalador faz
+  - Copia a pasta Ferramentas-FJA.extension para a pasta compartilhada
+    G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT\\pyRevit
+    (uma atualizacao feita por qualquer pessoa vale para todos). Nao substitui
+    uma versao mais nova que ja esteja la.
+  - Cadastra essa pasta no pyRevit do seu usuario (pyRevit_config.ini; a
+    versao anterior do arquivo fica salva como pyRevit_config.ini.antes-fja).
+  - Move a copia local antiga (%APPDATA%\\pyRevit\\Extensions) para
+    %APPDATA%\\pyRevit\\_backup-extensoes, para a aba nao aparecer duas vezes.
+  - Sem acesso ao G:, instala so neste computador, em
+    %APPDATA%\\pyRevit\\Extensions.
+  Nao precisa de administrador.
+`);
 async function baixarExtRevit(){
   if(!EXT_REVIT){toast('O pacote da extensão não foi incluído nesta versão.');return}
   if(!downloads){toast('O download não está disponível nesta visualização.');return}
-  const bin=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0));
-  const z=zipArquivos(EXT_REVIT.arquivos.map(a=>({nome:a.nome,dados:bin(a.b64)})));
-  try{const r=await downloads.save({filename:`Ferramentas-FJA-v${EXT_REVIT.versao}.zip`,data:z}); if(r) toast('Extensão salva')}
+  const bin=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0)), raiz=`Ferramentas-FJA-v${EXT_REVIT.versao}/`;
+  const extra=EXT_REVIT.instalar?[{nome:raiz+'instalar.cmd',dados:cmdPoliglota(`Ferramentas FJA ${EXT_REVIT.versao} - instalar`,EXT_REVIT.instalar)},{nome:raiz+'LEIA-ME.txt',dados:EXT_LEIAME()}]:[];
+  const z=zipArquivos([...extra,...EXT_REVIT.arquivos.map(a=>({nome:raiz+a.nome,dados:bin(a.b64)}))]);
+  try{const r=await downloads.save({filename:`Ferramentas-FJA-v${EXT_REVIT.versao}.zip`,data:z}); if(r) toast(EXT_REVIT.instalar?'Pacote salvo. Extraia e rode instalar.cmd':'Extensão salva')}
   catch(e){toast(e?.code==='declined'?'Download cancelado':'Não foi possível baixar a extensão')}
 }
 function telaExtRevit(h){
   h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><button data-act="ferr">Ferramentas</button><span>/</span><span>Extensão do Revit</span></div>
   <h1>Extensão do Revit</h1><p class="lead">Aba Ferramentas FJA do pyRevit, que lê a especificação técnica do sistema e cria tipos no modelo.</p>
-  <section class="sheet"><div class="sheet-h"><h2>Extensão Ferramentas FJA</h2>${EXT_REVIT?`<span class="hint">versão ${esc(EXT_REVIT.versao)}</span>`:''}<span class="sp"></span><button class="btn sm pri" data-act="rv-ext"${EXT_REVIT?'':' disabled'}>Baixar a extensão</button></div><div class="pad ferr-pad">
+  <section class="sheet"><div class="sheet-h"><h2>Extensão Ferramentas FJA</h2>${EXT_REVIT?`<span class="hint">versão ${esc(EXT_REVIT.versao)}</span>`:''}<span class="sp"></span><button class="btn sm pri" data-act="rv-ext"${EXT_REVIT?'':' disabled'}>Baixar o instalador</button></div><div class="pad ferr-pad">
     <p><b>Novo na versão 2.1.0:</b> painel <b>Links › Copiar do link</b> — copia em massa elementos de um modelo linkado para o modelo aberto, na mesma posição, por módulo (por enquanto <b>Equipamentos</b>: mobiliário, equipamentos, luminárias, tomadas, aparelhos sanitários, terminais…). Famílias face based vêm sem hospedeiro, no mesmo lugar; cada cópia guarda a origem no link para não ser copiada duas vezes.</p>
-    <p class="muted">Aba <b>Ferramentas FJA</b> do pyRevit (Composições, Componentes, Copiar do link, Renomear tipos, Legendas). Para atualizar: baixe o .zip e extraia por cima da pasta atual (os arquivos novos entram, os existentes são substituídos). Para instalar num computador novo: extraia o .zip, copie a pasta <span class="mono">Ferramentas-FJA.extension</span> para uma pasta de extensões do pyRevit (no escritório: <span class="mono">G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit</span>, já cadastrada no pyRevit de quem usa) e, no Revit, clique em <b>pyRevit › Reload</b>. Num computador que ainda não lê essa pasta: pyRevit › Settings › Custom Extension Directories › adicionar a pasta.</p>
+    <p class="muted">Aba <b>Ferramentas FJA</b> do pyRevit (Composições, Componentes, Copiar do link, Renomear tipos, Legendas). </p>
+    <p><b>Para instalar ou atualizar:</b> baixe o pacote, extraia (botão direito › <i>Extrair tudo</i>) e dê dois cliques em <span class="mono">instalar.cmd</span>. Depois, no Revit, clique em <b>pyRevit › Reload</b> (ou abra o Revit). Precisa do pyRevit instalado; não precisa de administrador. Se aparecer “O Windows protegeu o computador”, clique em <i>Mais informações › Executar assim mesmo</i>.</p>
+    <p class="muted">O instalador copia a extensão para a pasta compartilhada <span class="mono">G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT\\pyRevit</span> (uma atualização feita por qualquer pessoa vale para todos; não substitui uma versão mais nova), cadastra essa pasta no pyRevit do seu usuário e tira a cópia local antiga, para a aba não aparecer duas vezes. Sem acesso ao G:, instala só neste computador. O pacote traz um LEIA-ME.</p>
   </div></section></div>`;
   return h;
 }

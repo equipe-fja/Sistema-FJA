@@ -14,6 +14,7 @@ Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sis
 Origem: cópia de `%APPDATA%\pyRevit\Extensions\Ferramentas-FJA.extension` de um computador do escritório (03/11/2026).
 
 ## Distribuição
+- **Pelo sistema (desde 06/11/2026):** Biblioteca › Ferramentas › Extensão do Revit › "Baixar o instalador". O .zip traz a extensão, `instalar.cmd` e um LEIA-ME. O instalador (`revit/instalar.ps1`, embutido por `scripts/embutir-revit.py`) copia a extensão para a pasta compartilhada do G: com `robocopy /MIR` (não substitui versão mais nova), cadastra a pasta em `pyRevit_config.ini` ([core] userextensions; cópia anterior em `.antes-fja`) e move a cópia local antiga de `%APPDATA%\pyRevit\Extensions` para `%APPDATA%\pyRevit\_backup-extensoes`. Sem o G:, instala em `%APPDATA%\pyRevit\Extensions`. Testado no Windows com G: e APPDATA simulados (variáveis `FJA_TESTE_REVIT` e `FJA_TESTE_APPDATA`).
 - Cópia de uso no G:: `G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit\Ferramentas-FJA.extension` (em uso desde 03/11/2026 no primeiro computador).
 - Cada computador aponta o pyRevit para `G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit` (pyRevit › Settings › Custom Extension Directories, ou `pyrevit extensions paths add "<pasta>"`) e remove a cópia local de `%APPDATA%\pyRevit\Extensions` para não carregar a aba duas vezes.
 - Para atualizar: alterar aqui, commit, copiar a pasta para o G: e recarregar o pyRevit (Reload).

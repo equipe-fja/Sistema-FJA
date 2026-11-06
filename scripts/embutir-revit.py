@@ -12,7 +12,8 @@ for d, _, fs in sorted(os.walk(ext)):
         cam = os.path.join(d, f)
         arqs.append({"nome": os.path.relpath(cam, raiz).replace(os.sep, "/"),
                      "b64": base64.b64encode(open(cam, "rb").read()).decode()})
-dados = json.dumps({"versao": versao, "arquivos": arqs}, ensure_ascii=False, separators=(",", ":"))
+instalar = open(os.path.join(raiz, "instalar.ps1"), encoding="utf-8").read().replace("__VERSAO__", versao)
+dados = json.dumps({"versao": versao, "arquivos": arqs, "instalar": instalar}, ensure_ascii=False, separators=(",", ":"))
 for p in sys.argv[1:]:
     s = open(p, encoding="utf-8").read()
     assert s.count("null/*EXT_REVIT*/") == 1, p
