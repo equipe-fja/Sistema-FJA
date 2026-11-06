@@ -19,7 +19,7 @@ let CFG = {}; try { CFG = require('./config.json'); } catch { }
 let SRV = {}; try { SRV = require('./servidor.json'); } catch { }
 let REGIAO = 'southamerica-east1'; try { REGIAO = require('./regiao.json').regiao || REGIAO; } catch { }
 setGlobalOptions({ region: REGIAO, maxInstances: 3, memory: '256MiB' });
-const SMTP_SENHA = defineSecret('SMTP_SENHA');
+
 
 const PROJ = process.env.GCLOUD_PROJECT || (JSON.parse(process.env.FIREBASE_CONFIG || '{}').projectId) || '';
 const HOMOLOG = /homolog/.test(PROJ);
@@ -27,6 +27,8 @@ const SITE = `https://${PROJ}.web.app`;
 const AMBI = HOMOLOG ? 'homolog' : 'oficial';
 const ligado = () => !!(CFG.remetente && CFG.ativo && CFG.ativo[AMBI]);
 const rotina = nome => !!(SRV[nome] && SRV[nome][AMBI]);
+// a senha do e-mail só é exigida quando o e-mail está ligado (senão a publicação pararia pedindo o valor)
+const SMTP_SENHA = ligado() ? defineSecret('SMTP_SENHA') : null;
 
 let transp = null;
 const smtp = () => transp || (transp = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user: CFG.remetente, pass: SMTP_SENHA.value() } }));
