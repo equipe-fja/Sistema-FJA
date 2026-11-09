@@ -10,7 +10,7 @@ from pyrevit import revit, DB, forms
 import fja_legenda_disciplina as L
 
 from Autodesk.Revit.UI import PreviewControl
-from System.Windows import Thickness, VerticalAlignment, GridLength, GridUnitType, TextTrimming
+from System.Windows import Thickness, VerticalAlignment, GridLength, GridUnitType, TextTrimming, Visibility
 from System.Windows.Controls import Grid, ColumnDefinition, CheckBox, TextBox, TextBlock
 from System.Windows.Media import SolidColorBrush, Color
 
@@ -135,7 +135,7 @@ class Janela(forms.WPFWindow):
             except Exception:
                 pass
             self.prev = None
-        self.txtPrevVazia.Visibility = 0  # Visible
+        self.txtPrevVazia.Visibility = Visibility.Visible
 
     def _desfazer(self):
         self._fechar_prev()
@@ -197,7 +197,7 @@ class Janela(forms.WPFWindow):
         try:
             self.prev = PreviewControl(doc, res["view"].Id)
             self.hostPrev.Children.Add(self.prev)
-            self.txtPrevVazia.Visibility = 2  # Collapsed
+            self.txtPrevVazia.Visibility = Visibility.Collapsed
         except Exception as e:
             self.txtStatus.Text = u"Legenda gerada, mas a prévia não abriu: {}".format(e)
             return
