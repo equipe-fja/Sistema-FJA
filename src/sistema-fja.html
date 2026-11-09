@@ -922,6 +922,24 @@ body.cro-arr,body.cro-arr *{cursor:grabbing!important}
 .eqp-lista{display:flex;flex-direction:column;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:6px}.eqp-lista .ml-b{justify-content:flex-start;text-align:left;gap:6px}
 .cro-dr .fl{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
 .cro-dr .fld{padding:6px 8px;font-size:13px;min-width:0}
+.pn-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:4px 0 22px}
+.pn-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;text-align:left}
+.pn-card .n{font-family:var(--f-display);font-size:26px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.pn-card .k{font-size:12.5px;color:var(--muted)}.pn-card .al{font-size:11.5px;color:var(--accent,#8E1B1B);font-weight:600}
+.pn-card.zero .n{color:var(--faint)}
+.pn-filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
+.pn-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1000px){.pn-grid{grid-template-columns:1fr}}
+.pn-l{list-style:none;margin:0;padding:0}
+.pn-i{display:flex;gap:10px;align-items:flex-start;padding:9px 14px;border-top:1px solid var(--line);cursor:pointer;text-align:left;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;font:inherit;color:inherit}
+.pn-i:hover{background:var(--hover,rgba(0,0,0,.03))}
+.pn-i .pn-tx{flex:1;min-width:0}.pn-i .pn-t{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-i .pn-s{font-size:12px;color:var(--muted);margin-top:2px}.pn-i .pn-d{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.pn-i .pn-d.al{color:var(--accent,#8E1B1B);font-weight:600}
+.pn-tag{font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;padding:1px 6px;border-radius:3px;background:var(--off-bg);color:var(--muted);white-space:nowrap;margin-top:2px}
+.pn-novo{width:7px;height:7px;border-radius:50%;background:var(--accent,#8E1B1B);flex:none;margin-top:6px}
+.pn-dia{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:12px 14px 4px}
+.pn-mais{font-size:12px;color:var(--muted);padding:8px 14px;border-top:1px solid var(--line)}
 .rh-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
 .rh-i{border-left:2px solid var(--line);padding:1px 0 1px 11px}
 .rh-m{font-size:11.5px;color:var(--muted)}
@@ -994,6 +1012,7 @@ const AMB_DEV=AMB==='dev'||!!window.FJA_FB_HOMOLOG;
 const MIGRADO_PARA='https://sistema-fja.web.app';   // oficial do Claude: só leitura, aponta para a versão Firebase
 const AUTO_OK=AMB==='firebase'?(!!window.FJA_FB_VIRADA&&!window.FJA_FB_HOMOLOG):!(AMB==='oficial'&&MIGRADO_PARA);
 const IC = {
+  painel:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
   hist:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14M5 2h14"/><path d="M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22"/><path d="M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2"/></svg>',
   manut:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   ferr:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.3 5.3L4 17l3 3 5.4-5.4a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.3-.7-.7-2.3z"/></svg>',
@@ -1214,7 +1233,7 @@ function renderTree(){
     }
     return h;
   };
-  let h='';
+  let h=`<div class="secline"><button class="row sec-h ${S.view.t==='painel'?'sel':''}" data-act="painel"><span class="chev"></span>${IC.painel}<span class="lbl">Meu painel</span><span class="cnt" title="Ações pendentes com você">${pnContagem()||''}</span></button></div>`;
   for(const t of TOPO){
     const g=GRUPOS[t];
     if(!g){h+=secTree(SEC[t],0);continue}
@@ -1263,10 +1282,11 @@ function renderMain(){
   const m=$('main');
   if(S.estado==='indisponivel'){m.innerHTML=`<div class="page"><h1>Sistema FJA indisponível</h1><p class="lead">O banco de dados do sistema não abriu nesta visualização. Entre com sua conta do Claude e abra a página pelo link compartilhado do escritório.</p></div>`;return}
   if(!S.carregado){m.innerHTML='<div class="loading">Carregando o Sistema FJA…</div>';return}
-  if(S.convidado&&!vistaConvidadoOk(S.view)){const p=itensDe('projetos').sort(ordena)[0]; S.view=p?{t:'rfi',id:p.id}:{t:'manut',f:'conta'}}
+  if(S.convidado&&!vistaConvidadoOk(S.view)) S.view={t:'painel'};
   const v=S.view; let h='';
   if(S.pend) h+=bannerPend();
   if(v.t==='home') h=telaHome(h);
+  else if(v.t==='painel') h=telaPainel(h);
   else if(v.t==='grupo') h=telaGrupo(h,v.g);
   else if(v.t==='secao') h=telaSecao(h,v.sec);
   else if(v.t==='schema') h=telaSchema(h,v.sec);
@@ -1307,6 +1327,84 @@ function renderMain(){
 }
 function bannerPend(){
   return `<div class="page" style="padding-bottom:0"><div class="banner"><span class="sp">Há alterações não salvas em “${esc((S.edraft||S.qdraft||S.draft)?.nome||'')}”.</span><button class="btn sm pri" data-act="pend-salvar">Salvar e continuar</button><button class="btn sm" data-act="pend-descartar">Descartar</button><button class="btn sm ghost" data-act="pend-cancelar">Voltar</button></div></div>`;
+}
+/* ---------- Meu painel: o que pede ação de quem está usando e o que mudou nos projetos dele ---------- */
+const PN={escopo:null,proj:'',vistoAnt:null};
+function pnEu(){const p=FB()?.perfil(); const emp=p?.empresa||''; return {id:rfiEuId(),nome:rfiEuNome(),empresa:emp,empNome:emp?(S.itens.get(emp)?.nome||''):''}}
+const pnAberto=p=>!/^(Conclu|Arquiv)/i.test(p.status||'');
+const pnReqMim=(r,eu)=>reqsRfi(r).some(q=>q.tipo==='u'?q.id===eu.id:(!!eu.empresa&&q.id===eu.empresa));
+// responsável (texto livre) ou empresa (parceiro) ligados à pessoa
+function pnLigado(resp,parcs,eu){
+  if(eu.empresa&&(parcs||[]).includes(eu.empresa)) return true;
+  const r=semAc(String(resp||'')).toLowerCase(); if(!r) return false;
+  const nm=semAc(eu.nome||'').toLowerCase().trim(), pr=nm.split(/\s+/)[0]||'', em=semAc(eu.empNome||'').toLowerCase().trim();
+  return (nm.length>2&&r.includes(nm))||(pr.length>2&&new RegExp('\\b'+pr.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(r))||(em.length>2&&r.includes(em));
+}
+function pnProjetos(eu){
+  if(PN.escopo==null) PN.escopo=lsGet('fja.pn.escopo','meus');
+  const todos=itensDe('projetos').filter(pnAberto);
+  if(S.convidado||PN.escopo==='todos') return todos;
+  return todos.filter(p=>partsDe(p).includes(eu.id)||(eu.empresa&&empresasProj(p).includes(eu.empresa))||rfiDe(p.id).some(r=>rfiAutorId(r)===eu.id||pnReqMim(r,eu)));
+}
+const pnPrazo=d=>{const n=dataNum(d); if(!n) return null; const h=hojeNum(); if(n<h) return {t:'vencida',al:true}; const dt=Math.round((new Date(String(n).replace(/(\d{4})(\d\d)(\d\d)/,'$1-$2-$3'))-new Date(String(h).replace(/(\d{4})(\d\d)(\d\d)/,'$1-$2-$3')))/864e5);
+  return {t:dt===0?'vence hoje':dt===1?'vence amanhã':`faltam ${dt} dias`,al:dt<=2}};
+function pnDados(){
+  const eu=pnEu(), ps=pnProjetos(eu).filter(p=>!PN.proj||p.id===PN.proj), ids=new Set(ps.map(p=>p.id)), nomeP=id=>{const p=S.itens.get(id); return p?((p.campos?.codigo?p.campos.codigo+' ':'')+(p.nome||'')):''};
+  const ris=[...S.rfis.values()].filter(r=>ids.has(r.projeto));
+  const riMinhas=ris.filter(r=>r.status==='ABERTA'&&pnReqMim(r,eu)).sort((a,b)=>(dataNum(a.prazo)||9e9)-(dataNum(b.prazo)||9e9));
+  const riAguardo=ris.filter(r=>r.status==='ABERTA'&&rfiAutorId(r)===eu.id).sort((a,b)=>(dataNum(a.prazo)||9e9)-(dataNum(b.prazo)||9e9));
+  let pds=[], cms=[];
+  if(!S.convidado){
+    pds=[...S.pends.values()].filter(e=>ids.has(e.projeto)&&ANTES_PD.has(e.status||'')&&!e.finalizacao&&pnLigado(e.responsavel,parcsPd(e),eu))
+      .sort((a,b)=>(atrasadaPd(b)?1:0)-(atrasadaPd(a)?1:0)||(dataNum(a.previsao)||9e9)-(dataNum(b.previsao)||9e9));
+    cms=[...S.coment.values()].filter(e=>ids.has(e.projeto)&&e.status!=='ATENDIDO'&&pnLigado(e.responsavel,parcsCm(e),eu)).sort((a,b)=>(b.atualizadoEm||0)-(a.atualizadoEm||0));
+  }
+  // atualizações dos últimos 14 dias feitas por outras pessoas
+  const desde=Date.now()-14*864e5, upd=[];
+  for(const r of ris){
+    for(const x of (r.historico||[])) if(x.em>=desde&&x.porId!==eu.id) upd.push({em:x.em,t:'rfii',id:r.projeto,eid:r.id,tag:'RI',tit:`Nº ${r.num??''} · ${r.assunto||'(sem assunto)'}`,sub:`${x.por||'Alguém'} · ${String(x.acao||'Alterou').replace(/\bRFI\b/,'RI').replace(/^./,c=>c.toLowerCase())}${(x.campos||[]).length?': '+x.campos.slice(0,2).map(c=>c.c).join(', ')+(x.campos.length>2?'…':''):''}`,proj:nomeP(r.projeto)});
+  }
+  if(!S.convidado){
+    for(const e of S.pends.values()) if(ids.has(e.projeto)&&(e.atualizadoEm||0)>=desde&&e.atualizadoPor!==me) upd.push({em:e.atualizadoEm,t:'peni',id:e.projeto,eid:e.id,tag:'Pendência',tit:`Nº ${e.num??''} · ${e.pendencia||'Sem título'}`,sub:[capCm(e.status||''),ultimoEv(e)?.texto].filter(Boolean).join(' · ').slice(0,140),proj:nomeP(e.projeto)});
+    for(const e of S.coment.values()) if(ids.has(e.projeto)&&(e.atualizadoEm||0)>=desde&&e.atualizadoPor!==me) upd.push({em:e.atualizadoEm,t:'comi',id:e.projeto,eid:e.id,tag:'Comentário',tit:`Nº ${e.num??''} · ${String(e.documento||e.texto||'').slice(0,90)}`,sub:capCm(e.status||''),proj:nomeP(e.projeto)});
+  }
+  upd.sort((a,b)=>b.em-a.em);
+  return {eu,ps,nomeP,riMinhas,riAguardo,pds,cms,upd};
+}
+function pnContagem(){try{if(AMB==='firebase'&&!FB()?.perfil()) return 0; const d=pnDados(); return d.riMinhas.length+d.pds.length}catch{return 0}}
+function telaPainel(h){
+  if(PN.vistoAnt==null){PN.vistoAnt=lsGet('fja.pn.visto',0)||0; lsSet('fja.pn.visto',Date.now())}
+  const d=pnDados(), {eu}=d, conv=S.convidado;
+  const item=(x)=>`<button class="pn-i" data-act="pn-abrir" data-t="${x.t}" data-id="${esc(x.id)}" data-eid="${esc(x.eid)}">${x.novo?'<span class="pn-novo" title="Novo desde a sua última visita"></span>':''}<span class="pn-tag">${esc(x.tag)}</span><span class="pn-tx"><div class="pn-t">${esc(x.tit)}</div><div class="pn-s">${esc(x.proj)}${x.sub?' · '+esc(x.sub):''}</div></span>${x.dir?`<span class="pn-d${x.al?' al':''}">${esc(x.dir)}</span>`:''}</button>`;
+  const lista=(tit,L,vazio,max=8)=>`<section class="sheet" style="margin-bottom:16px"><div class="sheet-h"><h2>${tit} <span class="muted" style="font-weight:400">(${L.length})</span></h2></div>${L.length?L.slice(0,max).map(item).join('')+(L.length>max?`<div class="pn-mais">e mais ${L.length-max}. Use o filtro de projeto para ver todos.</div>`:''):`<p class="note" style="padding:0 14px 12px">${vazio}</p>`}</section>`;
+  const riIt=r=>{const pz=pnPrazo(r.prazo); return {t:'rfii',id:r.projeto,eid:r.id,tag:'RI',tit:`Nº ${r.num??''} · ${r.assunto||'(sem assunto)'}`,sub:rfiPessoaNome(r.requerente)?'de '+rfiPessoaNome(r.requerente):'',proj:d.nomeP(r.projeto),dir:pz?pz.t:'sem prazo',al:pz?.al}};
+  const riAgIt=r=>{const pz=pnPrazo(r.prazo); return {...riIt(r),sub:'para '+(reqsNomes(r)||'—'),dir:pz?pz.t:'sem prazo',al:pz?.al}};
+  const pdIt=e=>({t:'peni',id:e.projeto,eid:e.id,tag:'Pendência',tit:`Nº ${e.num??''} · ${e.pendencia||'Sem título'}`,sub:[capCm(e.status||''),e.responsavel].filter(Boolean).join(' · '),proj:d.nomeP(e.projeto),dir:atrasadaPd(e)?'atrasada':(e.previsao?'até '+e.previsao:''),al:atrasadaPd(e)});
+  const cmIt=e=>({t:'comi',id:e.projeto,eid:e.id,tag:'Comentário',tit:`Nº ${e.num??''} · ${String(e.documento||e.texto||'').slice(0,90)}`,sub:[capCm(e.status||''),e.responsavel].filter(Boolean).join(' · '),proj:d.nomeP(e.projeto),dir:''});
+  const venc=d.riMinhas.filter(r=>pnPrazo(r.prazo)?.al).length, atr=d.pds.filter(atrasadaPd).length, novos=d.upd.filter(x=>x.em>PN.vistoAnt).length;
+  const card=(n,k,al)=>`<div class="pn-card${n?'':' zero'}"><span class="n">${n}</span><span class="k">${k}</span>${al?`<span class="al">${al}</span>`:''}</div>`;
+  const projOps=pnProjetos(eu).sort(ordena);
+  h+=`<div class="page"><h1>Meu painel</h1><p class="lead">${esc(eu.nome?('Olá, '+eu.nome.split(' ')[0]+'. '):'')}O que pede a sua ação e o que mudou nos projetos em que você está envolvido.</p>
+  <div class="pn-filtros">${conv?'':`<label class="fl" style="flex-direction:row;align-items:center;gap:6px">Projetos <select class="fld sm" id="pnEscopo" style="width:auto"><option value="meus"${PN.escopo!=='todos'?' selected':''}>Em que estou envolvido</option><option value="todos"${PN.escopo==='todos'?' selected':''}>Todos em andamento</option></select></label>`}
+    <select class="fld sm" id="pnProj" aria-label="Projeto" style="width:auto;max-width:380px"><option value="">Todos os projetos (${projOps.length})</option>${projOps.map(p=>`<option value="${esc(p.id)}"${PN.proj===p.id?' selected':''}>${esc(d.nomeP(p.id))}</option>`).join('')}</select>
+    ${!conv&&!eu.empresa&&AMB==='firebase'?'<span class="muted" style="font-size:12px">Dica: defina a sua empresa em Usuários e acesso para o painel achar as pendências e comentários da sua empresa.</span>':''}</div>
+  <div class="pn-cards">${card(d.riMinhas.length,'RIs aguardando a sua resposta',venc?`${venc} com prazo vencendo ou vencido`:'')}${card(d.riAguardo.length,'RIs suas aguardando resposta','')}
+    ${conv?'':card(d.pds.length,'Pendências ligadas a você',atr?`${atr} atrasada${atr>1?'s':''}`:'')+card(d.cms.length,'Comentários em aberto ligados a você','')}
+    ${card(novos,'Novidades desde a sua última visita','')}</div>
+  <div class="pn-grid"><div>
+    ${lista('RIs aguardando a sua resposta',d.riMinhas.map(riIt),'Nenhuma RI aguardando você.')}
+    ${lista('RIs que você abriu, aguardando resposta',d.riAguardo.map(riAgIt),'Nenhuma RI sua em aberto.')}
+    ${conv?'':lista('Pendências ligadas a você',d.pds.map(pdIt),'Nenhuma pendência em aberto ligada a você ou à sua empresa.')}
+    ${conv?'':lista('Comentários em aberto ligados a você',d.cms.map(cmIt),'Nenhum comentário em aberto ligado a você ou à sua empresa.')}
+  </div><div>
+    <section class="sheet"><div class="sheet-h"><h2>Atualizações recentes</h2></div>
+    <p class="muted" style="font-size:12px;padding:0 14px;margin:0">Últimos 14 dias, feitas por outras pessoas. <span class="pn-novo" style="display:inline-block;margin:0 3px 0 0;vertical-align:middle"></span>= novo desde a sua última visita.</p>
+    ${d.upd.length?(()=>{let o='',dia='';for(const x of d.upd.slice(0,60)){const dd=new Date(x.em), k=dd.toDateString(), hj=new Date().toDateString(), on=new Date(Date.now()-864e5).toDateString();
+      if(k!==dia){dia=k; o+=`<div class="pn-dia">${k===hj?'Hoje':k===on?'Ontem':dd.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})}</div>`}
+      o+=item({...x,novo:x.em>PN.vistoAnt,dir:dd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})})} return o})():'<p class="note" style="padding:8px 14px 12px">Nada novo nos últimos 14 dias.</p>'}
+    </section>
+  </div></div></div>`;
+  return h;
 }
 function telaHome(h){
   const recentes=[...S.itens.values()].sort((a,b)=>(b.atualizadoEm||0)-(a.atualizadoEm||0)).slice(0,8);
@@ -2813,10 +2911,11 @@ document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="p
   const it=S.itens.get(b.dataset.id); if(it) partsGravar(it.id,partsDe(it).filter(u=>u!==b.dataset.u))},true);
 document.addEventListener('change',ev=>{const s=ev.target.closest?.('select[data-act="part-add"]'); if(!s||!s.value) return;
   const it=S.itens.get(s.dataset.id); if(it&&!partsDe(it).includes(s.value)) partsGravar(it.id,[...partsDe(it),s.value])},true);
-const vistaConvidadoOk=v=>v&&(v.t==='rfi'||v.t==='rfii'||(v.t==='manut'&&(!v.f||v.f==='conta')))&&(!v.id||v.t==='manut'||S.itens.has(v.id));
+const vistaConvidadoOk=v=>v&&(v.t==='painel'||v.t==='rfi'||v.t==='rfii'||(v.t==='manut'&&(!v.f||v.f==='conta')))&&(!v.id||v.t==='manut'||S.itens.has(v.id));
 function arvoreConvidado(){
   const ps=itensDe('projetos').sort(ordena);
-  let h=`<div class="secline"><div class="row sec-h" style="cursor:default">${IC.projetos}<span class="lbl">Projetos</span><span class="cnt">${ps.length||''}</span></div></div>`;
+  let h=`<div class="secline"><button class="row sec-h ${S.view.t==='painel'?'sel':''}" data-act="painel">${IC.painel}<span class="lbl">Meu painel</span><span class="cnt">${pnContagem()||''}</span></button></div>`;
+  h+=`<div class="secline"><div class="row sec-h" style="cursor:default">${IC.projetos}<span class="lbl">Projetos</span><span class="cnt">${ps.length||''}</span></div></div>`;
   for(const p of ps){const sel=(S.view.t==='rfi'||S.view.t==='rfii')&&S.view.id===p.id, n=rfiDe(p.id).length;
     h+=`<button class="row item ${sel?'sel':''}" style="padding-left:28px" data-act="rfi" data-id="${esc(p.id)}"><span class="lbl">${p.campos?.codigo?`<span class="mono muted">${esc(p.campos.codigo)}</span> `:''}${esc(p.nome||'')} · RI</span><span class="cnt">${n||''}</span></button>`}
   if(!ps.length) h+=`<p class="muted" style="padding:6px 28px;font-size:12.5px">Nenhum projeto liberado ainda.</p>`;
@@ -3130,6 +3229,8 @@ async function rfiAcao(a,b){
   return false;
 }
 document.addEventListener('change',async ev=>{
+  if(ev.target.id==='pnEscopo'){PN.escopo=ev.target.value; PN.proj=''; lsSet('fja.pn.escopo',PN.escopo); render(); return}
+  if(ev.target.id==='pnProj'){PN.proj=ev.target.value; renderMain(); return}
   if(ev.target.id==='contaAvisos'){const p=FB()?.perfil(), v=ev.target.value; if(!p) return;
     try{await db.collection('acessos').doc(p.uid).update({avisos:v}); p.avisos=v; toast('Preferência de avisos salva')}catch(e){toast('Não foi possível salvar: '+(e?.message||e))} return}
   const el=ev.target; if(!S.qdraft||S.view?.t!=='rfii') return;
@@ -6573,6 +6674,8 @@ document.addEventListener('click',async ev=>{
   }
   else if(a==='copiar-ref'){fecharMenuLinha();await copiarOuAbrir(b.dataset.path)}
   else if(a==='home'){ir({t:'home'})}
+  else if(a==='painel'){ir({t:'painel'})}
+  else if(a==='pn-abrir'){ir({t:b.dataset.t,id:b.dataset.id,eid:b.dataset.eid})}
   else if(a==='grupo'){
     const k='g:'+b.dataset.g;
     if(b.classList.contains('sec-h') && S.view.t==='grupo' && S.view.g===b.dataset.g){alternarTk(b);return}
