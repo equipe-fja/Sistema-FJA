@@ -21,6 +21,10 @@ Responder ao usuário em português. O usuário é a equipe da FJA (a FJA decide
 - Alterar artifacts exige sessão com acesso de rede; sem ele, só artifacts criados na própria sessão podem ser alterados.
 - A oficial e a dev rodam no contrato 0.2.92.
 
+## Revit: Python × C#
+- Ferramentas novas e avançadas da suíte nascem em C# (`revit/dotnet/FJA.Revit`); as existentes em Python ficam como estão. Ver `docs/revit-csharp.md`.
+- **Avisar a FJA, caso a caso**, quando um pedido de ferramenta existente bater num dos critérios de migração de `docs/revit-csharp.md` (tempo real, janela aberta/painel, desempenho, lógica grande, biblioteca externa, reescrita grande), recomendando migrar para C# antes de implementar. Não migrar sem a FJA concordar.
+
 ## Notas técnicas
 - Ver `docs/notas-tecnicas.md` (banco, módulos, Drive/Sheets, PDF, Windows).
 - `confirm()`/`alert()` são bloqueados no claude.ai: usar `confirmar()` / `pedirNome()`.

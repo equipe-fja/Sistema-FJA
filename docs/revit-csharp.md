@@ -56,4 +56,6 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 ## Situação em 09/11/2026
 - Compilação no GitHub testada (R2024 e R2027, sem avisos).
 - Testado em Python: pacote dividido em partes, aplicação com e sem `bin/`, preservação de `bin/`.
-- **Falta testar no Revit**: o botão Sobre (2024 e 2027) e a ida e volta do Atualizar com a biblioteca C#. Na tentativa pelo conector, o Revit estava ocupado por outra sessão e as respostas vieram trocadas.
+- **Testado no Revit 2027 pelo conector (09/11, ~15h10)**, com uma cópia da DLL em `%LOCALAPPDATA%\fja-teste-dotnet`: versão 2.5.0 / R2027, comando Sobre encontrado, carregamento pela memória (sem `Location`), cache reaproveitado, DLL apagada e substituída com o Revit aberto e versão nova carregada no clique seguinte, comando inexistente devolvendo erro sem derrubar nada. A janela do Sobre não foi aberta pelo conector (diálogo modal).
+- **Falta**: clicar em Suíte › Sobre no Revit 2027 e no 2024 depois de atualizar a extensão para a 2.5.0, e a ida e volta do Atualizar com a biblioteca C#.
+- Teste pelo conector: o conector lê o código como Latin-1 (acentos chegam trocados) — usar só ASCII no código enviado; e fechar arquivos gravados (`with`) antes de importar.
