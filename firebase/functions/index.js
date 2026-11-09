@@ -104,7 +104,7 @@ if (ligado()) exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secre
   }
 });
 
-if (ligado()) exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && CFG.resumo.hora) || 8} * * ${CFG.resumo && CFG.resumo.diasUteis === false ? '*' : '1-5'}`, timeZone: 'America/Sao_Paulo', secrets: SEGREDOS_EMAIL }, async () => {
+if (ligado() && !(CFG.resumo && CFG.resumo.ativo === false)) exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && CFG.resumo.hora) || 8} * * ${CFG.resumo && CFG.resumo.diasUteis === false ? '*' : '1-5'}`, timeZone: 'America/Sao_Paulo', secrets: SEGREDOS_EMAIL }, async () => {
   if (!ligado()) return;
   const { contas, projetos } = await contexto();
   const ris = (await db.collection('rfi').get()).docs.map(d => ({ id: d.id, ...d.data() }));

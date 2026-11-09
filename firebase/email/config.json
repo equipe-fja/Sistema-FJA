@@ -9,7 +9,8 @@
   "homologPara": "equipe@fj.arq.br",
   "resumo": {
     "hora": "8",
-    "diasUteis": true
+    "diasUteis": true,
+    "ativo": false
   },
   "via": "oauth"
 }
