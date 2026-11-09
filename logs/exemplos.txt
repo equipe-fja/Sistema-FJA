@@ -1,13 +1,8 @@
 tarefa: exemplos
 status: success
-commit: b63f16d8358e1ed2e0bb081d56163ef5e94f3048
-quando: 2026-11-09T13:34:38Z
+commit: 28afc98d5e8d5007900a4521fd956034e2b02b29
+quando: 2026-11-09T13:38:31Z
 ----
-projeto: sistema-fja-homolog
-projeto 128: CBPF
-RFI 7 · ABERTA · Cota de piso acabado do térreo · para Convidado Teste
-RFI 8 · ABERTA · Compatibilização de shafts com a estrutura · para MEPE
-RFI 9 · RESPONDIDA · Especificação do revestimento externo · para Convidado Teste
-RFI 10 · ABERTA · Altura das bancadas dos sanitários acessíveis · para FJA
-RFI 11 · FECHADA · Posição da caixa d'água · para FJA
-CONCLUÍDO: 5 RFIs no projeto 128 · convidado Convidado Teste
+emailsEnviados: 0
+conta google: equipe@fj.arq.br | autorizada em 2026-11-09T13:29:37.729Z | escopos 5 | erro: -
+contas com e-mail: 24 | empresas FJA/MEPE: 23
