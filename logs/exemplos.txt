@@ -1,13 +1,18 @@
 tarefa: exemplos
 status: success
-commit: 994c1b339d23c3927e64409202ba62d5f9286786
-quando: 2026-11-09T13:46:23Z
+commit: 67960b2239cc583a4e5e18c777191a96342c7545
+quando: 2026-11-09T13:47:59Z
 ----
-projeto: sistema-fja-homolog
-projeto 128: CBPF
-RFI 7 · ABERTA · Cota de piso acabado do térreo · para Convidado Teste
-RFI 8 · ABERTA · Compatibilização de shafts com a estrutura · para MEPE
-RFI 9 · RESPONDIDA · Especificação do revestimento externo · para Convidado Teste
-RFI 10 · ABERTA · Altura das bancadas dos sanitários acessíveis · para FJA
-RFI 11 · FECHADA · Posição da caixa d'água · para FJA
-CONCLUÍDO: 5 RFIs no projeto 128 · convidado Convidado Teste
+emailsEnviados: 9
+  2026-11-09T13:46:26.454Z dirigida filipe@fj.arq.br → equipe@fj.arq.br | [HOMOLOG] [RI 10] 128 CBPF · Altura das bancadas dos sanitários acessíveis 
+  2026-11-09T13:46:25.580Z dirigida filipe@fj.arq.br → equipe@fj.arq.br | [HOMOLOG] [RI 11] 128 CBPF · Posição da caixa d'água 
+  2026-11-09T13:46:25.440Z dirigida equipe@fj.arq.br → equipe@fj.arq.br | [HOMOLOG] [RI 10] 128 CBPF · Altura das bancadas dos sanitários acessíveis 
+  2026-11-09T13:46:24.854Z dirigida paulo.teixeira@fja.example.com → equipe@fj.arq.br | [HOMOLOG] [RI 10] 128 CBPF · Altura das bancadas dos sanitários acessíveis 
+  2026-11-09T13:46:24.752Z dirigida paulo.teixeira@fja.example.com → equipe@fj.arq.br | [HOMOLOG] [RI 11] 128 CBPF · Posição da caixa d'água 
+  2026-11-09T13:46:24.225Z dirigida bruno@fj.arq.br → equipe@fj.arq.br | [HOMOLOG] [RI 10] 128 CBPF · Altura das bancadas dos sanitários acessíveis 
+  2026-11-09T13:46:24.047Z dirigida equipe+convidado@fj.arq.br → equipe@fj.arq.br | [HOMOLOG] [RI 7] 128 CBPF · Cota de piso acabado do térreo 
+  2026-11-09T13:46:23.919Z dirigida bruno@fj.arq.br → equipe@fj.arq.br | [HOMOLOG] [RI 11] 128 CBPF · Posição da caixa d'água 
+  2026-11-09T13:46:23.819Z dirigida equipe+convidado@fj.arq.br → equipe@fj.arq.br | [HOMOLOG] [RI 9] 128 CBPF · Especificação do revestimento externo 
+último gatilho de RI: 2026-11-09T13:46:22.721Z ri v4XKrK2B5i5FQhf4lV5e avisos 3
+conta google: equipe@fj.arq.br | autorizada em 2026-11-09T13:29:37.729Z | escopos 5 | erro: -
+contas com e-mail: 24 | empresas FJA/MEPE: 23
