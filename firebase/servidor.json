@@ -10,7 +10,7 @@
   },
   "drive": {
     "homolog": true,
-    "oficial": false,
+    "oficial": true,
     "conta": "equipe@fj.arq.br",
     "modo": "oauth"
   },
