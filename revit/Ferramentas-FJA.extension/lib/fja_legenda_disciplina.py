@@ -387,6 +387,16 @@ def effective_color(doc, view, e, cache):
                 pass
         cache[vkey] = (flist, cv)
     flist, cv = cache[vkey]
+    # filtros e categoria: mesmo resultado para todos os elementos do mesmo tipo na vista
+    # (só a sobreposição do elemento, acima, é individual) -> calcula uma vez por tipo
+    tkey = (vkey, e.GetTypeId().ToString())
+    if tkey in cache:
+        return cache[tkey]
+    cache[tkey] = _cor_por_filtro_ou_categoria(e, flist, cv)
+    return cache[tkey]
+
+
+def _cor_por_filtro_ou_categoria(e, flist, cv):
     for f, col in flist:
         if f is not None and _filter_matches(f, e):
             return col, u"filtro '{}'".format(elem_name(f))

@@ -66,7 +66,8 @@ class Janela(forms.WPFWindow):
         self.base = {}        # id do tipo -> (largura, altura) em mm a 100% (como na prancha)
         self.caixas = {}      # id do tipo -> (cx, cy, w, h) do simbolo na vista da previa (pes)
         self.pct_feito = {}   # id do tipo -> % com que a previa atual foi gerada
-        self.ids_caixa = []
+        self.ids_caixa = {}   # id do tipo -> ids das 4 linhas da caixa vermelha
+        self.sujos = set()    # itens cuja caixa precisa ser redesenhada
         self.timer = DispatcherTimer()
         self.timer.Interval = TimeSpan.FromMilliseconds(150)
         self.timer.Tick += self._tick
@@ -120,7 +121,7 @@ class Janela(forms.WPFWindow):
                 Grid.SetColumn(el, c)
                 g.Children.Add(el)
             ln = {"it": it, "chk": chk, "txt": txt, "med": med, "sl": sl, "pct": pct, "id": it["sym"].Id.ToString()}
-            chk.Click += self._mudou
+            chk.Click += lambda s, a, ln=ln: (self.sujos.add(ln["id"]), self.timer.Stop(), self.timer.Start(), self._mudou())
             txt.TextChanged += self._mudou
             sl.ValueChanged += lambda s, a, ln=ln: self._escala(ln)
             sl.MouseDoubleClick += lambda s, a, ln=ln: setattr(ln["sl"], "Value", 100)
@@ -131,6 +132,7 @@ class Janela(forms.WPFWindow):
     def _todos100(self, s, a):
         for ln in self.linhas:
             ln["sl"].Value = 100
+            self.sujos.add(ln["id"])
 
     def _escala(self, ln):
         v = int(round(ln["sl"].Value))
@@ -138,7 +140,8 @@ class Janela(forms.WPFWindow):
         b = self.base.get(ln["id"])
         if b:
             ln["med"].Text = u"{} × {} mm".format(_mm(b[0] * v / 100.0), _mm(b[1] * v / 100.0))
-        # caixas na previa: desenhadas logo depois que o controle para de mexer
+        # caixas na previa: desenhadas logo depois que o controle para de mexer (so a deste item)
+        self.sujos.add(ln["id"])
         self.timer.Stop()
         self.timer.Start()
         self._pendente()
@@ -159,18 +162,23 @@ class Janela(forms.WPFWindow):
         self.timer.Stop()
         self._desenhar_caixas()
 
-    def _desenhar_caixas(self):
+    def _desenhar_caixas(self, todos=False):
+        """Redesenha só as caixas dos itens que mudaram; as demais ficam como estão.
+        Cada item alterado (escala diferente da prévia atual) mantém a caixa até o Atualizar."""
         if self.res is None or self.tg is None:
+            return
+        alvos = [ln for ln in self.linhas if todos or ln["id"] in self.sujos]
+        self.sujos = set()
+        if not alvos:
             return
         view = self.res["view"]
         t = DB.Transaction(doc, u"Prévia: caixas")
         t.Start()
         try:
-            vivos = [i for i in self.ids_caixa if doc.GetElement(i) is not None]
-            if vivos:
-                doc.Delete(List[DB.ElementId](vivos))
-            self.ids_caixa = []
-            for ln in self.linhas:
+            for ln in alvos:
+                velhos = [i for i in self.ids_caixa.pop(ln["id"], []) if doc.GetElement(i) is not None]
+                if velhos:
+                    doc.Delete(List[DB.ElementId](velhos))
                 cx = self.caixas.get(ln["id"])
                 if cx is None or not ln["chk"].IsChecked:
                     continue
@@ -180,12 +188,17 @@ class Janela(forms.WPFWindow):
                     continue
                 f = float(v) / feito
                 x, y, w, h = cx
-                hw, hh = w * f / 2.0, h * f / 2.0
+                hw, hh = max(w * f, 1e-3) / 2.0, max(h * f, 1e-3) / 2.0
                 pts = [DB.XYZ(x - hw, y - hh, 0), DB.XYZ(x + hw, y - hh, 0), DB.XYZ(x + hw, y + hh, 0), DB.XYZ(x - hw, y + hh, 0)]
+                ids = []
                 for a, b in zip(pts, pts[1:] + pts[:1]):
-                    c = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(a, b))
-                    L.paint(view, c.Id, COR_CAIXA)
-                    self.ids_caixa.append(c.Id)
+                    try:
+                        c = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(a, b))
+                        L.paint(view, c.Id, COR_CAIXA)
+                        ids.append(c.Id)
+                    except Exception:
+                        pass
+                self.ids_caixa[ln["id"]] = ids
             t.Commit()
         except Exception as e:
             if t.HasStarted() and not t.HasEnded():
@@ -193,15 +206,16 @@ class Janela(forms.WPFWindow):
             self.txtStatus.Text = u"Não foi possível desenhar as caixas: {}".format(e)
 
     def _apagar_caixas(self):
-        if not self.ids_caixa:
+        todos = [i for ids in self.ids_caixa.values() for i in ids]
+        self.ids_caixa = {}
+        if not todos:
             return
         t = DB.Transaction(doc, u"Prévia: caixas")
         t.Start()
-        vivos = [i for i in self.ids_caixa if doc.GetElement(i) is not None]
+        vivos = [i for i in todos if doc.GetElement(i) is not None]
         if vivos:
             doc.Delete(List[DB.ElementId](vivos))
         t.Commit()
-        self.ids_caixa = []
 
     # ------------------------------------------------------------ previa
     def _primeira(self, s, a):
@@ -221,7 +235,8 @@ class Janela(forms.WPFWindow):
     def _desfazer(self):
         self.timer.Stop()
         self._fechar_prev()
-        self.ids_caixa = []
+        self.ids_caixa = {}
+        self.sujos = set()
         if self.tg is not None:
             try:
                 if self.tg.HasStarted() and not self.tg.HasEnded():
