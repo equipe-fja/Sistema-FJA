@@ -16,7 +16,7 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 - Extensão do Revit 2.1.0 (Biblioteca › Ferramentas › Extensão do Revit): novo painel Links › Copiar do link (módulo Equipamentos); a tela avisa a novidade e explica como atualizar.
 - Drive pelo servidor engatilhado (função driveToken), desligado em firebase/servidor.json — sem efeito até ser ligado.
 
-## oficial Firebase — 09/11, ~11h45 — commit {C}
+## oficial Firebase — 09/11, ~11h45 — commit e717d87
 - O sistema abre no painel da pessoa ao entrar; na árvore o painel leva o nome do usuário e a tela abre com "Olá, <nome>".
 
 ## oficial Firebase — 09/11, ~11h30 — commit 96ce36f
