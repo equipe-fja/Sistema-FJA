@@ -672,9 +672,29 @@ def _family_view(fdoc):
     return resto
 
 
-def criar_familia_leg(doc, it, specs, name, pasta):
+def _curvas_da_geometria(g, tf, out):
+    """Curvas (linhas, arcos, polilinhas) de uma geometria, ja transformadas."""
+    for o in g:
+        if isinstance(o, DB.GeometryInstance):
+            _curvas_da_geometria(o.GetSymbolGeometry(), tf.Multiply(o.Transform), out)
+        elif isinstance(o, DB.Curve):
+            try:
+                out.append(o.CreateTransformed(tf))
+            except Exception:
+                pass
+        elif isinstance(o, DB.PolyLine):
+            pts = [tf.OfPoint(p) for p in o.GetCoordinates()]
+            for a, b in zip(pts, pts[1:]):
+                if a.DistanceTo(b) > 1e-6:
+                    out.append(DB.Line.CreateBound(a, b))
+
+
+def criar_familia_leg(doc, it, specs, name, pasta, tamanho_mm=None):
     """Cria e carrega no projeto a familia de anotacao 'name' com o simbolo do item.
-    Deve rodar FORA de transacao. Retorna a familia carregada (ou None)."""
+    Deve rodar FORA de transacao. Retorna a familia carregada (ou None).
+    tamanho_mm: maior medida do simbolo no papel; None = tamanho original (anotacoes
+    aninhadas como estao; desenho da planta limitado a MM_PLAN_MIN..MM_PLAN_MAX).
+    Com tamanho, as anotacoes aninhadas viram linhas (preenchimentos e textos delas se perdem)."""
     app = doc.Application
     tpl = _template_anotacao(app)
     if not tpl:
@@ -724,6 +744,36 @@ def criar_familia_leg(doc, it, specs, name, pasta):
                 n += 1
             except Exception:
                 pass
+        if n and tamanho_mm:
+            # redimensiona: troca as anotacoes aninhadas pelas linhas delas, na escala pedida
+            fdoc.Regenerate()
+            opt = DB.Options()
+            opt.View = view
+            curvas, insts = [], []
+            for fi in DB.FilteredElementCollector(fdoc, view.Id).OfClass(DB.FamilyInstance):
+                insts.append(fi.Id)
+                g = fi.get_Geometry(opt)
+                if g is not None:
+                    _curvas_da_geometria(g, DB.Transform.Identity, curvas)
+            if curvas:
+                xs, ys = [], []
+                for c in curvas:
+                    for p in c.Tessellate():
+                        xs.append(p.X)
+                        ys.append(p.Y)
+                dim = max(max(xs) - min(xs), max(ys) - min(ys))
+                if dim > 1e-9:
+                    ctr = DB.XYZ((max(xs) + min(xs)) / 2.0, (max(ys) + min(ys)) / 2.0, 0)
+                    tf = DB.Transform.Identity.ScaleBasis((tamanho_mm / 304.8) / dim).Multiply(DB.Transform.CreateTranslation(ctr.Negate()))
+                    fdoc.Delete(List[DB.ElementId](insts))
+                    n = 0
+                    for c in curvas:
+                        try:
+                            fdoc.FamilyCreate.NewDetailCurve(view, c.CreateTransformed(tf))
+                            n += 1
+                        except Exception:
+                            pass
+                    it["redimensionado"] = True
         if n == 0 and it.get("geo") is not None and it.get("geo_inst") is not None:
             # sem anotacao aninhada: linhas do elemento como aparece na planta, no tamanho
             # do papel (limitado a MM_PLAN_MAX), centradas na origem da familia
@@ -738,7 +788,10 @@ def criar_familia_leg(doc, it, specs, name, pasta):
                 dim = max(max(xs) - min(xs), max(ys) - min(ys)) / escala
                 f = 1.0 / escala
                 lim, mini = MM_PLAN_MAX / 304.8, MM_PLAN_MIN / 304.8
-                if dim > lim:
+                if tamanho_mm and dim > 1e-9:
+                    f *= (tamanho_mm / 304.8) / dim
+                    it["redimensionado"] = True
+                elif dim > lim:
                     f *= lim / dim
                     it["reduzido"] = True
                 elif 0 < dim < mini:
@@ -823,8 +876,13 @@ def reference_styles(doc, ref_view):
 
 
 # ---------------------------------------------------------------- principal
-def atualizar_legenda(doc, items=None):
-    """Executa tudo numa transacao. Retorna um dicionario com o resultado."""
+def atualizar_legenda(doc, items=None, opcoes=None):
+    """Executa tudo numa transacao. Retorna um dicionario com o resultado.
+    opcoes (janela de previa): {"tamanho_mm": float|None, "redim": set(ids de familia) -
+    familias (LEG) refeitas nesse tamanho, "passo_mm": altura minima da linha}"""
+    opcoes = opcoes or {}
+    passo = float(opcoes.get("passo_mm") or MM_ROW_STEP)
+    redim = set(opcoes.get("redim") or ())
     if items is None:
         items = collect_items(doc)
     if not items:
@@ -857,6 +915,14 @@ def atualizar_legenda(doc, items=None):
             continue
         nome_leg = leg_name(it["sym"])
         lf = _family_by_name(doc, nome_leg)
+        tam = opcoes.get("tamanho_mm") if key in redim else None
+        if lf is not None and tam:
+            # vai ser refeita no tamanho pedido: apaga a que existe
+            td = DB.Transaction(doc, u"Refazer símbolo de legenda")
+            td.Start()
+            doc.Delete(lf.Id)
+            td.Commit()
+            lf = None
         if lf is not None:
             legs[key] = lf
             leg_existentes.append(lf.Name)
@@ -867,7 +933,7 @@ def atualizar_legenda(doc, items=None):
             nested[key] = []
             nested_errors.append(u"{}: {}".format(fam.Name, ex))
         try:
-            lf = criar_familia_leg(doc, it, visible_specs(nested[key], it["rep"], it["sym"]), nome_leg, pasta_leg)
+            lf = criar_familia_leg(doc, it, visible_specs(nested[key], it["rep"], it["sym"]), nome_leg, pasta_leg, tam)
         except Exception as ex:
             lf = None
             leg_erros.append(u"{}: {}".format(nome_leg, ex))
@@ -1000,7 +1066,7 @@ def atualizar_legenda(doc, items=None):
             tbb = tn.get_BoundingBox(target)
             sym_h = (bb[3] - bb[1]) if bb else 0.0
             txt_h = (tbb.Max.Y - tbb.Min.Y) if tbb else 0.0
-            row_h = max(MM_ROW_STEP * k, sym_h + MM_ROW_PAD * k, txt_h + MM_ROW_PAD * k)
+            row_h = max(passo * k, sym_h + MM_ROW_PAD * k, txt_h + MM_ROW_PAD * k)
             cy = prov_top - row_h / 2.0
             prov_top -= row_h
             dx_txt = 0.0
@@ -1017,6 +1083,7 @@ def atualizar_legenda(doc, items=None):
                 DB.ElementTransformUtils.MoveElement(
                     doc, tn.Id, DB.XYZ(0, cy - (tbb.Min.Y + tbb.Max.Y) / 2.0, 0))
             rows.append((sym_ids, tn, cy, row_h))
+            it["sym_ids"] = list(sym_ids)
             text_dx = max(text_dx, dx_txt)
 
         heights = [r[3] for r in rows]
@@ -1056,6 +1123,9 @@ def atualizar_legenda(doc, items=None):
             t.RollBack()
         raise
 
+    for it in items:
+        bb = union_bbox(doc, it.get("sym_ids") or [], target) if it.get("sym_ids") else None
+        it["mm"] = ((bb[2] - bb[0]) / target.Scale * 304.8, (bb[3] - bb[1]) / target.Scale * 304.8) if bb else None
     labels = [it["label"] for it in items]
     return {
         "ok": True, "view": target, "created": created_view, "items": items,
