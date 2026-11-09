@@ -4,9 +4,10 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.3.0)
+## Conteúdo atual (extensão 2.4.0)
 - Legendas › **Legenda LUM** — legenda de luminárias.
 - Legendas › **Legenda ELE** — legenda de pontos elétricos.
+- Legendas › **Legenda LOG** — vista `LOG - LEGENDA DE PONTOS DE LÓGICA` (desde 2.4.0). Ver abaixo.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
 - Suíte › **Atualizar** — baixa a versão mais recente publicada pelo sistema (banco: `revitPub/extensao-versao` e `revitPub/extensao`, gravados por `extDbPublicar` na página Firebase), grava na pasta da extensão em uso (espelhando, menos `.pyc`) e recarrega o pyRevit (lógica em `lib/fja_suite.py`).
@@ -20,6 +21,14 @@ Origem: cópia de `%APPDATA%\pyRevit\Extensions\Ferramentas-FJA.extension` de um
 - Cópia de uso no G:: `G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit\Ferramentas-FJA.extension` (em uso desde 03/11/2026 no primeiro computador).
 - Cada computador aponta o pyRevit para `G:\Drives compartilhados\BI-BIBLIOTECA\SISTEMA FJA\REVIT\pyRevit` (pyRevit › Settings › Custom Extension Directories, ou `pyrevit extensions paths add "<pasta>"`) e remove a cópia local de `%APPDATA%\pyRevit\Extensions` para não carregar a aba duas vezes.
 - Para atualizar: alterar aqui, commit, copiar a pasta para o G: e recarregar o pyRevit (Reload).
+
+## Legenda LOG (2.4.0, 09/11/2026)
+- Itens: um por tipo de família cujo nome começa com `(LOG)` e que aparece em alguma vista colocada em prancha (planta, corte, etc.; legendas e tabelas não contam). Texto = nome da família sem o `(LOG)`, em maiúsculas; se a família tiver mais de um tipo na legenda, acrescenta ` - <tipo>`. Ordem: categoria e texto.
+- Cor de cada item = a cor das linhas do elemento nas vistas das pranchas (a mais frequente, preferindo vistas cujo nome começa com `LOG`): sobreposição do elemento › filtros da vista ou do modelo de vista (na ordem de prioridade, só os ativos e visíveis) › sobreposição da categoria › estilo de objeto. No modelo 129 sai o roxo 121-86-169 do filtro `SISTEMA - LÓGICA`; o ícone do botão usa esse roxo.
+- Símbolo: as anotações genéricas aninhadas da família (como na Legenda ELE); se a família não tiver, as linhas do elemento copiadas de uma planta onde ele aparece; por último, um componente de legenda (só se o projeto já tiver algum para servir de modelo). Tudo pintado na cor do item.
+- Base: duplica `LOG - LEGENDA GRAFICA` (estilos de título, texto e sublinhado). Alguns símbolos são DWG importados na família; se a legenda tiver modelo de vista que esconde "Importados em famílias", o modelo é retirado da legenda e a categoria fica visível (avisado no relatório).
+- Marca: Extensible Storage `FJA_LegendaLOG`; nova execução apaga só o que o botão criou e lista o que entrou e saiu.
+- Testado no Revit 2027 no modelo 129-AUT_LOG_SON (6 itens, transação desfeita no teste).
 
 ## Copiar do link (desde 06/11/2026)
 - Módulos: **Equipamentos** (liberado: mobiliário, marcenaria, equipamentos, aparelhos sanitários, luminárias, tomadas e demais dispositivos, sprinklers, terminais de ar), **Estrutura**, **Arquitetura** e **Encaminhamentos** (ainda "em breve"). As categorias de cada módulo ficam em `lib/fja_links_modulos.json`; cada categoria pertence a um módulo só.
@@ -39,7 +48,7 @@ Cada publicação cria o arquivo novo e manda o anterior para a lixeira do Drive
 ## Convenções dos scripts
 - IronPython (pyRevit), `# -*- coding: utf-8 -*-`, textos em português.
 - `bundle.yaml` com `title`/`tooltip` em `pt_br`.
-- Elementos criados por uma ferramenta são marcados com Extensible Storage (ex.: `FJA_LegendaELE`); os tipos ligados ao sistema usarão o esquema `FJA_SistemaTipo`.
+- Elementos criados por uma ferramenta são marcados com Extensible Storage (ex.: `FJA_LegendaELE`, `FJA_LegendaLOG`); os tipos ligados ao sistema usarão o esquema `FJA_SistemaTipo`.
 
 ## Observações de implementação
 - `lib/fja_sistema.py` não depende do pyRevit (recebe o documento): dá para testar pelo conector do Revit com `sys.path` apontando para a pasta `lib`.

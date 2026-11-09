@@ -1,0 +1,6 @@
+title:
+  pt_br: "Legenda\nLOG"
+  en_us: "Legenda\nLOG"
+tooltip:
+  pt_br: "Cria/atualiza a vista 'LOG - LEGENDA DE PONTOS DE LÓGICA' com todas as famílias '(LOG)' que aparecem nas vistas das pranchas (um item por tipo), na cor em que aparecem no projeto. Elementos desenhados à mão na vista são preservados."
+  en_us: "Cria/atualiza a vista 'LOG - LEGENDA DE PONTOS DE LÓGICA' com todas as famílias '(LOG)' que aparecem nas vistas das pranchas (um item por tipo), na cor em que aparecem no projeto. Elementos desenhados à mão na vista são preservados."
