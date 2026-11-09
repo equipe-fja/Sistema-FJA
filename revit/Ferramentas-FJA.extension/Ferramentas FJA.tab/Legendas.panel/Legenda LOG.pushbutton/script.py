@@ -733,6 +733,7 @@ def atualizar_legenda(doc, items=None):
             return comp
 
         rows = []
+        text_dx = 0.0  # deslocamento comum dos textos (alinhados pela esquerda)
         prov_top = line_y - MM_FIRST_ROW * k
         for it in items:
             sym_ids = []
@@ -758,6 +759,7 @@ def atualizar_legenda(doc, items=None):
                 mark(doc.GetElement(i), schema)
 
             opts = DB.TextNoteOptions(body_type)
+            opts.HorizontalAlignment = DB.HorizontalTextAlignment.Left
             tn = DB.TextNote.Create(doc, target.Id, DB.XYZ(x0 + MM_TEXT_X * k, line_y, 0),
                                     it["label"], opts)
             try:
@@ -786,8 +788,9 @@ def atualizar_legenda(doc, items=None):
                     doc, List[DB.ElementId](sym_ids), DB.XYZ(sx, cy, 0) - cur)
             if tbb:
                 DB.ElementTransformUtils.MoveElement(
-                    doc, tn.Id, DB.XYZ(dx_txt, cy - (tbb.Min.Y + tbb.Max.Y) / 2.0, 0))
+                    doc, tn.Id, DB.XYZ(0, cy - (tbb.Min.Y + tbb.Max.Y) / 2.0, 0))
             rows.append((sym_ids, tn, cy, row_h))
+            text_dx = max(text_dx, dx_txt)
 
         heights = [r[3] for r in rows]
         split = len(rows)
@@ -803,11 +806,17 @@ def atualizar_legenda(doc, items=None):
         col_info = [split, len(rows) - split]
 
         col_tops = [line_y - MM_FIRST_ROW * k] * 2
+        # Textos alinhados pela esquerda: todos comecam no mesmo x, logo depois do
+        # simbolo mais largo; a 2a coluna anda o mesmo tanto a mais
+        if text_dx > 1e-9:
+            DB.ElementTransformUtils.MoveElements(
+                doc, List[DB.ElementId]([r[1].Id for r in rows]), DB.XYZ(text_dx, 0, 0))
+        col_w = MM_COL_W * k + text_dx
         for idx, (sym_ids, tn, cy0, row_h) in enumerate(rows):
             col = 0 if idx < split else 1
             cy = col_tops[col] - row_h / 2.0
             col_tops[col] -= row_h
-            d = DB.XYZ(col * MM_COL_W * k, cy - cy0, 0)
+            d = DB.XYZ(col * col_w, cy - cy0, 0)
             if d.GetLength() > 1e-9:
                 DB.ElementTransformUtils.MoveElements(
                     doc, List[DB.ElementId](list(sym_ids) + [tn.Id]), d)
