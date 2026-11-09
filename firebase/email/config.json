@@ -3,7 +3,7 @@
   "remetente": "equipe@fj.arq.br",
   "nomeRemetente": "Sistema FJA",
   "ativo": {
-    "homolog": false,
+    "homolog": true,
     "oficial": false
   },
   "homologPara": "equipe@fj.arq.br",
