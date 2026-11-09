@@ -1233,7 +1233,7 @@ function renderTree(){
     }
     return h;
   };
-  let h=`<div class="secline"><button class="row sec-h ${S.view.t==='painel'?'sel':''}" data-act="painel"><span class="chev"></span>${IC.painel}<span class="lbl">Meu painel</span><span class="cnt" title="Ações pendentes com você">${pnContagem()||''}</span></button></div>`;
+  let h=`<div class="secline"><button class="row sec-h ${S.view.t==='painel'?'sel':''}" data-act="painel"><span class="chev"></span>${IC.painel}<span class="lbl">${esc(pnRotulo())}</span><span class="cnt" title="Ações pendentes com você">${pnContagem()||''}</span></button></div>`;
   for(const t of TOPO){
     const g=GRUPOS[t];
     if(!g){h+=secTree(SEC[t],0);continue}
@@ -1371,6 +1371,7 @@ function pnDados(){
   upd.sort((a,b)=>b.em-a.em);
   return {eu,ps,nomeP,riMinhas,riAguardo,pds,cms,upd};
 }
+const pnRotulo=()=>{const n=String(rfiEuNome()||'').trim(); return n&&!n.includes('@')?n:'Meu painel'};
 function pnContagem(){try{if(AMB==='firebase'&&!FB()?.perfil()) return 0; const d=pnDados(); return d.riMinhas.length+d.pds.length}catch{return 0}}
 function telaPainel(h){
   if(PN.vistoAnt==null){PN.vistoAnt=lsGet('fja.pn.visto',0)||0; lsSet('fja.pn.visto',Date.now())}
@@ -1384,7 +1385,8 @@ function telaPainel(h){
   const venc=d.riMinhas.filter(r=>pnPrazo(r.prazo)?.al).length, atr=d.pds.filter(atrasadaPd).length, novos=d.upd.filter(x=>x.em>PN.vistoAnt).length;
   const card=(n,k,al)=>`<div class="pn-card${n?'':' zero'}"><span class="n">${n}</span><span class="k">${k}</span>${al?`<span class="al">${al}</span>`:''}</div>`;
   const projOps=pnProjetos(eu).sort(ordena);
-  h+=`<div class="page"><h1>Meu painel</h1><p class="lead">${esc(eu.nome?('Olá, '+eu.nome.split(' ')[0]+'. '):'')}O que pede a sua ação e o que mudou nos projetos em que você está envolvido.</p>
+  const pri=String(eu.nome||'').trim().split(/\s+/)[0]||'';
+  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1><p class="lead">O que pede a sua ação e o que mudou nos projetos em que você está envolvido.</p>
   <div class="pn-filtros">${conv?'':`<label class="fl" style="flex-direction:row;align-items:center;gap:6px">Projetos <select class="fld sm" id="pnEscopo" style="width:auto"><option value="meus"${PN.escopo!=='todos'?' selected':''}>Em que estou envolvido</option><option value="todos"${PN.escopo==='todos'?' selected':''}>Todos em andamento</option></select></label>`}
     <select class="fld sm" id="pnProj" aria-label="Projeto" style="width:auto;max-width:380px"><option value="">Todos os projetos (${projOps.length})</option>${projOps.map(p=>`<option value="${esc(p.id)}"${PN.proj===p.id?' selected':''}>${esc(d.nomeP(p.id))}</option>`).join('')}</select>
     ${!conv&&!eu.empresa&&AMB==='firebase'?'<span class="muted" style="font-size:12px">Dica: defina a sua empresa em Usuários e acesso para o painel achar as pendências e comentários da sua empresa.</span>':''}</div>
@@ -2914,7 +2916,7 @@ document.addEventListener('change',ev=>{const s=ev.target.closest?.('select[data
 const vistaConvidadoOk=v=>v&&(v.t==='painel'||v.t==='rfi'||v.t==='rfii'||(v.t==='manut'&&(!v.f||v.f==='conta')))&&(!v.id||v.t==='manut'||S.itens.has(v.id));
 function arvoreConvidado(){
   const ps=itensDe('projetos').sort(ordena);
-  let h=`<div class="secline"><button class="row sec-h ${S.view.t==='painel'?'sel':''}" data-act="painel">${IC.painel}<span class="lbl">Meu painel</span><span class="cnt">${pnContagem()||''}</span></button></div>`;
+  let h=`<div class="secline"><button class="row sec-h ${S.view.t==='painel'?'sel':''}" data-act="painel">${IC.painel}<span class="lbl">${esc(pnRotulo())}</span><span class="cnt">${pnContagem()||''}</span></button></div>`;
   h+=`<div class="secline"><div class="row sec-h" style="cursor:default">${IC.projetos}<span class="lbl">Projetos</span><span class="cnt">${ps.length||''}</span></div></div>`;
   for(const p of ps){const sel=(S.view.t==='rfi'||S.view.t==='rfii')&&S.view.id===p.id, n=rfiDe(p.id).length;
     h+=`<button class="row item ${sel?'sel':''}" style="padding-left:28px" data-act="rfi" data-id="${esc(p.id)}"><span class="lbl">${p.campos?.codigo?`<span class="mono muted">${esc(p.campos.codigo)}</span> `:''}${esc(p.nome||'')} · RI</span><span class="cnt">${n||''}</span></button>`}
@@ -6565,6 +6567,8 @@ function render(){renderTree();renderMain()}
 function restaurarVista(){
   // link dos e-mails de aviso: #ri=<projeto>/<id> abre direto a RI
   const m=String(location.hash||'').match(/^#ri=([^/]+)\/(.+)$/); if(m){history.replaceState(null,'',location.pathname+location.search); try{ir({t:'rfii',id:decodeURIComponent(m[1]),eid:decodeURIComponent(m[2])});return true}catch{}}
+  // ao entrar, abre sempre o painel da pessoa (o link de um e-mail, acima, tem prioridade)
+  if(AMB==='firebase'){try{ir({t:'painel'});return true}catch{}}
   const v=lsGet('fja.view',null);
   if(!v||typeof v!=='object'||!v.t||v.t==='home') return false;
   try{ir(v);return true}catch{S.view={t:'home'};return false}
