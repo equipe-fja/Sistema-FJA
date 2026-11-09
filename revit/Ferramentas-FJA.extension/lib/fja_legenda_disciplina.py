@@ -979,8 +979,8 @@ def reference_styles(doc, ref_view):
 # ---------------------------------------------------------------- principal
 def atualizar_legenda(doc, items=None, opcoes=None):
     """Executa tudo numa transacao. Retorna um dicionario com o resultado.
-    opcoes (janela de previa): {"tamanho_mm": float|None, "redim": set(ids de familia) -
-    familias (LEG) refeitas nesse tamanho, "passo_mm": altura minima da linha}"""
+    opcoes (janela de previa): {"tamanhos": {id da familia: mm} - familias (LEG) refeitas com
+    essa maior medida; (ou "tamanho_mm" + "redim": set de ids); "passo_mm": altura minima da linha}"""
     opcoes = opcoes or {}
     passo = float(opcoes.get("passo_mm") or MM_ROW_STEP)
     redim = set(opcoes.get("redim") or ())
@@ -1016,7 +1016,7 @@ def atualizar_legenda(doc, items=None, opcoes=None):
             continue
         nome_leg = leg_name(it["sym"])
         lf = _family_by_name(doc, nome_leg)
-        tam = opcoes.get("tamanho_mm") if key in redim else None
+        tam = (opcoes.get("tamanhos") or {}).get(key) or (opcoes.get("tamanho_mm") if key in redim else None)
         if lf is not None and tam:
             # vai ser refeita no tamanho pedido: apaga a que existe
             td = DB.Transaction(doc, u"Refazer símbolo de legenda")
