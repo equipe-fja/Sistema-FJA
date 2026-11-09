@@ -88,7 +88,9 @@ if (ligado()) exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secre
   const antes = ev.data.before.exists ? ev.data.before.data() : null, ri = ev.data.after.exists ? ev.data.after.data() : null;
   if (!ri) return;
   const { contas, projetos, empresas } = await contexto();
-  const avisos = L.planejarAvisos(antes, ri, contas, empresas); if (!avisos.length) return;
+  const avisos = L.planejarAvisos(antes, ri, contas, empresas);
+  await db.collection('servidor').doc('avisos').set({ ultimo: Date.now(), ri: ev.params.id, avisos: avisos.length }).catch(() => {});
+  if (!avisos.length) return;
   const proj = nomeProj(projetos[ri.projeto]) || 'Projeto', id = ev.params.id, url = `${SITE}/#ri=${encodeURIComponent(ri.projeto)}/${encodeURIComponent(id)}`;
   const dados = { ...ri, requerenteNome: L.nomeQ(ri.requerente, contas, empresas), requeridosNomes: L.reqs(ri).map(q => L.nomeQ(q, contas, empresas)).filter(Boolean).join(', ') };
   const mov = (ri.historico || []).slice(-3).reverse().map(h => ({ quando: quando(h.em), quem: h.por || '', oque: String(h.acao || 'alterou').replace(/^./, c => c.toLowerCase()).replace(/\bRFI\b/, 'RI') }));
@@ -97,7 +99,8 @@ if (ligado()) exports.avisosRi = onDocumentWritten({ document: 'rfi/{id}', secre
       const html = M.avisoRi({ chamada: a.chamada, frase: `Olá, <b>${M.esc((a.conta.nome || '').split(' ')[0] || a.conta.email)}</b>. ${a.frase}`, ri: dados, proj, prazoTxt: L.prazoTxt(ri.prazo), destaque: a.destaque, mov, url, urlConta: SITE,
         rodape: a.tipo === 'dirigida' ? 'Você recebeu este aviso porque é requerido nesta RI no Sistema FJA.' : 'Você recebeu este aviso porque participa desta RI no Sistema FJA.', preview: `${a.chamada} · RI ${ri.num ?? ''} · ${proj}` });
       await enviar(a.conta, `[RI ${ri.num ?? ''}] ${proj} · ${ri.assunto || 'Requisição de informações'}`, html, { tipo: a.tipo, rfi: id, projeto: ri.projeto });
-    } catch (e) { logger.error('aviso', a.conta.email, e.message || e); }
+    } catch (e) { logger.error('aviso', a.conta.email, e.message || e);
+      await db.collection('emailsEnviados').add({ em: Date.now(), para: a.conta.email, erro: String(e.message || e).slice(0, 500), tipo: a.tipo, rfi: id }).catch(() => {}); }
   }
 });
 
@@ -113,7 +116,8 @@ if (ligado()) exports.resumoDiario = onSchedule({ schedule: `0 ${(CFG.resumo && 
       const n = grupos.reduce((s, g) => s + g.itens.length, 0);
       const html = M.resumo({ nome: (c.nome || '').split(' ')[0] || c.email, grupos: g2, url: SITE, urlConta: SITE, data, preview: `${n} RI${n === 1 ? '' : 's'} pedem a sua atenção hoje` });
       await enviar(c, `Resumo do dia · ${n} RI${n === 1 ? '' : 's'} para você`, html, { tipo: 'resumo' });
-    } catch (e) { logger.error('resumo', c.email, e.message || e); }
+    } catch (e) { logger.error('resumo', c.email, e.message || e);
+      await db.collection('emailsEnviados').add({ em: Date.now(), para: c.email, erro: String(e.message || e).slice(0, 500), tipo: 'resumo' }).catch(() => {}); }
   }
 });
 
