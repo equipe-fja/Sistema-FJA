@@ -11,6 +11,8 @@ Uso no script do botao:
     main({"botao": u"Legenda LOG", "alvo": u"LOG - LEGENDA DE PONTOS DE L\u00d3GICA", ...})
 """
 import math
+import os
+import re
 import System
 from System.Collections.Generic import List
 from Autodesk.Revit import DB
@@ -38,6 +40,8 @@ def configurar(cfg):
     C["familias"] = tuple(norm_ascii(p) for p in cfg["familias"])
     C["vistas"] = tuple(norm_ascii(p) for p in cfg.get("vistas", ()))
     C["bases"] = tuple(norm_ascii(p) for p in cfg.get("bases", ())) + BASES_GERAIS
+    # prefixo das familias de simbolo de legenda: "(SON) (LEG) ANTENA DE MICROFONE"
+    C["prefixo_leg"] = cfg.get("prefixo_leg") or cfg["familias"][0]
 
 
 LEGEND_VIEW_PLAN = -8
@@ -53,6 +57,7 @@ MM_TITLE_LINE = 4.7
 MM_FIRST_ROW = 1.0
 MAX_ROWS_PER_COL = 14
 MM_PLAN_MAX = 12.0      # maior medida de um simbolo copiado da planta
+MM_PLAN_MIN = 4.5       # menor medida (simbolo tirado do modelo em escala real fica minusculo no papel)
 
 
 def norm_ascii(s):
@@ -212,10 +217,12 @@ def _host_param(rep, sym, name):
     return p
 
 
-def _copy_value(src, dst):
+def _copy_value(src, dst, mesmo_doc=True):
     if src is None or dst is None or dst.IsReadOnly or src.StorageType != dst.StorageType:
         return
     st = src.StorageType
+    if st == DB.StorageType.ElementId and not mesmo_doc:
+        return  # id de outro documento nao vale aqui
     if st == DB.StorageType.Integer:
         dst.Set(src.AsInteger())
     elif st == DB.StorageType.Double:
@@ -422,7 +429,7 @@ def sheet_views(doc):
 def item_label(sym, multi):
     """Nome da familia sem o prefixo '(LOG)'; se a familia tiver mais de um tipo
     na legenda, acrescenta o nome do tipo."""
-    nome = sym.FamilyName.strip()
+    nome = re.sub(r"\.\d{4}$", "", sym.FamilyName.strip())  # sufixo de copia de seguranca (.0001)
     for pf in C["familias"]:
         if norm_ascii(nome).startswith(pf):
             nome = nome[len(pf):].strip(u" -_")
@@ -616,6 +623,149 @@ def paint(view, elem_id, rgb):
     view.SetElementOverrides(elem_id, o)
 
 
+# ---------------------------------------------------------------- familias de simbolo de legenda
+# Cada item da legenda usa uma familia de anotacao generica "(SON) (LEG) ANTENA DE
+# MICROFONE" (prefixo da disciplina + (LEG) + nome sem prefixo). Se o projeto ja tiver
+# uma com esse nome, ela e usada como esta (pode ter sido ajustada a mao); senao e
+# criada a partir do simbolo da familia (anotacoes aninhadas ou desenho da planta).
+def leg_name(sym):
+    return u"{} (LEG) {}".format(C["prefixo_leg"], item_label(sym, False))
+
+
+def _family_by_name(doc, name):
+    alvo = norm_ascii(name)
+    for f in DB.FilteredElementCollector(doc).OfClass(DB.Family):
+        if norm_ascii(f.Name) == alvo:
+            return f
+    return None
+
+
+def _first_symbol(doc, fam):
+    for i in fam.GetFamilySymbolIds():
+        return doc.GetElement(i)
+    return None
+
+
+def _template_anotacao(app):
+    achados = []
+    for root, dirs, files in os.walk(app.FamilyTemplatePath):
+        for f in files:
+            l = norm_ascii(f)
+            if l.endswith(".RFT") and ("GENERIC ANNOTATION" in l or "ANOTACAO GENERICA" in l):
+                achados.append(os.path.join(root, f))
+    achados.sort(key=lambda p: (0 if "PORTUGUESE" in norm_ascii(p) else 1 if "METRIC" in norm_ascii(p) else 2, p))
+    return achados[0] if achados else None
+
+
+def _family_view(fdoc):
+    ok = (DB.ViewType.FloorPlan, DB.ViewType.DraftingView, DB.ViewType.Detail, DB.ViewType.Legend,
+          DB.ViewType.CeilingPlan, DB.ViewType.EngineeringPlan)
+    resto = None
+    for v in DB.FilteredElementCollector(fdoc).OfClass(DB.View):
+        if v.IsTemplate:
+            continue
+        if v.ViewType in ok:
+            return v
+        if resto is None and v.ViewType not in (DB.ViewType.ProjectBrowser, DB.ViewType.SystemBrowser,
+                                                 DB.ViewType.Undefined, DB.ViewType.Internal):
+            resto = v
+    return resto
+
+
+def criar_familia_leg(doc, it, specs, name, pasta):
+    """Cria e carrega no projeto a familia de anotacao 'name' com o simbolo do item.
+    Deve rodar FORA de transacao. Retorna a familia carregada (ou None)."""
+    app = doc.Application
+    tpl = _template_anotacao(app)
+    if not tpl:
+        raise Exception(u"modelo de família 'Anotação genérica' não encontrado")
+    escala = float((it.get("geo") or doc.ActiveView).Scale or 50)
+    fdoc = app.NewFamilyDocument(tpl)
+    try:
+        # anotacoes aninhadas: carrega na familia nova as mesmas familias de simbolo
+        carregadas = set()
+        for sp in specs:
+            if sp["fam"] in carregadas:
+                continue
+            psym = _find_symbol(doc, sp["fam"], sp["type"])
+            if psym is None:
+                continue
+            ndoc = doc.EditFamily(psym.Family)
+            try:
+                ndoc.LoadFamily(fdoc, _NaoSobrescrever())
+            finally:
+                ndoc.Close(False)
+            carregadas.add(sp["fam"])
+        t = DB.Transaction(fdoc, u"Simbolo de legenda")
+        t.Start()
+        view = _family_view(fdoc)
+        for tn in list(DB.FilteredElementCollector(fdoc).OfClass(DB.TextNote)):
+            fdoc.Delete(tn.Id)  # texto de exemplo do modelo
+        n = 0
+        for sp in specs:
+            nsym = _find_symbol(fdoc, sp["fam"], sp["type"])
+            if nsym is None:
+                continue
+            try:
+                if not nsym.IsActive:
+                    nsym.Activate()
+                    fdoc.Regenerate()
+                # anotacao: distancias no papel = distancia no modelo / escala da vista
+                pt = DB.XYZ(sp["pt"].X / escala, sp["pt"].Y / escala, 0)
+                inst = fdoc.FamilyCreate.NewFamilyInstance(pt, nsym, view)
+                for nested_name, host_name in sp["pmap"]:
+                    _copy_value(_host_param(it["rep"], it["sym"], host_name), inst.LookupParameter(nested_name), False)
+                if abs(sp["angle"]) > 1e-6:
+                    axis = DB.Line.CreateBound(pt, DB.XYZ(pt.X, pt.Y, 1))
+                    DB.ElementTransformUtils.RotateElement(fdoc, inst.Id, axis, sp["angle"])
+                if sp["mirrored"]:
+                    plane = DB.Plane.CreateByNormalAndOrigin(DB.XYZ.BasisX, pt)
+                    DB.ElementTransformUtils.MirrorElements(fdoc, List[DB.ElementId]([inst.Id]), plane, False)
+                n += 1
+            except Exception:
+                pass
+        if n == 0 and it.get("geo") is not None and it.get("geo_inst") is not None:
+            # sem anotacao aninhada: linhas do elemento como aparece na planta, no tamanho
+            # do papel (limitado a MM_PLAN_MAX), centradas na origem da familia
+            curves = _plan_curves(it["geo_inst"], it["geo"])
+            if curves:
+                xs, ys = [], []
+                for c in curves:
+                    for p in c.Tessellate():
+                        xs.append(p.X)
+                        ys.append(p.Y)
+                ctr = DB.XYZ((max(xs) + min(xs)) / 2.0, (max(ys) + min(ys)) / 2.0, 0)
+                dim = max(max(xs) - min(xs), max(ys) - min(ys)) / escala
+                f = 1.0 / escala
+                lim, mini = MM_PLAN_MAX / 304.8, MM_PLAN_MIN / 304.8
+                if dim > lim:
+                    f *= lim / dim
+                    it["reduzido"] = True
+                elif 0 < dim < mini:
+                    f *= mini / dim
+                    it["ampliado"] = True
+                tf = DB.Transform.Identity.ScaleBasis(f).Multiply(DB.Transform.CreateTranslation(ctr.Negate()))
+                for c in curves:
+                    try:
+                        fdoc.FamilyCreate.NewDetailCurve(view, c.CreateTransformed(tf))
+                        n += 1
+                    except Exception:
+                        pass
+        t.Commit()
+        if n == 0:
+            return None
+        if not os.path.isdir(pasta):
+            os.makedirs(pasta)
+        caminho = os.path.join(pasta, name + ".rfa")
+        so = DB.SaveAsOptions()
+        so.OverwriteExistingFile = True
+        fdoc.SaveAs(caminho, so)
+        fdoc.LoadFamily(doc, _NaoSobrescrever())
+    finally:
+        fdoc.Close(False)
+    return _family_by_name(doc, name)
+
+
 # ---------------------------------------------------------------- vistas
 def find_legends(doc):
     """(base, alvo, outras). Base = a primeira legenda que bate com C["bases"]."""
@@ -690,21 +840,40 @@ def atualizar_legenda(doc, items=None):
 
     title_type, body_type, line_style = reference_styles(doc, src or base_view)
 
-    # Simbolos aninhados (fora de transacao: abre as familias so para leitura)
+    # Familias de simbolo de legenda "(XXX) (LEG) NOME": usa as que ja existem no
+    # projeto; as que faltam sao criadas a partir das anotacoes aninhadas da familia
+    # (lidas fora de transacao, sem alterar nada nela) ou do desenho da planta
     detail_bit = DETAIL_BITS.get((target or base_view).DetailLevel, 16384)
     loaded_names = _project_family_names(doc)
     nested = {}
     nested_errors = []
+    legs = {}
+    leg_criadas, leg_existentes, leg_erros = [], [], []
+    pasta_leg = os.path.join(System.IO.Path.GetTempPath(), "FJA_LEG")
     for it in items:
         fam = it["sym"].Family
         key = fam.Id.ToString()
-        if key in nested:
+        if key in legs:
+            continue
+        nome_leg = leg_name(it["sym"])
+        lf = _family_by_name(doc, nome_leg)
+        if lf is not None:
+            legs[key] = lf
+            leg_existentes.append(lf.Name)
             continue
         try:
             nested[key] = read_nested_symbols(doc, fam, detail_bit, loaded_names)
         except Exception as ex:
             nested[key] = []
             nested_errors.append(u"{}: {}".format(fam.Name, ex))
+        try:
+            lf = criar_familia_leg(doc, it, visible_specs(nested[key], it["rep"], it["sym"]), nome_leg, pasta_leg)
+        except Exception as ex:
+            lf = None
+            leg_erros.append(u"{}: {}".format(nome_leg, ex))
+        legs[key] = lf
+        if lf is not None:
+            leg_criadas.append(lf.Name)
 
     previous = set()
     col_info = None
@@ -786,7 +955,16 @@ def atualizar_legenda(doc, items=None):
         prov_top = line_y - MM_FIRST_ROW * k
         for it in items:
             sym_ids = []
-            vspecs = visible_specs(nested.get(it["sym"].Family.Id.ToString(), []), it["rep"], it["sym"])
+            lf = legs.get(it["sym"].Family.Id.ToString())
+            lsym = _first_symbol(doc, lf) if lf is not None else None
+            if lsym is not None:
+                if not lsym.IsActive:
+                    lsym.Activate()
+                    doc.Regenerate()
+                sym_ids = [doc.Create.NewFamilyInstance(DB.XYZ.Zero, lsym, target).Id]
+                it["modo"] = "leg"
+                it["leg"] = lf.Name
+            vspecs = [] if sym_ids else visible_specs(nested.get(it["sym"].Family.Id.ToString(), []), it["rep"], it["sym"])
             if vspecs:
                 sym_ids = place_nested_symbols(doc, target, vspecs, it["rep"], it["sym"])
                 it["modo"] = "simbolos"
@@ -882,6 +1060,7 @@ def atualizar_legenda(doc, items=None):
     return {
         "ok": True, "view": target, "created": created_view, "items": items,
         "nested_errors": nested_errors, "cols": col_info, "template_removido": template_removido,
+        "leg_criadas": leg_criadas, "leg_existentes": leg_existentes, "leg_erros": leg_erros,
         "added": [l for l in labels if l not in previous] if previous else [],
         "removed": sorted(l for l in previous if l not in set(labels)),
     }
@@ -914,6 +1093,15 @@ def main(cfg):
         lines += [u"", u"Altera\u00e7\u00f5es:"]
         lines += [u"  + {}".format(l) for l in res["added"]]
         lines += [u"  - {}".format(l) for l in res["removed"]]
+    if res.get("leg_criadas"):
+        lines += [u"", u"Famílias de símbolo de legenda criadas (ajuste-as à vontade: na próxima "
+                  u"execução elas são usadas como estiverem):"]
+        lines += [u"  + {}".format(l) for l in res["leg_criadas"]]
+    if res.get("leg_existentes"):
+        lines += [u"", u"Famílias de símbolo de legenda já existentes (usadas como estão): {}".format(len(res["leg_existentes"]))]
+    if res.get("leg_erros"):
+        lines += [u"", u"Não foi possível criar a família de legenda (símbolo desenhado na vista):"]
+        lines += [u"  ! {}".format(l) for l in res["leg_erros"]]
     if res.get("template_removido"):
         lines += [u"", u"O modelo de vista '{}' foi retirado da legenda porque escondia os "
                   u"DWG importados nas fam\u00edlias (usados em alguns s\u00edmbolos).".format(res["template_removido"])]

@@ -4,7 +4,7 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.5.0)
+## Conteúdo atual (extensão 2.5.1)
 - Legendas › **Legenda LUM** — legenda de luminárias.
 - Legendas › **Legenda ELE** — legenda de pontos elétricos.
 - Legendas › **Legenda LOG**, **Legenda AUT** e **Legenda SON** — vistas `LOG - LEGENDA DE PONTOS DE LÓGICA`, `AUT - LEGENDA DE PONTOS DE AUTOMAÇÃO` e `SON - LEGENDA DE PONTOS DE SONORIZAÇÃO` (desde 2.4.0). Ver abaixo.
@@ -33,10 +33,11 @@ Ferramentas novas e avançadas são feitas em C# (`revit/dotnet/FJA.Revit`), com
 - Cores no 129: LOG 121-86-169, AUT 255-110-45, SON 140-195-25 (filtros `SISTEMA - …`); os ícones usam essas cores.
 - Itens: um por tipo de família cujo nome começa com `(LOG)` e que aparece em alguma vista colocada em prancha (planta, corte, etc.; legendas e tabelas não contam). Texto = nome da família sem o `(LOG)`, em maiúsculas; se a família tiver mais de um tipo na legenda, acrescenta ` - <tipo>`. Ordem: categoria e texto.
 - Cor de cada item = a cor das linhas do elemento nas vistas das pranchas (a mais frequente, preferindo vistas cujo nome começa com `LOG`): sobreposição do elemento › filtros da vista ou do modelo de vista (na ordem de prioridade, só os ativos e visíveis) › sobreposição da categoria › estilo de objeto. No modelo 129 sai o roxo 121-86-169 do filtro `SISTEMA - LÓGICA`; o ícone do botão usa esse roxo.
-- Símbolo: as anotações genéricas aninhadas da família (como na Legenda ELE); se a família não tiver, as linhas do elemento copiadas de uma planta onde ele aparece; por último, um componente de legenda (só se o projeto já tiver algum para servir de modelo). Tudo pintado na cor do item.
+- Símbolo (desde 2.4.1): cada item usa uma **família de anotação genérica `(DISC) (LEG) NOME`**, ex.: `(SON) (LEG) ANTENA DE MICROFONE`, `(LOG) (LEG) CAMERA BULLET`, `(AUT) (LEG) SENSOR ANALOGICO` (prefixo da disciplina do botão; SNZ vira SON; sufixo `.0001` de cópia é ignorado). Se o projeto já tem a família com esse nome, ela é usada como está (pode ser ajustada à mão ou trazida da biblioteca); senão o botão cria a partir do modelo "Anotação genérica métrica" com as anotações aninhadas da família (mesma posição e parâmetros) ou, sem elas, as linhas do elemento na planta, em tamanho de papel (máx. 12 mm, mín. 4,5 mm), e carrega no projeto (cópia do .rfa em `%TEMP%\FJA_LEG`). Se não der para criar, cai no método antigo (anotações/linhas desenhadas na vista ou componente de legenda). Tudo pintado na cor do item.
+- Ícones AUT e SON (2.5.1): mesma placa de cantos arredondados de LOG e ELE (mesmo tamanho e espessura de traço), com o símbolo dentro (ondas de sensor; alto-falante).
 - Base: duplica `LOG - LEGENDA GRAFICA` (estilos de título, texto e sublinhado). Alguns símbolos são DWG importados na família; se a legenda tiver modelo de vista que esconde "Importados em famílias", o modelo é retirado da legenda e a categoria fica visível (avisado no relatório).
 - Marca: Extensible Storage `FJA_LegendaLOG`; nova execução apaga só o que o botão criou e lista o que entrou e saiu.
-- Testado no Revit 2027 no modelo 129-AUT_LOG_SON (transações desfeitas): LOG 6 itens, AUT 1 (sensor analógico), SON 5 (antena de microfone, microfone, sonorefletor, rack, controle de volume).
+- Testado no Revit 2027 no modelo 129-AUT_LOG_SON (transações desfeitas): LOG 6 itens, AUT 1 (sensor analógico), SON 5 (antena de microfone, microfone, sonorefletor, rack, controle de volume). 2.4.1: famílias (LEG) criadas para LOG (5), AUT (2) e SON (5), sem erros.
 
 ## Copiar do link (desde 06/11/2026)
 - Módulos: **Equipamentos** (liberado: mobiliário, marcenaria, equipamentos, aparelhos sanitários, luminárias, tomadas e demais dispositivos, sprinklers, terminais de ar), **Estrutura**, **Arquitetura** e **Encaminhamentos** (ainda "em breve"). As categorias de cada módulo ficam em `lib/fja_links_modulos.json`; cada categoria pertence a um módulo só.
