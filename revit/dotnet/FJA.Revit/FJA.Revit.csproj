@@ -21,6 +21,10 @@
     <PlatformTarget>x64</PlatformTarget>
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
+    <!-- sem dados do git na DLL/PDB: o mesmo código gera os mesmos bytes (evita commits automáticos à toa) -->
+    <EnableSourceLink>false</EnableSourceLink>
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>$(MSBuildThisFileDirectory)..\bin\R$(RevitVersion)\</OutputPath>
     <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
