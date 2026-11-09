@@ -31,7 +31,7 @@ jobs:
               -p:IncludeSourceRevisionInInformationalVersion=false -nologo -v:minimal
             DEST=revit/Ferramentas-FJA.extension/bin/R$R
             mkdir -p "$DEST"
-            cp revit/dotnet/FJA.Revit/bin/R$R/FJA.Revit.dll revit/dotnet/FJA.Revit/bin/R$R/FJA.Revit.pdb "$DEST/"
+            cp revit/dotnet/bin/R$R/FJA.Revit.dll revit/dotnet/bin/R$R/FJA.Revit.pdb "$DEST/"
           done
           ls -la revit/Ferramentas-FJA.extension/bin/*
       - name: Gravar as DLLs na branch

@@ -22,7 +22,7 @@
     <DebugType>portable</DebugType>
     <Deterministic>true</Deterministic>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <OutputPath>bin\R$(RevitVersion)\</OutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)..\bin\R$(RevitVersion)\</OutputPath>
     <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
     <!-- versão = a da extensão (extension.json), passada pela compilação -->
     <Version Condition="'$(Version)'==''">0.0.0</Version>
