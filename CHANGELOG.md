@@ -16,7 +16,7 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 - Extensão do Revit 2.1.0 (Biblioteca › Ferramentas › Extensão do Revit): novo painel Links › Copiar do link (módulo Equipamentos); a tela avisa a novidade e explica como atualizar.
 - Drive pelo servidor engatilhado (função driveToken), desligado em firebase/servidor.json — sem efeito até ser ligado.
 
-## oficial Firebase — 09/11, ~11h20 — commit {C}
+## oficial Firebase — 09/11, ~11h20 — commit fa25a7b
 - Meu painel: ações pendentes (RIs aguardando você, RIs suas em aberto, pendências e comentários ligados a você/sua empresa) e atualizações recentes dos projetos em que a pessoa está envolvida; também para convidados (só RI).
 - Manutenção › Conta Google do servidor (só Master): autorização única da equipe@ para o servidor usar Drive, Planilhas e enviar e-mails. Drive pelo servidor e e-mails de aviso das RIs ligam depois dessa autorização. Resumo diário desligado.
 
