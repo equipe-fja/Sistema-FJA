@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
-status: success
-commit: 67960b2239cc583a4e5e18c777191a96342c7545
-quando: 2026-11-09T13:53:16Z
+status: failure
+commit: 5f5cbc14bba39a265424a57612165aa96710132f
+quando: 2026-11-09T13:56:17Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -9,78 +9,5 @@ quando: 2026-11-09T13:53:16Z
 [36m[1mi [22m[39m deploying [1mfirestore, hosting[22m
 [36m[1mi  cloud.firestore:[22m[39m checking [1mfirebase/firestore.rules[22m for compilation errors...
 [32m[1m✔  cloud.firestore:[22m[39m rules file [1mfirebase/firestore.rules[22m compiled successfully
-[36m[1mi  firestore:[22m[39m latest version of [1mfirebase/firestore.rules[22m already up to date, skipping upload...
-[36m[1mi  hosting[sistema-fja-homolog]:[22m[39m beginning deploy...
-[36m[1mi  hosting[sistema-fja-homolog]:[22m[39m found 2 files in [1mdist/homolog[22m
-[36m[1mi  hosting:[22m[39m upload complete
-[32m[1m✔  hosting[sistema-fja-homolog]:[22m[39m file upload complete
-[32m[1m✔  firestore:[22m[39m released rules [1mfirebase/firestore.rules[22m to [1mcloud.firestore[22m
-[36m[1mi  hosting[sistema-fja-homolog]:[22m[39m finalizing version...
-[32m[1m✔  hosting[sistema-fja-homolog]:[22m[39m version finalized
-[36m[1mi  hosting[sistema-fja-homolog]:[22m[39m releasing new version...
-[32m[1m✔  hosting[sistema-fja-homolog]:[22m[39m release complete
 
-[32m[1m✔ [22m[39m [1m[4mDeploy complete![24m[22m
-
-[1mProject Console:[22m https://console.firebase.google.com/project/sistema-fja-homolog/overview
-[1mHosting URL:[22m https://sistema-fja-homolog.web.app
-servidor (homolog): e-mails=1 rotinas=[equipe autoria drive google]
-banco em: southamerica-east1 · funções em: southamerica-east1
-[36m[1mi [22m[39m Updated function resumoDiario(southamerica-east1).
-[36m[1mi [22m[39m Removing secret versions: 
-
-[1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
-
-[36m[1mi [22m[39m deploying [1mfunctions[22m
-[36m[1mi  functions:[22m[39m preparing codebase [1mdefault[22m for deployment
-[36m[1mi  functions:[22m[39m ensuring required API [1mcloudfunctions.googleapis.com[22m is enabled...
-[36m[1mi  functions:[22m[39m ensuring required API [1mcloudbuild.googleapis.com[22m is enabled...
-[36m[1mi  artifactregistry:[22m[39m ensuring required API [1martifactregistry.googleapis.com[22m is enabled...
-[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
-[32m[1m✔  artifactregistry:[22m[39m required API [1martifactregistry.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mcloudfunctions.googleapis.com[22m is enabled
-[33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mpackage.json indicates an outdated version of firebase-functions. Please upgrade using [1mnpm install --save firebase-functions@latest[22m in your functions directory.
-[33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mPlease note that there will be breaking changes when you upgrade.
-[36m[1mi  functions:[22m[39m Loading and analyzing source code for codebase default to determine what to deploy
-Serving at port 8926
-
-[36m[1mi  extensions:[22m[39m ensuring required API [1mfirebaseextensions.googleapis.com[22m is enabled...
-[32m[1m✔  extensions:[22m[39m required API [1mfirebaseextensions.googleapis.com[22m is enabled
-[36m[1mi  functions:[22m[39m preparing [1mfirebase/functions[22m directory for uploading...
-[36m[1mi [22m[39m [36m[1mfunctions:[22m[39m packaged [1m/home/runner/work/Sistema-FJA/Sistema-FJA/firebase/functions[22m (46.19 KB) for uploading
-[36m[1mi  functions:[22m[39m ensuring required API [1mcloudscheduler.googleapis.com[22m is enabled...
-[32m[1m✔  functions:[22m[39m required API [1mcloudscheduler.googleapis.com[22m is enabled
-[36m[1mi  functions:[22m[39m ensuring required API [1mrun.googleapis.com[22m is enabled...
-[36m[1mi  functions:[22m[39m ensuring required API [1meventarc.googleapis.com[22m is enabled...
-[36m[1mi  functions:[22m[39m ensuring required API [1mpubsub.googleapis.com[22m is enabled...
-[36m[1mi  functions:[22m[39m ensuring required API [1mstorage.googleapis.com[22m is enabled...
-[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mpubsub.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1meventarc.googleapis.com[22m is enabled
-[36m[1mi  functions:[22m[39m generating the service identity for [1mpubsub.googleapis.com[22m...
-[36m[1mi  functions:[22m[39m generating the service identity for [1meventarc.googleapis.com[22m...
-[32m[1m✔ [22m[39m [32m[1mfunctions:[22m[39m [1mfirebase/functions[22m folder uploaded successfully
-[36m[1mi  functions:[22m[39m Skipping the deploy of unchanged functions.
-[32m[1m✔ [22m[39m [1m[35mfunctions[equipeProjeto(southamerica-east1)][39m[22m Skipped (No changes detected)
-[32m[1m✔ [22m[39m [1m[35mfunctions[equipeContas(southamerica-east1)][39m[22m Skipped (No changes detected)
-[32m[1m✔ [22m[39m [1m[35mfunctions[equipeDiaria(southamerica-east1)][39m[22m Skipped (No changes detected)
-[32m[1m✔ [22m[39m [1m[35mfunctions[autoriaRi(southamerica-east1)][39m[22m Skipped (No changes detected)
-[36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mavisosRi(southamerica-east1)[22m...
-[36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mresumoDiario(southamerica-east1)[22m...
-[36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mdriveToken(southamerica-east1)[22m...
-[36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mgoogleAutorizar(southamerica-east1)[22m...
-[36m[1mi  functions:[22m[39m updating Node.js 22 (2nd Gen) function [1mgoogleEstado(southamerica-east1)[22m...
-[32m[1m✔ [22m[39m [1m[32mfunctions[avisosRi(southamerica-east1)][39m[22m Successful update operation.
-[32m[1m✔ [22m[39m [1m[32mfunctions[googleAutorizar(southamerica-east1)][39m[22m Successful update operation.
-[32m[1m✔ [22m[39m [1m[32mfunctions[driveToken(southamerica-east1)][39m[22m Successful update operation.
-[32m[1m✔ [22m[39m [1m[32mfunctions[googleEstado(southamerica-east1)][39m[22m Successful update operation.
-[32m[1m✔ [22m[39m [1m[32mfunctions[resumoDiario(southamerica-east1)][39m[22m Successful update operation.
-[36m[1mi [22m[39m [1m[36mfunctions: [39m[22mcleaning up build files...
-[33m[1m⚠  functions:[22m[39m Unhandled error cleaning up build images. This could result in a small monthly bill if not corrected. You can attempt to delete these images by redeploying or you can delete them manually at https://console.cloud.google.com/gcr/images/sistema-fja-homolog/us/gcf
-
-[32m[1m✔ [22m[39m [1m[4mDeploy complete![24m[22m
-
-[1mProject Console:[22m https://console.firebase.google.com/project/sistema-fja-homolog/overview
-[36m[1mi [22m[39m A cleanup policy already exists that deletes images older than [1m1[22m days.
-[36m[1mi [22m[39m No changes needed.
+[1m[31mError:[39m[22m Failed to make request to https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/sistema-fja-homolog/versions
