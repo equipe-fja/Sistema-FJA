@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Biblioteca C# da suíte Ferramentas FJA.
+    Uma compilação por geração do Revit (escolhida por -p:RevitVersion=...):
+      2024 -> net48             (Revit 2024, .NET Framework 4.8)
+      2027 -> net10.0-windows   (Revit 2027, .NET 10)
+    Compilar:  dotnet build -c Release -p:RevitVersion=2024   (ou 2027)
+    A compilação oficial é feita pelo GitHub Actions (.github/workflows/revit-dotnet.yml),
+    que grava as DLLs em revit/Ferramentas-FJA.extension/bin/R2024 e bin/R2027.
+  -->
+  <PropertyGroup>
+    <TargetFramework Condition="'$(RevitVersion)'=='2024'">net48</TargetFramework>
+    <TargetFramework Condition="'$(RevitVersion)'=='2027'">net10.0-windows</TargetFramework>
+    <AssemblyName>FJA.Revit</AssemblyName>
+    <RootNamespace>FJA.Revit</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>portable</DebugType>
+    <Deterministic>true</Deterministic>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\R$(RevitVersion)\</OutputPath>
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
+    <!-- versão = a da extensão (extension.json), passada pela compilação -->
+    <Version Condition="'$(Version)'==''">0.0.0</Version>
+    <Product>Ferramentas FJA</Product>
+    <Company>FJA</Company>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- só para compilar: o Revit já tem essas DLLs (não vão para a pasta bin) -->
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)'=='net48'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

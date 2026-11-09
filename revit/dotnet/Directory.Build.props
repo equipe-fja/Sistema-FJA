@@ -1,0 +1,7 @@
+<Project>
+  <!-- lido antes do .csproj: a geração do Revit precisa estar definida para separar as pastas obj/ -->
+  <PropertyGroup>
+    <RevitVersion Condition="'$(RevitVersion)'==''">2027</RevitVersion>
+    <BaseIntermediateOutputPath>obj\R$(RevitVersion)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

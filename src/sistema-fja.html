@@ -8023,18 +8023,24 @@ async function rvDbPublicar(){
   return n;
 }
 /* pacote da extensão do pyRevit no banco, para o botão Ferramentas FJA › Suíte › Atualizar:
-   revitPub/extensao-versao {versao,hash,arquivos,em,por} (pequeno, consultado pelo botão) e revitPub/extensao {versao,hash,json}.
+   revitPub/extensao-versao {versao,hash,arquivos,binHash,binPartes,em,por} (pequeno, consultado pelo botão),
+   revitPub/extensao {versao,hash,json} (scripts) e revitPub/extensao-bin-<i> {versao,hash,i,n,txt} (biblioteca C#,
+   pasta bin/, em partes de até 900 mil caracteres por causa do limite de 1 MB por documento).
    Grava quando a versão embutida nesta página é mais nova que a do banco (ou igual com conteúdo diferente); nunca volta versão. */
 const verCmp=(a,b)=>{const x=String(a||0).split('.').map(n=>+n||0),y=String(b||0).split('.').map(n=>+n||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d}return 0};
 const EXTDB={st:null};
+const extBinTxt=()=>EXT_REVIT?.bin?.length?JSON.stringify({versao:EXT_REVIT.versao,arquivos:EXT_REVIT.bin}):'';
 async function extDbPublicar(){
   const f=fsCru(); if(!f||!EXT_REVIT||S.ro||S.publico||S.convidado) return;
   const txt=JSON.stringify({versao:EXT_REVIT.versao,arquivos:EXT_REVIT.arquivos}), h=hashTxt(txt);
+  const btxt=extBinTxt(), hb=btxt?hashTxt(btxt):'';
   const vref=f.collection('revitPub').doc('extensao-versao'), g=await vref.get(), v=g.exists?g.data():null; EXTDB.st=v;
-  if(v&&(verCmp(v.versao,EXT_REVIT.versao)>0||(v.versao===EXT_REVIT.versao&&v.hash===h))) return;
+  if(v&&(verCmp(v.versao,EXT_REVIT.versao)>0||(v.versao===EXT_REVIT.versao&&v.hash===h&&(v.binHash||'')===hb))) return;
   if(txt.length>1000000){console.warn('extensão: pacote grande demais para o banco',txt.length);return}
+  const TAM=900000, n=btxt?Math.ceil(btxt.length/TAM):0;
+  for(let i=0;i<n;i++) await f.collection('revitPub').doc('extensao-bin-'+i).set({versao:EXT_REVIT.versao,hash:hb,i,n,txt:btxt.slice(i*TAM,(i+1)*TAM),em:Date.now()});
   await f.collection('revitPub').doc('extensao').set({versao:EXT_REVIT.versao,hash:h,json:txt,em:Date.now(),por:S.meuNome||''});
-  EXTDB.st={versao:EXT_REVIT.versao,hash:h,arquivos:EXT_REVIT.arquivos.length,em:Date.now(),por:S.meuNome||''};
+  EXTDB.st={versao:EXT_REVIT.versao,hash:h,arquivos:EXT_REVIT.arquivos.length,binHash:hb,binPartes:n,em:Date.now(),por:S.meuNome||''};
   await vref.set(EXTDB.st);
 }
 async function rvDbProcessar(id){
@@ -8099,7 +8105,9 @@ async function baixarExtRevit(){
   if(!downloads){toast('O download não está disponível nesta visualização.');return}
   const bin=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0)), raiz=`Ferramentas-FJA-v${EXT_REVIT.versao}/`;
   const extra=EXT_REVIT.instalar?[{nome:raiz+'instalar.cmd',dados:cmdPoliglota(`Ferramentas FJA ${EXT_REVIT.versao} - instalar`,EXT_REVIT.instalar)},{nome:raiz+'LEIA-ME.txt',dados:EXT_LEIAME()}]:[];
-  const z=zipArquivos([...extra,...EXT_REVIT.arquivos.map(a=>({nome:raiz+a.nome,dados:bin(a.b64)}))]);
+  const btxt=extBinTxt(), bins=(EXT_REVIT.bin||[]).map(a=>({nome:raiz+a.nome,dados:bin(a.b64)}));
+  if(btxt) bins.push({nome:raiz+'Ferramentas-FJA.extension/bin/pacote.json',dados:new TextEncoder().encode(JSON.stringify({versao:EXT_REVIT.versao,hash:hashTxt(btxt)}))});
+  const z=zipArquivos([...extra,...EXT_REVIT.arquivos.map(a=>({nome:raiz+a.nome,dados:bin(a.b64)})),...bins]);
   try{const r=await downloads.save({filename:`Ferramentas-FJA-v${EXT_REVIT.versao}.zip`,data:z}); if(r) toast(EXT_REVIT.instalar?'Pacote salvo. Extraia e rode instalar.cmd':'Extensão salva')}
   catch(e){toast(e?.code==='declined'?'Download cancelado':'Não foi possível baixar a extensão')}
 }

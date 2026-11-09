@@ -38,17 +38,21 @@ def principal():
         return
     nova = info["versao"]
     c = U.comparar(nova, local)
+    bin_remoto = info.get("binHash") or u""
+    bin_falta = bool(bin_remoto) and bin_remoto != U.bin_hash_local(ext)
     if c < 0:
         forms.alert(u"Esta pasta já tem a versão {}, mais nova que a publicada ({}). Nada a fazer.".format(local, nova),
                     title=TITULO)
         return
-    if c == 0:
+    if c == 0 and not bin_falta:
         if forms.alert(u"Você já tem a versão mais recente ({}).".format(local), title=TITULO,
                        options=[u"Fechar", u"Reinstalar os arquivos"]) != u"Reinstalar os arquivos":
             return
     else:
         compart = u"G:" in ext.upper() or u"DRIVES COMPARTILHADOS" in ext.upper()
-        if not forms.alert(u"Atualizar a aba Ferramentas FJA da versão {} para a {}?".format(local, nova),
+        pergunta = (u"Atualizar a aba Ferramentas FJA da versão {} para a {}?".format(local, nova) if c > 0 else
+                    u"A biblioteca C# desta pasta não está na versão publicada ({}). Atualizar?".format(nova))
+        if not forms.alert(pergunta,
                            sub_msg=(u"Pasta: {}\n\n".format(ext) +
                                     (u"É a pasta compartilhada do G:: a atualização vale para todos do escritório "
                                      u"(cada um só precisa de pyRevit › Reload)." if compart else
@@ -61,7 +65,17 @@ def principal():
             return
         pacote = json.loads(pac.get("json") or "{}")
         arqs = U.decodificar(pacote)
-        g, iguais, apag = U.aplicar(ext, arqs)
+        preservar = ("bin/",)
+        if bin_remoto:
+            partes = []
+            for i in range(int(info.get("binPartes") or 0)):
+                d = ler("revitPub/extensao-bin-{}".format(i))
+                if d is False:
+                    return
+                partes.append(d)
+            arqs.update(U.juntar_bin(partes, info))
+            preservar = ()
+        g, iguais, apag = U.aplicar(ext, arqs, preservar)
     except Exception as e:
         forms.alert(u"A atualização não foi concluída:\n{}".format(e), title=TITULO)
         return

@@ -1,0 +1,7 @@
+title:
+  pt_br: "Sobre"
+  en_us: "Sobre"
+tooltip:
+  pt_br: "Mostra a versão da aba Ferramentas FJA e da biblioteca C# (FJA.Revit.dll) em uso neste Revit. Também confirma que a parte em C# da suíte está instalada e funcionando."
+  en_us: "Versão das Ferramentas FJA."
+author: "Ferramentas FJA"
