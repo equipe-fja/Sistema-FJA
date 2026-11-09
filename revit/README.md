@@ -4,17 +4,21 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.4.0)
+## Conteúdo atual (extensão 2.5.0)
 - Legendas › **Legenda LUM** — legenda de luminárias.
 - Legendas › **Legenda ELE** — legenda de pontos elétricos.
 - Legendas › **Legenda LOG**, **Legenda AUT** e **Legenda SON** — vistas `LOG - LEGENDA DE PONTOS DE LÓGICA`, `AUT - LEGENDA DE PONTOS DE AUTOMAÇÃO` e `SON - LEGENDA DE PONTOS DE SONORIZAÇÃO` (desde 2.4.0). Ver abaixo.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
+- Suíte › **Sobre** (desde 2.5.0) — versão da extensão e da biblioteca C# (`FJA.Revit.dll`); primeiro botão em C#.
 - Suíte › **Atualizar** — baixa a versão mais recente publicada pelo sistema (banco: `revitPub/extensao-versao` e `revitPub/extensao`, gravados por `extDbPublicar` na página Firebase), grava na pasta da extensão em uso (espelhando, menos `.pyc`) e recarrega o pyRevit (lógica em `lib/fja_suite.py`).
 - Links › **Verificar alterações** — compara cada cópia registrada com a origem no link (versão carregada): alterado no link (posição, rotação, tipo, espelhamento, nível, parâmetros do módulo, link movido), alterado no projeto (cópia mexida desde a última sincronização), apagado no link, novo no link, link ausente. Ações em lote: atualizar pelo link (move/gira/troca o tipo no lugar; espelhamento, nível, orientação de face ou tipo ausente → copia de novo), aceitar como está, apagar cópias órfãs, copiar novos.
 - Links › **Copiar do link** — copia em massa elementos de um link para o modelo, na mesma posição, por módulo (lógica em `lib/fja_links.py`, módulos em `lib/fja_links_modulos.json`). Ver abaixo.
 
 Origem: cópia de `%APPDATA%\pyRevit\Extensions\Ferramentas-FJA.extension` de um computador do escritório (03/11/2026).
+
+## Biblioteca C# (desde 2.5.0)
+Ferramentas novas e avançadas são feitas em C# (`revit/dotnet/FJA.Revit`), compiladas pelo GitHub Actions para `bin/R2024` e `bin/R2027` e chamadas pelos botões do pyRevit via `lib/fja_dotnet.py`, que carrega a DLL pela memória (sem travar o arquivo; dá para atualizar com o Revit aberto). Detalhes, critérios de migração e como criar um comando: `docs/revit-csharp.md`.
 
 ## Distribuição
 - **Pelo sistema (desde 06/11/2026):** Biblioteca › Ferramentas › Extensão do Revit › "Baixar o instalador". O .zip traz a extensão, `instalar.cmd` e um LEIA-ME. O instalador (`revit/instalar.ps1`, embutido por `scripts/embutir-revit.py`) copia a extensão para a pasta compartilhada do G: com `robocopy /MIR` (não substitui versão mais nova), cadastra a pasta em `pyRevit_config.ini` ([core] userextensions; cópia anterior em `.antes-fja`) e move a cópia local antiga de `%APPDATA%\pyRevit\Extensions` para `%APPDATA%\pyRevit\_backup-extensoes`. Sem o G:, instala em `%APPDATA%\pyRevit\Extensions`. Testado no Windows com G: e APPDATA simulados (variáveis `FJA_TESTE_REVIT` e `FJA_TESTE_APPDATA`).
