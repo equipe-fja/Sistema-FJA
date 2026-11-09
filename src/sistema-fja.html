@@ -8350,7 +8350,7 @@ function telaGoogleSrv(h){
       <li>Entre (ou escolha) a conta <b>${esc(conta)}</b>.</li>
       <li>Deixe marcadas todas as permissões: ver e editar arquivos do Drive, planilhas e enviar e-mails.</li>
     </ol>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="gsrv-aut">${e?.autorizado?'Autorizar de novo':'Autorizar'}</button><button class="btn ghost" data-act="gsrv-ver">Verificar</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="acs-gsrv-aut">${e?.autorizado?'Autorizar de novo':'Autorizar'}</button><button class="btn ghost" data-act="acs-gsrv-ver">Verificar</button></div>
     <p class="muted" style="font-size:12px">Se trocar a senha de ${esc(conta)} ou remover o acesso do Sistema FJA em myaccount.google.com/permissions, é preciso autorizar de novo aqui.</p>
   </div></section></div>`;
 }
@@ -8401,8 +8401,8 @@ document.addEventListener('click',async ev=>{
   if(a==='acs-ord'||a==='acs-agrupar'){const p=acsPref(), k=b.dataset.k;
     if(a==='acs-ord'){const o=p.o; p.o=!o||o.k!==k?{k,dir:'asc'}:o.dir==='asc'?{k,dir:'desc'}:null} else p.g=p.g===k?'':k;
     try{localStorage.setItem('fja.acsLista',JSON.stringify(p))}catch{} renderMain(); return}
-  if(a==='gsrv-ver'){GSRV.estado=null; gsrvCarregar(); renderMain(); return}
-  if(a==='gsrv-aut'){try{const r=await window.FJA_GOOGLE.servidor.autorizar(GSRV.estado?.conta||'equipe@fj.arq.br'); toast('Autorizado: '+r.conta); GSRV.estado=null; gsrvCarregar()}catch(e){toast('Não autorizado: '+(e?.message||e))} return}
+  if(a==='acs-gsrv-ver'){GSRV.estado=null; gsrvCarregar(); renderMain(); return}
+  if(a==='acs-gsrv-aut'){try{const r=await window.FJA_GOOGLE.servidor.autorizar(GSRV.estado?.conta||'equipe@fj.arq.br'); toast('Autorizado: '+r.conta); GSRV.estado=null; gsrvCarregar()}catch(e){toast('Não autorizado: '+(e?.message||e))} return}
   if(a==='acs-senha'){if(await fb.alterarSenha()) toast('Senha alterada');return}
   if(a==='acs-sair'){fb.sair();return}
   if(!fb.admin()){toast('Somente administradores');return}
