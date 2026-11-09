@@ -932,14 +932,21 @@ def atualizar_legenda(doc, items=None, opcoes=None):
         except Exception as ex:
             nested[key] = []
             nested_errors.append(u"{}: {}".format(fam.Name, ex))
+        # redimensionar: o simbolo sai do desenho do elemento na planta (anotacoes aninhadas
+        # incluidas), escalado para o tamanho pedido; sem planta, tenta as anotacoes
+        specs_leg = visible_specs(nested[key], it["rep"], it["sym"])
+        if tam and it.get("geo") is not None and it.get("geo_inst") is not None:
+            specs_leg = []
         try:
-            lf = criar_familia_leg(doc, it, visible_specs(nested[key], it["rep"], it["sym"]), nome_leg, pasta_leg, tam)
+            lf = criar_familia_leg(doc, it, specs_leg, nome_leg, pasta_leg, tam)
         except Exception as ex:
             lf = None
             leg_erros.append(u"{}: {}".format(nome_leg, ex))
         legs[key] = lf
         if lf is not None:
             leg_criadas.append(lf.Name)
+        if tam and not it.get("redimensionado"):
+            leg_erros.append(u"{}: não foi possível redimensionar (sem desenho na planta)".format(nome_leg))
 
     previous = set()
     col_info = None
