@@ -819,6 +819,107 @@ def criar_familia_leg(doc, it, specs, name, pasta, tamanho_mm=None):
     return _family_by_name(doc, name)
 
 
+def leg_via_dwg(doc, fam_orig, name, pasta, tam_mm, it):
+    """Redimensiona um simbolo de legenda pelo DWG: coloca a familia original numa vista
+    de desenho temporaria (1:1), exporta para DWG e cria a familia 'name' importando esse
+    DWG na escala que deixa a maior medida igual a tam_mm (mede e corrige a escala).
+    Deve rodar FORA de transacao. Retorna a familia carregada (ou None)."""
+    import clr
+    sym = _first_symbol(doc, fam_orig)
+    if sym is None:
+        return None
+    vft = None
+    for x in DB.FilteredElementCollector(doc).OfClass(DB.ViewFamilyType):
+        if x.ViewFamily == DB.ViewFamily.Drafting:
+            vft = x
+            break
+    if vft is None:
+        raise Exception(u"o projeto não tem tipo de vista de desenho")
+    if not os.path.isdir(pasta):
+        os.makedirs(pasta)
+    nome_dwg = "leg_" + re.sub(r"[^A-Za-z0-9]+", "_", norm_ascii(name)).strip("_")
+    caminho = os.path.join(pasta, nome_dwg + ".dwg")
+    if os.path.exists(caminho):
+        try:
+            os.remove(caminho)
+        except Exception:
+            pass
+    t = DB.Transaction(doc, u"Símbolo de legenda (DWG)")
+    t.Start()
+    v = DB.ViewDrafting.Create(doc, vft.Id)
+    v.Scale = 1
+    if not sym.IsActive:
+        sym.Activate()
+        doc.Regenerate()
+    doc.Create.NewFamilyInstance(DB.XYZ.Zero, sym, v)
+    t.Commit()
+    try:
+        opts = DB.DWGExportOptions()
+        try:
+            opts.TargetUnit = DB.ExportUnit.Millimeter
+        except Exception:
+            pass
+        doc.Export(pasta, nome_dwg, List[DB.ElementId]([v.Id]), opts)
+    finally:
+        t = DB.Transaction(doc, u"Símbolo de legenda (DWG)")
+        t.Start()
+        doc.Delete(v.Id)
+        t.Commit()
+    if not os.path.exists(caminho):
+        raise Exception(u"a exportação para DWG não gerou o arquivo")
+
+    app = doc.Application
+    fdoc = app.NewFamilyDocument(_template_anotacao(app))
+    try:
+        t = DB.Transaction(fdoc, u"Simbolo de legenda (DWG)")
+        t.Start()
+        view = _family_view(fdoc)
+        for tn in list(DB.FilteredElementCollector(fdoc).OfClass(DB.TextNote)):
+            fdoc.Delete(tn.Id)
+        alvo = tam_mm / 304.8
+
+        def importar(esc):
+            o = DB.DWGImportOptions()
+            o.Placement = DB.ImportPlacement.Centered
+            o.ThisViewOnly = True
+            o.ColorMode = DB.ImportColorMode.BlackAndWhite
+            o.Unit = DB.ImportUnit.Custom
+            o.CustomScale = esc
+            ref = clr.Reference[DB.ElementId]()
+            fdoc.Import(caminho, o, view, ref)
+            fdoc.Regenerate()
+            return fdoc.GetElement(ref.Value)
+
+        def medida(e):
+            bb = e.get_BoundingBox(view) if e is not None else None
+            return max(bb.Max.X - bb.Min.X, bb.Max.Y - bb.Min.Y) if bb else 0.0
+
+        # a unidade do DWG e o significado exato da escala variam: importa, mede e corrige
+        esc = 1.0 / 304.8
+        e = importar(esc)
+        m = medida(e)
+        for _ in range(3):
+            if m <= 1e-12:
+                raise Exception(u"o DWG importado ficou vazio")
+            if abs(m - alvo) / alvo < 0.01:
+                break
+            esc *= alvo / m
+            fdoc.Delete(e.Id)
+            e = importar(esc)
+            m = medida(e)
+        t.Commit()
+        caminho_rfa = os.path.join(pasta, name + ".rfa")
+        so = DB.SaveAsOptions()
+        so.OverwriteExistingFile = True
+        fdoc.SaveAs(caminho_rfa, so)
+        fdoc.LoadFamily(doc, _NaoSobrescrever())
+    finally:
+        fdoc.Close(False)
+    it["redimensionado"] = True
+    it["mm_dwg"] = m * 304.8
+    return _family_by_name(doc, name)
+
+
 # ---------------------------------------------------------------- vistas
 def find_legends(doc):
     """(base, alvo, outras). Base = a primeira legenda que bate com C["bases"]."""
@@ -932,21 +1033,36 @@ def atualizar_legenda(doc, items=None, opcoes=None):
         except Exception as ex:
             nested[key] = []
             nested_errors.append(u"{}: {}".format(fam.Name, ex))
-        # redimensionar: o simbolo sai do desenho do elemento na planta (anotacoes aninhadas
-        # incluidas), escalado para o tamanho pedido; sem planta, tenta as anotacoes
         specs_leg = visible_specs(nested[key], it["rep"], it["sym"])
-        if tam and it.get("geo") is not None and it.get("geo_inst") is not None:
-            specs_leg = []
         try:
-            lf = criar_familia_leg(doc, it, specs_leg, nome_leg, pasta_leg, tam)
+            if tam:
+                # redimensionar pelo DWG: familia no tamanho original (nome provisorio),
+                # exportada para DWG e importada na familia final na escala pedida
+                orig = _family_by_name(doc, nome_leg + " __ORIG")
+                if orig is None:
+                    orig = criar_familia_leg(doc, it, specs_leg, nome_leg + " __ORIG", pasta_leg, None)
+                lf = None
+                if orig is not None:
+                    try:
+                        lf = leg_via_dwg(doc, orig, nome_leg, pasta_leg, tam, it)
+                    finally:
+                        td = DB.Transaction(doc, u"Símbolo de legenda (DWG)")
+                        td.Start()
+                        try:
+                            doc.Delete(orig.Id)
+                        except Exception:
+                            pass
+                        td.Commit()
+            else:
+                lf = criar_familia_leg(doc, it, specs_leg, nome_leg, pasta_leg, None)
         except Exception as ex:
             lf = None
             leg_erros.append(u"{}: {}".format(nome_leg, ex))
         legs[key] = lf
         if lf is not None:
             leg_criadas.append(lf.Name)
-        if tam and not it.get("redimensionado"):
-            leg_erros.append(u"{}: não foi possível redimensionar (sem desenho na planta)".format(nome_leg))
+        if tam and lf is not None and not it.get("redimensionado"):
+            leg_erros.append(u"{}: não foi possível redimensionar".format(nome_leg))
 
     previous = set()
     col_info = None

@@ -209,6 +209,9 @@ class Janela(forms.WPFWindow):
         if res.get("leg_erros"):
             partes.append(u"{} símbolo(s) com erro".format(len(res["leg_erros"])))
         self.txtStatus.Text = u"Prévia: " + u" · ".join(partes) + u". Use a roda do mouse para aproximar."
+        if res.get("leg_erros"):
+            self.txtStatus.Text += u"\n" + u"\n".join(res["leg_erros"][:3])
+            self.txtStatus.ToolTip = u"\n".join(res["leg_erros"])
 
     # ------------------------------------------------------------ gravar / desfazer
     def _gerar(self, s, a):
