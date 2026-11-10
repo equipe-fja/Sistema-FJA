@@ -41,7 +41,8 @@ namespace FJA.Revit.Legendas
             public Border Bloco, Cab;
             public StackPanel Filhos;
             public TextBox Txt;
-            public TextBlock AtFam, Resumo, Seta;
+            public TextBlock Resumo, Seta;
+            public Button Voltar;
             public Button Ok;
             public string Fam => Tipos.Count > 0 ? Tipos[0].Tp.Fam : FamAtual;
             public bool Pendente => Tipos.Any(t => t.Tp.Pendente);
@@ -53,7 +54,8 @@ namespace FJA.Revit.Legendas
             public NoFamilia Pai;
             public Border Borda;
             public TextBox Desc, Cod;
-            public TextBlock AtTipo, AtCod, Sit;
+            public TextBlock Sit;
+            public Button VoltarDesc, VoltarCod;
             public Button Ok, Apagar;
         }
 
@@ -66,10 +68,11 @@ namespace FJA.Revit.Legendas
             Vermelho = new SolidColorBrush(WColor.FromRgb(179, 38, 30)), Azul = new SolidColorBrush(WColor.FromRgb(47, 95, 138)),
             Cinza = new SolidColorBrush(WColor.FromRgb(94, 94, 92)), Roxo = new SolidColorBrush(WColor.FromRgb(121, 86, 169));
 
-        // colunas do tipo: recuo | ≡ | description | como está | código | como está | qtde | origem | situação | ✓ | ✕
-        static readonly double[] COLS_T = { 30, 18, -1, -0.9, 96, 84, 44, 130, 200, 34, 32 };
-        // colunas da família: ▾ | ≡ | sigla + nome | como está | resumo | ✓ | (vazio, alinhado ao ✕)
-        static readonly double[] COLS_F = { 18, 18, -1, -1, 300, 34, 32 };
+        // colunas do tipo: recuo | ≡ | description | código | qtde | origem | situação | ✓ | ✕
+        // (como está: no tooltip de cada campo; ↶ ao lado do campo alterado volta ao que está gravado)
+        static readonly double[] COLS_T = { 30, 18, -1, 130, 44, 150, 230, 34, 32 };
+        // colunas da família: ▾ | ≡ | sigla + nome | resumo | ✓ | (vazio, alinhado ao ✕)
+        static readonly double[] COLS_F = { 18, 18, -1, 300, 34, 32 };
 
         public JanelaCodificacao(Document doc, Disciplina inicial)
         {
@@ -158,6 +161,31 @@ namespace FJA.Revit.Legendas
         TextBlock Cinzento(string t, int tam = 12) =>
             new TextBlock { Text = t, Foreground = Cinza, FontSize = tam, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 8, 0), ToolTip = t };
 
+        /// <summary>Campo editável com o botão ↶ (volta ao que está gravado) à direita; o ↶ só aparece quando o
+        /// valor difere do gravado.</summary>
+        DockPanel ComVoltar(TextBox campo, out Button voltar, Action aoVoltar)
+        {
+            var dp = new DockPanel { Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, LastChildFill = true };
+            voltar = new Button
+            {
+                Content = "↶", FontSize = 14, Padding = new Thickness(4, 0, 4, 0), Margin = new Thickness(2, 0, 0, 0), Cursor = Cursors.Hand,
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Azul, VerticalAlignment = VerticalAlignment.Center,
+                Visibility = System.Windows.Visibility.Collapsed,
+            };
+            voltar.Click += (s, a) => aoVoltar();
+            DockPanel.SetDock(voltar, Dock.Right);
+            campo.Margin = new Thickness(0);
+            dp.Children.Add(voltar);
+            dp.Children.Add(campo);
+            return dp;
+        }
+
+        static void Mostrar(Button b, bool sim, string dica)
+        {
+            b.Visibility = sim ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            b.ToolTip = dica;
+        }
+
         TextBlock Alca(string dica) =>
             new TextBlock { Text = "≡", FontSize = 16, Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Cursor = Cursors.SizeAll, Background = Brushes.Transparent, ToolTip = dica };
 
@@ -201,12 +229,12 @@ namespace FJA.Revit.Legendas
             var cab = new Border { Padding = new Thickness(12, 8, 12, 8), BorderBrush = Pincel("Linha", 226, 226, 223), BorderThickness = new Thickness(0, 0, 0, 1) };
             DockPanel.SetDock(cab, Dock.Top);
             var gc = Grade(COLS_T);
-            string[] tit = { "", "", "Description (= nome do tipo)", "Como está", "Código", "Como está", "Qtde", "Origem", "Situação", "", "" };
+            string[] tit = { "", "", "Description (= nome do tipo)", "Código", "Qtde", "Origem", "Situação", "", "" };
             for (int i = 0; i < tit.Length; i++)
             {
                 var tb = new TextBlock { Text = tit[i], FontWeight = FontWeights.SemiBold, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92), Margin = new Thickness(0, 0, 8, 0) };
                 if (i == 2) tb.ToolTip = "Ao aplicar, a Description também vira o nome do tipo. A família é renomeada na linha dela (a sigla fica).";
-                if (i == 4) tb.ToolTip = "Código no padrão SIGLA.NN, gravado no Type Mark";
+                if (i == 3) tb.ToolTip = "Código no padrão SIGLA.NN, gravado no Type Mark";
                 Por(gc, tb, i);
             }
             cab.Child = gc;
@@ -296,19 +324,19 @@ namespace FJA.Revit.Legendas
             var pf = new DockPanel { Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
             var sig = new TextBlock { Text = t0.Prefixo.Trim(), VerticalAlignment = VerticalAlignment.Center, Foreground = Roxo, Margin = new Thickness(2, 0, 6, 0), FontWeight = FontWeights.SemiBold };
             DockPanel.SetDock(sig, Dock.Left);
-            var txt = Campo(t0.Fam, $"Nome da família (a sigla {t0.Prefixo.Trim()} fica). Categoria: {t0.Sym.Category?.Name}");
-            txt.Margin = new Thickness(0);
+            var txt = Campo(t0.Fam, "");
             txt.FontWeight = FontWeights.SemiBold;
-            pf.Children.Add(sig); pf.Children.Add(txt);
-            var at = Cinzento(t0.Sym.FamilyName);
+            var cv = ComVoltar(txt, out Button voltar, () => { txt.Text = nf.FamAtual; });
+            cv.Margin = new Thickness(0);
+            pf.Children.Add(sig); pf.Children.Add(cv);
             var resumo = Cinzento("", 12);
             var ok = BotaoOk("Aplicar esta família (nome e todos os tipos dela)");
-            Por(g, seta, 0); Por(g, alca, 1); Por(g, pf, 2); Por(g, at, 3); Por(g, resumo, 4); Por(g, ok, 5);
+            Por(g, seta, 0); Por(g, alca, 1); Por(g, pf, 2); Por(g, resumo, 3); Por(g, ok, 4);
             cabB.Child = g;
             var filhos = new StackPanel();
             sp.Children.Add(cabB); sp.Children.Add(filhos);
             bloco.Child = sp;
-            nf.Bloco = bloco; nf.Cab = cabB; nf.Filhos = filhos; nf.Txt = txt; nf.AtFam = at; nf.Resumo = resumo; nf.Seta = seta; nf.Ok = ok;
+            nf.Bloco = bloco; nf.Cab = cabB; nf.Filhos = filhos; nf.Txt = txt; nf.Voltar = voltar; nf.Resumo = resumo; nf.Seta = seta; nf.Ok = ok;
 
             txt.TextChanged += (s, a) =>
             {
@@ -369,11 +397,11 @@ namespace FJA.Revit.Legendas
             var g = Grade(COLS_T);
             var guia = new Border { BorderBrush = Pincel("LinhaForte", 201, 201, 197), BorderThickness = new Thickness(1, 0, 0, 0), Margin = new Thickness(8, -2, 0, -2) };
             var alca = Alca("Arraste para mudar a ordem dos tipos nesta família");
-            var desc = Campo(tp.Desc, "Description; ao aplicar, também vira o nome do tipo");
-            var atTipo = Cinzento(TextoTipoAtual(tp));
-            var cx = Campo(tp.Codigo, "Código (Type Mark)");
+            var desc = Campo(tp.Desc, "");
+            var cdesc = ComVoltar(desc, out Button vDesc, () => { desc.Text = tp.DescAtual; });
+            var cx = Campo(tp.Codigo, "");
             cx.CharacterCasing = CharacterCasing.Upper;
-            var atCod = Cinzento(tp.MarcaAtual == "" ? "sem código" : tp.MarcaAtual);
+            var ccod = ComVoltar(cx, out Button vCod, () => { cx.Text = tp.MarcaAtual; });
             var qt = Cinzento(tp.Quantidade.ToString());
             var org = Cinzento(tp.Origem);
             var sit = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -382,9 +410,9 @@ namespace FJA.Revit.Legendas
             del.Padding = new Thickness(6, 2, 6, 2);
             del.Foreground = Vermelho;
             del.ToolTip = "Apagar este tipo do modelo" + (tp.Quantidade > 0 ? $" (e os {tp.Quantidade} elemento(s) dele)" : "");
-            Por(g, guia, 0); Por(g, alca, 1); Por(g, desc, 2); Por(g, atTipo, 3); Por(g, cx, 4); Por(g, atCod, 5); Por(g, qt, 6); Por(g, org, 7); Por(g, sit, 8); Por(g, ok, 9); Por(g, del, 10);
+            Por(g, guia, 0); Por(g, alca, 1); Por(g, cdesc, 2); Por(g, ccod, 3); Por(g, qt, 4); Por(g, org, 5); Por(g, sit, 6); Por(g, ok, 7); Por(g, del, 8);
             borda.Child = g;
-            var nt = new NoTipo { Tp = tp, Pai = nf, Borda = borda, Desc = desc, Cod = cx, AtTipo = atTipo, AtCod = atCod, Sit = sit, Ok = ok, Apagar = del };
+            var nt = new NoTipo { Tp = tp, Pai = nf, Borda = borda, Desc = desc, Cod = cx, VoltarDesc = vDesc, VoltarCod = vCod, Sit = sit, Ok = ok, Apagar = del };
             del.Click += (s, a) => ApagarTipo(nt);
             desc.TextChanged += (s, a) => { tp.Desc = (desc.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
             cx.TextChanged += (s, a) => { tp.Codigo = (cx.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); AtualizarResumo(nf); } };
@@ -511,13 +539,17 @@ namespace FJA.Revit.Legendas
                 t.Sit.Foreground = cor;
                 t.Ok.IsEnabled = tp.Pendente;
                 t.Cod.BorderBrush = c != "" && cont.TryGetValue(c, out int nc) && nc > 1 ? Vermelho : Pincel("Linha", 226, 226, 223);
+                string comoTipo = "Como está: tipo \"" + tp.TipoAtual + "\" · description " + (tp.DescAtual == "" ? "vazia" : "\"" + tp.DescAtual + "\"");
+                t.Desc.ToolTip = "Description (ao aplicar, também vira o nome do tipo)\n" + comoTipo;
+                t.Cod.ToolTip = "Código (Type Mark)\nComo está: " + (tp.MarcaAtual == "" ? "sem código" : tp.MarcaAtual);
+                Mostrar(t.VoltarDesc, tp.Desc != tp.DescAtual, "Voltar ao que está gravado: " + (tp.DescAtual == "" ? "(description vazia)" : tp.DescAtual));
+                Mostrar(t.VoltarCod, tp.Codigo != tp.MarcaAtual, "Voltar ao que está gravado: " + (tp.MarcaAtual == "" ? "(sem código)" : tp.MarcaAtual));
             }
             foreach (var f in familias)
             {
-                bool nomeMuda = f.Fam != "" && f.Fam != f.FamAtual;
-                f.AtFam.Text = f.Prefixo + f.FamAtual + (nomeMuda ? "  →  " + f.Prefixo + f.Fam : "");
-                f.AtFam.Foreground = nomeMuda ? Azul : Cinza;
-                f.AtFam.ToolTip = f.AtFam.Text;
+                bool nomeMuda = f.Fam != f.FamAtual;
+                f.Txt.ToolTip = $"Nome da família (a sigla {f.Prefixo.Trim()} fica)\nComo está: {f.Prefixo}{f.FamAtual}";
+                Mostrar(f.Voltar, nomeMuda, "Voltar ao que está gravado: " + f.Prefixo + f.FamAtual);
                 f.Ok.IsEnabled = f.Pendente;
             }
             int pend = todos.Count(t => t.Tp.Pendente);
@@ -585,9 +617,6 @@ namespace FJA.Revit.Legendas
                         var mp = System.Text.RegularExpressions.Regex.Match(tp.Sym.FamilyName, @"^\s*(\([A-Za-z]+\)\s*)(.*)$");
                         tp.FamAtual = mp.Success ? mp.Groups[2].Value : tp.Sym.FamilyName;
                         tp.TipoAtual = tp.Sym.Name;
-                        t.AtTipo.Text = TextoTipoAtual(tp);
-                        t.AtTipo.ToolTip = t.AtTipo.Text;
-                        t.AtCod.Text = tp.MarcaAtual == "" ? "sem código" : tp.MarcaAtual;
                     }
                     if (f.Tipos.Count > 0) f.FamAtual = f.Tipos[0].Tp.FamAtual;
                     AtualizarResumo(f);
