@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """Legenda de pontos por disciplina (LOG, AUT, SON...): cria/atualiza uma vista de
 legenda com todas as familias cujo nome comeca com o prefixo da disciplina (ex.:
-'(LOG)') e que aparecem em vistas colocadas em pranchas (um item por tipo). Os simbolos saem
-sem cor (as cores das disciplinas variam por projeto); a janela de previa permite
-escolher uma cor, inclusive a da disciplina no projeto do Sistema FJA
-(opcoes["cor"]). Elementos desenhados a mao na vista sao preservados.
+'(LOG)') e que aparecem em vistas colocadas em pranchas (um item por tipo). Cada
+simbolo e pintado com a cor que o elemento tem nessas vistas (sobreposicao do
+elemento, filtros da vista ou do modelo de vista, sobreposicao da categoria ou
+estilo de objeto, nessa ordem); a janela de previa permite trocar por outra cor,
+inclusive a da disciplina no projeto do Sistema FJA (opcoes["cor"]).
+Elementos desenhados a mao na vista sao preservados.
 
 Uso no script do botao:
     from fja_legenda_disciplina import main
@@ -29,6 +31,7 @@ from Autodesk.Revit.DB.ExtensibleStorage import (
 #   bases    - inicio do nome (sem acento) das legendas que servem de base, em ordem
 #   guid, schema, mark - marca gravada nos elementos criados (Extensible Storage)
 #   disc     - codigo da disciplina no Sistema FJA (ex.: "LOG"), para a cor do projeto
+#   cor      - cor usada quando nao der para ler a do modelo
 C = {}
 
 # ---------------------------------------------------------------- tempos (diagnostico)
@@ -470,40 +473,92 @@ def item_label(sym, multi):
 
 
 def collect_items(doc):
-    """Um item por tipo de familia '(LOG)' visivel em alguma vista de prancha."""
+    """Um item por tipo de familia '(LOG)' visivel em alguma vista de prancha.
+    Rapido: so procura nas vistas as categorias das familias da disciplina (filtro
+    rapido antes do teste de visibilidade da vista) e pula vistas que escondem essas
+    categorias."""
+    t0 = agora()
+    syms = [sy for sy in DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol)
+            if norm_ascii(sy.FamilyName).startswith(C["familias"])]
+    sym_ok = set(sy.Id.ToString() for sy in syms)
+    cat_ids = {}
+    for sy in syms:
+        if sy.Category is not None:
+            cat_ids[sy.Category.Id.ToString()] = sy.Category.Id
+    tempo(u"  tipos da disciplina: {} em {} categoria(s)".format(len(syms), len(cat_ids)), t0)
+    if not sym_ok or not cat_ids:
+        return []
+    catf = DB.ElementMulticategoryFilter(List[DB.ElementId](list(cat_ids.values())))
+    # instancias no modelo (sem vista: rapido); sem nenhuma, nada a fazer
+    t1 = agora()
+    no_modelo = [e for e in DB.FilteredElementCollector(doc).WherePasses(catf).OfClass(DB.FamilyInstance)
+                 if e.GetTypeId().ToString() in sym_ok]
+    tempo(u"  instâncias no modelo: {}".format(len(no_modelo)), t1)
+    if not no_modelo:
+        return []
+    t2 = agora()
+    views = sheet_views(doc)
+    tempo(u"  vistas em pranchas: {}".format(len(views)), t2)
+
     types = {}
     cache = {}
-    for v in sheet_views(doc):
+    lentas = []
+    puladas = 0
+    t3 = agora()
+    for v in views:
+        tv = agora()
+        try:
+            if all(v.GetCategoryHidden(c) for c in cat_ids.values()):
+                puladas += 1
+                continue
+        except Exception:
+            pass
         prefer = norm_ascii(elem_name(v)).startswith(C["vistas"]) if C["vistas"] else False
         try:
-            col = DB.FilteredElementCollector(doc, v.Id).OfClass(DB.FamilyInstance)
+            col = DB.FilteredElementCollector(doc, v.Id).WherePasses(catf).OfClass(DB.FamilyInstance)
         except Exception:
             continue
         for inst in col:
             if inst.SuperComponent is not None:
                 continue
-            sym = inst.Symbol
-            if not norm_ascii(sym.FamilyName).startswith(C["familias"]):
+            key = inst.GetTypeId().ToString()
+            if key not in sym_ok:
                 continue
-            key = sym.Id.ToString()
             it = types.get(key)
             if it is None:
-                it = types[key] = {"sym": sym, "rep": inst, "inst": set(), "views": set()}
+                it = types[key] = {"sym": inst.Symbol, "rep": inst, "inst": set(), "views": set(),
+                                   "cores": {}}
             it["inst"].add(inst.Id.ToString())
             it["views"].add(elem_name(v))
             # vista de planta onde o elemento aparece (para copiar o desenho se a
             # familia nao tiver anotacao aninhada); prefere as vistas LOG
             if isinstance(v, DB.ViewPlan) and (it.get("geo") is None or (prefer and not it["geo_pref"])):
                 it["geo"], it["geo_pref"], it["geo_inst"] = v, prefer, inst
+            try:
+                cor, origem = effective_color(doc, v, inst, cache)
+            except Exception:
+                cor, origem = C.get("cor") or (0, 0, 0), u"padrão"
+            ck = (cor, origem)
+            n = it["cores"].get(ck, [0, 0])
+            n[0 if prefer else 1] += 1
+            it["cores"][ck] = n
+        lentas.append((agora() - tv, elem_name(v)))
+    tempo(u"  procurar nas vistas ({} lidas, {} puladas)".format(len(views) - puladas, puladas), t3)
+    lentas.sort(reverse=True)
+    for d, nome in lentas[:5]:
+        TEMPOS.append((u"    vista lenta: {}".format(nome)[:60], d, agora()))
     fam_types = {}
     for it in types.values():
         fk = it["sym"].Family.Id.ToString()
         fam_types[fk] = fam_types.get(fk, 0) + 1
     items = []
     for it in types.values():
+        # cor mais frequente nas vistas LOG; se nao aparecer nelas, nas demais
+        best = sorted(it["cores"].items(), key=lambda kv: (-kv[1][0], -kv[1][1]))[0][0]
         sym = it["sym"]
         items.append({
             "sym": sym, "rep": it["rep"], "count": len(it["inst"]), "views": len(it["views"]),
+            "cor": best[0], "cor_origem": best[1],
             "label": item_label(sym, fam_types[sym.Family.Id.ToString()] > 1),
             "geo": it.get("geo"), "geo_inst": it.get("geo_inst"),
         })
@@ -639,6 +694,15 @@ def paint(view, elem_id, rgb):
         except Exception:
             pass
     view.SetElementOverrides(elem_id, o)
+
+
+def cor_item(it, cor):
+    """Cor do simbolo: None = a do elemento no modelo; "preto" = sem cor; (r, g, b) = essa."""
+    if cor is None:
+        return it.get("cor")
+    if cor == "preto":
+        return None
+    return cor
 
 
 def pintar(view, elem_id, rgb):
@@ -1057,7 +1121,7 @@ def atualizar_legenda(doc, items=None, opcoes=None):
     passo = float(opcoes.get("passo_mm") or MM_ROW_STEP)
     largura = float(opcoes.get("largura_mm") or MM_LARGURA)
     com_h, com_v, com_m = bool(opcoes.get("linhas_h")), bool(opcoes.get("linha_v")), bool(opcoes.get("margens"))
-    cor = opcoes.get("cor")  # (r, g, b) ou None = simbolos sem cor
+    cor = opcoes.get("cor")  # None = cor de cada item no modelo; "preto" = sem cor; (r, g, b) = essa cor
     t_ini = agora()
     redim = set(opcoes.get("redim") or ())
     if items is None:
@@ -1258,8 +1322,7 @@ def atualizar_legenda(doc, items=None, opcoes=None):
             if not sym_ids:
                 it["modo"] = "sem simbolo"
             for i in sym_ids:
-                if cor:
-                    paint(target, i, cor)
+                pintar(target, i, cor_item(it, cor))
                 mark(doc.GetElement(i), schema)
 
             opts = DB.TextNoteOptions(body_type)
@@ -1423,7 +1486,12 @@ def main(cfg):
         u"Legenda '{}' {} com sucesso!".format(C["alvo"], u"criada" if res["created"] else u"atualizada"),
         u"Itens na legenda (um por tipo): {}".format(len(res["items"])),
     ]
-    lines.append(u"Símbolos sem cor (para escolher uma cor, use a Prévia).")
+    cores = {}
+    for it in res["items"]:
+        ck = (tuple(it.get("cor") or (0, 0, 0)), it.get("cor_origem") or u"")
+        cores[ck] = cores.get(ck, 0) + 1
+    for (cor, origem), n in sorted(cores.items(), key=lambda kv: -kv[1]):
+        lines.append(u"  Cor RGB {}-{}-{} ({}): {} item(ns)".format(cor[0], cor[1], cor[2], origem, n))
     if res["added"] or res["removed"]:
         lines += [u"", u"Altera\u00e7\u00f5es:"]
         lines += [u"  + {}".format(l) for l in res["added"]]

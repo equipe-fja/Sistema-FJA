@@ -37,6 +37,7 @@ CFG = {
     "schema": "FJA_LegendaLOG",
     "mark": "LegendaLOG",
     "disc": "LOG",
+    "cor": (121, 86, 169),
 }
 TITULO = u"Legenda LOG · prévia"
 COR_CAIXA = (200, 30, 30)
@@ -124,12 +125,12 @@ class Janela(forms.WPFWindow):
         for c in (self.chkLinhasH, self.chkLinhaV, self.chkMargens):
             c.Click += self._mudou
         self.txtLargura.TextChanged += self._mudou
-        self.cor = None                 # (r, g, b) ou None = sem cor
+        self.cor = None                 # None = cor do modelo; "preto"; ou (r, g, b)
         self.cor_sistema = None         # (rgb, texto) lido do sistema (só quando pedido)
         self.cor_pers = _ler_cfg("cor_personalizada", None)
-        modo = _ler_cfg("modo_cor", 0)
+        modo = _ler_cfg("modo_cor_v2", 0)
         self._mudando_cor = True
-        self.cbCor.SelectedIndex = modo if modo in (0, 1, 2) else 0
+        self.cbCor.SelectedIndex = modo if modo in (0, 1, 2, 3) else 0
         self._mudando_cor = False
         self.cbCor.SelectionChanged += self._modo_cor
         self.swCor.MouseLeftButtonUp += lambda s, a: self._escolher_cor()
@@ -217,8 +218,16 @@ class Janela(forms.WPFWindow):
             self.txtStatus.Text = u"Há ajustes que ainda não estão na prévia (caixas vermelhas = tamanho novo): clique em Atualizar prévia."
 
     # ------------------------------------------------------------ cor dos símbolos
+    def _cor_modelo(self):
+        """Cor mais comum dos itens no modelo (só para a amostra)."""
+        cont = {}
+        for it in self.itens:
+            c = tuple(it.get("cor") or (0, 0, 0))
+            cont[c] = cont.get(c, 0) + 1
+        return sorted(cont.items(), key=lambda kv: -kv[1])[0][0] if cont else (0, 0, 0)
+
     def _amostra(self):
-        c = self.cor or (0, 0, 0)
+        c = self._cor_modelo() if self.cor is None else ((0, 0, 0) if self.cor == "preto" else self.cor)
         self.swCor.Background = SolidColorBrush(Color.FromRgb(c[0], c[1], c[2]))
 
     def _modo_cor(self, s, a):
@@ -241,10 +250,10 @@ class Janela(forms.WPFWindow):
                     self.cor_sistema = (None, u"não foi possível ler o sistema: {}".format(e))
                 L.tempo(u"cor do projeto no Sistema FJA", t)
             rgb, txt = self.cor_sistema
-            self.cbCor.ToolTip = (u"Cor de " if rgb else u"Sem cor: ") + txt
+            self.cbCor.ToolTip = (u"Cor de " if rgb else u"Usando a cor do modelo: ") + txt
             if rgb is None:
                 if not inicial:
-                    forms.alert(u"Não achei a cor no Sistema FJA: {}.".format(txt), title=TITULO)
+                    forms.alert(u"Não achei a cor no Sistema FJA: {}.\n\nOs símbolos ficam com a cor do modelo.".format(txt), title=TITULO)
                 self.cor = None
                 self._voltar_modo(0)
                 i = 0
@@ -253,16 +262,19 @@ class Janela(forms.WPFWindow):
         elif i == 2:
             if self.cor_pers is None and not inicial:
                 if not self._escolher_cor(aplicar=False):
-                    self._voltar_modo(1 if self.cor_sistema and self.cor_sistema[0] and self.cor == tuple(self.cor_sistema[0]) else 0)
+                    self._voltar_modo(3 if self.cor == "preto" else (1 if self.cor_sistema and self.cor_sistema[0] and self.cor == tuple(self.cor_sistema[0]) else 0))
                     return
             self.cor = tuple(self.cor_pers) if self.cor_pers else None
             self.cbCor.ToolTip = u"Cor escolhida: RGB {}-{}-{}".format(*self.cor) if self.cor else None
+        elif i == 3:
+            self.cor = "preto"
+            self.cbCor.ToolTip = u"Símbolos em preto (sem sobreposição de cor)"
         else:
             self.cor = None
-            self.cbCor.ToolTip = u"Símbolos sem cor (preto)"
+            self.cbCor.ToolTip = u"Cada símbolo com a cor que o elemento tem nas vistas das pranchas (filtros, sobreposições, estilo de objeto)"
         self._amostra()
         if not inicial:
-            _gravar_cfg(modo_cor=i)
+            _gravar_cfg(modo_cor_v2=i)
             if self.cor != anterior:
                 self._repintar()
 
@@ -274,7 +286,7 @@ class Janela(forms.WPFWindow):
         from System.Drawing import Color as DColor
         dlg = ColorDialog()
         dlg.FullOpen = True
-        c = self.cor or self.cor_pers
+        c = self.cor if isinstance(self.cor, tuple) else (self.cor_pers or self._cor_modelo())
         if c:
             dlg.Color = DColor.FromArgb(c[0], c[1], c[2])
         if dlg.ShowDialog() != DialogResult.OK:
@@ -284,7 +296,7 @@ class Janela(forms.WPFWindow):
         if aplicar:
             if self.cbCor.SelectedIndex != 2:
                 self._voltar_modo(2)
-                _gravar_cfg(modo_cor=2)
+                _gravar_cfg(modo_cor_v2=2)
             anterior = self.cor
             self.cor = tuple(self.cor_pers)
             self.cbCor.ToolTip = u"Cor escolhida: RGB {}-{}-{}".format(*self.cor)
@@ -304,7 +316,7 @@ class Janela(forms.WPFWindow):
             for it in self.res["items"]:
                 for i in it.get("sym_ids") or []:
                     if doc.GetElement(i) is not None:
-                        L.pintar(view, i, self.cor)
+                        L.pintar(view, i, L.cor_item(it, self.cor))
             t.Commit()
             self.cor_feita = self.cor
         except Exception as e:
@@ -544,9 +556,10 @@ def main():
     del L.TEMPOS[:]
     t = L.agora()
     L.tempo(u"carregar o script e as bibliotecas (pyRevit)", t - _T0.Elapsed.TotalSeconds)
+    t = L.agora()
     try:
         itens = L.collect_items(doc)
-        L.tempo(u"ler os itens nas vistas das pranchas ({})".format(len(itens)))
+        L.tempo(u"LER OS ITENS NAS VISTAS DAS PRANCHAS ({})".format(len(itens)), t)
     except Exception as e:
         forms.alert(u"Erro ao ler os itens: {}".format(e), title=TITULO)
         return
