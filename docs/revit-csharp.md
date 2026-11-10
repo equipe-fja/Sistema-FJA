@@ -53,6 +53,20 @@ Recomendar a migração quando aparecer pelo menos um destes:
 - A ferramenta vai ser **reescrita de qualquer forma** por mudança grande de escopo.
 Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem ficar em Python enquanto funcionarem.
 
+## Ferramentas já em C#
+| Botão | Comando | Desde |
+|---|---|---|
+| Suíte › Sobre | `Sobre` | 2.5.0 |
+| Legendas › Prévia LOG | `PreviaLegendaLOG` (`Legendas/*.cs`) | 2.6.0 (10/11/2026) |
+
+### Prévia LOG (2.6.0)
+- Migrada em 10/11/2026 a pedido da FJA (janela elaborada e lógica em crescimento).
+- `Legendas/Coleta.cs` (itens e cor do modelo), `Cores.cs`, `Simbolos.cs` (famílias (LEG), anotações aninhadas, desenho da planta, redimensionamento pelo DWG), `Montagem.cs` (a legenda, linhas, margens, ajustes gravados), `CorSistema.cs` (cor da disciplina no projeto do sistema: banco com o login do `%APPDATA%\FJA\nuvem.json`, senão a cópia do G:), `JanelaPrevia.cs` (janela montada em código, estilo lido de `lib/fja_estilo.xaml`).
+- Compatível com o Python: mesmo esquema de marca, mesma entidade de ajustes (GUID derivado do da disciplina) — o botão **Legenda LOG** (Python) usa a ordem, os textos e os itens acrescentados gravados pela Prévia.
+- `fja_dotnet.executar` passa a pasta da extensão em `AppDomain` (`FJA.Extensao`): estilo e log de tempos (`REVIT\pyRevit\logs\previa-legenda-tempos.txt`).
+- Preferências de cor por pessoa: `%APPDATA%\FJA\legenda-previa.json`.
+- Para outra disciplina: nova `Disciplina` em `Legendas/Base.cs` e uma classe que herda de `PreviaLegendaLOG` trocando `Disc`.
+
 ## Situação em 09/11/2026
 - Compilação no GitHub testada (R2024 e R2027, sem avisos).
 - Testado em Python: pacote dividido em partes, aplicação com e sem `bin/`, preservação de `bin/`.

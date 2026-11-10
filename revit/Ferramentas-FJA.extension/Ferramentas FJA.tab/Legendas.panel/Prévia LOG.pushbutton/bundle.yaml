@@ -2,5 +2,5 @@ title:
   pt_br: "Prévia\nLOG"
   en_us: "Prévia\nLOG"
 tooltip:
-  pt_br: "Protótipo: abre a legenda de pontos de lógica numa janela com prévia. Ajuste o tamanho dos símbolos e o espaçamento, escolha os itens e os textos, e veja o resultado antes de gravar. Cancelar desfaz tudo."
-  en_us: "Protótipo: abre a legenda de pontos de lógica numa janela com prévia. Ajuste o tamanho dos símbolos e o espaçamento, escolha os itens e os textos, e veja o resultado antes de gravar. Cancelar desfaz tudo."
+  pt_br: "Abre a legenda de pontos de lógica numa janela com prévia (C#). Escolha os itens e os textos, a ordem (arrastando), o tamanho dos símbolos, as linhas, a largura e a cor; acrescente símbolos e detail items. Veja o resultado antes de gravar; Cancelar desfaz tudo."
+  en_us: "Abre a legenda de pontos de lógica numa janela com prévia (C#). Escolha os itens e os textos, a ordem (arrastando), o tamanho dos símbolos, as linhas, a largura e a cor; acrescente símbolos e detail items. Veja o resultado antes de gravar; Cancelar desfaz tudo."

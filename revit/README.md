@@ -4,12 +4,14 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.5.1)
+## Conteúdo atual (extensão 2.6.0)
 - Legendas › **Legenda LUM** — legenda de luminárias.
 - Legendas › **Legenda ELE** — legenda de pontos elétricos.
 - Legendas › **Legenda LOG**, **Legenda AUT** e **Legenda SON** — vistas `LOG - LEGENDA DE PONTOS DE LÓGICA`, `AUT - LEGENDA DE PONTOS DE AUTOMAÇÃO` e `SON - LEGENDA DE PONTOS DE SONORIZAÇÃO` (desde 2.4.0). Ver abaixo.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
+- Legendas › **Prévia LOG** (C# desde 2.6.0) — a legenda LOG numa janela com prévia: itens e textos, ordem arrastando, escala por símbolo (DWG), símbolos e detail items acrescentados, linhas entre itens, linha símbolo/texto, margens, largura (padrão 17,5 cm) e cor (do modelo, do projeto no Sistema FJA, escolhida ou preto). Os ajustes ficam gravados na vista e valem para o botão Legenda LOG.
+- Ícones do painel Legendas em preto (2.5.4), como os demais, com versão para tema escuro.
 - Suíte › **Sobre** (desde 2.5.0) — versão da extensão e da biblioteca C# (`FJA.Revit.dll`); primeiro botão em C#.
 - Suíte › **Atualizar** — baixa a versão mais recente publicada pelo sistema (banco: `revitPub/extensao-versao` e `revitPub/extensao`, gravados por `extDbPublicar` na página Firebase), grava na pasta da extensão em uso (espelhando, menos `.pyc`) e recarrega o pyRevit (lógica em `lib/fja_suite.py`).
 - Links › **Verificar alterações** — compara cada cópia registrada com a origem no link (versão carregada): alterado no link (posição, rotação, tipo, espelhamento, nível, parâmetros do módulo, link movido), alterado no projeto (cópia mexida desde a última sincronização), apagado no link, novo no link, link ausente. Ações em lote: atualizar pelo link (move/gira/troca o tipo no lugar; espelhamento, nível, orientação de face ou tipo ausente → copia de novo), aceitar como está, apagar cópias órfãs, copiar novos.
