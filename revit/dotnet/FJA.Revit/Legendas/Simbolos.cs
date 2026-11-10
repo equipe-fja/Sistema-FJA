@@ -562,7 +562,19 @@ namespace FJA.Revit.Legendas
         public static Family ViaDwg(Document doc, Family famOrig, string nome, string pasta, double tamMm, Item it)
         {
             FamilySymbol sym = PrimeiroTipo(doc, famOrig);
-            if (sym == null) return null;
+            return sym == null ? null : ViaDwg(doc, sym, nome, pasta, tamMm, it);
+        }
+
+        /// <summary>Nome da família (LEG) de um símbolo acrescentado à mão, quando a escala dele é ajustada.</summary>
+        public static string NomeLegExtra(Disciplina d, FamilySymbol sym)
+        {
+            string fam = Regex.Replace(sym.FamilyName.Trim(), @"^\([A-Z]+\)\s*", "").ToUpperInvariant();
+            bool varios = sym.Family != null && sym.Family.GetFamilySymbolIds().Count > 1;
+            return d.Prefixo + " (LEG) " + fam + (varios ? " - " + sym.Name.Trim().ToUpperInvariant() : "");
+        }
+
+        public static Family ViaDwg(Document doc, FamilySymbol sym, string nome, string pasta, double tamMm, Item it)
+        {
             var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
                 .FirstOrDefault(x => x.ViewFamily == ViewFamily.Drafting) ?? throw new Exception("o projeto não tem tipo de vista de desenho");
             Directory.CreateDirectory(pasta);

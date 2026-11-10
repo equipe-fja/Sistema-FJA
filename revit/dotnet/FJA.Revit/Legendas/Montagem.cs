@@ -262,7 +262,38 @@ namespace FJA.Revit.Legendas
             double tFams = Tempos.Agora;
             foreach (var it in itens)
             {
-                if (it.Extra) continue;
+                if (it.Extra)
+                {
+                    // símbolo acrescentado: com escala ajustada, vira uma família (LEG) própria (DWG);
+                    // se ela já existe, é a versão ajustada dele (100% = como está)
+                    string kx = "x:" + it.Sym.Id;
+                    if (legs.ContainsKey(kx)) continue;
+                    double tF0 = Tempos.Agora;
+                    string nomeX = Simbolos.NomeLegExtra(D, it.Sym);
+                    Family lx = Simbolos.FamiliaPorNome(doc, nomeX);
+                    double tx = op.Tamanhos.TryGetValue(kx, out double tv) ? tv : 0;
+                    if (tx > 0)
+                    {
+                        bool feito = false;
+                        if (lx != null)
+                        {
+                            try { feito = Simbolos.Reescalar(doc, lx, tx, it); }
+                            catch (Exception ex) { res.LegErros.Add(nomeX + ": " + ex.Message); }
+                            Family nova = Simbolos.FamiliaPorNome(doc, nomeX);
+                            if (!feito && nova != null)
+                                using (var td = new Transaction(doc, "Refazer símbolo de legenda")) { td.Start(); doc.Delete(nova.Id); td.Commit(); }
+                            lx = feito ? nova : null;
+                        }
+                        if (lx == null)
+                        {
+                            try { lx = Simbolos.ViaDwg(doc, it.Sym, nomeX, pasta, tx, it); }
+                            catch (Exception ex) { res.LegErros.Add(nomeX + ": " + ex.Message); lx = null; }
+                        }
+                        Tempos.Marca("  " + nomeX + (feito ? " (escala do DWG)" : " (DWG)"), tF0);
+                    }
+                    legs[kx] = lx;
+                    continue;
+                }
                 Family fam = it.Sym.Family;
                 string key = fam.Id.ToString();
                 if (legs.ContainsKey(key)) continue;
@@ -382,8 +413,8 @@ namespace FJA.Revit.Legendas
                 foreach (var it in itens)
                 {
                     var ids = new List<ElementId>();
-                    Family lf = it.Extra ? null : (legs.TryGetValue(it.Sym.Family.Id.ToString(), out var f) ? f : null);
-                    FamilySymbol lsym = it.Extra ? it.Sym : (lf != null ? Simbolos.PrimeiroTipo(doc, lf) : null);
+                    Family lf = legs.TryGetValue(it.Extra ? "x:" + it.Sym.Id : it.Sym.Family.Id.ToString(), out var f) ? f : null;
+                    FamilySymbol lsym = it.Extra ? (lf != null ? Simbolos.PrimeiroTipo(doc, lf) ?? it.Sym : it.Sym) : (lf != null ? Simbolos.PrimeiroTipo(doc, lf) : null);
                     if (lsym != null)
                     {
                         if (!lsym.IsActive) { lsym.Activate(); doc.Regenerate(); }

@@ -234,7 +234,7 @@ namespace FJA.Revit.Legendas
                         Text = "Marque os itens e ajuste o texto; arraste pelo ≡ para mudar a ordem.\n\n" +
                                "Escala de cada símbolo: de 25% a 300% (100% = como aparece na prancha). Ao mexer, a prévia mostra uma caixa vermelha " +
                                "no tamanho novo; Atualizar prévia refaz os símbolos que mudaram. A medida é a do símbolo no papel.\n\n" +
-                               "+ Acrescentar símbolo: inclui uma anotação genérica ou um detail item do projeto, com a cor da legenda. " +
+                               "+ Acrescentar símbolo: inclui uma anotação genérica ou um detail item do projeto, com a cor da legenda; a escala também vale para ele (vira uma família (LEG) própria). " +
                                "Para retirar, clique com o botão direito na linha.\n\n" +
                                "Itens em laranja não aparecem em nenhuma planta da disciplina colocada em prancha.",
                     },
@@ -283,7 +283,7 @@ namespace FJA.Revit.Legendas
             btAtualizar.Click += (s, a) => Atualizar();
             btGerar.Click += (s, a) => Gerar();
             btCancelar.Click += (s, a) => Close();
-            btTodos100.Click += (s, a) => { foreach (var ln in linhas.Where(x => !x.It.Extra)) { ln.Sl.Value = 100; sujos.Add(ln.Id); } };
+            btTodos100.Click += (s, a) => { foreach (var ln in linhas) { ln.Sl.Value = 100; sujos.Add(ln.Id); } };
             btAcrescentar.Click += (s, a) => Acrescentar();
             cbCor.SelectionChanged += (s, a) => { if (!mudandoCor) AplicarModo((ModoCor)cbCor.SelectedIndex, false); };
             swCor.MouseLeftButtonUp += (s, a) => EscolherCor(true);
@@ -324,25 +324,16 @@ namespace FJA.Revit.Legendas
             var med = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 4, 0), Foreground = cinza, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
             var sl = new Slider { Minimum = 25, Maximum = 300, Value = 100, TickFrequency = 5, IsSnapToTickEnabled = true, VerticalAlignment = VerticalAlignment.Center, ToolTip = "Escala do símbolo (100% = como aparece na prancha). Duplo clique volta a 100%." };
             var pct = new TextBlock { Text = "100%", VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, FontWeight = FontWeights.SemiBold };
-            if (it.Extra)
-            {
-                sl.IsEnabled = false;
-                sl.ToolTip = "Símbolo acrescentado: entra no tamanho da própria família";
-                pct.Text = "—";
-                med.Text = "acrescentado";
-            }
+            if (it.Extra) med.Text = "acrescentado";
             var els = new UIElement[] { alca, chk, txt, med, sl, pct };
             for (int i = 0; i < els.Length; i++) { WGrid.SetColumn(els[i], i); g.Children.Add(els[i]); }
             borda.Child = g;
             var ln = new Linha { It = it, Borda = borda, Chk = chk, Txt = txt, Med = med, Sl = sl, Pct = pct };
             chk.Click += (s, a) => { sujos.Add(ln.Id); timer.Stop(); timer.Start(); Mudou(); };
             txt.TextChanged += (s, a) => Mudou();
-            if (!it.Extra)
-            {
-                sl.ValueChanged += (s, a) => Escala(ln);
-                sl.MouseDoubleClick += (s, a) => sl.Value = 100;
-            }
-            else
+            sl.ValueChanged += (s, a) => Escala(ln);
+            sl.MouseDoubleClick += (s, a) => sl.Value = 100;
+            if (it.Extra)
             {
                 var mi = new MenuItem { Header = "Retirar este item da lista" };
                 mi.Click += (s, a) => { linhas.Remove(ln); lista.Children.Remove(ln.Borda); TituloLista(); Mudou(); };
@@ -732,9 +723,9 @@ namespace FJA.Revit.Legendas
                 escolhidos.Add(it);
                 int v = (int)Math.Round(ln.Sl.Value);
                 pcts[ln.Id] = v;
-                if (v != 100 && !it.Extra && baseMm.TryGetValue(ln.Id, out var b))
+                if (v != 100 && baseMm.TryGetValue(ln.Id, out var b))
                 {
-                    string fk = it.Sym.Family.Id.ToString();
+                    string fk = it.Extra ? "x:" + it.Sym.Id : it.Sym.Family.Id.ToString();
                     if (!tamanhos.ContainsKey(fk)) tamanhos[fk] = Math.Max(b[0], b[1]) * v / 100.0;
                 }
             }
