@@ -47,7 +47,8 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - situação de cada código: sem código, repetido (bloqueia), fora do padrão (pede confirmação), já usado por tipo apagado, gravado, muda ao aplicar;
   - **Description (= nome do tipo)** (2.8.2): a Description, ao aplicar, também renomeia o tipo. Sugestão quando vazia: o nome do tipo; se a família tiver um tipo só, o nome da família sem a sigla.
   - **Família** editável sem a sigla, que é mantida, por exemplo `(LOG) `. Os tipos da mesma família acompanham a mudança.
-  - **✓ em cada linha** aplica só aquele item; **Aplicar tudo** aplica todos.
+  - **Árvore** (2.8.4): cada família é um nó, com sigla fixa, nome editável e "como está" ao lado; os tipos ficam embaixo, com Description, código e "como está". As famílias e os tipos (dentro da família) podem ser arrastados, e a ordem vale para numerar.
+  - O **✓** aplica a linha: no tipo, só ele; na família, o nome e todos os tipos dela. **Aplicar tudo** aplica todos.
   - Cada tipo é gravado numa subtransação, então um erro (como um nome de tipo repetido na família) não impede os outros e aparece na linha.
   - As reservas ficam num DataStorage (`FJA_CodigosPontos`, JSON `{sigla: {código: UniqueId do tipo}}`).
 - **Legendas:**
