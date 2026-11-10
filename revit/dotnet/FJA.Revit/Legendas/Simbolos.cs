@@ -56,6 +56,22 @@ namespace FJA.Revit.Legendas
         }
     }
 
+    sealed class Sobrescrever : IFamilyLoadOptions
+    {
+        public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+        {
+            overwriteParameterValues = true;
+            return true;
+        }
+
+        public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+        {
+            source = FamilySource.Family;
+            overwriteParameterValues = true;
+            return true;
+        }
+    }
+
     sealed class NaoSobrescrever : IFamilyLoadOptions
     {
         public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
@@ -484,6 +500,59 @@ namespace FJA.Revit.Legendas
             }
             finally { fdoc.Close(false); }
             return FamiliaPorNome(doc, nome);
+        }
+
+        /// <summary>Parâmetro "Fator de escala" (Scale Factor) do tipo de um DWG importado.</summary>
+        static Parameter FatorDeEscala(Element tipo)
+        {
+            if (tipo == null) return null;
+            if (Enum.TryParse("IMPORT_SCALE", out BuiltInParameter bip))
+            {
+                var p = tipo.get_Parameter(bip);
+                if (p != null && p.StorageType == StorageType.Double && !p.IsReadOnly) return p;
+            }
+            foreach (Parameter p in tipo.Parameters)
+            {
+                string n = Texto.Norm(p.Definition?.Name);
+                if (p.StorageType == StorageType.Double && !p.IsReadOnly && (n == "SCALE FACTOR" || n == "FATOR DE ESCALA" || n.Contains("ESCALA") || n.Contains("SCALE")))
+                    return p;
+            }
+            return null;
+        }
+
+        /// <summary>Família (LEG) feita de DWG importado: muda só o fator de escala do tipo do DWG dentro da
+        /// família (sem exportar de novo) e recarrega no projeto. Fora de transação. Devolve false se a família
+        /// não tem DWG (então é preciso convertê-la pelo caminho completo).</summary>
+        public static bool Reescalar(Document doc, Family leg, double tamMm, Item it)
+        {
+            if (AbertaNoEditor(doc, leg.Name)) throw new Exception("família aberta no editor do Revit; feche-a e atualize de novo");
+            Document fdoc = doc.EditFamily(leg);
+            try
+            {
+                var imp = new FilteredElementCollector(fdoc).OfClass(typeof(ImportInstance)).Cast<ImportInstance>().FirstOrDefault();
+                if (imp == null) return false;
+                Parameter fator = FatorDeEscala(fdoc.GetElement(imp.GetTypeId()));
+                if (fator == null) return false;
+                View view = VistaDaFamilia(fdoc);
+                double alvo = tamMm / 304.8;
+                using (var t = ResolverFalhas.Iniciar(fdoc, "Escala do símbolo de legenda"))
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        var bb = imp.get_BoundingBox(view) ?? imp.get_BoundingBox(null);
+                        double m = bb != null ? Math.Max(bb.Max.X - bb.Min.X, bb.Max.Y - bb.Min.Y) : 0;
+                        if (m <= 1e-12) break;
+                        if (Math.Abs(m - alvo) / alvo < 0.005) break;
+                        fator.Set(fator.AsDouble() * alvo / m);
+                        fdoc.Regenerate();
+                    }
+                    t.Commit();
+                }
+                fdoc.LoadFamily(doc, new Sobrescrever());
+            }
+            finally { fdoc.Close(false); }
+            it.Redimensionado = true;
+            return true;
         }
 
         /// <summary>Redimensiona um símbolo pelo DWG: a família original numa vista de desenho 1:1 é exportada

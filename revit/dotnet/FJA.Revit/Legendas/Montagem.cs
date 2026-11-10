@@ -272,6 +272,18 @@ namespace FJA.Revit.Legendas
                 double tam = op.Tamanhos.TryGetValue(key, out double tt) ? tt : 0;
                 if (lf != null && tam > 0)
                 {
+                    // já é DWG: só muda o fator de escala do DWG na família (rápido, sem exportar de novo)
+                    bool feito = false;
+                    try { feito = Simbolos.Reescalar(doc, lf, tam, it); }
+                    catch (Exception ex) { res.LegErros.Add(nomeLeg + ": " + ex.Message); }
+                    if (feito)
+                    {
+                        legs[key] = Simbolos.FamiliaPorNome(doc, nomeLeg) ?? lf;
+                        res.LegExistentes.Add(lf.Name);
+                        Tempos.Marca("  " + nomeLeg + " (escala do DWG)", tF);
+                        continue;
+                    }
+                    // ainda não é DWG: refaz pelo caminho completo (exporta e importa uma vez)
                     using (var td = new Transaction(doc, "Refazer símbolo de legenda")) { td.Start(); doc.Delete(lf.Id); td.Commit(); }
                     lf = null;
                 }
