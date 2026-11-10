@@ -16,6 +16,8 @@ namespace FJA.Revit.Legendas
         public string Origem = "";        // "modelo", "link X", "modelo + link X", "sem instância"
         public string MarcaAtual = "";    // Type Mark atual
         public string Codigo = "";        // código proposto/editado
+        public string DescAtual = "";     // Description atual
+        public string Desc = "";          // Description proposta/editada (nome do tipo, ou da família se tiver um tipo só)
         public string Nome => Sym.FamilyName + " : " + Sym.Name;
     }
 
@@ -42,6 +44,23 @@ namespace FJA.Revit.Legendas
 
         public string Sigla => D.Codigo;
         public Regex Padrao => new Regex("^" + Regex.Escape(Sigla) + @"\.(\d{2,3})$");
+
+        static string Param(Element e, BuiltInParameter bip)
+        {
+            try { return (e.get_Parameter(bip)?.AsString() ?? "").Trim(); } catch { return ""; }
+        }
+
+        /// <summary>Description esperada: o nome do tipo; se a família tiver um tipo só, o nome da família
+        /// (sem o prefixo da disciplina e sem o sufixo de cópia ".0001").</summary>
+        public static string DescricaoPadrao(FamilySymbol s)
+        {
+            int n = 1;
+            try { n = s.Family.GetFamilySymbolIds().Count; } catch { }
+            if (n > 1) return s.Name.Trim();
+            string f = Regex.Replace(s.FamilyName.Trim(), @"\.\d{4}$", "");
+            f = Regex.Replace(f, @"^\([A-Za-z]+\)\s*", "");
+            return f.Trim(' ', '-', '_');
+        }
 
         public static string Marca(Element tipo)
         {
@@ -102,7 +121,8 @@ namespace FJA.Revit.Legendas
                     : nomesLink.Count == 0 ? "modelo"
                     : (temModelo ? "modelo + " : "") + string.Join(", ", nomesLink);
                 string m = Marca(s);
-                r.Add(new TipoPonto { Sym = s, Quantidade = insts.Count, Origem = origem, MarcaAtual = m, Codigo = m });
+                string da = Param(s, BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                r.Add(new TipoPonto { Sym = s, Quantidade = insts.Count, Origem = origem, MarcaAtual = m, Codigo = m, DescAtual = da, Desc = DescricaoPadrao(s) });
             }
             var rx = Padrao;
             return r.OrderBy(t => rx.IsMatch(t.Codigo) ? 0 : 1)
@@ -164,7 +184,8 @@ namespace FJA.Revit.Legendas
             return Sigla + ".999";
         }
 
-        /// <summary>Grava os Type Marks e reserva os códigos (uma transação). Devolve quantos mudaram.</summary>
+        /// <summary>Grava os Type Marks e as Descriptions e reserva os códigos (uma transação). Devolve quantos
+        /// parâmetros mudaram.</summary>
         public int Aplicar(IEnumerable<TipoPonto> tipos)
         {
             int n = 0;
@@ -181,6 +202,12 @@ namespace FJA.Revit.Legendas
                         if (p != null && !p.IsReadOnly) { p.Set(c); tp.MarcaAtual = c; n++; }
                     }
                     if (c != "" && Padrao.IsMatch(c)) res[c] = tp.Sym.UniqueId;
+                    string dd = (tp.Desc ?? "").Trim();
+                    if (dd != tp.DescAtual)
+                    {
+                        var pd = tp.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                        if (pd != null && !pd.IsReadOnly) { pd.Set(dd); tp.DescAtual = dd; n++; }
+                    }
                 }
                 tudo[Sigla] = res;
                 var ds = Armazem(true);

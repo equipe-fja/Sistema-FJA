@@ -35,7 +35,7 @@ namespace FJA.Revit.Legendas
         {
             public TipoPonto Tp;
             public Border Borda;
-            public TextBox Cod;
+            public TextBox Cod, Desc;
             public TextBlock Sit;
         }
 
@@ -114,7 +114,7 @@ namespace FJA.Revit.Legendas
             return td.Show() == TaskDialogResult.Yes;
         }
 
-        static readonly double[] COLS = { 18, -1, 54, 170, 110, 120, 190 };
+        static readonly double[] COLS = { 18, -1, 50, 140, 100, 104, 230, 170 };
 
         WGrid LinhaGrade()
         {
@@ -156,10 +156,11 @@ namespace FJA.Revit.Legendas
             var cab = new Border { Padding = new Thickness(12, 8, 12, 8), BorderBrush = Pincel("Linha", 226, 226, 223), BorderThickness = new Thickness(0, 0, 0, 1) };
             DockPanel.SetDock(cab, Dock.Top);
             var gc = LinhaGrade();
-            string[] titulos = { "", "Família : tipo", "Qtde", "Origem", "Type Mark atual", "Código", "Situação" };
+            string[] titulos = { "", "Família : tipo", "Qtde", "Origem", "Type Mark atual", "Código", "Description", "Situação" };
             for (int i = 0; i < titulos.Length; i++)
             {
-                var tb = new TextBlock { Text = titulos[i], FontWeight = FontWeights.SemiBold, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92), Margin = new Thickness(i == 5 ? 4 : 0, 0, 8, 0) };
+                var tb = new TextBlock { Text = titulos[i], FontWeight = FontWeights.SemiBold, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92), Margin = new Thickness(i == 5 || i == 6 ? 4 : 0, 0, 8, 0) };
+                if (i == 6) tb.ToolTip = "Nome do tipo; se a família tiver um tipo só, o nome da família (sem o prefixo da disciplina). Pode ser editada.";
                 if (i == 1) txtTitulo = tb;
                 WGrid.SetColumn(tb, i);
                 gc.Children.Add(tb);
@@ -177,7 +178,8 @@ namespace FJA.Revit.Legendas
             DockPanel.SetDock(bts, Dock.Right);
             btFechar = Botao("Fechar", "Discreto");
             btFechar.Margin = new Thickness(0, 0, 8, 0);
-            btAplicar = Botao("Aplicar no Type Mark", "Primario");
+            btAplicar = Botao("Aplicar", "Primario");
+            btAplicar.ToolTip = "Grava o código no Type Mark e a Description de cada tipo alterado";
             bts.Children.Add(btFechar); bts.Children.Add(btAplicar);
             txtStatus = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Foreground = Cinza };
             rod.Children.Add(bts); rod.Children.Add(txtStatus);
@@ -223,7 +225,7 @@ namespace FJA.Revit.Legendas
             Situacoes();
             if (tipos.Count == 0) txtStatus.Text = "Nenhum tipo de família '" + string.Join("' / '", d.Familias) + "' no modelo.";
             else
-                txtStatus.Text = $"Padrão: {d.Codigo}.01, {d.Codigo}.02… gravado no Type Mark do tipo. Arraste pelo ≡ para mudar a ordem antes de numerar."
+                txtStatus.Text = $"Padrão: {d.Codigo}.01, {d.Codigo}.02… gravado no Type Mark; a Description acompanha o nome do tipo (ou da família, se tiver um tipo só). Arraste pelo ≡ para mudar a ordem antes de numerar."
                     + (cod.LigadosAoSistema > 0 ? $" {cod.LigadosAoSistema} tipo(s) ligado(s) ao sistema ficaram de fora." : "");
         }
 
@@ -237,11 +239,14 @@ namespace FJA.Revit.Legendas
             var org = new TextBlock { Text = tp.Origem, VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = tp.Origem, Margin = new Thickness(0, 0, 8, 0) };
             var at = new TextBlock { Text = tp.MarcaAtual == "" ? "—" : tp.MarcaAtual, VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza };
             var cx = new TextBox { Text = tp.Codigo, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 0, 10, 0), CharacterCasing = CharacterCasing.Upper };
+            var ds = new TextBox { Text = tp.Desc, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 0, 10, 0),
+                ToolTip = "Description atual: " + (tp.DescAtual == "" ? "(vazia)" : tp.DescAtual) };
             var sit = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
-            var els = new UIElement[] { alca, nome, qt, org, at, cx, sit };
+            var els = new UIElement[] { alca, nome, qt, org, at, cx, ds, sit };
             for (int i = 0; i < els.Length; i++) { WGrid.SetColumn(els[i], i); g.Children.Add(els[i]); }
             borda.Child = g;
-            var ln = new Linha { Tp = tp, Borda = borda, Cod = cx, Sit = sit };
+            var ln = new Linha { Tp = tp, Borda = borda, Cod = cx, Desc = ds, Sit = sit };
+            ds.TextChanged += (s, a) => { ln.Tp.Desc = (ds.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
             cx.TextChanged += (s, a) => { ln.Tp.Codigo = (cx.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
             alca.PreviewMouseLeftButtonDown += (s, a) =>
             {
@@ -296,14 +301,16 @@ namespace FJA.Revit.Legendas
                 else if (reservas.TryGetValue(c, out string uid) && uid != l.Tp.Sym.UniqueId && !naTabela.Contains(uid)) { txt = "já usado por um tipo apagado"; cor = Ambar; }
                 else if (c == l.Tp.MarcaAtual) { txt = "gravado"; cor = Verde; }
                 else { txt = l.Tp.MarcaAtual == "" ? "novo (ao aplicar)" : "muda ao aplicar"; cor = Azul; }
+                if (l.Tp.Desc != l.Tp.DescAtual) txt += " · description muda";
                 if (l.Tp.Quantidade == 0) txt += " · sem instância";
                 l.Sit.Text = txt;
+                l.Sit.ToolTip = txt;
                 l.Sit.Foreground = cor;
                 l.Cod.BorderBrush = cor == Vermelho ? Vermelho : Pincel("Linha", 226, 226, 223);
             }
-            int pend = linhas.Count(l => l.Tp.Codigo != l.Tp.MarcaAtual);
+            int pend = linhas.Count(l => l.Tp.Codigo != l.Tp.MarcaAtual || l.Tp.Desc != l.Tp.DescAtual);
             btAplicar.IsEnabled = pend > 0;
-            btAplicar.Content = pend > 0 ? $"Aplicar no Type Mark ({pend})" : "Aplicar no Type Mark";
+            btAplicar.Content = pend > 0 ? $"Aplicar ({pend} tipo(s))" : "Aplicar";
             return problemas;
         }
 
@@ -333,7 +340,7 @@ namespace FJA.Revit.Legendas
             trocando = false;
             alterado = true;
             Situacoes();
-            txtStatus.Text = $"{alvo.Count} código(s) proposto(s). Confira e clique em Aplicar no Type Mark.";
+            txtStatus.Text = $"{alvo.Count} código(s) proposto(s). Confira e clique em Aplicar.";
         }
 
         void Aplicar()
@@ -352,9 +359,10 @@ namespace FJA.Revit.Legendas
                 {
                     var g = (WGrid)l.Borda.Child;
                     ((TextBlock)g.Children[4]).Text = l.Tp.MarcaAtual == "" ? "—" : l.Tp.MarcaAtual;
+                    l.Desc.ToolTip = "Description atual: " + (l.Tp.DescAtual == "" ? "(vazia)" : l.Tp.DescAtual);
                 }
                 Situacoes();
-                txtStatus.Text = n + " Type Mark(s) gravado(s) em " + D.Codigo + ". Os tags e a ferramenta Legendas já usam os códigos novos.";
+                txtStatus.Text = n + " parâmetro(s) gravado(s) em " + D.Codigo + " (Type Mark e Description). Os tags e a ferramenta Legendas já usam os códigos novos.";
             }
             catch (Exception e)
             {
