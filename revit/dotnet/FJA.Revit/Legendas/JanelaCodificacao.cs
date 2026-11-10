@@ -447,12 +447,8 @@ namespace FJA.Revit.Legendas
             {
                 MainInstruction = "Apagar " + oQue + "?",
                 MainContent = (tp.Quantidade > 0
-                        ? $"Os {tp.Quantidade} elemento(s) desse tipo no modelo também serão apagados" + (tp.Origem.Contains("link") ? " (inclusive cópias do Copiar do link)" : "") + ".
-
-"
-                        : "Não há elementos desse tipo no modelo.
-
-")
+                        ? $"Os {tp.Quantidade} elemento(s) desse tipo no modelo também serão apagados" + (tp.Origem.Contains("link") ? " (inclusive cópias do Copiar do link)" : "") + ".\n\n"
+                        : "Não há elementos desse tipo no modelo.\n\n")
                     + (tp.MarcaAtual != "" ? $"O código {tp.MarcaAtual} continua reservado (não é reaproveitado). " : "")
                     + "Dá para desfazer com Ctrl+Z no Revit depois de fechar esta janela.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
