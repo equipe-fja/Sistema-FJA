@@ -273,7 +273,7 @@ namespace FJA.Revit.Legendas
             btNumerar.Click += (s, a) => Numerar(false);
             btRenumerar.Click += (s, a) =>
             {
-                if (Confirmar("Renumerar todos os tipos de " + D.Codigo + " na ordem da árvore?\n\nCódigos já usados em tags e legendas vão mudar (só depois de aplicar).")) Numerar(true);
+                if (Confirmar("Renumerar todos os tipos de " + D.Codigo + " na ordem da árvore?\n\nA sequência recomeça em " + D.Codigo + ".01, sem buracos: códigos de tipos apagados deixam de ficar reservados. Códigos já usados em tags e legendas vão mudar (só depois de aplicar).")) Numerar(true);
             };
             btExpandir.Click += (s, a) =>
             {
@@ -290,6 +290,7 @@ namespace FJA.Revit.Legendas
         {
             D = d;
             cod = new Codificacao(doc, d);
+            renumerado = false;
             familias.Clear();
             arvore.Children.Clear();
             List<TipoPonto> tipos;
@@ -526,7 +527,7 @@ namespace FJA.Revit.Legendas
                 if (c == "") { txt = "sem código"; cor = Cinza; }
                 else if (cont[c] > 1) { txt = "código repetido"; cor = Vermelho; problemas++; }
                 else if (!rx.IsMatch(c)) { txt = "fora do padrão"; cor = Ambar; }
-                else if (reservas.TryGetValue(c, out string uid) && uid != tp.Sym.UniqueId && !naTabela.Contains(uid)) { txt = "código já usado por um tipo apagado"; cor = Ambar; }
+                else if (!renumerado && reservas.TryGetValue(c, out string uid) && uid != tp.Sym.UniqueId && !naTabela.Contains(uid)) { txt = "código já usado por um tipo apagado"; cor = Ambar; }
                 else { txt = c == tp.MarcaAtual ? "código gravado" : "código muda"; cor = c == tp.MarcaAtual ? Verde : Azul; }
                 var muda = new List<string>();
                 if (tp.Desc != tp.DescAtual) muda.Add("description");
@@ -558,13 +559,16 @@ namespace FJA.Revit.Legendas
             return problemas;
         }
 
-        HashSet<string> Usados(IEnumerable<NoTipo> ignorar)
+        bool renumerado;   // "Renumerar tudo": ignora as reservas de tipos apagados (libera ao aplicar)
+
+        HashSet<string> Usados(IEnumerable<NoTipo> ignorar, bool comReservas = true)
         {
             var ign = new HashSet<NoTipo>(ignorar);
             var todos = Tipos.ToList();
             var naTabela = new HashSet<string>(todos.Select(t => t.Tp.Sym.UniqueId));
             var u = new HashSet<string>(todos.Where(t => !ign.Contains(t)).Select(t => t.Tp.Codigo).Where(c => c != ""));
-            foreach (var kv in reservas) if (!naTabela.Contains(kv.Value)) u.Add(kv.Key);   // de tipos apagados
+            if (comReservas)
+                foreach (var kv in reservas) if (!naTabela.Contains(kv.Value)) u.Add(kv.Key);   // de tipos apagados
             return u;
         }
 
@@ -573,7 +577,8 @@ namespace FJA.Revit.Legendas
             var rx = cod.Padrao;
             var alvo = Tipos.Where(t => tudo || t.Tp.Codigo == "" || !rx.IsMatch(t.Tp.Codigo)).ToList();
             if (alvo.Count == 0) { txtStatus.Text = "Todos os tipos já têm código no padrão."; return; }
-            var usados = Usados(alvo);
+            if (tudo) renumerado = true;
+            var usados = Usados(alvo, !renumerado);
             trocando = true;
             foreach (var t in alvo)
             {
@@ -605,7 +610,7 @@ namespace FJA.Revit.Legendas
             if (fora > 0 && !Confirmar(fora + " código(s) fora do padrão " + D.Codigo + ".NN. Aplicar assim mesmo?")) return;
             try
             {
-                int n = cod.Aplicar(alvo.Select(t => t.Tp).ToList());
+                int n = cod.Aplicar(alvo.Select(t => t.Tp).ToList(), renumerado);
                 Aplicados += n;
                 reservas = cod.Reservas();
                 // relê o que está gravado (família renomeada vale para todos os tipos dela)
@@ -622,6 +627,7 @@ namespace FJA.Revit.Legendas
                     AtualizarResumo(f);
                 }
                 alterado = Tipos.Any(t => t.Tp.Pendente);
+                if (!alterado) renumerado = false;
                 Situacoes();
                 int erros = alvo.Count(t => t.Tp.Erro != null);
                 txtStatus.Text = n + " tipo(s) atualizado(s) em " + D.Codigo + "."

@@ -228,13 +228,26 @@ namespace FJA.Revit.Legendas
         /// <summary>Grava, para cada tipo: o código no Type Mark, a Description (que também renomeia o tipo) e o
         /// nome da família (mantendo a sigla). Uma transação; um tipo com erro (ex.: nome repetido) não impede os
         /// outros: o erro fica em TipoPonto.Erro. Devolve quantos tipos mudaram.</summary>
-        public int Aplicar(IEnumerable<TipoPonto> tipos)
+        public int Aplicar(IEnumerable<TipoPonto> tipos) => Aplicar(tipos, false);
+
+        /// <param name="liberarApagados">true depois de "Renumerar tudo": tira das reservas os códigos de tipos que
+        /// não existem mais, para a sequência nova não ter buracos.</param>
+        public int Aplicar(IEnumerable<TipoPonto> tipos, bool liberarApagados)
         {
             int n = 0;
             using (var t = ResolverFalhas.Iniciar(doc, "Codificação " + Sigla))
             {
                 var tudo = LerTudo();
                 var res = tudo.Obj(Sigla);
+                if (liberarApagados)
+                {
+                    foreach (var k in res.Keys.ToList())
+                    {
+                        Element e = null;
+                        try { e = doc.GetElement(Convert.ToString(res[k])); } catch { }
+                        if (e == null) res.Remove(k);
+                    }
+                }
                 foreach (var tp in tipos)
                 {
                     tp.Erro = null;

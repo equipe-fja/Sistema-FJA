@@ -50,6 +50,7 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - **Árvore** (2.8.4): cada família é um nó, com sigla fixa, nome editável e "como está" ao lado; os tipos ficam embaixo, com Description, código e "como está". As famílias e os tipos (dentro da família) podem ser arrastados, e a ordem vale para numerar.
   - O **✓** aplica a linha: no tipo, só ele; na família, o nome e todos os tipos dela. **Aplicar tudo** aplica todos.
   - **Como está** (2.8.6): sem colunas próprias; aparece no tooltip de cada campo, e um **↶** ao lado do campo alterado volta ao valor gravado.
+  - **Renumerar tudo** (2.8.7): recomeça em SIGLA.01 sem buracos. Os códigos de tipos apagados deixam de ficar reservados quando se aplica. O **Numerar os sem código** continua respeitando as reservas.
   - **✕ no tipo** (2.8.5): apaga o tipo e os elementos dele, com confirmação que mostra a quantidade. Se for o único tipo, apaga a família. O código continua reservado, e dá para desfazer com Ctrl+Z.
   - Cada tipo é gravado numa subtransação, então um erro (como um nome de tipo repetido na família) não impede os outros e aparece na linha.
   - As reservas ficam num DataStorage (`FJA_CodigosPontos`, JSON `{sigla: {código: UniqueId do tipo}}`).
