@@ -1,0 +1,195 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.ExtensibleStorage;
+using FJA.Revit.Nucleo;
+
+namespace FJA.Revit.Legendas
+{
+    /// <summary>Um tipo de ponto da disciplina, na tabela da codificação.</summary>
+    public sealed class TipoPonto
+    {
+        public FamilySymbol Sym;
+        public int Quantidade;
+        public string Origem = "";        // "modelo", "link X", "modelo + link X", "sem instância"
+        public string MarcaAtual = "";    // Type Mark atual
+        public string Codigo = "";        // código proposto/editado
+        public string Nome => Sym.FamilyName + " : " + Sym.Name;
+    }
+
+    /// <summary>
+    /// Codificação de pontos das disciplinas complementares (docs/codificacao-pontos.md): código por disciplina
+    /// no padrão SIGLA.NN (ex.: LOG.01), gravado no Type Mark dos tipos das famílias da disciplina.
+    /// Os códigos já usados ficam reservados num DataStorage do modelo, para não serem reaproveitados por engano.
+    /// Tipos ligados ao sistema (FJA_SistemaTipo) não entram. Cópias feitas pelo Copiar do link (FJA_CopiaLink)
+    /// mostram o link de origem.
+    /// </summary>
+    public sealed class Codificacao
+    {
+        static readonly Guid GUID_RESERVAS = new Guid("b47e2c91-6d3f-4a58-8e1b-2f9c7d4a6e30");
+        static readonly Guid GUID_COPIA_LINK = new Guid("5b1e9c47-2d8a-4f63-9e05-c7a4d1b83f26");
+        static readonly Guid[] GUIDS_SISTEMA = { new Guid("3c6f1d2a-9b84-4e57-a1f0-6d2e8b4c7a15"), new Guid("8d2e4b61-5f3a-4c09-b7e2-1a9c6f0d3e58") };
+        const string CAMPO = "Json";
+
+        readonly Document doc;
+        readonly Disciplina D;
+        readonly Coleta col;
+        public int LigadosAoSistema;
+
+        public Codificacao(Document doc, Disciplina d) { this.doc = doc; D = d; col = new Coleta(doc, d); }
+
+        public string Sigla => D.Codigo;
+        public Regex Padrao => new Regex("^" + Regex.Escape(Sigla) + @"\.(\d{2,3})$");
+
+        public static string Marca(Element tipo)
+        {
+            try { return (tipo.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "").Trim(); } catch { return ""; }
+        }
+
+        static bool TemEntidade(Element e, Guid g)
+        {
+            var sc = Schema.Lookup(g);
+            if (sc == null) return false;
+            try { var ent = e.GetEntity(sc); return ent != null && ent.IsValid(); } catch { return false; }
+        }
+
+        string LinkDaCopia(Element e)
+        {
+            var sc = Schema.Lookup(GUID_COPIA_LINK);
+            if (sc == null) return null;
+            try
+            {
+                var ent = e.GetEntity(sc);
+                if (ent == null || !ent.IsValid()) return null;
+                string l = ent.Get<string>("link");
+                return string.IsNullOrEmpty(l) ? "link" : l;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Tipos da disciplina no modelo (com ou sem instância), na ordem do código atual.</summary>
+        public List<TipoPonto> Tipos()
+        {
+            LigadosAoSistema = 0;
+            var syms = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                .Where(s => col.EhFamiliaDaDisciplina(s.FamilyName)).ToList();
+            var porTipo = new Dictionary<string, List<FamilyInstance>>();
+            var cats = syms.Where(s => s.Category != null).Select(s => s.Category.Id).GroupBy(i => i.ToString()).Select(g => g.First()).ToList();
+            if (cats.Count > 0)
+            {
+                foreach (FamilyInstance fi in new FilteredElementCollector(doc).WherePasses(new ElementMulticategoryFilter(cats)).OfClass(typeof(FamilyInstance)))
+                {
+                    if (fi.SuperComponent != null) continue;
+                    var ov = fi.OwnerViewId;
+                    if (ov != null && ov != ElementId.InvalidElementId && doc.GetElement(ov) is View vv && Coleta.TiposPulados.Contains(vv.ViewType)) continue;
+                    string k = fi.GetTypeId().ToString();
+                    if (!porTipo.TryGetValue(k, out var l)) porTipo[k] = l = new List<FamilyInstance>();
+                    l.Add(fi);
+                }
+            }
+            var r = new List<TipoPonto>();
+            foreach (var s in syms)
+            {
+                if (GUIDS_SISTEMA.Any(g => TemEntidade(s, g))) { LigadosAoSistema++; continue; }
+                porTipo.TryGetValue(s.Id.ToString(), out var insts);
+                insts = insts ?? new List<FamilyInstance>();
+                var links = insts.Select(LinkDaCopia).ToList();
+                var nomesLink = links.Where(x => x != null).Distinct().ToList();
+                bool temModelo = links.Any(x => x == null);
+                string origem = insts.Count == 0 ? "sem instância"
+                    : nomesLink.Count == 0 ? "modelo"
+                    : (temModelo ? "modelo + " : "") + string.Join(", ", nomesLink);
+                string m = Marca(s);
+                r.Add(new TipoPonto { Sym = s, Quantidade = insts.Count, Origem = origem, MarcaAtual = m, Codigo = m });
+            }
+            var rx = Padrao;
+            return r.OrderBy(t => rx.IsMatch(t.Codigo) ? 0 : 1)
+                .ThenBy(t => rx.IsMatch(t.Codigo) ? int.Parse(rx.Match(t.Codigo).Groups[1].Value) : 0)
+                .ThenBy(t => Texto.Norm(t.Sym.Category?.Name), StringComparer.Ordinal)
+                .ThenBy(t => Texto.Norm(t.Nome), StringComparer.Ordinal).ToList();
+        }
+
+        // ------------------------------------------------------------ códigos reservados (DataStorage)
+        DataStorage Armazem(bool criar)
+        {
+            var sc = Schema.Lookup(GUID_RESERVAS);
+            if (sc != null)
+            {
+                foreach (DataStorage ds in new FilteredElementCollector(doc).OfClass(typeof(DataStorage)))
+                {
+                    try { var e = ds.GetEntity(sc); if (e != null && e.IsValid()) return ds; } catch { }
+                }
+            }
+            if (!criar) return null;
+            if (sc == null)
+            {
+                var sb = new SchemaBuilder(GUID_RESERVAS);
+                sb.SetSchemaName("FJA_CodigosPontos");
+                sb.SetReadAccessLevel(AccessLevel.Public);
+                sb.SetWriteAccessLevel(AccessLevel.Public);
+                sb.SetDocumentation("Codigos de pontos ja usados por disciplina (Ferramentas FJA > Codificacao)");
+                sb.AddSimpleField(CAMPO, typeof(string));
+                sc = sb.Finish();
+            }
+            var nds = DataStorage.Create(doc);
+            nds.SetEntity(new Entity(sc));
+            return nds;
+        }
+
+        Dictionary<string, object> LerTudo()
+        {
+            var ds = Armazem(false);
+            if (ds == null) return new Dictionary<string, object>();
+            try { return Json.LerObjeto(ds.GetEntity(Schema.Lookup(GUID_RESERVAS)).Get<string>(CAMPO) ?? "{}"); }
+            catch { return new Dictionary<string, object>(); }
+        }
+
+        /// <summary>Códigos já usados nesta disciplina: código → UniqueId do tipo que o recebeu.</summary>
+        public Dictionary<string, string> Reservas()
+        {
+            var d = LerTudo().Obj(Sigla);
+            return d.ToDictionary(kv => kv.Key, kv => Convert.ToString(kv.Value));
+        }
+
+        /// <summary>Próximo código livre (não usado na tabela nem reservado por um tipo que não está nela).</summary>
+        public string ProximoLivre(HashSet<string> usados)
+        {
+            for (int n = 1; n < 1000; n++)
+            {
+                string c = Sigla + "." + n.ToString(n < 100 ? "00" : "000");
+                if (!usados.Contains(c)) return c;
+            }
+            return Sigla + ".999";
+        }
+
+        /// <summary>Grava os Type Marks e reserva os códigos (uma transação). Devolve quantos mudaram.</summary>
+        public int Aplicar(IEnumerable<TipoPonto> tipos)
+        {
+            int n = 0;
+            using (var t = ResolverFalhas.Iniciar(doc, "Codificação " + Sigla))
+            {
+                var tudo = LerTudo();
+                var res = tudo.Obj(Sigla);
+                foreach (var tp in tipos)
+                {
+                    string c = (tp.Codigo ?? "").Trim();
+                    if (c != tp.MarcaAtual)
+                    {
+                        var p = tp.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK);
+                        if (p != null && !p.IsReadOnly) { p.Set(c); tp.MarcaAtual = c; n++; }
+                    }
+                    if (c != "" && Padrao.IsMatch(c)) res[c] = tp.Sym.UniqueId;
+                }
+                tudo[Sigla] = res;
+                var ds = Armazem(true);
+                var ent = new Entity(Schema.Lookup(GUID_RESERVAS));
+                ent.Set(CAMPO, Json.Gravar(tudo));
+                ds.SetEntity(ent);
+                t.Commit();
+            }
+            return n;
+        }
+    }
+}

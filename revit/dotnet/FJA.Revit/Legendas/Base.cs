@@ -93,6 +93,7 @@ namespace FJA.Revit.Legendas
         public bool Extra;                  // acrescentado à mão (símbolo / detail item)
         public string Rotulo;
         public string Padrao;               // rótulo original (para saber se foi editado)
+        public string Codigo = "";          // código do ponto (Type Mark, ferramenta Codificação)
         public byte[] Cor;                  // cor mais frequente deste tipo
         public string CorOrigem = "";
         public Dictionary<string, int[]> CoresCont = new Dictionary<string, int[]>(); // "r,g,b" -> [nas plantas da disciplina, demais]

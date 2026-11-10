@@ -79,7 +79,7 @@ namespace FJA.Revit.Legendas
         bool mudandoCor;
 
         // controles
-        Slider slPasso; TextBlock txtPasso; TextBox txtLargura; CheckBox chkH, chkV, chkM;
+        Slider slPasso; TextBlock txtPasso; TextBox txtLargura; CheckBox chkH, chkV, chkM; ComboBox cbTexto;
         ComboBox cbCor; Border swCor; Button btAtualizar, btGerar, btCancelar, btTodos100, btAcrescentar;
         StackPanel lista; TextBlock txtItens, txtStatus, txtPrevVazia; WGrid hostPrev;
         Linha arrastando;
@@ -228,6 +228,8 @@ namespace FJA.Revit.Legendas
             slPasso.Value = Num("passo", Montagem.MM_ROW_STEP);
             txtLargura.Text = Texto.Mm(Num("largura", Montagem.MM_LARGURA) / 10.0);
             chkH.IsChecked = Sim("linhasH"); chkV.IsChecked = Sim("linhaV"); chkM.IsChecked = Sim("margens");
+            int tx = (int)Num("texto", 0);
+            cbTexto.SelectedIndex = tx >= 0 && tx <= 2 ? tx : 0;
             var oc = o.Lista("cor");
             if (oc.Count == 3) corEscolhida = oc.Select(x => (byte)Convert.ToInt32(x)).ToArray();
             int m = o.ContainsKey("modoCor") ? (int)Num("modoCor", 0) : (int)modoPadrao;
@@ -359,7 +361,13 @@ namespace FJA.Revit.Legendas
             chkH = new CheckBox { Content = "Linhas entre itens", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 16, 4) };
             chkV = new CheckBox { Content = "Linha entre símbolo e texto", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 16, 4) };
             chkM = new CheckBox { Content = "Margens (contorno)", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 24, 4) };
-            foreach (UIElement el in new UIElement[] { p1, p2, p3, chkH, chkV, chkM }) wp.Children.Add(el);
+            var p4 = Horizontal(new Thickness(0, 4, 24, 4));
+            p4.Children.Add(Rotulo("Texto dos itens", new Thickness(0, 0, 8, 0)));
+            cbTexto = new ComboBox { Width = 210, VerticalAlignment = VerticalAlignment.Center, ToolTip = "O código é o Type Mark do tipo (ferramenta Codificação)" };
+            foreach (var t in new[] { "Só o nome", "Código – nome", "Só o nome (ordem pelo código)" }) cbTexto.Items.Add(t);
+            cbTexto.SelectedIndex = 0;
+            p4.Children.Add(cbTexto);
+            foreach (UIElement el in new UIElement[] { p1, p2, p3, p4, chkH, chkV, chkM }) wp.Children.Add(el);
             topo.Child = wp;
             g.Children.Add(topo);
 
@@ -470,6 +478,12 @@ namespace FJA.Revit.Legendas
                 CarregarDisciplina(d);
             };
             lbLegendas.SelectionChanged += (s, a) => LegendaClicada();
+            cbTexto.SelectionChanged += (s, a) =>
+            {
+                if (trocando) return;
+                if (cbTexto.SelectedIndex > 0) OrdenarPorCodigo();
+                Mudou();
+            };
             btNova.Click += (s, a) => NovaLegenda();
             swCor.MouseLeftButtonUp += (s, a) => EscolherCor(true);
         }
@@ -500,7 +514,7 @@ namespace FJA.Revit.Legendas
                 txt.ToolTip = $"Acrescentado: {it.Sym.FamilyName} : {it.Sym.Name} ({it.Sym.Category?.Name})\nClique com o botão direito para retirar.";
             else
             {
-                string dica = $"{it.Sym.FamilyName}  ·  {it.Quantidade} elemento(s) no modelo";
+                string dica = (string.IsNullOrEmpty(it.Codigo) ? "" : it.Codigo + "  ·  ") + $"{it.Sym.FamilyName}  ·  {it.Quantidade} elemento(s) no modelo";
                 if (it.EmPrancha == true) dica += $"  ·  aparece em {it.Vistas} planta(s) {vistas} em prancha";
                 else if (fora) dica += $"\nNão aparece em nenhuma planta {vistas} colocada em prancha (desmarque se não deve entrar)";
                 txt.ToolTip = dica;
@@ -628,6 +642,7 @@ namespace FJA.Revit.Legendas
                     {
                         { "passo", Math.Round(slPasso.Value, 1) }, { "largura", LarguraMm() }, { "linhasH", chkH.IsChecked == true },
                         { "linhaV", chkV.IsChecked == true }, { "margens", chkM.IsChecked == true }, { "modoCor", (int)modo },
+                        { "texto", cbTexto.SelectedIndex },
                         { "cor", corEscolhida != null ? corEscolhida.Select(x => (object)(int)x).ToList() : null },
                     } },
             });
@@ -789,7 +804,21 @@ namespace FJA.Revit.Legendas
             return Montagem.MM_LARGURA;
         }
 
-        string Tabela() => string.Join("|", LarguraMm(), chkH.IsChecked == true, chkV.IsChecked == true, chkM.IsChecked == true, Math.Round(slPasso.Value, 1));
+        string Tabela() => string.Join("|", LarguraMm(), chkH.IsChecked == true, chkV.IsChecked == true, chkM.IsChecked == true, Math.Round(slPasso.Value, 1), cbTexto.SelectedIndex);
+
+        /// <summary>Itens com código primeiro, na ordem do código; os sem código depois, na ordem atual.</summary>
+        void OrdenarPorCodigo()
+        {
+            var rx = new System.Text.RegularExpressions.Regex(@"^(.*?)(\d+)$");
+            var ord = linhas.Select((l, i) => new { l, i })
+                .OrderBy(x => string.IsNullOrEmpty(x.l.It.Codigo) ? 1 : 0)
+                .ThenBy(x => { var m = rx.Match(x.l.It.Codigo ?? ""); return m.Success ? m.Groups[1].Value : x.l.It.Codigo ?? ""; }, StringComparer.Ordinal)
+                .ThenBy(x => { var m = rx.Match(x.l.It.Codigo ?? ""); return m.Success ? int.Parse(m.Groups[2].Value) : 0; })
+                .ThenBy(x => x.i).Select(x => x.l).ToList();
+            linhas.Clear();
+            lista.Children.Clear();
+            foreach (var l in ord) { linhas.Add(l); lista.Children.Add(l.Borda); }
+        }
 
         void Mudou()
         {
@@ -930,7 +959,7 @@ namespace FJA.Revit.Legendas
             {
                 var op = OpcoesCor(new Opcoes
                 {
-                    Tamanhos = tamanhos, PassoMm = slPasso.Value, LarguraMm = LarguraMm(),
+                    Tamanhos = tamanhos, PassoMm = slPasso.Value, LarguraMm = LarguraMm(), Texto = cbTexto.SelectedIndex,
                     LinhasH = chkH.IsChecked == true, LinhaV = chkV.IsChecked == true, Margens = chkM.IsChecked == true,
                     Config = ConfigJson(),
                 });

@@ -17,6 +17,7 @@ namespace FJA.Revit.Legendas
         public double PassoMm = Montagem.MM_ROW_STEP;
         public double LarguraMm = Montagem.MM_LARGURA;
         public bool LinhasH, LinhaV, Margens;
+        public int Texto;                // 0 = só o nome; 1 = "código – nome"; 2 = só o nome (ordem pelo código)
         public ModoCor Modo = ModoCor.Modelo;
         public byte[] Cor;               // para Sistema / Escolhida
         public string Config;            // JSON gravado na vista de legenda (ordem, textos, extras)
@@ -491,7 +492,8 @@ namespace FJA.Revit.Legendas
                         Marcar(doc.GetElement(i), schema);
                     }
                     var to = new TextNoteOptions(est.Item2) { HorizontalAlignment = HorizontalTextAlignment.Left };
-                    var tn = TextNote.Create(doc, alvo.Id, new XYZ(x0 + MM_TEXT_X * k, lineY, 0), it.Rotulo, to);
+                    string texto = op.Texto == 1 && !string.IsNullOrEmpty(it.Codigo) ? it.Codigo + " – " + it.Rotulo : it.Rotulo;
+                    var tn = TextNote.Create(doc, alvo.Id, new XYZ(x0 + MM_TEXT_X * k, lineY, 0), texto, to);
                     try { tn.Width = txtWmm / 304.8; } catch { }
                     Marcar(tn, schema);
                     doc.Regenerate();

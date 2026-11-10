@@ -205,7 +205,7 @@ namespace FJA.Revit.Legendas
                     EmPrancha = verificado ? a.Vistos > 0 : (a.Vistos > 0 ? true : (bool?)null),
                     Cor = Cores.DeChave(melhor), CorOrigem = a.Origem[melhor],
                     CoresCont = a.Cores,
-                    Rotulo = rot, Padrao = rot,
+                    Rotulo = rot, Padrao = rot, Codigo = Codificacao.Marca(a.Sym),
                     Geo = a.Geo, GeoInst = a.GeoInst,
                 });
             }
