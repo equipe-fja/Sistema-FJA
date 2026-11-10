@@ -95,6 +95,7 @@ namespace FJA.Revit.Legendas
         {
             var r = new List<Definition>();
             if (insts.Count < 2) return r;
+            var cand = new List<Parameter>();
             foreach (Parameter p in insts[0].Parameters)
             {
                 try
@@ -103,6 +104,16 @@ namespace FJA.Revit.Legendas
                     if (p.Definition is InternalDefinition idf && idf.BuiltInParameter != BuiltInParameter.INVALID) continue;
                     bool nomeAltura = RxAltura.IsMatch(Texto.Norm(p.Definition.Name));
                     if (!p.IsReadOnly && !nomeAltura) continue;
+                    cand.Add(p);
+                }
+                catch { }
+            }
+            // a família só tem uma opção (ex.: só "Média"): não há variação a mostrar
+            if (cand.Count < 2) return r;
+            foreach (Parameter p in cand)
+            {
+                try
+                {
                     var d = p.Definition;
                     int vals = insts.Select(i => { try { var q = i.get_Parameter(d); return q != null ? q.AsInteger() : -1; } catch { return -1; } }).Distinct().Count();
                     if (vals > 1) r.Add(d);

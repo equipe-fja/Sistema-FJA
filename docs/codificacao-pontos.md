@@ -63,6 +63,7 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - opção **Type Mark**: não mostrar, **em coluna própria** (entre o símbolo e o texto, com a largura do código mais largo) ou antes do texto ("LOG.01 – …"), gravada em cada legenda;
   - botão **Ordenar pelo Type Mark**.
 - **Variações "tudo desligado"** (2.9.3): as instâncias em que nenhum parâmetro de variação está ligado formavam um item "SEM VARIAÇÃO". Agora, se o desenho delas na planta é igual ao de outra variação do mesmo tipo, as duas viram um item só. Se sobrar uma variação só, o item fica sem sufixo. Se o desenho for diferente, continua como item separado.
+- **Família com uma opção só** (2.9.4): se a família tem um único parâmetro de variação (ex.: só "Média"), não há variação na legenda: o tipo é um item só, sem sufixo.
 
 ## Fases
 1. Ferramenta de codificação no modelo aberto, gravando o Type Mark, com a tabela no modelo.
