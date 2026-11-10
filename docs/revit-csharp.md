@@ -68,6 +68,10 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 - Escala dos símbolos (2.6.2): a primeira vez, a família (LEG) vira DWG (exporta 1:1 e importa); depois, só o **fator de escala** do tipo do DWG dentro da família muda (`Simbolos.Reescalar`), sem exportar de novo. Erros "Line is too short" do DWG reduzido são resolvidos apagando os trechos minúsculos (`ResolverFalhas`).
 - Preferências de cor por pessoa: `%APPDATA%\FJA\legenda-previa.json`.
 - **Ferramenta única (2.7.0)**: seletor de disciplina (`Disciplina.Todas`: LOG, AUT, SON), lista das legendas da disciplina (`Montagem.ListarLegendas`: vistas com os ajustes gravados, com o nome padrão ou com textos marcados) e **+ Nova legenda** (outra vista, cópia da legenda base); cada legenda guarda os seus itens, ordem, textos, extras e opções (largura, linhas, margens, passo, cor) na entidade de ajustes (`opcoes` no JSON). Gravar mantém a janela aberta. ELE e LUM continuam nos botões em Python (lógica própria: alturas, quadros, luminárias) — portar depois.
+- **Variações** (2.9.0): na coleta, para cada tipo, procura parâmetros Sim/Não de instância da família (não do Revit) que mudam entre as instâncias e são calculados por fórmula ou se chamam Baixa/Média/Alta (`Coleta.ParametrosDeVariacao`).
+  - Cada combinação de valores vira um item (`Item.Variante`/`VarKey`), com texto "NOME – BAIXA".
+  - Cada variação ganha uma família de legenda própria, `(DISC) (LEG) NOME - BAIXA`, montada com a instância representante dela, então as anotações aninhadas certas ficam ligadas.
+  - A escala e os ajustes são por variação (`Item.ChaveLeg`).
 - Para outra disciplina do mesmo tipo: nova `Disciplina` em `Legendas/Base.cs` e incluir em `Todas`.
 
 ## Situação em 09/11/2026

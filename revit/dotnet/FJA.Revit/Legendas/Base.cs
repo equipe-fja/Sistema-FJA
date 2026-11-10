@@ -94,6 +94,8 @@ namespace FJA.Revit.Legendas
         public string Rotulo;
         public string Padrao;               // rótulo original (para saber se foi editado)
         public string Codigo = "";          // código do ponto (Type Mark, ferramenta Codificação)
+        public string Variante = "";        // variação do mesmo tipo (ex.: "BAIXA"), pelos parâmetros Sim/Não da instância
+        public string VarKey = "";
         public byte[] Cor;                  // cor mais frequente deste tipo
         public string CorOrigem = "";
         public Dictionary<string, int[]> CoresCont = new Dictionary<string, int[]>(); // "r,g,b" -> [nas plantas da disciplina, demais]
@@ -107,7 +109,10 @@ namespace FJA.Revit.Legendas
         public bool Redimensionado, Reduzido, Ampliado;
         public double[] Mm;                 // medida no papel (largura, altura)
 
-        public string Chave => (Extra ? "x:" : "") + Sym.UniqueId;
+        public string Chave => (Extra ? "x:" : "") + Sym.UniqueId + (VarKey != "" ? "|" + VarKey : "");
+
+        /// <summary>Chave da família de símbolo (LEG) deste item: por família (e variação), ou "x:" para os acrescentados.</summary>
+        public string ChaveLeg => Extra ? "x:" + Sym.Id : Sym.Family.Id + (VarKey != "" ? "|" + VarKey : "");
 
         /// <summary>Cópia "limpa" para outra legenda: texto original, sem resultado de montagem.</summary>
         public Item Novo()

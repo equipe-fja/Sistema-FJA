@@ -336,10 +336,11 @@ namespace FJA.Revit.Legendas
                     continue;
                 }
                 Family fam = it.Sym.Family;
-                string key = fam.Id.ToString();
+                string key = it.ChaveLeg, famKey = fam.Id.ToString();
                 if (legs.ContainsKey(key)) continue;
                 double tF = Tempos.Agora;
-                string nomeLeg = Simbolos.NomeLeg(D, col, it.Sym);
+                // variação (baixa/média/alta): família (LEG) própria, montada com a instância representante dela
+                string nomeLeg = Simbolos.NomeLeg(D, col, it.Sym) + (it.Variante != "" ? " - " + it.Variante : "");
                 Family lf = Simbolos.FamiliaPorNome(doc, nomeLeg);
                 double tam = op.Tamanhos.TryGetValue(key, out double tt) ? tt : 0;
                 if (lf != null && tam > 0)
@@ -363,9 +364,12 @@ namespace FJA.Revit.Legendas
                     lf = null;
                 }
                 if (lf != null) { legs[key] = lf; res.LegExistentes.Add(lf.Name); continue; }
-                try { aninhadas[key] = Simbolos.LerAninhadas(doc, fam, bit, carregadas); }
-                catch (Exception ex) { aninhadas[key] = new List<Aninhada>(); res.ErrosAninhadas.Add(fam.Name + ": " + ex.Message); }
-                var specs = Simbolos.Visiveis(aninhadas[key], it.Rep, it.Sym);
+                if (!aninhadas.ContainsKey(famKey))
+                {
+                    try { aninhadas[famKey] = Simbolos.LerAninhadas(doc, fam, bit, carregadas); }
+                    catch (Exception ex) { aninhadas[famKey] = new List<Aninhada>(); res.ErrosAninhadas.Add(fam.Name + ": " + ex.Message); }
+                }
+                var specs = Simbolos.Visiveis(aninhadas[famKey], it.Rep, it.Sym);
                 try
                 {
                     if (tam > 0)
@@ -454,7 +458,7 @@ namespace FJA.Revit.Legendas
                 foreach (var it in itens)
                 {
                     var ids = new List<ElementId>();
-                    Family lf = legs.TryGetValue(it.Extra ? "x:" + it.Sym.Id : it.Sym.Family.Id.ToString(), out var f) ? f : null;
+                    Family lf = legs.TryGetValue(it.ChaveLeg, out var f) ? f : null;
                     FamilySymbol lsym = it.Extra ? (lf != null ? Simbolos.PrimeiroTipo(doc, lf) ?? it.Sym : it.Sym) : (lf != null ? Simbolos.PrimeiroTipo(doc, lf) : null);
                     if (lsym != null)
                     {

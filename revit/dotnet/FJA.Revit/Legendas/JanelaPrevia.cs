@@ -952,7 +952,7 @@ namespace FJA.Revit.Legendas
                 pcts[ln.Id] = v;
                 if (v != 100 && baseMm.TryGetValue(ln.Id, out var b))
                 {
-                    string fk = it.Extra ? "x:" + it.Sym.Id : it.Sym.Family.Id.ToString();
+                    string fk = it.ChaveLeg;
                     if (!tamanhos.ContainsKey(fk)) tamanhos[fk] = Math.Max(b[0], b[1]) * v / 100.0;
                 }
             }

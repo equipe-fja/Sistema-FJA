@@ -78,8 +78,53 @@ namespace FJA.Revit.Legendas
             return r;
         }
 
+        // ------------------------------------------------------------ variações (baixa / média / alta…)
+        static readonly System.Text.RegularExpressions.Regex RxAltura =
+            new System.Text.RegularExpressions.Regex(@"\b(BAIX[AO]S?|MEDI[AO]S?|ALT[AO]S?)\b");
+
+        static bool SimNao(Parameter p)
+        {
+            try { return p.StorageType == StorageType.Integer && p.Definition.GetDataType() == SpecTypeId.Boolean.YesNo; }
+            catch { return false; }
+        }
+
+        /// <summary>Parâmetros Sim/Não de instância (da família, não do Revit) que mudam entre as instâncias do tipo
+        /// e são calculados por fórmula (só leitura) ou se chamam Baixa/Média/Alta. São eles que ligam e desligam
+        /// as versões do símbolo aninhado; cada combinação de valores vira uma variação do item.</summary>
+        static List<Definition> ParametrosDeVariacao(List<FamilyInstance> insts)
+        {
+            var r = new List<Definition>();
+            if (insts.Count < 2) return r;
+            foreach (Parameter p in insts[0].Parameters)
+            {
+                try
+                {
+                    if (!SimNao(p)) continue;
+                    if (p.Definition is InternalDefinition idf && idf.BuiltInParameter != BuiltInParameter.INVALID) continue;
+                    bool nomeAltura = RxAltura.IsMatch(Texto.Norm(p.Definition.Name));
+                    if (!p.IsReadOnly && !nomeAltura) continue;
+                    var d = p.Definition;
+                    int vals = insts.Select(i => { try { var q = i.get_Parameter(d); return q != null ? q.AsInteger() : -1; } catch { return -1; } }).Distinct().Count();
+                    if (vals > 1) r.Add(d);
+                }
+                catch { }
+            }
+            return r.OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        static string Assinatura(FamilyInstance i, List<Definition> defs)
+        {
+            var on = new List<string>();
+            foreach (var d in defs)
+            {
+                try { var q = i.get_Parameter(d); if (q != null && q.AsInteger() == 1) on.Add(d.Name.Trim().ToUpperInvariant()); } catch { }
+            }
+            return on.Count == 0 ? "-" : string.Join(" + ", on);
+        }
+
         sealed class Acum
         {
+            public string Var = "";
             public FamilySymbol Sym;
             public FamilyInstance Rep; public View RepVis;
             public View Geo; public FamilyInstance GeoInst; public View GeoVis;
@@ -153,13 +198,30 @@ namespace FJA.Revit.Legendas
             }
             Tempos.Marca($"  conferir nas {plantasDisc.Count} plantas em prancha" + (verificado ? "" : " (interrompido)"), t3);
 
+            // variações: por tipo, parâmetros Sim/Não que mudam entre as instâncias (ex.: Baixa, Média, Alta)
+            double tv = Tempos.Agora;
+            var assin = new Dictionary<string, string>();
+            int comVariacao = 0;
+            foreach (var g in insts.GroupBy(x => x.GetTypeId().ToString()))
+            {
+                var lista = g.ToList();
+                var defs = ParametrosDeVariacao(lista);
+                if (defs.Count == 0) continue;
+                var sigs = lista.ToDictionary(x => x.Id.ToString(), x => Assinatura(x, defs));
+                if (sigs.Values.Distinct().Count() < 2) continue;
+                comVariacao++;
+                foreach (var kv in sigs) assin[kv.Key] = kv.Value;
+            }
+            Tempos.Marca($"  variações (baixa/média/alta…): {comVariacao} tipo(s)", tv);
+
             double t4 = Tempos.Agora;
             var tipos = new Dictionary<string, Acum>();
             var cache = new Cores.Cache();
             foreach (var inst in insts)
             {
-                string key = inst.GetTypeId().ToString();
-                if (!tipos.TryGetValue(key, out var a)) tipos[key] = a = new Acum { Sym = inst.Symbol };
+                assin.TryGetValue(inst.Id.ToString(), out string sig);
+                string key = inst.GetTypeId().ToString() + (sig != null ? "|" + sig : "");
+                if (!tipos.TryGetValue(key, out var a)) tipos[key] = a = new Acum { Sym = inst.Symbol, Var = sig ?? "" };
                 a.Inst.Add(inst.Id.ToString());
                 vistos.TryGetValue(inst.Id.ToString(), out View vVis);
                 if (vVis != null) a.Vistos++;
@@ -187,7 +249,7 @@ namespace FJA.Revit.Legendas
             Tempos.Marca("  cores e representantes", t4);
 
             var famTipos = new Dictionary<string, int>();
-            foreach (var a in tipos.Values)
+            foreach (var a in tipos.Values.GroupBy(x => x.Sym.Id.ToString()).Select(gr => gr.First()))
             {
                 string fk = a.Sym.Family.Id.ToString();
                 famTipos[fk] = famTipos.TryGetValue(fk, out int c) ? c + 1 : 1;
@@ -201,10 +263,13 @@ namespace FJA.Revit.Legendas
                 string desc = "";
                 try { desc = (a.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "").Trim(); } catch { }
                 string rot = desc != "" ? desc.ToUpperInvariant() : RotuloItem(a.Sym, famTipos[a.Sym.Family.Id.ToString()] > 1);
+                string varTxt = a.Var == "-" ? "SEM VARIAÇÃO" : a.Var;
+                if (a.Var != "") rot = rot + " – " + varTxt;
                 itens.Add(new Item
                 {
                     Sym = a.Sym, Rep = a.Rep, Quantidade = a.Inst.Count,
-                    Vistas = nviews.TryGetValue(kv.Key, out var hs) ? hs.Count : 0,
+                    Vistas = nviews.TryGetValue(a.Sym.Id.ToString(), out var hs) ? hs.Count : 0,
+                    Variante = a.Var == "" ? "" : varTxt, VarKey = a.Var,
                     EmPrancha = verificado ? a.Vistos > 0 : (a.Vistos > 0 ? true : (bool?)null),
                     Cor = Cores.DeChave(melhor), CorOrigem = a.Origem[melhor],
                     CoresCont = a.Cores,
@@ -214,7 +279,9 @@ namespace FJA.Revit.Legendas
             }
             return itens
                 .OrderBy(x => Texto.Norm(x.Sym.Category != null ? x.Sym.Category.Name : ""), StringComparer.Ordinal)
-                .ThenBy(x => Texto.Norm(x.Rotulo), StringComparer.Ordinal)
+                .ThenBy(x => Texto.Norm(x.Rotulo.Split('–')[0]), StringComparer.Ordinal)
+                .ThenBy(x => x.Variante.Contains("BAIX") ? 0 : x.Variante.Contains("MEDI") || x.Variante.Contains("MÉDI") ? 1 : x.Variante.Contains("ALT") ? 2 : 3)
+                .ThenBy(x => x.Rotulo, StringComparer.Ordinal)
                 .ToList();
         }
 
