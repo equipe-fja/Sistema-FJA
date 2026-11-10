@@ -310,9 +310,8 @@ namespace FJA.Revit.Legendas
             Tempos.Marca($"famílias (LEG): {res.LegExistentes.Count} existentes, {res.LegCriadas.Count} criadas", tFams);
 
             double tMont = Tempos.Agora;
-            using (var t = new Transaction(doc, "Atualizar " + D.Botao))
+            using (var t = ResolverFalhas.Iniciar(doc, "Atualizar " + D.Botao))
             {
-                t.Start();
                 Schema schema = Esquema();
                 if (alvo == null)
                 {

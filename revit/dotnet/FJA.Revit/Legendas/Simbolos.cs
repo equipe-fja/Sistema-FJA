@@ -18,6 +18,44 @@ namespace FJA.Revit.Legendas
         public List<Tuple<string, string>> Pmap = new List<Tuple<string, string>>(); // (parâmetro aninhado, parâmetro do hospedeiro)
     }
 
+    /// <summary>
+    /// Resolve sozinho os avisos e erros de geometria ("Line is too short" etc.) nas transações das famílias de
+    /// símbolo: avisos são apagados e erros que se resolvem apagando o elemento (linhas minúsculas do DWG
+    /// reduzido) são resolvidos assim, sem abrir a janela de erros do Revit.
+    /// </summary>
+    public sealed class ResolverFalhas : IFailuresPreprocessor
+    {
+        public int Apagados;
+
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor fa)
+        {
+            bool resolveu = false;
+            foreach (FailureMessageAccessor f in fa.GetFailureMessages())
+            {
+                if (f.GetSeverity() == FailureSeverity.Warning) { fa.DeleteWarning(f); continue; }
+                if (f.HasResolutionOfType(FailureResolutionType.DeleteElements))
+                {
+                    Apagados += f.GetFailingElementIds().Count;
+                    f.SetCurrentResolutionType(FailureResolutionType.DeleteElements);
+                    fa.ResolveFailure(f);
+                    resolveu = true;
+                }
+            }
+            return resolveu ? FailureProcessingResult.ProceedWithCommit : FailureProcessingResult.Continue;
+        }
+
+        public static Transaction Iniciar(Document d, string nome, ResolverFalhas r = null)
+        {
+            var t = new Transaction(d, nome);
+            var fo = t.GetFailureHandlingOptions();
+            fo.SetFailuresPreprocessor(r ?? new ResolverFalhas());
+            fo.SetClearAfterRollback(true);
+            t.SetFailureHandlingOptions(fo);
+            t.Start();
+            return t;
+        }
+    }
+
     sealed class NaoSobrescrever : IFamilyLoadOptions
     {
         public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
@@ -257,6 +295,18 @@ namespace FJA.Revit.Legendas
                 }
             };
             walk(geom);
+            // o símbolo na legenda fica na orientação da família: desfaz a rotação do elemento na planta
+            try
+            {
+                Transform tr = inst.GetTransform();
+                double ang = Math.Atan2(tr.BasisX.Y, tr.BasisX.X);
+                if (Math.Abs(ang) > 1e-6)
+                {
+                    Transform rot = Transform.CreateRotationAtPoint(XYZ.BasisZ, -ang, Plano(tr.Origin));
+                    outl = outl.Select(c => { try { return c.CreateTransformed(rot); } catch { return null; } }).Where(c => c != null).ToList();
+                }
+            }
+            catch { }
             return outl;
         }
 
@@ -385,9 +435,8 @@ namespace FJA.Revit.Legendas
                     carregadas.Add(sp.Fam);
                 }
                 int n = 0;
-                using (var t = new Transaction(fdoc, "Simbolo de legenda"))
+                using (var t = ResolverFalhas.Iniciar(fdoc, "Simbolo de legenda"))
                 {
-                    t.Start();
                     View view = VistaDaFamilia(fdoc);
                     foreach (var tn in new FilteredElementCollector(fdoc).OfClass(typeof(TextNote)).ToElementIds().ToList())
                         fdoc.Delete(tn);
@@ -482,9 +531,8 @@ namespace FJA.Revit.Legendas
             double m;
             try
             {
-                using (var t = new Transaction(fdoc, "Simbolo de legenda (DWG)"))
+                using (var t = ResolverFalhas.Iniciar(fdoc, "Simbolo de legenda (DWG)"))
                 {
-                    t.Start();
                     View view = VistaDaFamilia(fdoc);
                     foreach (var tn in new FilteredElementCollector(fdoc).OfClass(typeof(TextNote)).ToElementIds().ToList())
                         fdoc.Delete(tn);

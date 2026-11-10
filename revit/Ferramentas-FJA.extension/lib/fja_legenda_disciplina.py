@@ -799,6 +799,15 @@ def _plan_curves(inst, view):
                     add_curve(DB.Line.CreateBound(pts[i], pts[i + 1]))
 
     walk(geom)
+    # o simbolo na legenda fica na orientacao da familia: desfaz a rotacao do elemento na planta
+    try:
+        tr = inst.GetTransform()
+        ang = math.atan2(tr.BasisX.Y, tr.BasisX.X)
+        if abs(ang) > 1e-6:
+            rot = DB.Transform.CreateRotationAtPoint(DB.XYZ.BasisZ, -ang, _flat(tr.Origin))
+            out = [c.CreateTransformed(rot) for c in out]
+    except Exception:
+        pass
     return out
 
 

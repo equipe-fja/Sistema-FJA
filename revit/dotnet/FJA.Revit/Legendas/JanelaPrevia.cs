@@ -96,7 +96,7 @@ namespace FJA.Revit.Legendas
             foreach (var it in itens) CriarLinha(it, desmarcados.Contains(it.Chave));
             TituloLista();
             LerPreferencias();
-            timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
             timer.Tick += (s, a) => { timer.Stop(); DesenharCaixas(); };
             Closing += (s, a) => { if (!Gravado) Desfazer(); else FecharPrevia(); };
             ContentRendered += Primeira;
@@ -606,37 +606,45 @@ namespace FJA.Revit.Legendas
             var alvos = linhas.Where(l => sujos.Contains(l.Id)).ToList();
             sujos = new HashSet<string>();
             if (alvos.Count == 0) return;
-            using (var t = new Transaction(doc, "Prévia: caixas"))
+            // reaproveita as 4 linhas de cada caixa (só muda a geometria): menos trabalho para o Revit e
+            // para a prévia, que redesenha uma vez por transação
+            using (var t = ResolverFalhas.Iniciar(doc, "Prévia: caixas"))
             {
                 try
                 {
-                    t.Start();
+                    var apagar = new List<ElementId>();
                     foreach (var ln in alvos)
                     {
-                        if (idsCaixa.TryGetValue(ln.Id, out var velhos))
-                        {
-                            var vivos = velhos.Where(i => doc.GetElement(i) != null).ToList();
-                            if (vivos.Count > 0) doc.Delete(vivos);
-                            idsCaixa.Remove(ln.Id);
-                        }
-                        if (!caixas.TryGetValue(ln.Id, out var cx) || ln.Chk.IsChecked != true) continue;
+                        idsCaixa.TryGetValue(ln.Id, out var ids);
+                        ids = (ids ?? new List<ElementId>()).Where(i => doc.GetElement(i) != null).ToList();
                         int v = (int)Math.Round(ln.Sl.Value), feito = pctFeito.TryGetValue(ln.Id, out int p) ? p : 100;
-                        if (v == feito) continue;
-                        double f = (double)v / feito, hw = Math.Max(cx[2] * f, 1e-3) / 2, hh = Math.Max(cx[3] * f, 1e-3) / 2;
-                        var pts = new[] { new XYZ(cx[0] - hw, cx[1] - hh, 0), new XYZ(cx[0] + hw, cx[1] - hh, 0), new XYZ(cx[0] + hw, cx[1] + hh, 0), new XYZ(cx[0] - hw, cx[1] + hh, 0) };
-                        var ids = new List<ElementId>();
-                        for (int i = 0; i < 4; i++)
+                        if (!caixas.TryGetValue(ln.Id, out var cx) || ln.Chk.IsChecked != true || v == feito)
                         {
-                            try
+                            apagar.AddRange(ids);
+                            idsCaixa.Remove(ln.Id);
+                            continue;
+                        }
+                        double f = (double)v / feito, hw = Math.Max(cx[2] * f, 0.01) / 2, hh = Math.Max(cx[3] * f, 0.01) / 2;
+                        var pts = new[] { new XYZ(cx[0] - hw, cx[1] - hh, 0), new XYZ(cx[0] + hw, cx[1] - hh, 0), new XYZ(cx[0] + hw, cx[1] + hh, 0), new XYZ(cx[0] - hw, cx[1] + hh, 0) };
+                        if (ids.Count == 4)
+                        {
+                            for (int i = 0; i < 4; i++)
+                                ((DetailCurve)doc.GetElement(ids[i])).GeometryCurve = Line.CreateBound(pts[i], pts[(i + 1) % 4]);
+                        }
+                        else
+                        {
+                            apagar.AddRange(ids);
+                            ids = new List<ElementId>();
+                            for (int i = 0; i < 4; i++)
                             {
                                 var c = doc.Create.NewDetailCurve(res.Vista, Line.CreateBound(pts[i], pts[(i + 1) % 4]));
                                 Cores.Pintar(res.Vista, c.Id, COR_CAIXA);
                                 ids.Add(c.Id);
                             }
-                            catch { }
                         }
                         idsCaixa[ln.Id] = ids;
                     }
+                    if (apagar.Count > 0) doc.Delete(apagar);
                     t.Commit();
                 }
                 catch (Exception e)
