@@ -36,7 +36,7 @@ namespace FJA.Revit.Legendas
             public TipoPonto Tp;
             public Border Borda;
             public TextBox Cod, Desc, Fam;
-            public TextBlock Sit, Atual;
+            public TextBlock Sit, Atual, AtFam, AtTipo;
             public Button Ok;
         }
 
@@ -115,8 +115,9 @@ namespace FJA.Revit.Legendas
             return td.Show() == TaskDialogResult.Yes;
         }
 
-        // ≡ | família | description (= tipo) | qtde | origem | type mark | código | situação | ✓   (negativo = proporção)
-        static readonly double[] COLS = { 18, -1.3, -1, 44, 120, 84, 96, 210, 34 };
+        // ≡ | família | tipo / description | qtde | origem | código (type mark) | situação | ✓   (negativo = proporção)
+        // cada item tem duas linhas: em cima como está (cinza), embaixo os campos para alterar
+        static readonly double[] COLS = { 18, -1.3, -1, 44, 120, 104, 210, 34 };
 
         WGrid LinhaGrade()
         {
@@ -158,10 +159,10 @@ namespace FJA.Revit.Legendas
             var cab = new Border { Padding = new Thickness(12, 8, 12, 8), BorderBrush = Pincel("Linha", 226, 226, 223), BorderThickness = new Thickness(0, 0, 0, 1) };
             DockPanel.SetDock(cab, Dock.Top);
             var gc = LinhaGrade();
-            string[] titulos = { "", "Família", "Description (= nome do tipo)", "Qtde", "Origem", "Type Mark", "Código", "Situação", "" };
+            string[] titulos = { "", "Família", "Tipo  ·  Description (= nome do tipo)", "Qtde", "Origem", "Código (Type Mark)", "Situação", "" };
             for (int i = 0; i < titulos.Length; i++)
             {
-                var tb = new TextBlock { Text = titulos[i], FontWeight = FontWeights.SemiBold, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92), Margin = new Thickness(i == 2 || i == 6 ? 4 : 0, 0, 8, 0) };
+                var tb = new TextBlock { Text = titulos[i], FontWeight = FontWeights.SemiBold, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92), Margin = new Thickness(0, 0, 8, 0) };
                 if (i == 2) tb.ToolTip = "Ao aplicar, a Description também vira o nome do tipo. Sugestão quando vazia: o nome do tipo (ou da família, se tiver um tipo só).";
                 if (i == 1) txtTitulo = tb;
                 WGrid.SetColumn(tb, i);
@@ -235,32 +236,60 @@ namespace FJA.Revit.Legendas
         TextBox Campo(string texto, string dica) =>
             new TextBox { Text = texto, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 0, 8, 0), ToolTip = dica };
 
+        static string TextoTipoAtual(TipoPonto tp) =>
+            "tipo: " + tp.TipoAtual + (tp.DescAtual == "" ? "  ·  sem description" : tp.DescAtual != tp.TipoAtual ? "  ·  description: " + tp.DescAtual : "  ·  description igual");
+
         void CriarLinha(TipoPonto tp)
         {
-            var borda = new Border { BorderThickness = new Thickness(0, 2, 0, 2), BorderBrush = Brushes.Transparent, AllowDrop = true, Background = Brushes.Transparent };
+            var borda = new Border
+            {
+                BorderThickness = new Thickness(0, 2, 0, 2), BorderBrush = Brushes.Transparent, AllowDrop = true, Background = Brushes.Transparent,
+            };
+            var fundo = new Border { BorderBrush = Pincel("Linha", 226, 226, 223), BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(0, 4, 0, 6) };
             var g = LinhaGrade();
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var alca = new TextBlock { Text = "≡", FontSize = 16, Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Cursor = Cursors.SizeAll, Background = Brushes.Transparent, ToolTip = "Arraste para mudar a ordem" };
-            // família: sigla fixa + nome editável
+            WGrid.SetRowSpan(alca, 2);
+            // linha de cima: como está
+            TextBlock Atual(string t, int col)
+            {
+                var tb = new TextBlock { Text = t, Foreground = Cinza, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(col == 1 ? 2 : 0, 0, 8, 3), ToolTip = t };
+                WGrid.SetColumn(tb, col);
+                g.Children.Add(tb);
+                return tb;
+            }
+            var atFam = Atual(tp.Sym.FamilyName, 1);
+            var atTipo = Atual(TextoTipoAtual(tp), 2);
+            Atual(tp.Quantidade.ToString(), 3);
+            Atual(tp.Origem, 4);
+            var at = Atual(tp.MarcaAtual == "" ? "sem código" : tp.MarcaAtual, 5);
+            // linha de baixo: para alterar
             var pf = new DockPanel { Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
-            var sig = new TextBlock { Text = tp.Prefixo.Trim(), VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza, Margin = new Thickness(0, 0, 6, 0), FontWeight = FontWeights.SemiBold };
+            var sig = new TextBlock { Text = tp.Prefixo.Trim(), VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza, Margin = new Thickness(2, 0, 6, 0), FontWeight = FontWeights.SemiBold };
             DockPanel.SetDock(sig, Dock.Left);
-            var fam = Campo(tp.Fam, $"Nome da família (a sigla {tp.Prefixo.Trim()} fica). Família atual: {tp.Sym.FamilyName}\nCategoria: {tp.Sym.Category?.Name}");
+            var fam = Campo(tp.Fam, $"Nome da família (a sigla {tp.Prefixo.Trim()} fica). Categoria: {tp.Sym.Category?.Name}");
             fam.Margin = new Thickness(0);
             pf.Children.Add(sig); pf.Children.Add(fam);
-            var desc = Campo(tp.Desc, "Description; ao aplicar, também vira o nome do tipo. Tipo atual: " + tp.TipoAtual + "\nDescription atual: " + (tp.DescAtual == "" ? "(vazia)" : tp.DescAtual));
-            var qt = new TextBlock { Text = tp.Quantidade.ToString(), VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza };
-            var org = new TextBlock { Text = tp.Origem, VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = tp.Origem, Margin = new Thickness(0, 0, 8, 0) };
-            var at = new TextBlock { Text = tp.MarcaAtual == "" ? "—" : tp.MarcaAtual, VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza };
+            var desc = Campo(tp.Desc, "Description; ao aplicar, também vira o nome do tipo");
             var cx = Campo(tp.Codigo, "Código (Type Mark)");
             cx.CharacterCasing = CharacterCasing.Upper;
             var sit = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
             var ok = Botao("✓", "Discreto");
             ok.Padding = new Thickness(6, 2, 6, 2);
             ok.ToolTip = "Aplicar só este item";
-            var els = new UIElement[] { alca, pf, desc, qt, org, at, cx, sit, ok };
-            for (int i = 0; i < els.Length; i++) { WGrid.SetColumn(els[i], i); g.Children.Add(els[i]); }
-            borda.Child = g;
-            var ln = new Linha { Tp = tp, Borda = borda, Cod = cx, Desc = desc, Fam = fam, Atual = at, Sit = sit, Ok = ok };
+            WGrid.SetRowSpan(ok, 2);
+            WGrid.SetColumn(alca, 0); g.Children.Add(alca);
+            foreach (var par in new[] { Tuple.Create((UIElement)pf, 1), Tuple.Create((UIElement)desc, 2), Tuple.Create((UIElement)cx, 5), Tuple.Create((UIElement)sit, 6) })
+            {
+                WGrid.SetRow(par.Item1, 1);
+                WGrid.SetColumn(par.Item1, par.Item2);
+                g.Children.Add(par.Item1);
+            }
+            WGrid.SetColumn(ok, 7); g.Children.Add(ok);
+            fundo.Child = g;
+            borda.Child = fundo;
+            var ln = new Linha { Tp = tp, Borda = borda, Cod = cx, Desc = desc, Fam = fam, Atual = at, AtFam = atFam, AtTipo = atTipo, Sit = sit, Ok = ok };
             cx.TextChanged += (s, a) => { ln.Tp.Codigo = (cx.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
             desc.TextChanged += (s, a) => { ln.Tp.Desc = (desc.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
             fam.TextChanged += (s, a) =>
@@ -414,9 +443,10 @@ namespace FJA.Revit.Legendas
                     tp.FamAtual = famAgora;
                     if (familiaMudou && tp.Fam == famAgora) l.Fam.Text = famAgora;
                     tp.TipoAtual = tp.Sym.Name;
-                    l.Atual.Text = tp.MarcaAtual == "" ? "—" : tp.MarcaAtual;
-                    l.Desc.ToolTip = "Description; ao aplicar, também vira o nome do tipo. Tipo atual: " + tp.TipoAtual + "\nDescription atual: " + (tp.DescAtual == "" ? "(vazia)" : tp.DescAtual);
-                    l.Fam.ToolTip = $"Nome da família (a sigla {tp.Prefixo.Trim()} fica). Família atual: {tp.Sym.FamilyName}\nCategoria: {tp.Sym.Category?.Name}";
+                    l.Atual.Text = tp.MarcaAtual == "" ? "sem código" : tp.MarcaAtual;
+                    l.AtFam.Text = tp.Sym.FamilyName;
+                    l.AtTipo.Text = TextoTipoAtual(tp);
+                    l.AtTipo.ToolTip = l.AtTipo.Text;
                 }
                 trocando = false;
                 alterado = linhas.Any(l => l.Tp.Pendente);
