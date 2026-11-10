@@ -97,11 +97,13 @@ namespace FJA.Revit.Legendas
         {
             if (bloco == QUADRO)
             {
+                // o nome do tipo traz a sigla do quadro ("QLF-QUADRO LUZ E FORCA"); a Description costuma ser genérica
+                string t = NomeTipo(s).ToUpperInvariant().Trim();
+                var mq = Regex.Match(t, @"^([A-Z0-9]{2,6})\s*-\s*(.+)$");
+                if (mq.Success) return mq.Groups[1].Value + " - " + mq.Groups[2].Value.Trim();
                 string desc = "";
                 try { desc = (s.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "").Trim(); } catch { }
-                string t = (desc.Length >= 8 ? desc : NomeTipo(s)).ToUpperInvariant().Trim();
-                var mq = Regex.Match(t, @"^([A-Z0-9]{2,6})\s*-\s*(.+)$");
-                return mq.Success ? mq.Groups[1].Value + " - " + mq.Groups[2].Value.Trim() : t;
+                return desc.Length >= 8 ? desc.ToUpperInvariant() : t;
             }
             string b = Base(s);
             string caixa = null;
@@ -121,7 +123,7 @@ namespace FJA.Revit.Legendas
         /// outros; pontos na caixa; nome; altura.</summary>
         public static string Ordem(FamilySymbol s, int bloco, int? altura)
         {
-            string b = Texto.Norm(Base(s));
+            string b = Texto.Norm(bloco == QUADRO ? Rotulo(s, bloco, null) : Base(s));
             string n = Texto.Norm(s.FamilyName + " " + NomeTipo(s));
             string semQtd = Regex.Replace(b, @"^\d+\s+", "");
             return bloco + "|" + Grupo(n) + "|" + PontosNaCaixa(b).ToString("000") + "|" + semQtd + "|" + (altura ?? 0).ToString("00000");
