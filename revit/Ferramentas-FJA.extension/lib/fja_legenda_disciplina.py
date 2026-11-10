@@ -472,6 +472,31 @@ def item_label(sym, multi):
     return nome.upper()
 
 
+def eh_familia_da_disciplina(nome):
+    """So familias cujo nome comeca com o prefixo da disciplina, ex.: '(LOG) TOMADA RJ45'.
+    Ficam de fora as familias de simbolo da propria legenda ('(LOG) (LEG) ...') e as
+    provisorias do redimensionamento ('... __ORIG')."""
+    n = norm_ascii(nome)
+    if not n.startswith(C["familias"]):
+        return False
+    return "(LEG)" not in n and not n.endswith("__ORIG")
+
+
+_TIPO_VISTA = {}
+
+
+def _em_vista_de_legenda(doc, e):
+    """Instancia desenhada numa legenda, vista de desenho ou prancha (nao conta como posicionada)."""
+    vid = e.OwnerViewId
+    if vid is None or vid == DB.ElementId.InvalidElementId:
+        return False
+    k = vid.ToString()
+    if k not in _TIPO_VISTA:
+        v = doc.GetElement(vid)
+        _TIPO_VISTA[k] = (v is None) or (v.ViewType in SKIP_VIEW_TYPES)
+    return _TIPO_VISTA[k]
+
+
 def collect_items(doc, prazo_verificacao=4.0):
     """Um item por tipo de familia '(LOG)' posicionado no modelo (aparecendo ou nao em
     prancha). Rapido: nao percorre as vistas das pranchas.
@@ -479,9 +504,10 @@ def collect_items(doc, prazo_verificacao=4.0):
       preferencia uma planta LOG em prancha do mesmo nivel do elemento;
     - "em_prancha": verificacao leve so nas plantas LOG em prancha (True/False), ou None
       se essa verificacao passar de prazo_verificacao segundos."""
+    _TIPO_VISTA.clear()
     t0 = agora()
     syms = [sy for sy in DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol)
-            if norm_ascii(sy.FamilyName).startswith(C["familias"])]
+            if eh_familia_da_disciplina(sy.FamilyName)]
     sym_ok = set(sy.Id.ToString() for sy in syms)
     cat_ids = {}
     for sy in syms:
@@ -493,7 +519,8 @@ def collect_items(doc, prazo_verificacao=4.0):
     catf = DB.ElementMulticategoryFilter(List[DB.ElementId](list(cat_ids.values())))
     t1 = agora()
     insts = [e for e in DB.FilteredElementCollector(doc).WherePasses(catf).OfClass(DB.FamilyInstance)
-             if e.SuperComponent is None and e.GetTypeId().ToString() in sym_ok]
+             if e.SuperComponent is None and e.GetTypeId().ToString() in sym_ok
+             and not _em_vista_de_legenda(doc, e)]
     tempo(u"  instâncias no modelo: {}".format(len(insts)), t1)
     if not insts:
         return []
