@@ -27,6 +27,15 @@
           <TextBox x:Name="txtLargura" Width="54" Text="17,5" VerticalAlignment="Center" Padding="4,2" HorizontalContentAlignment="Right"/>
           <TextBlock Text="cm" VerticalAlignment="Center" Margin="6,0,0,0"/>
         </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,0,24,0" VerticalAlignment="Center">
+          <TextBlock Text="Cor dos símbolos" VerticalAlignment="Center" Margin="0,0,8,0"/>
+          <Border x:Name="swCor" Width="18" Height="18" CornerRadius="3" BorderBrush="#9a9a96" BorderThickness="1" Background="Black" VerticalAlignment="Center" Margin="0,0,6,0"/>
+          <ComboBox x:Name="cbCor" Width="200" VerticalAlignment="Center">
+            <ComboBoxItem Content="Sem cor (preto)"/>
+            <ComboBoxItem Content="Cor do projeto no Sistema FJA"/>
+            <ComboBoxItem Content="Escolher cor…"/>
+          </ComboBox>
+        </StackPanel>
         <CheckBox x:Name="chkLinhasH" Content="Linhas entre itens" VerticalAlignment="Center" Margin="0,0,16,0"/>
         <CheckBox x:Name="chkLinhaV" Content="Linha entre símbolo e texto" VerticalAlignment="Center" Margin="0,0,16,0"/>
         <CheckBox x:Name="chkMargens" Content="Margens (contorno)" VerticalAlignment="Center" Margin="0,0,24,0"/>

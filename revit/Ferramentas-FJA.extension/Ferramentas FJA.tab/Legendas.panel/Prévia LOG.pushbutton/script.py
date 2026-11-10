@@ -7,7 +7,10 @@ desenhada na prévia no tamanho novo (rápido); os símbolos são refeitos (pelo
 A lógica é a mesma do botão Legenda LOG (lib/fja_legenda_disciplina.py)."""
 import os
 
-from pyrevit import revit, DB, forms
+from System.Diagnostics import Stopwatch
+_T0 = Stopwatch.StartNew()
+
+from pyrevit import revit, DB, forms, script
 
 import fja_legenda_disciplina as L
 
@@ -33,7 +36,7 @@ CFG = {
     "guid": "9a4e7c21-5b3d-4e8f-a6c2-3d1f8b7e5a92",
     "schema": "FJA_LegendaLOG",
     "mark": "LegendaLOG",
-    "cor": (121, 86, 169),
+    "disc": "LOG",
 }
 TITULO = u"Legenda LOG · prévia"
 COR_CAIXA = (200, 30, 30)
@@ -47,6 +50,51 @@ def aplicar_estilo(win):
         win.Resources.MergedDictionaries.Add(XamlReader.Parse(File.ReadAllText(caminho)))
     except Exception as e:
         print(u"estilo: {}".format(e))
+
+
+def _cfg():
+    try:
+        return script.get_config()
+    except Exception:
+        return None
+
+
+def _ler_cfg(nome, padrao):
+    c = _cfg()
+    try:
+        return c.get_option(nome, padrao) if c is not None else padrao
+    except Exception:
+        return padrao
+
+
+def _gravar_cfg(**valores):
+    c = _cfg()
+    if c is None:
+        return
+    try:
+        for k, v in valores.items():
+            setattr(c, k, v)
+        script.save_config()
+    except Exception:
+        pass
+
+
+def _log_tempos(titulo):
+    """Tempos da abertura gravados em REVIT\\pyRevit\\logs (para o diagnóstico de lentidão)."""
+    linhas = [u"{:<62} {:>7.2f} s".format(n, d) for (n, d, _) in L.TEMPOS]
+    try:
+        import io, datetime
+        pasta = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(L.__file__))), u"logs")
+        if not os.path.isdir(pasta):
+            os.makedirs(pasta)
+        nome = os.path.join(pasta, u"previa-legenda-tempos.txt")
+        cab = u"\n=== {}  {}  {}  ({})\n".format(datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                                              os.environ.get("COMPUTERNAME", u""), doc.Title, titulo)
+        with io.open(nome, "a", encoding="utf-8") as f:
+            f.write(cab + u"\n".join(linhas) + u"\n")
+    except Exception:
+        pass
+    return u"\n".join(linhas)
 
 
 def _mm(v):
@@ -76,6 +124,17 @@ class Janela(forms.WPFWindow):
         for c in (self.chkLinhasH, self.chkLinhaV, self.chkMargens):
             c.Click += self._mudou
         self.txtLargura.TextChanged += self._mudou
+        self.cor = None                 # (r, g, b) ou None = sem cor
+        self.cor_sistema = None         # (rgb, texto) lido do sistema (só quando pedido)
+        self.cor_pers = _ler_cfg("cor_personalizada", None)
+        modo = _ler_cfg("modo_cor", 0)
+        self._mudando_cor = True
+        self.cbCor.SelectedIndex = modo if modo in (0, 1, 2) else 0
+        self._mudando_cor = False
+        self.cbCor.SelectionChanged += self._modo_cor
+        self.swCor.MouseLeftButtonUp += lambda s, a: self._escolher_cor()
+        self.swCor.ToolTip = u"Clique para escolher outra cor"
+        self._aplicar_modo(self.cbCor.SelectedIndex, inicial=True)
         self.btTodos100.Click += self._todos100
         self.btAtualizar.Click += lambda s, a: self.atualizar()
         self.btGerar.Click += self._gerar
@@ -157,9 +216,106 @@ class Janela(forms.WPFWindow):
         if self.res is not None and self._ha_mudanca():
             self.txtStatus.Text = u"Há ajustes que ainda não estão na prévia (caixas vermelhas = tamanho novo): clique em Atualizar prévia."
 
+    # ------------------------------------------------------------ cor dos símbolos
+    def _amostra(self):
+        c = self.cor or (0, 0, 0)
+        self.swCor.Background = SolidColorBrush(Color.FromRgb(c[0], c[1], c[2]))
+
+    def _modo_cor(self, s, a):
+        if not self._mudando_cor:
+            self._aplicar_modo(self.cbCor.SelectedIndex)
+
+    def _voltar_modo(self, i):
+        self._mudando_cor = True
+        self.cbCor.SelectedIndex = i
+        self._mudando_cor = False
+
+    def _aplicar_modo(self, i, inicial=False):
+        anterior = self.cor
+        if i == 1:
+            if self.cor_sistema is None:
+                t = L.agora()
+                try:
+                    self.cor_sistema = L.cor_do_sistema(doc, CFG["disc"])
+                except Exception as e:
+                    self.cor_sistema = (None, u"não foi possível ler o sistema: {}".format(e))
+                L.tempo(u"cor do projeto no Sistema FJA", t)
+            rgb, txt = self.cor_sistema
+            self.cbCor.ToolTip = (u"Cor de " if rgb else u"Sem cor: ") + txt
+            if rgb is None:
+                if not inicial:
+                    forms.alert(u"Não achei a cor no Sistema FJA: {}.".format(txt), title=TITULO)
+                self.cor = None
+                self._voltar_modo(0)
+                i = 0
+            else:
+                self.cor = tuple(rgb)
+        elif i == 2:
+            if self.cor_pers is None and not inicial:
+                if not self._escolher_cor(aplicar=False):
+                    self._voltar_modo(1 if self.cor_sistema and self.cor_sistema[0] and self.cor == tuple(self.cor_sistema[0]) else 0)
+                    return
+            self.cor = tuple(self.cor_pers) if self.cor_pers else None
+            self.cbCor.ToolTip = u"Cor escolhida: RGB {}-{}-{}".format(*self.cor) if self.cor else None
+        else:
+            self.cor = None
+            self.cbCor.ToolTip = u"Símbolos sem cor (preto)"
+        self._amostra()
+        if not inicial:
+            _gravar_cfg(modo_cor=i)
+            if self.cor != anterior:
+                self._repintar()
+
+    def _escolher_cor(self, aplicar=True):
+        import clr
+        clr.AddReference("System.Windows.Forms")
+        clr.AddReference("System.Drawing")
+        from System.Windows.Forms import ColorDialog, DialogResult
+        from System.Drawing import Color as DColor
+        dlg = ColorDialog()
+        dlg.FullOpen = True
+        c = self.cor or self.cor_pers
+        if c:
+            dlg.Color = DColor.FromArgb(c[0], c[1], c[2])
+        if dlg.ShowDialog() != DialogResult.OK:
+            return False
+        self.cor_pers = [dlg.Color.R, dlg.Color.G, dlg.Color.B]
+        _gravar_cfg(cor_personalizada=self.cor_pers)
+        if aplicar:
+            if self.cbCor.SelectedIndex != 2:
+                self._voltar_modo(2)
+                _gravar_cfg(modo_cor=2)
+            anterior = self.cor
+            self.cor = tuple(self.cor_pers)
+            self.cbCor.ToolTip = u"Cor escolhida: RGB {}-{}-{}".format(*self.cor)
+            self._amostra()
+            if self.cor != anterior:
+                self._repintar()
+        return True
+
+    def _repintar(self):
+        """Troca a cor dos símbolos na prévia na hora, sem refazer a legenda."""
+        if self.res is None or self.tg is None:
+            return
+        view = self.res["view"]
+        t = DB.Transaction(doc, u"Prévia: cor")
+        t.Start()
+        try:
+            for it in self.res["items"]:
+                for i in it.get("sym_ids") or []:
+                    if doc.GetElement(i) is not None:
+                        L.pintar(view, i, self.cor)
+            t.Commit()
+            self.cor_feita = self.cor
+        except Exception as e:
+            if t.HasStarted() and not t.HasEnded():
+                t.RollBack()
+            self.txtStatus.Text = u"Não foi possível trocar a cor: {}".format(e)
+
     def _ha_mudanca(self):
         return (any(int(round(ln["sl"].Value)) != self.pct_feito.get(ln["id"], 100) for ln in self.linhas)
-                or self._opcoes_tabela() != getattr(self, "tabela_feita", None))
+                or self._opcoes_tabela() != getattr(self, "tabela_feita", None)
+                or self.cor != getattr(self, "cor_feita", None))
 
     def _largura_mm(self):
         try:
@@ -262,6 +418,9 @@ class Janela(forms.WPFWindow):
             self.tg = None
 
     def atualizar(self):
+        t_at = L.agora()
+        if getattr(self, "aberta", False):
+            del L.TEMPOS[:]
         self.txtStatus.Text = u"Gerando a prévia…"
         self._desfazer()
         escolhidos, tamanhos, pcts = [], {}, {}
@@ -288,6 +447,7 @@ class Janela(forms.WPFWindow):
         try:
             op = self._opcoes_tabela()
             op["tamanhos"] = tamanhos
+            op["cor"] = self.cor
             res = L.atualizar_legenda(doc, escolhidos, op)
         except Exception as e:
             self._desfazer()
@@ -323,10 +483,13 @@ class Janela(forms.WPFWindow):
             ln["med"].ToolTip = u"Símbolo: {}{}".format(modo, u" · redimensionado pelo DWG" if it.get("redimensionado") else u"")
         self.pct_feito = pcts
         self.tabela_feita = self._opcoes_tabela()
+        self.cor_feita = self.cor
         try:
+            t_p = L.agora()
             self.prev = PreviewControl(doc, view.Id)
             self.hostPrev.Children.Add(self.prev)
             self.txtPrevVazia.Visibility = Visibility.Collapsed
+            L.tempo(u"abrir a prévia do Revit", t_p)
         except Exception as e:
             self.txtStatus.Text = u"Legenda gerada, mas a prévia não abriu: {}".format(e)
             return
@@ -336,8 +499,16 @@ class Janela(forms.WPFWindow):
         n_red = len([1 for it in res["items"] if it.get("redimensionado")])
         if n_red:
             partes.append(u"{} símbolo(s) redimensionado(s)".format(n_red))
+        L.tempo(u"PRÉVIA COMPLETA", t_at)
+        primeira = not getattr(self, "aberta", False)
+        if primeira:
+            L.tempo(u"TOTAL DA ABERTURA (desde o clique no botão)", 0.0 - _T0.Elapsed.TotalSeconds + L.agora())
+        self.aberta = True
+        detalhe = _log_tempos(u"abertura" if primeira else u"atualizar")
+        seg = (_T0.Elapsed.TotalSeconds if primeira else L.agora() - t_at)
+        partes.append(u"{} em {:.1f} s".format(u"aberta" if primeira else u"atualizada", seg).replace(".", ","))
         self.txtStatus.Text = u"Prévia: " + u" · ".join(partes) + u". Use a roda do mouse para aproximar."
-        self.txtStatus.ToolTip = None
+        self.txtStatus.ToolTip = u"Tempo de cada etapa:\n" + detalhe
         if res.get("leg_erros"):
             self.txtStatus.Text += u"\n" + u"\n".join(res["leg_erros"][:3])
             self.txtStatus.ToolTip = u"\n".join(res["leg_erros"])
@@ -370,15 +541,21 @@ class Janela(forms.WPFWindow):
 
 def main():
     L.configurar(CFG)
+    del L.TEMPOS[:]
+    t = L.agora()
+    L.tempo(u"carregar o script e as bibliotecas (pyRevit)", t - _T0.Elapsed.TotalSeconds)
     try:
         itens = L.collect_items(doc)
+        L.tempo(u"ler os itens nas vistas das pranchas ({})".format(len(itens)))
     except Exception as e:
         forms.alert(u"Erro ao ler os itens: {}".format(e), title=TITULO)
         return
     if not itens:
         forms.alert(u"Nenhuma família '(LOG)' aparece nas vistas das pranchas.", title=TITULO)
         return
+    t = L.agora()
     j = Janela(itens)
+    L.tempo(u"montar a janela", t)
     j.ShowDialog()
     if j.gravado and j.res is not None:
         try:

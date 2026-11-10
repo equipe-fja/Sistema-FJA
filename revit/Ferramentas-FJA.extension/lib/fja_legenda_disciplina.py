@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """Legenda de pontos por disciplina (LOG, AUT, SON...): cria/atualiza uma vista de
 legenda com todas as familias cujo nome comeca com o prefixo da disciplina (ex.:
-'(LOG)') e que aparecem em vistas colocadas em pranchas (um item por tipo). Cada
-simbolo e pintado com a cor que o elemento tem nessas vistas (sobreposicao do
-elemento, filtros da vista ou do modelo de vista, sobreposicao da categoria ou
-estilo de objeto, nessa ordem). Elementos desenhados a mao na vista sao preservados.
+'(LOG)') e que aparecem em vistas colocadas em pranchas (um item por tipo). Os simbolos saem
+sem cor (as cores das disciplinas variam por projeto); a janela de previa permite
+escolher uma cor, inclusive a da disciplina no projeto do Sistema FJA
+(opcoes["cor"]). Elementos desenhados a mao na vista sao preservados.
 
 Uso no script do botao:
     from fja_legenda_disciplina import main
@@ -28,8 +28,24 @@ from Autodesk.Revit.DB.ExtensibleStorage import (
 #   vistas   - prefixos do nome das vistas preferidas para ler a cor
 #   bases    - inicio do nome (sem acento) das legendas que servem de base, em ordem
 #   guid, schema, mark - marca gravada nos elementos criados (Extensible Storage)
-#   cor      - cor usada quando nao der para ler a do projeto
+#   disc     - codigo da disciplina no Sistema FJA (ex.: "LOG"), para a cor do projeto
 C = {}
+
+# ---------------------------------------------------------------- tempos (diagnostico)
+_RELOGIO = System.Diagnostics.Stopwatch.StartNew()
+TEMPOS = []
+
+
+def tempo(nome, desde=None):
+    """Marca uma etapa: TEMPOS recebe (nome, segundos desde 'desde' ou desde a marca anterior)."""
+    agora = _RELOGIO.Elapsed.TotalSeconds
+    ini = desde if desde is not None else (TEMPOS[-1][2] if TEMPOS else agora)
+    TEMPOS.append((nome, agora - ini, agora))
+    return agora
+
+
+def agora():
+    return _RELOGIO.Elapsed.TotalSeconds
 FIELD = "Origem"
 BASES_GERAIS = ("LOG - LEGENDA GRAFICA", "ELE - LEGENDA GRAFICA")
 
@@ -472,34 +488,22 @@ def collect_items(doc):
             key = sym.Id.ToString()
             it = types.get(key)
             if it is None:
-                it = types[key] = {"sym": sym, "rep": inst, "inst": set(), "views": set(),
-                                   "cores": {}}
+                it = types[key] = {"sym": sym, "rep": inst, "inst": set(), "views": set()}
             it["inst"].add(inst.Id.ToString())
             it["views"].add(elem_name(v))
             # vista de planta onde o elemento aparece (para copiar o desenho se a
             # familia nao tiver anotacao aninhada); prefere as vistas LOG
             if isinstance(v, DB.ViewPlan) and (it.get("geo") is None or (prefer and not it["geo_pref"])):
                 it["geo"], it["geo_pref"], it["geo_inst"] = v, prefer, inst
-            try:
-                cor, origem = effective_color(doc, v, inst, cache)
-            except Exception:
-                cor, origem = C["cor"], u"padr\u00e3o"
-            ck = (cor, origem)
-            n = it["cores"].get(ck, [0, 0])
-            n[0 if prefer else 1] += 1
-            it["cores"][ck] = n
     fam_types = {}
     for it in types.values():
         fk = it["sym"].Family.Id.ToString()
         fam_types[fk] = fam_types.get(fk, 0) + 1
     items = []
     for it in types.values():
-        # cor mais frequente nas vistas LOG; se nao aparecer nelas, nas demais
-        best = sorted(it["cores"].items(), key=lambda kv: (-kv[1][0], -kv[1][1]))[0][0]
         sym = it["sym"]
         items.append({
             "sym": sym, "rep": it["rep"], "count": len(it["inst"]), "views": len(it["views"]),
-            "cor": best[0], "cor_origem": best[1],
             "label": item_label(sym, fam_types[sym.Family.Id.ToString()] > 1),
             "geo": it.get("geo"), "geo_inst": it.get("geo_inst"),
         })
@@ -635,6 +639,60 @@ def paint(view, elem_id, rgb):
         except Exception:
             pass
     view.SetElementOverrides(elem_id, o)
+
+
+def pintar(view, elem_id, rgb):
+    """Cor do simbolo na legenda; rgb None = sem cor (tira a sobreposicao)."""
+    if rgb:
+        paint(view, elem_id, rgb)
+    else:
+        view.SetElementOverrides(elem_id, DB.OverrideGraphicSettings())
+
+
+def _hex_rgb(h):
+    h = (h or u"").strip().lstrip("#")
+    if len(h) != 6:
+        return None
+    try:
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    except ValueError:
+        return None
+
+
+def cor_do_sistema(doc, disc=None):
+    """Cor da disciplina no projeto do Sistema FJA a que o modelo pertence (pelo codigo no
+    inicio do nome do arquivo, ex.: '131-MO-...', ou pelo nome do projeto no titulo).
+    Retorna (rgb ou None, texto explicando de onde veio ou por que nao achou)."""
+    import fja_sistema as FS
+    disc = (disc or C.get("disc") or C["familias"][0].strip("()")).upper()
+    dados = FS.Dados()
+    lista = dados.bib.get("coresProjetos")
+    if lista is None:
+        return None, u"o sistema ainda não publicou as cores dos projetos ({})".format(dados.rotulo)
+    titulo = doc.Title or u""
+    m = re.match(r"^\s*([A-Za-z0-9]+)[-_ ]", titulo)
+    cod = m.group(1) if m else u""
+    proj = None
+    for p in lista:
+        if cod and p.get("codigo") == cod:
+            proj = p
+            break
+    if proj is None:
+        tit = FS._norm(titulo)
+        for p in lista:
+            n = FS._norm(p.get("nome"))
+            if len(n) >= 5 and n in tit:
+                proj = p
+                break
+    if proj is None:
+        return None, u"não achei no sistema o projeto do arquivo '{}'".format(titulo)
+    nome_p = u"{} {}".format(proj.get("codigo") or u"", proj.get("nome") or u"").strip()
+    for l in proj.get("disciplinas") or []:
+        if disc in ((l.get("cod") or u"").upper(), (l.get("sigla") or u"").upper()):
+            rgb = _hex_rgb(l.get("cor"))
+            if rgb:
+                return rgb, u"{} no projeto {}".format(l.get("sigla") or disc, nome_p)
+    return None, u"a disciplina {} não está nas disciplinas do projeto {}".format(disc, nome_p)
 
 
 # ---------------------------------------------------------------- familias de simbolo de legenda
@@ -999,6 +1057,8 @@ def atualizar_legenda(doc, items=None, opcoes=None):
     passo = float(opcoes.get("passo_mm") or MM_ROW_STEP)
     largura = float(opcoes.get("largura_mm") or MM_LARGURA)
     com_h, com_v, com_m = bool(opcoes.get("linhas_h")), bool(opcoes.get("linha_v")), bool(opcoes.get("margens"))
+    cor = opcoes.get("cor")  # (r, g, b) ou None = simbolos sem cor
+    t_ini = agora()
     redim = set(opcoes.get("redim") or ())
     if items is None:
         items = collect_items(doc)
@@ -1006,14 +1066,17 @@ def atualizar_legenda(doc, items=None, opcoes=None):
         return {"ok": False, "msg": u"Nenhuma fam\u00edlia '{}' aparece nas vistas das pranchas.".format("' / '".join(C["familias"]))}
 
     src, target, others = find_legends(doc)
+    tempo(u"legendas do projeto", t_ini)
     base_view = src or target or (others[0] if others else None)
     if base_view is None:
         return {"ok": False, "msg": u"O projeto n\u00e3o tem nenhuma vista de legenda para servir de base."}
     # Componente de legenda (Revit nao cria um do zero pela API: copia um que ja
     # exista). So e necessario para familias sem anotacao aninhada.
     comp_view, comp_src = any_legend_component(doc, [src, target] + others)
+    tempo(u"componente de legenda")
 
     title_type, body_type, line_style = reference_styles(doc, src or base_view)
+    tempo(u"estilos de texto e linha")
 
     # Familias de simbolo de legenda "(XXX) (LEG) NOME": usa as que ja existem no
     # projeto; as que faltam sao criadas a partir das anotacoes aninhadas da familia
@@ -1025,11 +1088,13 @@ def atualizar_legenda(doc, items=None, opcoes=None):
     legs = {}
     leg_criadas, leg_existentes, leg_erros = [], [], []
     pasta_leg = os.path.join(System.IO.Path.GetTempPath(), "FJA_LEG")
+    t_fams = agora()
     for it in items:
         fam = it["sym"].Family
         key = fam.Id.ToString()
         if key in legs:
             continue
+        t_f = agora()
         nome_leg = leg_name(it["sym"])
         lf = _family_by_name(doc, nome_leg)
         tam = (opcoes.get("tamanhos") or {}).get(key) or (opcoes.get("tamanho_mm") if key in redim else None)
@@ -1079,10 +1144,13 @@ def atualizar_legenda(doc, items=None, opcoes=None):
             leg_criadas.append(lf.Name)
         if tam and lf is not None and not it.get("redimensionado"):
             leg_erros.append(u"{}: não foi possível redimensionar".format(nome_leg))
+        tempo(u"  {} ({})".format(nome_leg, u"refeita pelo DWG" if tam else u"criada"), t_f)
+    tempo(u"famílias (LEG): {} existentes, {} criadas".format(len(leg_existentes), len(leg_criadas)), t_fams)
 
     previous = set()
     col_info = None
     template_removido = None
+    t_mont = agora()
     t = DB.Transaction(doc, u"Atualizar " + C["botao"])
     t.Start()
     try:
@@ -1190,7 +1258,8 @@ def atualizar_legenda(doc, items=None, opcoes=None):
             if not sym_ids:
                 it["modo"] = "sem simbolo"
             for i in sym_ids:
-                paint(target, i, it["cor"])
+                if cor:
+                    paint(target, i, cor)
                 mark(doc.GetElement(i), schema)
 
             opts = DB.TextNoteOptions(body_type)
@@ -1315,7 +1384,10 @@ def atualizar_legenda(doc, items=None, opcoes=None):
 
         if tpl_id is not None:
             doc.Delete(tpl_id)
+        t_c = agora()
         t.Commit()
+        tempo(u"gravar a transação", t_c)
+        tempo(u"montar a legenda ({} itens)".format(len(items)), t_mont)
     except Exception:
         if t.HasStarted() and not t.HasEnded():
             t.RollBack()
@@ -1351,12 +1423,7 @@ def main(cfg):
         u"Legenda '{}' {} com sucesso!".format(C["alvo"], u"criada" if res["created"] else u"atualizada"),
         u"Itens na legenda (um por tipo): {}".format(len(res["items"])),
     ]
-    cores = {}
-    for it in res["items"]:
-        cores.setdefault((it["cor"], it["cor_origem"]), 0)
-        cores[(it["cor"], it["cor_origem"])] += 1
-    for (cor, origem), n in sorted(cores.items(), key=lambda kv: -kv[1]):
-        lines.append(u"  Cor RGB {}-{}-{} ({}): {} item(ns)".format(cor[0], cor[1], cor[2], origem, n))
+    lines.append(u"Símbolos sem cor (para escolher uma cor, use a Prévia).")
     if res["added"] or res["removed"]:
         lines += [u"", u"Altera\u00e7\u00f5es:"]
         lines += [u"  + {}".format(l) for l in res["added"]]
