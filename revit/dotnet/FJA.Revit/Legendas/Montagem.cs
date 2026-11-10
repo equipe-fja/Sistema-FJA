@@ -17,7 +17,8 @@ namespace FJA.Revit.Legendas
         public double PassoMm = Montagem.MM_ROW_STEP;
         public double LarguraMm = Montagem.MM_LARGURA;
         public bool LinhasH, LinhaV, Margens;
-        public int Texto;                // 0 = só o nome; 1 = "código – nome"; 2 = só o nome (ordem pelo código)
+        public int Texto;                // (antigo) 1 = "código – nome"
+        public int TypeMark;             // 0 = não mostra; 1 = em coluna própria; 2 = antes do texto ("LOG.01 – nome")
         public ModoCor Modo = ModoCor.Modelo;
         public byte[] Cor;               // para Sistema / Escolhida
         public string Config;            // JSON gravado na vista de legenda (ordem, textos, extras)
@@ -492,10 +493,17 @@ namespace FJA.Revit.Legendas
                         Marcar(doc.GetElement(i), schema);
                     }
                     var to = new TextNoteOptions(est.Item2) { HorizontalAlignment = HorizontalTextAlignment.Left };
-                    string texto = op.Texto == 1 && !string.IsNullOrEmpty(it.Codigo) ? it.Codigo + " – " + it.Rotulo : it.Rotulo;
+                    bool antes = (op.TypeMark == 2 || (op.TypeMark == 0 && op.Texto == 1)) && !string.IsNullOrEmpty(it.Codigo);
+                    string texto = antes ? it.Codigo + " – " + it.Rotulo : it.Rotulo;
                     var tn = TextNote.Create(doc, alvo.Id, new XYZ(x0 + MM_TEXT_X * k, lineY, 0), texto, to);
                     try { tn.Width = txtWmm / 304.8; } catch { }
                     Marcar(tn, schema);
+                    TextNote tc = null;     // Type Mark em coluna própria
+                    if (op.TypeMark == 1 && !string.IsNullOrEmpty(it.Codigo))
+                    {
+                        tc = TextNote.Create(doc, alvo.Id, new XYZ(x0 + MM_TEXT_X * k, lineY, 0), it.Codigo, to);
+                        Marcar(tc, schema);
+                    }
                     doc.Regenerate();
 
                     var bb = Simbolos.Caixa(doc, ids, alvo);
@@ -516,7 +524,12 @@ namespace FJA.Revit.Legendas
                         ElementTransformUtils.MoveElements(doc, ids, new XYZ(sx, cy, 0) - cur);
                     }
                     if (tbb != null) ElementTransformUtils.MoveElement(doc, tn.Id, new XYZ(0, cy - (tbb.Min.Y + tbb.Max.Y) / 2, 0));
-                    linhas.Add(new Linha { Ids = ids, Tn = tn, Cy = cy, H = rowH, SymH = symH });
+                    if (tc != null)
+                    {
+                        var cbb = tc.get_BoundingBox(alvo);
+                        if (cbb != null) ElementTransformUtils.MoveElement(doc, tc.Id, new XYZ(0, cy - (cbb.Min.Y + cbb.Max.Y) / 2, 0));
+                    }
+                    linhas.Add(new Linha { Ids = ids, Tn = tn, Tc = tc, Cy = cy, H = rowH, SymH = symH });
                     it.SymIds = new List<ElementId>(ids);
                     textDx = Math.Max(textDx, dxTxt);
                 }
@@ -524,11 +537,29 @@ namespace FJA.Revit.Legendas
                 // com a linha entre símbolo e texto: folga dos dois lados da linha (símbolo | linha | texto)
                 if (op.LinhaV && dirSimb > double.MinValue)
                     textDx = Math.Max(textDx, dirSimb + 2 * MM_SEP_TXT * k - (x0 + MM_TEXT_X * k));
-                // textos alinhados pela esquerda, logo depois do símbolo mais largo
-                if (textDx > 1e-9)
+                // Type Mark em coluna própria: a coluna tem a largura do código mais largo; o texto vem depois
+                double codW = 0;
+                if (linhas.Any(r => r.Tc != null))
                 {
-                    ElementTransformUtils.MoveElements(doc, linhas.Select(r => r.Tn.Id).ToList(), new XYZ(textDx, 0, 0));
-                    double novoW = Math.Max(15.0, txtWmm - textDx / k);
+                    doc.Regenerate();
+                    foreach (var r in linhas.Where(r => r.Tc != null))
+                    {
+                        var cbb = r.Tc.get_BoundingBox(alvo);
+                        if (cbb != null) codW = Math.Max(codW, cbb.Max.X - cbb.Min.X);
+                    }
+                }
+                double shiftTxt = codW > 0 ? codW + MM_PAD_TXT * k : 0;
+                // textos alinhados pela esquerda, logo depois do símbolo mais largo
+                if (textDx > 1e-9 || shiftTxt > 0)
+                {
+                    if (textDx > 1e-9)
+                    {
+                        ElementTransformUtils.MoveElements(doc, linhas.Select(r => r.Tn.Id).ToList(), new XYZ(textDx, 0, 0));
+                        var cods = linhas.Where(r => r.Tc != null).Select(r => r.Tc.Id).ToList();
+                        if (cods.Count > 0) ElementTransformUtils.MoveElements(doc, cods, new XYZ(textDx, 0, 0));
+                    }
+                    if (shiftTxt > 0) ElementTransformUtils.MoveElements(doc, linhas.Select(r => r.Tn.Id).ToList(), new XYZ(shiftTxt, 0, 0));
+                    double novoW = Math.Max(15.0, txtWmm - (textDx + shiftTxt) / k);
                     foreach (var r in linhas) { try { r.Tn.Width = novoW / 304.8; } catch { } }
                     doc.Regenerate();
                     foreach (var r in linhas)
@@ -537,6 +568,8 @@ namespace FJA.Revit.Legendas
                         if (tbb == null) continue;
                         ElementTransformUtils.MoveElement(doc, r.Tn.Id, new XYZ(0, r.Cy - (tbb.Min.Y + tbb.Max.Y) / 2, 0));
                         r.H = Math.Max(op.PassoMm * k, Math.Max(r.SymH + MM_ROW_PAD * k, (tbb.Max.Y - tbb.Min.Y) + MM_ROW_PAD * k));
+                        var cbb = r.Tc?.get_BoundingBox(alvo);
+                        if (cbb != null) ElementTransformUtils.MoveElement(doc, r.Tc.Id, new XYZ(0, r.Cy - (cbb.Min.Y + cbb.Max.Y) / 2, 0));
                     }
                 }
                 int split = linhas.Count;
@@ -565,7 +598,7 @@ namespace FJA.Revit.Legendas
                     faixas[c].Add(new[] { colTops[c], colTops[c] - r.H });
                     colTops[c] -= r.H;
                     var d = new XYZ(c * colW, cy - r.Cy, 0);
-                    if (d.GetLength() > 1e-9) ElementTransformUtils.MoveElements(doc, r.Ids.Concat(new[] { r.Tn.Id }).ToList(), d);
+                    if (d.GetLength() > 1e-9) ElementTransformUtils.MoveElements(doc, r.Ids.Concat(new[] { r.Tn.Id }).Concat(r.Tc != null ? new[] { r.Tc.Id } : new ElementId[0]).ToList(), d);
                 }
 
                 // linhas opcionais: entre os itens, entre símbolo e texto, contorno
@@ -628,7 +661,7 @@ namespace FJA.Revit.Legendas
         sealed class Linha
         {
             public List<ElementId> Ids;
-            public TextNote Tn;
+            public TextNote Tn, Tc;
             public double Cy, H, SymH;
         }
     }

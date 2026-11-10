@@ -2,7 +2,7 @@
   "builtin": "False",
   "name": "Ferramentas-FJA",
   "description": "Ferramentas personalizadas FJA para Autodesk Revit",
-  "version": "2.8.7",
+  "version": "2.8.8",
   "type": "extension",
   "author": "FJA",
   "default_enabled": "True",

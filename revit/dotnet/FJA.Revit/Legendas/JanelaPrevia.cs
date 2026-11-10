@@ -228,8 +228,9 @@ namespace FJA.Revit.Legendas
             slPasso.Value = Num("passo", Montagem.MM_ROW_STEP);
             txtLargura.Text = Texto.Mm(Num("largura", Montagem.MM_LARGURA) / 10.0);
             chkH.IsChecked = Sim("linhasH"); chkV.IsChecked = Sim("linhaV"); chkM.IsChecked = Sim("margens");
-            int tx = (int)Num("texto", 0);
-            cbTexto.SelectedIndex = tx >= 0 && tx <= 2 ? tx : 0;
+            // Type Mark: 0 não mostra, 1 coluna própria, 2 antes do texto (legendas antigas: "texto" 1 = antes)
+            int tm = o.ContainsKey("typeMark") ? (int)Num("typeMark", 0) : ((int)Num("texto", 0) == 1 ? 2 : 0);
+            cbTexto.SelectedIndex = tm >= 0 && tm <= 2 ? tm : 0;
             var oc = o.Lista("cor");
             if (oc.Count == 3) corEscolhida = oc.Select(x => (byte)Convert.ToInt32(x)).ToArray();
             int m = o.ContainsKey("modoCor") ? (int)Num("modoCor", 0) : (int)modoPadrao;
@@ -362,9 +363,9 @@ namespace FJA.Revit.Legendas
             chkV = new CheckBox { Content = "Linha entre símbolo e texto", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 16, 4) };
             chkM = new CheckBox { Content = "Margens (contorno)", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 24, 4) };
             var p4 = Horizontal(new Thickness(0, 4, 24, 4));
-            p4.Children.Add(Rotulo("Texto dos itens", new Thickness(0, 0, 8, 0)));
-            cbTexto = new ComboBox { Width = 210, VerticalAlignment = VerticalAlignment.Center, ToolTip = "O código é o Type Mark do tipo (ferramenta Codificação)" };
-            foreach (var t in new[] { "Só o nome", "Código – nome", "Só o nome (ordem pelo código)" }) cbTexto.Items.Add(t);
+            p4.Children.Add(Rotulo("Type Mark", new Thickness(0, 0, 8, 0)));
+            cbTexto = new ComboBox { Width = 210, VerticalAlignment = VerticalAlignment.Center, ToolTip = "Código do tipo (Type Mark, ferramenta Codificação). O texto do item é a Description, que a Codificação mantém igual ao nome do tipo." };
+            foreach (var t in new[] { "Não mostrar", "Em coluna própria", "Antes do texto (LOG.01 – …)" }) cbTexto.Items.Add(t);
             cbTexto.SelectedIndex = 0;
             p4.Children.Add(cbTexto);
             foreach (UIElement el in new UIElement[] { p1, p2, p3, p4, chkH, chkV, chkM }) wp.Children.Add(el);
@@ -379,6 +380,11 @@ namespace FJA.Revit.Legendas
             DockPanel.SetDock(cab, Dock.Top);
             var dc = new DockPanel();
             btTodos100 = Botao("Voltar todos a 100%", "Discreto");
+            var btOrdem = Botao("Ordenar pelo Type Mark", "Discreto");
+            btOrdem.Margin = new Thickness(0, 0, 8, 0);
+            btOrdem.ToolTip = "Põe os itens na ordem do código (LOG.01, LOG.02…); os sem código ficam no fim. Depois dá para arrastar.";
+            btOrdem.Click += (s, a) => { OrdenarPorCodigo(); Mudou(); };
+            DockPanel.SetDock(btOrdem, Dock.Right);
             btAcrescentar = Botao("+ Acrescentar símbolo…", "Discreto");
             btAcrescentar.Margin = new Thickness(0, 0, 8, 0);
             btAcrescentar.ToolTip = "Acrescentar um símbolo (anotação genérica) ou detail item do projeto; a cor é aplicada como nos demais";
@@ -409,7 +415,7 @@ namespace FJA.Revit.Legendas
             ToolTipService.SetShowDuration(ajuda, 60000);
             var tituloItens = new StackPanel { Orientation = Orientation.Horizontal };
             tituloItens.Children.Add(txtItens); tituloItens.Children.Add(ajuda);
-            dc.Children.Add(btTodos100); dc.Children.Add(btAcrescentar); dc.Children.Add(tituloItens);
+            dc.Children.Add(btTodos100); dc.Children.Add(btOrdem); dc.Children.Add(btAcrescentar); dc.Children.Add(tituloItens);
             cab.Child = dc;
             lista = new StackPanel { Margin = new Thickness(6, 4, 6, 4) };
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = lista };
@@ -481,7 +487,6 @@ namespace FJA.Revit.Legendas
             cbTexto.SelectionChanged += (s, a) =>
             {
                 if (trocando) return;
-                if (cbTexto.SelectedIndex > 0) OrdenarPorCodigo();
                 Mudou();
             };
             btNova.Click += (s, a) => NovaLegenda();
@@ -642,7 +647,7 @@ namespace FJA.Revit.Legendas
                     {
                         { "passo", Math.Round(slPasso.Value, 1) }, { "largura", LarguraMm() }, { "linhasH", chkH.IsChecked == true },
                         { "linhaV", chkV.IsChecked == true }, { "margens", chkM.IsChecked == true }, { "modoCor", (int)modo },
-                        { "texto", cbTexto.SelectedIndex },
+                        { "typeMark", cbTexto.SelectedIndex },
                         { "cor", corEscolhida != null ? corEscolhida.Select(x => (object)(int)x).ToList() : null },
                     } },
             });
@@ -959,7 +964,7 @@ namespace FJA.Revit.Legendas
             {
                 var op = OpcoesCor(new Opcoes
                 {
-                    Tamanhos = tamanhos, PassoMm = slPasso.Value, LarguraMm = LarguraMm(), Texto = cbTexto.SelectedIndex,
+                    Tamanhos = tamanhos, PassoMm = slPasso.Value, LarguraMm = LarguraMm(), TypeMark = cbTexto.SelectedIndex,
                     LinhasH = chkH.IsChecked == true, LinhaV = chkV.IsChecked == true, Margens = chkM.IsChecked == true,
                     Config = ConfigJson(),
                 });

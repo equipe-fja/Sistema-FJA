@@ -54,10 +54,10 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - **✕ no tipo** (2.8.5): apaga o tipo e os elementos dele, com confirmação que mostra a quantidade. Se for o único tipo, apaga a família. O código continua reservado, e dá para desfazer com Ctrl+Z.
   - Cada tipo é gravado numa subtransação, então um erro (como um nome de tipo repetido na família) não impede os outros e aparece na linha.
   - As reservas ficam num DataStorage (`FJA_CodigosPontos`, JSON `{sigla: {código: UniqueId do tipo}}`).
-- **Legendas:**
-  - nova opção **Texto dos itens**: só o nome, "código – nome" ou só o nome com a ordem pelo código;
-  - a opção fica gravada em cada legenda;
-  - a dica de cada item mostra o código.
+- **Legendas** (2.8.8):
+  - o texto de cada item é a **Description** do tipo, que a Codificação mantém igual ao nome do tipo; sem Description, continua o nome da família;
+  - opção **Type Mark**: não mostrar, **em coluna própria** (entre o símbolo e o texto, com a largura do código mais largo) ou antes do texto ("LOG.01 – …"), gravada em cada legenda;
+  - botão **Ordenar pelo Type Mark**.
 
 ## Fases
 1. Ferramenta de codificação no modelo aberto, gravando o Type Mark, com a tabela no modelo.

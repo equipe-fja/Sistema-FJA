@@ -197,7 +197,10 @@ namespace FJA.Revit.Legendas
             {
                 var a = kv.Value;
                 var melhor = a.Cores.OrderByDescending(x => x.Value[0]).ThenByDescending(x => x.Value[1]).First().Key;
-                string rot = RotuloItem(a.Sym, famTipos[a.Sym.Family.Id.ToString()] > 1);
+                // texto = Description (que a Codificação mantém igual ao nome do tipo); sem ela, o nome da família
+                string desc = "";
+                try { desc = (a.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "").Trim(); } catch { }
+                string rot = desc != "" ? desc.ToUpperInvariant() : RotuloItem(a.Sym, famTipos[a.Sym.Family.Id.ToString()] > 1);
                 itens.Add(new Item
                 {
                     Sym = a.Sym, Rep = a.Rep, Quantidade = a.Inst.Count,
