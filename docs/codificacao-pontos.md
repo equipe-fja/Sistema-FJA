@@ -45,8 +45,10 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - mostra a disciplina (LOG, AUT, SON) e uma tabela de tipos;
   - **Numerar os sem código** (vazios ou fora do padrão) e **Renumerar tudo na ordem da lista**, que pede confirmação;
   - situação de cada código: sem código, repetido (bloqueia), fora do padrão (pede confirmação), já usado por tipo apagado, gravado, muda ao aplicar;
-  - **Description** (2.8.1): proposta = nome do tipo; se a família tiver um tipo só, o nome da família (sem o prefixo da disciplina); editável;
-  - **Aplicar** grava o Type Mark e a Description numa única transação.
+  - **Description (= nome do tipo)** (2.8.2): a Description, ao aplicar, também renomeia o tipo. Sugestão quando vazia: o nome do tipo; se a família tiver um tipo só, o nome da família sem a sigla.
+  - **Família** editável sem a sigla, que é mantida, por exemplo `(LOG) `. Os tipos da mesma família acompanham a mudança.
+  - **✓ em cada linha** aplica só aquele item; **Aplicar tudo** aplica todos.
+  - Cada tipo é gravado numa subtransação, então um erro (como um nome de tipo repetido na família) não impede os outros e aparece na linha.
   - As reservas ficam num DataStorage (`FJA_CodigosPontos`, JSON `{sigla: {código: UniqueId do tipo}}`).
 - **Legendas:**
   - nova opção **Texto dos itens**: só o nome, "código – nome" ou só o nome com a ordem pelo código;

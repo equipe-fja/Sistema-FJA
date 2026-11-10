@@ -17,8 +17,15 @@ namespace FJA.Revit.Legendas
         public string MarcaAtual = "";    // Type Mark atual
         public string Codigo = "";        // código proposto/editado
         public string DescAtual = "";     // Description atual
-        public string Desc = "";          // Description proposta/editada (nome do tipo, ou da família se tiver um tipo só)
+        public string Desc = "";          // Description proposta/editada; ao aplicar, também vira o nome do tipo
+        public string TipoAtual = "";     // nome do tipo atual
+        public string Prefixo = "";       // sigla da família, mantida ao renomear: "(LOG) "
+        public string FamAtual = "";      // nome da família sem a sigla
+        public string Fam = "";           // nome da família sem a sigla (editado)
+        public string Erro;               // última falha ao aplicar
         public string Nome => Sym.FamilyName + " : " + Sym.Name;
+
+        public bool Pendente => Codigo != MarcaAtual || Desc != DescAtual || (Desc != "" && Desc != TipoAtual) || Fam != FamAtual;
     }
 
     /// <summary>
@@ -122,7 +129,14 @@ namespace FJA.Revit.Legendas
                     : (temModelo ? "modelo + " : "") + string.Join(", ", nomesLink);
                 string m = Marca(s);
                 string da = Param(s, BuiltInParameter.ALL_MODEL_DESCRIPTION);
-                r.Add(new TipoPonto { Sym = s, Quantidade = insts.Count, Origem = origem, MarcaAtual = m, Codigo = m, DescAtual = da, Desc = DescricaoPadrao(s) });
+                var mp = Regex.Match(s.FamilyName, @"^\s*(\([A-Za-z]+\)\s*)(.*)$");
+                string pre = mp.Success ? mp.Groups[1].Value : "", fam = mp.Success ? mp.Groups[2].Value : s.FamilyName;
+                r.Add(new TipoPonto
+                {
+                    Sym = s, Quantidade = insts.Count, Origem = origem, MarcaAtual = m, Codigo = m,
+                    DescAtual = da, Desc = da != "" ? da : DescricaoPadrao(s), TipoAtual = s.Name,
+                    Prefixo = pre, FamAtual = fam, Fam = fam,
+                });
             }
             var rx = Padrao;
             return r.OrderBy(t => rx.IsMatch(t.Codigo) ? 0 : 1)
@@ -184,8 +198,9 @@ namespace FJA.Revit.Legendas
             return Sigla + ".999";
         }
 
-        /// <summary>Grava os Type Marks e as Descriptions e reserva os códigos (uma transação). Devolve quantos
-        /// parâmetros mudaram.</summary>
+        /// <summary>Grava, para cada tipo: o código no Type Mark, a Description (que também renomeia o tipo) e o
+        /// nome da família (mantendo a sigla). Uma transação; um tipo com erro (ex.: nome repetido) não impede os
+        /// outros: o erro fica em TipoPonto.Erro. Devolve quantos tipos mudaram.</summary>
         public int Aplicar(IEnumerable<TipoPonto> tipos)
         {
             int n = 0;
@@ -195,18 +210,48 @@ namespace FJA.Revit.Legendas
                 var res = tudo.Obj(Sigla);
                 foreach (var tp in tipos)
                 {
-                    string c = (tp.Codigo ?? "").Trim();
-                    if (c != tp.MarcaAtual)
+                    tp.Erro = null;
+                    if (!tp.Pendente) continue;
+                    var sub = new SubTransaction(doc);
+                    sub.Start();
+                    try
                     {
-                        var p = tp.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK);
-                        if (p != null && !p.IsReadOnly) { p.Set(c); tp.MarcaAtual = c; n++; }
+                        string c = (tp.Codigo ?? "").Trim();
+                        if (c != tp.MarcaAtual)
+                        {
+                            var p = tp.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK);
+                            if (p != null && !p.IsReadOnly) p.Set(c);
+                        }
+                        string dd = (tp.Desc ?? "").Trim();
+                        if (dd != tp.DescAtual)
+                        {
+                            var pd = tp.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                            if (pd != null && !pd.IsReadOnly) pd.Set(dd);
+                        }
+                        if (dd != "" && dd != tp.Sym.Name)
+                        {
+                            try { tp.Sym.Name = dd; }
+                            catch (Exception e) { throw new Exception("não deu para renomear o tipo para \"" + dd + "\" (" + e.Message + ")"); }
+                        }
+                        string fam = (tp.Fam ?? "").Trim();
+                        string novoF = tp.Prefixo + fam;
+                        if (fam != "" && tp.Sym.Family.Name != novoF)
+                        {
+                            try { tp.Sym.Family.Name = novoF; }
+                            catch (Exception e) { throw new Exception("não deu para renomear a família para \"" + novoF + "\" (" + e.Message + ")"); }
+                        }
+                        sub.Commit();
+                        tp.MarcaAtual = c;
+                        tp.DescAtual = dd;
+                        tp.TipoAtual = tp.Sym.Name;
+                        if (fam != "") tp.FamAtual = fam;
+                        if (c != "" && Padrao.IsMatch(c)) res[c] = tp.Sym.UniqueId;
+                        n++;
                     }
-                    if (c != "" && Padrao.IsMatch(c)) res[c] = tp.Sym.UniqueId;
-                    string dd = (tp.Desc ?? "").Trim();
-                    if (dd != tp.DescAtual)
+                    catch (Exception e)
                     {
-                        var pd = tp.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
-                        if (pd != null && !pd.IsReadOnly) { pd.Set(dd); tp.DescAtual = dd; n++; }
+                        if (sub.HasStarted() && !sub.HasEnded()) sub.RollBack();
+                        tp.Erro = e.Message;
                     }
                 }
                 tudo[Sigla] = res;

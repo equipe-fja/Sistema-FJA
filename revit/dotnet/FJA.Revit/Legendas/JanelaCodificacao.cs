@@ -35,8 +35,9 @@ namespace FJA.Revit.Legendas
         {
             public TipoPonto Tp;
             public Border Borda;
-            public TextBox Cod, Desc;
-            public TextBlock Sit;
+            public TextBox Cod, Desc, Fam;
+            public TextBlock Sit, Atual;
+            public Button Ok;
         }
 
         readonly List<Linha> linhas = new List<Linha>();
@@ -51,7 +52,7 @@ namespace FJA.Revit.Legendas
         {
             this.doc = doc;
             Title = "Codificação de pontos";
-            Width = 1180; Height = 780; MinWidth = 900; MinHeight = 500;
+            Width = 1360; Height = 800; MinWidth = 1000; MinHeight = 500;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ShowInTaskbar = false;
             AplicarEstilo();
@@ -114,13 +115,14 @@ namespace FJA.Revit.Legendas
             return td.Show() == TaskDialogResult.Yes;
         }
 
-        static readonly double[] COLS = { 18, -1, 50, 140, 100, 104, 230, 170 };
+        // ≡ | família | description (= tipo) | qtde | origem | type mark | código | situação | ✓   (negativo = proporção)
+        static readonly double[] COLS = { 18, -1.3, -1, 44, 120, 84, 96, 210, 34 };
 
         WGrid LinhaGrade()
         {
             var g = new WGrid { Margin = new Thickness(2, 1, 4, 1) };
             foreach (double w in COLS)
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = w < 0 ? new GridLength(1, GridUnitType.Star) : new GridLength(w) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = w < 0 ? new GridLength(-w, GridUnitType.Star) : new GridLength(w) });
             return g;
         }
 
@@ -156,11 +158,11 @@ namespace FJA.Revit.Legendas
             var cab = new Border { Padding = new Thickness(12, 8, 12, 8), BorderBrush = Pincel("Linha", 226, 226, 223), BorderThickness = new Thickness(0, 0, 0, 1) };
             DockPanel.SetDock(cab, Dock.Top);
             var gc = LinhaGrade();
-            string[] titulos = { "", "Família : tipo", "Qtde", "Origem", "Type Mark atual", "Código", "Description", "Situação" };
+            string[] titulos = { "", "Família", "Description (= nome do tipo)", "Qtde", "Origem", "Type Mark", "Código", "Situação", "" };
             for (int i = 0; i < titulos.Length; i++)
             {
-                var tb = new TextBlock { Text = titulos[i], FontWeight = FontWeights.SemiBold, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92), Margin = new Thickness(i == 5 || i == 6 ? 4 : 0, 0, 8, 0) };
-                if (i == 6) tb.ToolTip = "Nome do tipo; se a família tiver um tipo só, o nome da família (sem o prefixo da disciplina). Pode ser editada.";
+                var tb = new TextBlock { Text = titulos[i], FontWeight = FontWeights.SemiBold, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92), Margin = new Thickness(i == 2 || i == 6 ? 4 : 0, 0, 8, 0) };
+                if (i == 2) tb.ToolTip = "Ao aplicar, a Description também vira o nome do tipo. Sugestão quando vazia: o nome do tipo (ou da família, se tiver um tipo só).";
                 if (i == 1) txtTitulo = tb;
                 WGrid.SetColumn(tb, i);
                 gc.Children.Add(tb);
@@ -178,8 +180,8 @@ namespace FJA.Revit.Legendas
             DockPanel.SetDock(bts, Dock.Right);
             btFechar = Botao("Fechar", "Discreto");
             btFechar.Margin = new Thickness(0, 0, 8, 0);
-            btAplicar = Botao("Aplicar", "Primario");
-            btAplicar.ToolTip = "Grava o código no Type Mark e a Description de cada tipo alterado";
+            btAplicar = Botao("Aplicar tudo", "Primario");
+            btAplicar.ToolTip = "Grava, em todos os tipos alterados: código no Type Mark, Description (que renomeia o tipo) e nome da família";
             bts.Children.Add(btFechar); bts.Children.Add(btAplicar);
             txtStatus = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Foreground = Cinza };
             rod.Children.Add(bts); rod.Children.Add(txtStatus);
@@ -203,7 +205,7 @@ namespace FJA.Revit.Legendas
             {
                 if (Confirmar("Renumerar todos os tipos de " + D.Codigo + " na ordem da lista?\n\nCódigos já usados em tags e legendas vão mudar (só depois de Aplicar).")) Numerar(true);
             };
-            btAplicar.Click += (s, a) => Aplicar();
+            btAplicar.Click += (s, a) => Aplicar(null);
             btFechar.Click += (s, a) => Close();
         }
 
@@ -221,33 +223,62 @@ namespace FJA.Revit.Legendas
             foreach (var tp in tipos) CriarLinha(tp);
             trocando = false;
             alterado = false;
-            txtTitulo.Text = $"Família : tipo ({tipos.Count})";
+            txtTitulo.Text = $"Família ({tipos.Count} tipos)";
             Situacoes();
             if (tipos.Count == 0) txtStatus.Text = "Nenhum tipo de família '" + string.Join("' / '", d.Familias) + "' no modelo.";
             else
-                txtStatus.Text = $"Padrão: {d.Codigo}.01, {d.Codigo}.02… gravado no Type Mark; a Description acompanha o nome do tipo (ou da família, se tiver um tipo só). Arraste pelo ≡ para mudar a ordem antes de numerar."
+                txtStatus.Text = $"Edite o nome da família (a sigla fica), a Description (que também vira o nome do tipo) e o código ({d.Codigo}.01, {d.Codigo}.02…, no Type Mark). "
+                    + "Aplique item a item pelo ✓ da linha ou tudo pelo Aplicar."
                     + (cod.LigadosAoSistema > 0 ? $" {cod.LigadosAoSistema} tipo(s) ligado(s) ao sistema ficaram de fora." : "");
         }
+
+        TextBox Campo(string texto, string dica) =>
+            new TextBox { Text = texto, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 0, 8, 0), ToolTip = dica };
 
         void CriarLinha(TipoPonto tp)
         {
             var borda = new Border { BorderThickness = new Thickness(0, 2, 0, 2), BorderBrush = Brushes.Transparent, AllowDrop = true, Background = Brushes.Transparent };
             var g = LinhaGrade();
             var alca = new TextBlock { Text = "≡", FontSize = 16, Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Cursor = Cursors.SizeAll, Background = Brushes.Transparent, ToolTip = "Arraste para mudar a ordem" };
-            var nome = new TextBlock { Text = tp.Nome, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = tp.Nome + "\n" + tp.Sym.Category?.Name };
+            // família: sigla fixa + nome editável
+            var pf = new DockPanel { Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+            var sig = new TextBlock { Text = tp.Prefixo.Trim(), VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza, Margin = new Thickness(0, 0, 6, 0), FontWeight = FontWeights.SemiBold };
+            DockPanel.SetDock(sig, Dock.Left);
+            var fam = Campo(tp.Fam, $"Nome da família (a sigla {tp.Prefixo.Trim()} fica). Família atual: {tp.Sym.FamilyName}\nCategoria: {tp.Sym.Category?.Name}");
+            fam.Margin = new Thickness(0);
+            pf.Children.Add(sig); pf.Children.Add(fam);
+            var desc = Campo(tp.Desc, "Description; ao aplicar, também vira o nome do tipo. Tipo atual: " + tp.TipoAtual + "\nDescription atual: " + (tp.DescAtual == "" ? "(vazia)" : tp.DescAtual));
             var qt = new TextBlock { Text = tp.Quantidade.ToString(), VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza };
             var org = new TextBlock { Text = tp.Origem, VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = tp.Origem, Margin = new Thickness(0, 0, 8, 0) };
             var at = new TextBlock { Text = tp.MarcaAtual == "" ? "—" : tp.MarcaAtual, VerticalAlignment = VerticalAlignment.Center, Foreground = Cinza };
-            var cx = new TextBox { Text = tp.Codigo, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 0, 10, 0), CharacterCasing = CharacterCasing.Upper };
-            var ds = new TextBox { Text = tp.Desc, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 0, 10, 0),
-                ToolTip = "Description atual: " + (tp.DescAtual == "" ? "(vazia)" : tp.DescAtual) };
+            var cx = Campo(tp.Codigo, "Código (Type Mark)");
+            cx.CharacterCasing = CharacterCasing.Upper;
             var sit = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
-            var els = new UIElement[] { alca, nome, qt, org, at, cx, ds, sit };
+            var ok = Botao("✓", "Discreto");
+            ok.Padding = new Thickness(6, 2, 6, 2);
+            ok.ToolTip = "Aplicar só este item";
+            var els = new UIElement[] { alca, pf, desc, qt, org, at, cx, sit, ok };
             for (int i = 0; i < els.Length; i++) { WGrid.SetColumn(els[i], i); g.Children.Add(els[i]); }
             borda.Child = g;
-            var ln = new Linha { Tp = tp, Borda = borda, Cod = cx, Desc = ds, Sit = sit };
-            ds.TextChanged += (s, a) => { ln.Tp.Desc = (ds.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
+            var ln = new Linha { Tp = tp, Borda = borda, Cod = cx, Desc = desc, Fam = fam, Atual = at, Sit = sit, Ok = ok };
             cx.TextChanged += (s, a) => { ln.Tp.Codigo = (cx.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
+            desc.TextChanged += (s, a) => { ln.Tp.Desc = (desc.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
+            fam.TextChanged += (s, a) =>
+            {
+                ln.Tp.Fam = (fam.Text ?? "").Trim();
+                if (trocando) return;
+                // os outros tipos da mesma família acompanham
+                trocando = true;
+                foreach (var o in linhas.Where(o => o != ln && o.Tp.Sym.Family.Id == ln.Tp.Sym.Family.Id))
+                {
+                    o.Tp.Fam = ln.Tp.Fam;
+                    o.Fam.Text = fam.Text;
+                }
+                trocando = false;
+                alterado = true;
+                Situacoes();
+            };
+            ok.Click += (s, a) => Aplicar(new[] { ln });
             alca.PreviewMouseLeftButtonDown += (s, a) =>
             {
                 arrastando = ln;
@@ -284,33 +315,41 @@ namespace FJA.Revit.Legendas
             ln.Borda.BorderThickness = depois == null ? new Thickness(0, 2, 0, 2) : depois.Value ? new Thickness(0, 0, 0, 2) : new Thickness(0, 2, 0, 0);
         }
 
-        /// <summary>Situação de cada linha: sem código, fora do padrão, repetido, usado antes por tipo apagado,
-        /// igual (já gravado) ou novo (muda ao aplicar).</summary>
+        /// <summary>Situação de cada linha (código e o que muda ao aplicar). Devolve quantos códigos repetidos.</summary>
         int Situacoes()
         {
             var rx = cod.Padrao;
             var cont = linhas.Where(l => l.Tp.Codigo != "").GroupBy(l => l.Tp.Codigo).ToDictionary(gr => gr.Key, gr => gr.Count());
             var naTabela = new HashSet<string>(linhas.Select(l => l.Tp.Sym.UniqueId));
+            // dois tipos da mesma família com o mesmo nome novo
+            var nomesRep = new HashSet<string>(linhas.Where(l => l.Tp.Desc != "").GroupBy(l => l.Tp.Sym.Family.Id + "|" + l.Tp.Desc).Where(gr => gr.Count() > 1).Select(gr => gr.Key));
             int problemas = 0;
             foreach (var l in linhas)
             {
-                string c = l.Tp.Codigo, txt; Brush cor;
+                var tp = l.Tp;
+                string c = tp.Codigo, txt; Brush cor;
                 if (c == "") { txt = "sem código"; cor = Cinza; }
-                else if (cont[c] > 1) { txt = "repetido"; cor = Vermelho; problemas++; }
+                else if (cont[c] > 1) { txt = "código repetido"; cor = Vermelho; problemas++; }
                 else if (!rx.IsMatch(c)) { txt = "fora do padrão"; cor = Ambar; }
-                else if (reservas.TryGetValue(c, out string uid) && uid != l.Tp.Sym.UniqueId && !naTabela.Contains(uid)) { txt = "já usado por um tipo apagado"; cor = Ambar; }
-                else if (c == l.Tp.MarcaAtual) { txt = "gravado"; cor = Verde; }
-                else { txt = l.Tp.MarcaAtual == "" ? "novo (ao aplicar)" : "muda ao aplicar"; cor = Azul; }
-                if (l.Tp.Desc != l.Tp.DescAtual) txt += " · description muda";
-                if (l.Tp.Quantidade == 0) txt += " · sem instância";
+                else if (reservas.TryGetValue(c, out string uid) && uid != tp.Sym.UniqueId && !naTabela.Contains(uid)) { txt = "código já usado por um tipo apagado"; cor = Ambar; }
+                else { txt = c == tp.MarcaAtual ? "código gravado" : "código muda"; cor = c == tp.MarcaAtual ? Verde : Azul; }
+                var muda = new List<string>();
+                if (tp.Desc != tp.DescAtual) muda.Add("description");
+                if (tp.Desc != "" && tp.Desc != tp.TipoAtual) muda.Add("nome do tipo");
+                if (tp.Fam != tp.FamAtual) muda.Add("nome da família");
+                if (nomesRep.Contains(tp.Sym.Family.Id + "|" + tp.Desc)) { muda.Add("NOME DE TIPO REPETIDO"); cor = Vermelho; problemas++; }
+                if (muda.Count > 0) { txt += " · " + string.Join(", ", muda); if (cor == Verde) cor = Azul; }
+                if (tp.Erro != null) { txt = "erro: " + tp.Erro; cor = Vermelho; }
+                if (tp.Quantidade == 0) txt += " · sem instância";
                 l.Sit.Text = txt;
                 l.Sit.ToolTip = txt;
                 l.Sit.Foreground = cor;
-                l.Cod.BorderBrush = cor == Vermelho ? Vermelho : Pincel("Linha", 226, 226, 223);
+                l.Ok.IsEnabled = tp.Pendente;
+                l.Cod.BorderBrush = c != "" && cont.TryGetValue(c, out int nc) && nc > 1 ? Vermelho : Pincel("Linha", 226, 226, 223);
             }
-            int pend = linhas.Count(l => l.Tp.Codigo != l.Tp.MarcaAtual || l.Tp.Desc != l.Tp.DescAtual);
+            int pend = linhas.Count(l => l.Tp.Pendente);
             btAplicar.IsEnabled = pend > 0;
-            btAplicar.Content = pend > 0 ? $"Aplicar ({pend} tipo(s))" : "Aplicar";
+            btAplicar.Content = pend > 0 ? $"Aplicar tudo ({pend} tipo(s))" : "Aplicar tudo";
             return problemas;
         }
 
@@ -340,32 +379,55 @@ namespace FJA.Revit.Legendas
             trocando = false;
             alterado = true;
             Situacoes();
-            txtStatus.Text = $"{alvo.Count} código(s) proposto(s). Confira e clique em Aplicar.";
+            txtStatus.Text = $"{alvo.Count} código(s) proposto(s). Confira e aplique (item a item pelo ✓ ou tudo).";
         }
 
-        void Aplicar()
+        void Aplicar(IEnumerable<Linha> quais = null)
         {
-            if (Situacoes() > 0) { txtStatus.Text = "Há códigos repetidos (em vermelho): corrija antes de aplicar."; return; }
+            var alvo = (quais ?? linhas).Where(l => l.Tp.Pendente).ToList();
+            if (alvo.Count == 0) return;
+            Situacoes();
             var rx = cod.Padrao;
-            int fora = linhas.Count(l => l.Tp.Codigo != "" && !rx.IsMatch(l.Tp.Codigo) && l.Tp.Codigo != l.Tp.MarcaAtual);
+            var cont = linhas.Where(l => l.Tp.Codigo != "").GroupBy(l => l.Tp.Codigo).ToDictionary(gr => gr.Key, gr => gr.Count());
+            if (alvo.Any(l => l.Tp.Codigo != "" && cont[l.Tp.Codigo] > 1))
+            {
+                txtStatus.Text = "Há códigos repetidos (em vermelho): corrija antes de aplicar.";
+                return;
+            }
+            int fora = alvo.Count(l => l.Tp.Codigo != "" && !rx.IsMatch(l.Tp.Codigo) && l.Tp.Codigo != l.Tp.MarcaAtual);
             if (fora > 0 && !Confirmar(fora + " código(s) fora do padrão " + D.Codigo + ".NN. Aplicar assim mesmo?")) return;
             try
             {
-                int n = cod.Aplicar(linhas.Select(l => l.Tp).ToList());
+                // inclui os outros tipos da família quando o nome dela muda (o nome é um só)
+                var tps = alvo.Select(l => l.Tp).ToList();
+                int n = cod.Aplicar(tps);
                 Aplicados += n;
                 reservas = cod.Reservas();
-                alterado = false;
+                // relê os nomes (a família renomeada vale para todas as linhas dela)
+                trocando = true;
                 foreach (var l in linhas)
                 {
-                    var g = (WGrid)l.Borda.Child;
-                    ((TextBlock)g.Children[4]).Text = l.Tp.MarcaAtual == "" ? "—" : l.Tp.MarcaAtual;
-                    l.Desc.ToolTip = "Description atual: " + (l.Tp.DescAtual == "" ? "(vazia)" : l.Tp.DescAtual);
+                    var tp = l.Tp;
+                    var mp = System.Text.RegularExpressions.Regex.Match(tp.Sym.FamilyName, @"^\s*(\([A-Za-z]+\)\s*)(.*)$");
+                    string famAgora = mp.Success ? mp.Groups[2].Value : tp.Sym.FamilyName;
+                    bool familiaMudou = famAgora != tp.FamAtual;
+                    tp.FamAtual = famAgora;
+                    if (familiaMudou && tp.Fam == famAgora) l.Fam.Text = famAgora;
+                    tp.TipoAtual = tp.Sym.Name;
+                    l.Atual.Text = tp.MarcaAtual == "" ? "—" : tp.MarcaAtual;
+                    l.Desc.ToolTip = "Description; ao aplicar, também vira o nome do tipo. Tipo atual: " + tp.TipoAtual + "\nDescription atual: " + (tp.DescAtual == "" ? "(vazia)" : tp.DescAtual);
+                    l.Fam.ToolTip = $"Nome da família (a sigla {tp.Prefixo.Trim()} fica). Família atual: {tp.Sym.FamilyName}\nCategoria: {tp.Sym.Category?.Name}";
                 }
+                trocando = false;
+                alterado = linhas.Any(l => l.Tp.Pendente);
                 Situacoes();
-                txtStatus.Text = n + " parâmetro(s) gravado(s) em " + D.Codigo + " (Type Mark e Description). Os tags e a ferramenta Legendas já usam os códigos novos.";
+                int erros = alvo.Count(l => l.Tp.Erro != null);
+                txtStatus.Text = n + " tipo(s) atualizado(s) em " + D.Codigo + " (código, description, nome do tipo e da família)."
+                    + (erros > 0 ? " " + erros + " com erro (em vermelho; passe o mouse para ver)." : "");
             }
             catch (Exception e)
             {
+                trocando = false;
                 TaskDialog.Show("Codificação", "Não foi possível aplicar: " + e.Message);
             }
         }
