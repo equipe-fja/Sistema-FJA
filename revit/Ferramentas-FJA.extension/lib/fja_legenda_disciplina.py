@@ -613,6 +613,7 @@ def collect_items(doc, prazo_verificacao=4.0):
         items.append({
             "sym": sym, "rep": it["rep"], "count": len(it["inst"]), "views": len(it["views"]),
             "cor": best[0], "cor_origem": best[1],
+            "cores_cont": dict((k, list(v)) for k, v in it["cores"].items()),
             "em_prancha": it.get("em_prancha"),
             "label": item_label(sym, fam_types[sym.Family.Id.ToString()] > 1),
             "geo": it.get("geo"), "geo_inst": it.get("geo_inst"),
@@ -751,10 +752,26 @@ def paint(view, elem_id, rgb):
     view.SetElementOverrides(elem_id, o)
 
 
+def cor_dominante(items):
+    """Uma cor so para a legenda toda: a mais frequente entre os elementos da disciplina,
+    contando primeiro os que aparecem nas plantas da disciplina em prancha."""
+    soma = {}
+    for it in items:
+        for (cor, origem), n in (it.get("cores_cont") or {}).items():
+            k = tuple(cor)
+            a = soma.setdefault(k, [0, 0])
+            a[0] += n[0]
+            a[1] += n[1]
+    if not soma:
+        return tuple(C.get("cor") or (0, 0, 0))
+    return sorted(soma.items(), key=lambda kv: (-kv[1][0], -kv[1][1]))[0][0]
+
+
 def cor_item(it, cor):
-    """Cor do simbolo: None = a do elemento no modelo; "preto" = sem cor; (r, g, b) = essa."""
+    """Cor do simbolo: None = cor do modelo (uma so para a legenda, ver cor_dominante, ja
+    resolvida em it["cor_legenda"]); "preto" = sem cor; (r, g, b) = essa."""
     if cor is None:
-        return it.get("cor")
+        return it.get("cor_legenda") or it.get("cor")
     if cor == "preto":
         return None
     return cor
@@ -1176,13 +1193,17 @@ def atualizar_legenda(doc, items=None, opcoes=None):
     passo = float(opcoes.get("passo_mm") or MM_ROW_STEP)
     largura = float(opcoes.get("largura_mm") or MM_LARGURA)
     com_h, com_v, com_m = bool(opcoes.get("linhas_h")), bool(opcoes.get("linha_v")), bool(opcoes.get("margens"))
-    cor = opcoes.get("cor")  # None = cor de cada item no modelo; "preto" = sem cor; (r, g, b) = essa cor
+    cor = opcoes.get("cor")  # None = cor do modelo (uma so, a dominante); "preto" = sem cor; (r, g, b) = essa cor
     t_ini = agora()
     redim = set(opcoes.get("redim") or ())
     if items is None:
         items = collect_items(doc)
     if not items:
         return {"ok": False, "msg": u"Nenhuma fam\u00edlia '{}' posicionada no modelo.".format("' / '".join(C["familias"]))}
+    if cor is None:
+        cor_unica = cor_dominante(items)
+        for it in items:
+            it["cor_legenda"] = cor_unica
 
     src, target, others = find_legends(doc)
     tempo(u"legendas do projeto", t_ini)
@@ -1541,12 +1562,8 @@ def main(cfg):
         u"Legenda '{}' {} com sucesso!".format(C["alvo"], u"criada" if res["created"] else u"atualizada"),
         u"Itens na legenda (um por tipo): {}".format(len(res["items"])),
     ]
-    cores = {}
-    for it in res["items"]:
-        ck = (tuple(it.get("cor") or (0, 0, 0)), it.get("cor_origem") or u"")
-        cores[ck] = cores.get(ck, 0) + 1
-    for (cor, origem), n in sorted(cores.items(), key=lambda kv: -kv[1]):
-        lines.append(u"  Cor RGB {}-{}-{} ({}): {} item(ns)".format(cor[0], cor[1], cor[2], origem, n))
+    cu = cor_dominante(res["items"])
+    lines.append(u"Cor dos símbolos (a mais usada no modelo): RGB {}-{}-{}".format(cu[0], cu[1], cu[2]))
     if res["added"] or res["removed"]:
         lines += [u"", u"Altera\u00e7\u00f5es:"]
         lines += [u"  + {}".format(l) for l in res["added"]]

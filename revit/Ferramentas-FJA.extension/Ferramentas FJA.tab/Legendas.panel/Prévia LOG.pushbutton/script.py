@@ -230,12 +230,8 @@ class Janela(forms.WPFWindow):
 
     # ------------------------------------------------------------ cor dos símbolos
     def _cor_modelo(self):
-        """Cor mais comum dos itens no modelo (só para a amostra)."""
-        cont = {}
-        for it in self.itens:
-            c = tuple(it.get("cor") or (0, 0, 0))
-            cont[c] = cont.get(c, 0) + 1
-        return sorted(cont.items(), key=lambda kv: -kv[1])[0][0] if cont else (0, 0, 0)
+        """Cor do modelo: uma só para a legenda (a mais usada nos elementos da disciplina)."""
+        return L.cor_dominante(self.itens)
 
     def _amostra(self):
         c = self._cor_modelo() if self.cor is None else ((0, 0, 0) if self.cor == "preto" else self.cor)
@@ -282,7 +278,9 @@ class Janela(forms.WPFWindow):
             self.cbCor.ToolTip = u"Símbolos em preto (sem sobreposição de cor)"
         else:
             self.cor = None
-            self.cbCor.ToolTip = u"Cada símbolo com a cor que o elemento tem nas vistas das pranchas (filtros, sobreposições, estilo de objeto)"
+            c = self._cor_modelo()
+            self.cbCor.ToolTip = u"A cor mais usada nos elementos {} do modelo (filtros, sobreposições, estilo de objeto): RGB {}-{}-{}".format(
+                u"/".join(CFG["vistas"]), c[0], c[1], c[2])
         self._amostra()
         if not inicial:
             _gravar_cfg(modo_cor_v2=i)
@@ -321,13 +319,14 @@ class Janela(forms.WPFWindow):
         if self.res is None or self.tg is None:
             return
         view = self.res["view"]
+        cor = self._cor_modelo() if self.cor is None else self.cor
         t = DB.Transaction(doc, u"Prévia: cor")
         t.Start()
         try:
             for it in self.res["items"]:
                 for i in it.get("sym_ids") or []:
                     if doc.GetElement(i) is not None:
-                        L.pintar(view, i, L.cor_item(it, self.cor))
+                        L.pintar(view, i, L.cor_item(it, cor))
             t.Commit()
             self.cor_feita = self.cor
         except Exception as e:
