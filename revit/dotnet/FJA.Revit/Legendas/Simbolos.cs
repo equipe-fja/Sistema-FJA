@@ -525,7 +525,8 @@ namespace FJA.Revit.Legendas
         /// não tem DWG (então é preciso convertê-la pelo caminho completo).</summary>
         public static bool Reescalar(Document doc, Family leg, double tamMm, Item it)
         {
-            if (AbertaNoEditor(doc, leg.Name)) throw new Exception("família aberta no editor do Revit; feche-a e atualize de novo");
+            string nomeFam = leg.Name;
+            if (AbertaNoEditor(doc, nomeFam)) throw new Exception("família aberta no editor do Revit; feche-a e atualize de novo");
             Document fdoc = doc.EditFamily(leg);
             try
             {

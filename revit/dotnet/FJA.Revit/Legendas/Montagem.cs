@@ -276,15 +276,18 @@ namespace FJA.Revit.Legendas
                     bool feito = false;
                     try { feito = Simbolos.Reescalar(doc, lf, tam, it); }
                     catch (Exception ex) { res.LegErros.Add(nomeLeg + ": " + ex.Message); }
-                    if (feito)
+                    // depois de recarregar a família, o objeto 'lf' antigo deixa de valer: procura de novo pelo nome
+                    Family nova = Simbolos.FamiliaPorNome(doc, nomeLeg);
+                    if (feito && nova != null)
                     {
-                        legs[key] = Simbolos.FamiliaPorNome(doc, nomeLeg) ?? lf;
-                        res.LegExistentes.Add(lf.Name);
+                        legs[key] = nova;
+                        res.LegExistentes.Add(nomeLeg);
                         Tempos.Marca("  " + nomeLeg + " (escala do DWG)", tF);
                         continue;
                     }
                     // ainda não é DWG: refaz pelo caminho completo (exporta e importa uma vez)
-                    using (var td = new Transaction(doc, "Refazer símbolo de legenda")) { td.Start(); doc.Delete(lf.Id); td.Commit(); }
+                    if (nova != null)
+                        using (var td = new Transaction(doc, "Refazer símbolo de legenda")) { td.Start(); doc.Delete(nova.Id); td.Commit(); }
                     lf = null;
                 }
                 if (lf != null) { legs[key] = lf; res.LegExistentes.Add(lf.Name); continue; }
