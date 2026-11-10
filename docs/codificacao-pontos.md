@@ -62,6 +62,7 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - o texto de cada item é a **Description** do tipo, que a Codificação mantém igual ao nome do tipo; sem Description, continua o nome da família;
   - opção **Type Mark**: não mostrar, **em coluna própria** (entre o símbolo e o texto, com a largura do código mais largo) ou antes do texto ("LOG.01 – …"), gravada em cada legenda;
   - botão **Ordenar pelo Type Mark**.
+- **Variações "tudo desligado"** (2.9.3): as instâncias em que nenhum parâmetro de variação está ligado formavam um item "SEM VARIAÇÃO". Agora, se o desenho delas na planta é igual ao de outra variação do mesmo tipo, as duas viram um item só. Se sobrar uma variação só, o item fica sem sufixo. Se o desenho for diferente, continua como item separado.
 
 ## Fases
 1. Ferramenta de codificação no modelo aberto, gravando o Type Mark, com a tabela no modelo.

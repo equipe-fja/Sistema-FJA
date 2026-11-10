@@ -122,6 +122,44 @@ namespace FJA.Revit.Legendas
             return on.Count == 0 ? "-" : string.Join(" + ", on);
         }
 
+        /// <summary>Desenho do símbolo na planta (sem a rotação e a posição do elemento), para comparar variações.
+        /// null quando não dá para ler.</summary>
+        static string AssinaturaDesenho(Acum a)
+        {
+            if (a.GeoInst == null || a.Geo == null) return null;
+            try
+            {
+                var curvas = Simbolos.CurvasNaPlanta(a.GeoInst, a.Geo);
+                if (curvas.Count == 0) return null;
+                XYZ o = a.GeoInst.GetTransform().Origin;
+                double tol = 1.0 / 304.8;   // 1 mm
+                Func<XYZ, string> pk = p => Math.Round((p.X - o.X) / tol) + ":" + Math.Round((p.Y - o.Y) / tol);
+                var ks = new List<string>();
+                foreach (var c in curvas)
+                {
+                    string k1 = pk(c.GetEndPoint(0)), k2 = pk(c.GetEndPoint(1));
+                    string mid = c is Line ? "" : "~" + pk(c.Evaluate(0.5, true));
+                    ks.Add((string.CompareOrdinal(k1, k2) < 0 ? k1 + "|" + k2 : k2 + "|" + k1) + mid);
+                }
+                return string.Join(";", ks.Distinct().OrderBy(x => x, StringComparer.Ordinal));
+            }
+            catch { return null; }
+        }
+
+        static void Juntar(Acum destino, Acum origem)
+        {
+            foreach (var i in origem.Inst) destino.Inst.Add(i);
+            destino.Vistos += origem.Vistos;
+            foreach (var kv in origem.Cores)
+            {
+                if (!destino.Cores.TryGetValue(kv.Key, out var n)) destino.Cores[kv.Key] = n = new int[2];
+                n[0] += kv.Value[0]; n[1] += kv.Value[1];
+            }
+            foreach (var kv in origem.Origem) if (!destino.Origem.ContainsKey(kv.Key)) destino.Origem[kv.Key] = kv.Value;
+            if (destino.RepVis == null && origem.RepVis != null) { destino.Rep = origem.Rep; destino.RepVis = origem.RepVis; }
+            if (destino.GeoVis == null && origem.GeoVis != null) { destino.Geo = origem.Geo; destino.GeoInst = origem.GeoInst; destino.GeoVis = origem.GeoVis; }
+        }
+
         sealed class Acum
         {
             public string Var = "";
@@ -247,6 +285,35 @@ namespace FJA.Revit.Legendas
                 if (!a.Origem.ContainsKey(ck)) a.Origem[ck] = origem;
             }
             Tempos.Marca("  cores e representantes", t4);
+
+            // variação "tudo desligado": se o desenho for igual ao de outra variação do mesmo tipo, junta as duas;
+            // se sobrar uma variação só, o item fica sem sufixo
+            if (comVariacao > 0)
+            {
+                double tj = Tempos.Agora;
+                int juntados = 0;
+                foreach (var gr in tipos.Where(kv => kv.Value.Var != "").GroupBy(kv => kv.Value.Sym.Id.ToString()).ToList())
+                {
+                    var grupos = gr.ToList();
+                    var nada = grupos.FirstOrDefault(kv => kv.Value.Var == "-");
+                    if (nada.Value == null) continue;
+                    string sn = AssinaturaDesenho(nada.Value);
+                    if (sn == null) continue;
+                    var igual = grupos.FirstOrDefault(kv => kv.Value.Var != "-" && AssinaturaDesenho(kv.Value) == sn);
+                    if (igual.Value == null) continue;
+                    Juntar(igual.Value, nada.Value);
+                    tipos.Remove(nada.Key);
+                    juntados++;
+                    if (grupos.Count == 2)
+                    {
+                        // só restou uma variação: vira o item normal do tipo
+                        tipos.Remove(igual.Key);
+                        igual.Value.Var = "";
+                        tipos[igual.Value.Sym.Id.ToString()] = igual.Value;
+                    }
+                }
+                Tempos.Marca($"  variações juntadas por desenho igual: {juntados}", tj);
+            }
 
             var famTipos = new Dictionary<string, int>();
             foreach (var a in tipos.Values.GroupBy(x => x.Sym.Id.ToString()).Select(gr => gr.First()))
