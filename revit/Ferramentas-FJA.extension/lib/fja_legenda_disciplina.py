@@ -56,6 +56,10 @@ MM_UNDERLINE = 41.4
 MM_TITLE_LINE = 4.7
 MM_FIRST_ROW = 1.0
 MAX_ROWS_PER_COL = 14
+MM_LARGURA = 175.0      # largura padrao da legenda no papel (17,5 cm)
+MM_PAD_TXT = 3.0        # folga entre o fim do texto e a borda da coluna
+MM_SEP_TXT = 2.0        # distancia da linha vertical (simbolo | texto) ao inicio do texto
+MM_MARGEM = 2.0         # folga do contorno acima do titulo
 MM_PLAN_MAX = 12.0      # maior medida de um simbolo copiado da planta
 MM_PLAN_MIN = 4.5       # menor medida (simbolo tirado do modelo em escala real fica minusculo no papel)
 
@@ -993,6 +997,8 @@ def atualizar_legenda(doc, items=None, opcoes=None):
     essa maior medida; (ou "tamanho_mm" + "redim": set de ids); "passo_mm": altura minima da linha}"""
     opcoes = opcoes or {}
     passo = float(opcoes.get("passo_mm") or MM_ROW_STEP)
+    largura = float(opcoes.get("largura_mm") or MM_LARGURA)
+    com_h, com_v, com_m = bool(opcoes.get("linhas_h")), bool(opcoes.get("linha_v")), bool(opcoes.get("margens"))
     redim = set(opcoes.get("redim") or ())
     if items is None:
         items = collect_items(doc)
@@ -1149,6 +1155,9 @@ def atualizar_legenda(doc, items=None, opcoes=None):
                 pass
             return comp
 
+        ncols = 2 if len(items) > MAX_ROWS_PER_COL else 1
+        col_w_mm = largura / ncols
+        txt_w_mm = max(20.0, col_w_mm - MM_TEXT_X - MM_PAD_TXT)
         rows = []
         text_dx = 0.0  # deslocamento comum dos textos (alinhados pela esquerda)
         prov_top = line_y - MM_FIRST_ROW * k
@@ -1189,7 +1198,7 @@ def atualizar_legenda(doc, items=None, opcoes=None):
             tn = DB.TextNote.Create(doc, target.Id, DB.XYZ(x0 + MM_TEXT_X * k, line_y, 0),
                                     it["label"], opts)
             try:
-                tn.Width = MM_TEXT_W / 304.8
+                tn.Width = txt_w_mm / 304.8
             except Exception:
                 pass
             mark(tn, schema)
@@ -1215,13 +1224,33 @@ def atualizar_legenda(doc, items=None, opcoes=None):
             if tbb:
                 DB.ElementTransformUtils.MoveElement(
                     doc, tn.Id, DB.XYZ(0, cy - (tbb.Min.Y + tbb.Max.Y) / 2.0, 0))
-            rows.append((sym_ids, tn, cy, row_h))
+            rows.append((sym_ids, tn, cy, row_h, sym_h))
             it["sym_ids"] = list(sym_ids)
             text_dx = max(text_dx, dx_txt)
 
+        # Textos alinhados pela esquerda: todos comecam no mesmo x, logo depois do
+        # simbolo mais largo; o texto encurta para caber na coluna (e a linha pode crescer)
+        if text_dx > 1e-9:
+            DB.ElementTransformUtils.MoveElements(
+                doc, List[DB.ElementId]([r[1].Id for r in rows]), DB.XYZ(text_dx, 0, 0))
+            novo_w = max(15.0, txt_w_mm - text_dx / k)
+            for r in rows:
+                try:
+                    r[1].Width = novo_w / 304.8
+                except Exception:
+                    pass
+            doc.Regenerate()
+            refeitas = []
+            for (sym_ids, tn, cy0, row_h, sym_h) in rows:
+                tbb = tn.get_BoundingBox(target)
+                if tbb:
+                    DB.ElementTransformUtils.MoveElement(doc, tn.Id, DB.XYZ(0, cy0 - (tbb.Min.Y + tbb.Max.Y) / 2.0, 0))
+                    row_h = max(passo * k, sym_h + MM_ROW_PAD * k, (tbb.Max.Y - tbb.Min.Y) + MM_ROW_PAD * k)
+                refeitas.append((sym_ids, tn, cy0, row_h, sym_h))
+            rows = refeitas
         heights = [r[3] for r in rows]
         split = len(rows)
-        if len(rows) > MAX_ROWS_PER_COL:
+        if ncols == 2:
             total = sum(heights)
             best = None
             acc = 0.0
@@ -1232,21 +1261,57 @@ def atualizar_legenda(doc, items=None, opcoes=None):
                     best, split = worst, s
         col_info = [split, len(rows) - split]
 
-        col_tops = [line_y - MM_FIRST_ROW * k] * 2
-        # Textos alinhados pela esquerda: todos comecam no mesmo x, logo depois do
-        # simbolo mais largo; a 2a coluna anda o mesmo tanto a mais
-        if text_dx > 1e-9:
-            DB.ElementTransformUtils.MoveElements(
-                doc, List[DB.ElementId]([r[1].Id for r in rows]), DB.XYZ(text_dx, 0, 0))
-        col_w = MM_COL_W * k + text_dx
-        for idx, (sym_ids, tn, cy0, row_h) in enumerate(rows):
+        topo = line_y - MM_FIRST_ROW * k
+        col_tops = [topo] * 2
+        col_w = col_w_mm * k
+        faixas = [[], []]  # por coluna: (topo, base) de cada linha
+        for idx, (sym_ids, tn, cy0, row_h, sym_h) in enumerate(rows):
             col = 0 if idx < split else 1
             cy = col_tops[col] - row_h / 2.0
+            faixas[col].append((col_tops[col], col_tops[col] - row_h))
             col_tops[col] -= row_h
             d = DB.XYZ(col * col_w, cy - cy0, 0)
             if d.GetLength() > 1e-9:
                 DB.ElementTransformUtils.MoveElements(
                     doc, List[DB.ElementId](list(sym_ids) + [tn.Id]), d)
+
+        # Linhas opcionais: entre os itens, entre simbolo e texto, contorno (margens)
+        def linha(a, b):
+            if a.DistanceTo(b) < 1e-6:
+                return
+            c = doc.Create.NewDetailCurve(target, DB.Line.CreateBound(a, b))
+            if line_style is not None:
+                try:
+                    c.LineStyle = line_style
+                except Exception:
+                    pass
+            mark(c, schema)
+        base = min(col_tops[:ncols])
+        if com_h or com_v or com_m:
+            # sublinhado do titulo na largura toda, como borda de cima da tabela
+            ul.GeometryCurve = DB.Line.CreateBound(DB.XYZ(x0, line_y, 0), DB.XYZ(x0 + largura * k, line_y, 0))
+        for col in range(ncols):
+            xa, xb = x0 + col * col_w, x0 + (col + 1) * col_w
+            fx = faixas[col]
+            if not fx:
+                continue
+            if com_h:
+                for (tp, bt) in fx[:-1]:
+                    linha(DB.XYZ(xa, bt, 0), DB.XYZ(xb, bt, 0))
+                if com_m and fx[-1][1] > base + 1e-9:
+                    linha(DB.XYZ(xa, fx[-1][1], 0), DB.XYZ(xb, fx[-1][1], 0))
+            if com_v:
+                xv = xa + MM_TEXT_X * k + text_dx - MM_SEP_TXT * k
+                linha(DB.XYZ(xv, line_y, 0), DB.XYZ(xv, fx[-1][1] if not com_m else base, 0))
+        if com_m:
+            tbb = title.get_BoundingBox(target)
+            ytop = (tbb.Max.Y if tbb else y0) + MM_MARGEM * k
+            xr = x0 + largura * k
+            for a, b in ((DB.XYZ(x0, ytop, 0), DB.XYZ(xr, ytop, 0)), (DB.XYZ(xr, ytop, 0), DB.XYZ(xr, base, 0)),
+                         (DB.XYZ(xr, base, 0), DB.XYZ(x0, base, 0)), (DB.XYZ(x0, base, 0), DB.XYZ(x0, ytop, 0))):
+                linha(a, b)
+            if ncols == 2:
+                linha(DB.XYZ(x0 + col_w, line_y, 0), DB.XYZ(x0 + col_w, base, 0))
 
         if tpl_id is not None:
             doc.Delete(tpl_id)

@@ -73,6 +73,9 @@ class Janela(forms.WPFWindow):
         self.timer.Tick += self._tick
         self._montar_lista()
         self.slPasso.ValueChanged += self._mudou
+        for c in (self.chkLinhasH, self.chkLinhaV, self.chkMargens):
+            c.Click += self._mudou
+        self.txtLargura.TextChanged += self._mudou
         self.btTodos100.Click += self._todos100
         self.btAtualizar.Click += lambda s, a: self.atualizar()
         self.btGerar.Click += self._gerar
@@ -155,7 +158,20 @@ class Janela(forms.WPFWindow):
             self.txtStatus.Text = u"Há ajustes que ainda não estão na prévia (caixas vermelhas = tamanho novo): clique em Atualizar prévia."
 
     def _ha_mudanca(self):
-        return any(int(round(ln["sl"].Value)) != self.pct_feito.get(ln["id"], 100) for ln in self.linhas)
+        return (any(int(round(ln["sl"].Value)) != self.pct_feito.get(ln["id"], 100) for ln in self.linhas)
+                or self._opcoes_tabela() != getattr(self, "tabela_feita", None))
+
+    def _largura_mm(self):
+        try:
+            v = float((self.txtLargura.Text or u"").strip().replace(",", "."))
+            return min(max(v, 5.0), 120.0) * 10.0
+        except Exception:
+            return 175.0
+
+    def _opcoes_tabela(self):
+        return {"largura_mm": self._largura_mm(), "linhas_h": bool(self.chkLinhasH.IsChecked),
+                "linha_v": bool(self.chkLinhaV.IsChecked), "margens": bool(self.chkMargens.IsChecked),
+                "passo_mm": round(self.slPasso.Value, 1)}
 
     # ------------------------------------------------------------ caixas (rapido: so linhas na previa)
     def _tick(self, s, a):
@@ -270,7 +286,9 @@ class Janela(forms.WPFWindow):
         self.tg = DB.TransactionGroup(doc, u"Prévia " + CFG["botao"])
         self.tg.Start()
         try:
-            res = L.atualizar_legenda(doc, escolhidos, {"tamanhos": tamanhos, "passo_mm": self.slPasso.Value})
+            op = self._opcoes_tabela()
+            op["tamanhos"] = tamanhos
+            res = L.atualizar_legenda(doc, escolhidos, op)
         except Exception as e:
             self._desfazer()
             self.res = None
@@ -304,6 +322,7 @@ class Janela(forms.WPFWindow):
                     "componente": u"componente de legenda"}.get(it.get("modo"), it.get("modo") or u"")
             ln["med"].ToolTip = u"Símbolo: {}{}".format(modo, u" · redimensionado pelo DWG" if it.get("redimensionado") else u"")
         self.pct_feito = pcts
+        self.tabela_feita = self._opcoes_tabela()
         try:
             self.prev = PreviewControl(doc, view.Id)
             self.hostPrev.Children.Add(self.prev)
