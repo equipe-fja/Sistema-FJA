@@ -147,7 +147,17 @@ namespace FJA.Revit.Legendas
         Button Botao(string texto, string estilo = null)
         {
             var b = new Button { Content = texto, Padding = new Thickness(12, 4, 12, 4), VerticalAlignment = VerticalAlignment.Center };
-            if (estilo != null && Rec(estilo) is Style st) b.Style = st;
+            if (estilo != null && Rec(estilo) is Style st)
+            {
+                b.Style = st;
+                if (estilo == "Discreto")
+                {
+                    // o estilo Discreto do fja_estilo.xaml é de botão de ícone (28 px): aqui o botão tem texto
+                    b.Width = double.NaN;
+                    b.Padding = new Thickness(10, 4, 10, 4);
+                    b.Cursor = Cursors.Hand;
+                }
+            }
             return b;
         }
 
@@ -209,20 +219,36 @@ namespace FJA.Revit.Legendas
             btAcrescentar.ToolTip = "Acrescentar um símbolo (anotação genérica) ou detail item do projeto; a cor é aplicada como nos demais";
             DockPanel.SetDock(btTodos100, Dock.Right); DockPanel.SetDock(btAcrescentar, Dock.Right);
             txtItens = new TextBlock { FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-            dc.Children.Add(btTodos100); dc.Children.Add(btAcrescentar); dc.Children.Add(txtItens);
-            cab.Child = dc;
-            var info = new Border { Padding = new Thickness(14, 6, 14, 6), Background = Pincel("Lateral", 251, 251, 250) };
-            DockPanel.SetDock(info, Dock.Top);
-            info.Child = new TextBlock
+            var ajuda = new Border
             {
-                TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92),
-                Text = "Marque os itens e ajuste o texto; arraste pelo ≡ para mudar a ordem. A escala de cada símbolo vai de 25% a 300% " +
-                       "(100% = como aparece na prancha): ao mexer, a prévia mostra uma caixa vermelha no tamanho novo; Atualizar prévia " +
-                       "refaz os símbolos que mudaram. A medida é a do símbolo no papel.",
+                Width = 18, Height = 18, CornerRadius = new CornerRadius(9), Margin = new Thickness(8, 0, 0, 0),
+                BorderBrush = Pincel("LinhaForte", 201, 201, 197), BorderThickness = new Thickness(1), Background = Brushes.Transparent,
+                VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Help,
+                Child = new TextBlock { Text = "?", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Pincel("Fraco", 143, 143, 140), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+                ToolTip = new ToolTip
+                {
+                    MaxWidth = 380,
+                    Content = new TextBlock
+                    {
+                        TextWrapping = TextWrapping.Wrap,
+                        Text = "Marque os itens e ajuste o texto; arraste pelo ≡ para mudar a ordem.\n\n" +
+                               "Escala de cada símbolo: de 25% a 300% (100% = como aparece na prancha). Ao mexer, a prévia mostra uma caixa vermelha " +
+                               "no tamanho novo; Atualizar prévia refaz os símbolos que mudaram. A medida é a do símbolo no papel.\n\n" +
+                               "+ Acrescentar símbolo: inclui uma anotação genérica ou um detail item do projeto, com a cor da legenda. " +
+                               "Para retirar, clique com o botão direito na linha.\n\n" +
+                               "Itens em laranja não aparecem em nenhuma planta da disciplina colocada em prancha.",
+                    },
+                },
             };
+            ToolTipService.SetInitialShowDelay(ajuda, 100);
+            ToolTipService.SetShowDuration(ajuda, 60000);
+            var tituloItens = new StackPanel { Orientation = Orientation.Horizontal };
+            tituloItens.Children.Add(txtItens); tituloItens.Children.Add(ajuda);
+            dc.Children.Add(btTodos100); dc.Children.Add(btAcrescentar); dc.Children.Add(tituloItens);
+            cab.Child = dc;
             lista = new StackPanel { Margin = new Thickness(6, 4, 6, 4) };
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = lista };
-            dp.Children.Add(cab); dp.Children.Add(info); dp.Children.Add(sv);
+            dp.Children.Add(cab); dp.Children.Add(sv);
             cIt.Child = dp;
             g.Children.Add(cIt);
 

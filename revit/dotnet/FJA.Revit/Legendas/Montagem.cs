@@ -378,6 +378,7 @@ namespace FJA.Revit.Legendas
                 double txtWmm = Math.Max(20.0, colWmm - MM_TEXT_X - MM_PAD_TXT);
                 var linhas = new List<Linha>();
                 double textDx = 0, provTop = lineY - MM_FIRST_ROW * k;
+                double dirSimb = double.MinValue;   // borda direita do símbolo mais largo
                 foreach (var it in itens)
                 {
                     var ids = new List<ElementId>();
@@ -438,6 +439,7 @@ namespace FJA.Revit.Legendas
                         double half = (bb[2] - bb[0]) / 2;
                         double sx = x0 + Math.Max(MM_SYM_X * k, half);
                         dxTxt = Math.Max(0, sx + half + 2.0 * k - (x0 + MM_TEXT_X * k));
+                        dirSimb = Math.Max(dirSimb, sx + half);
                         var cur = new XYZ((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2, 0);
                         ElementTransformUtils.MoveElements(doc, ids, new XYZ(sx, cy, 0) - cur);
                     }
@@ -447,6 +449,9 @@ namespace FJA.Revit.Legendas
                     textDx = Math.Max(textDx, dxTxt);
                 }
 
+                // com a linha entre símbolo e texto: folga dos dois lados da linha (símbolo | linha | texto)
+                if (op.LinhaV && dirSimb > double.MinValue)
+                    textDx = Math.Max(textDx, dirSimb + 2 * MM_SEP_TXT * k - (x0 + MM_TEXT_X * k));
                 // textos alinhados pela esquerda, logo depois do símbolo mais largo
                 if (textDx > 1e-9)
                 {
