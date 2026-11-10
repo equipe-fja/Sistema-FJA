@@ -57,7 +57,7 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 | Botão | Comando | Desde |
 |---|---|---|
 | Suíte › Sobre | `Sobre` | 2.5.0 |
-| Legendas › Prévia LOG | `PreviaLegendaLOG` (`Legendas/*.cs`) | 2.6.0 (10/11/2026) |
+| Legendas › Legendas (antes "Prévia LOG") | `FerramentaLegendas` (`Legendas/*.cs`; `PreviaLegendaLOG` = mesmo comando) | 2.6.0; ferramenta única desde 2.7.0 (10/11/2026) |
 
 ### Prévia LOG (2.6.0)
 - Migrada em 10/11/2026 a pedido da FJA (janela elaborada e lógica em crescimento).
@@ -66,7 +66,8 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 - `fja_dotnet.executar` passa a pasta da extensão em `AppDomain` (`FJA.Extensao`): estilo e log de tempos (`REVIT\pyRevit\logs\previa-legenda-tempos.txt`).
 - Escala dos símbolos (2.6.2): a primeira vez, a família (LEG) vira DWG (exporta 1:1 e importa); depois, só o **fator de escala** do tipo do DWG dentro da família muda (`Simbolos.Reescalar`), sem exportar de novo. Erros "Line is too short" do DWG reduzido são resolvidos apagando os trechos minúsculos (`ResolverFalhas`).
 - Preferências de cor por pessoa: `%APPDATA%\FJA\legenda-previa.json`.
-- Para outra disciplina: nova `Disciplina` em `Legendas/Base.cs` e uma classe que herda de `PreviaLegendaLOG` trocando `Disc`.
+- **Ferramenta única (2.7.0)**: seletor de disciplina (`Disciplina.Todas`: LOG, AUT, SON), lista das legendas da disciplina (`Montagem.ListarLegendas`: vistas com os ajustes gravados, com o nome padrão ou com textos marcados) e **+ Nova legenda** (outra vista, cópia da legenda base); cada legenda guarda os seus itens, ordem, textos, extras e opções (largura, linhas, margens, passo, cor) na entidade de ajustes (`opcoes` no JSON). Gravar mantém a janela aberta. ELE e LUM continuam nos botões em Python (lógica própria: alturas, quadros, luminárias) — portar depois.
+- Para outra disciplina do mesmo tipo: nova `Disciplina` em `Legendas/Base.cs` e incluir em `Todas`.
 
 ## Situação em 09/11/2026
 - Compilação no GitHub testada (R2024 e R2027, sem avisos).
