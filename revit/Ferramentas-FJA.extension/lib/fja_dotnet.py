@@ -82,6 +82,11 @@ def carregar(dll):
 def executar(comando, uiapp, dll=None):
     """Roda FJA.Revit.Comandos.<comando>. Devolve o Resultado (Status: ok / cancelado / erro, Mensagem, Detalhe)."""
     asm = carregar(dll or caminho_dll(uiapp))
+    try:
+        # pasta da extensão para o C# (a DLL vem da memória e não sabe de onde saiu): estilo e logs
+        AppDomain.CurrentDomain.SetData("FJA.Extensao", pasta_extensao())
+    except Exception:
+        pass
     tipo = asm.GetType("FJA.Revit.Entrada")
     if tipo is None:
         raise ErroDotnet(u"A DLL não tem a classe FJA.Revit.Entrada.")
