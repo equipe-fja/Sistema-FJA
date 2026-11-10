@@ -19,7 +19,11 @@ from System import TimeSpan
 from System.Collections.Generic import List
 from System.Windows import Thickness, VerticalAlignment, GridLength, GridUnitType, TextTrimming, Visibility, \
     HorizontalAlignment, FontWeights, FontStyles
-from System.Windows.Controls import Grid, ColumnDefinition, CheckBox, TextBox, TextBlock, Slider
+from System.Windows.Controls import Grid, ColumnDefinition, CheckBox, TextBox, TextBlock, Slider, Border, \
+    ContextMenu, MenuItem
+from System.Windows import DragDrop, DataObject, DragDropEffects
+from System.Windows.Input import Cursors
+from System.Windows.Media import Brushes
 from System.Windows.Media import SolidColorBrush, Color
 from System.Windows.Threading import DispatcherTimer
 
@@ -103,10 +107,12 @@ def _mm(v):
 
 
 class Janela(forms.WPFWindow):
-    def __init__(self, itens):
+    def __init__(self, itens, desmarcados=None):
         forms.WPFWindow.__init__(self, os.path.join(os.path.dirname(__file__), "janela.xaml"))
         aplicar_estilo(self)
         self.itens = itens
+        self.desmarcados = desmarcados or set()
+        self._arrastando = None
         self.tg = None
         self.prev = None
         self.res = None
@@ -137,6 +143,7 @@ class Janela(forms.WPFWindow):
         self.swCor.ToolTip = u"Clique para escolher outra cor"
         self._aplicar_modo(self.cbCor.SelectedIndex, inicial=True)
         self.btTodos100.Click += self._todos100
+        self.btAdicionar.Click += self._adicionar
         self.btAtualizar.Click += lambda s, a: self.atualizar()
         self.btGerar.Click += self._gerar
         self.btCancelar.Click += lambda s, a: self.Close()
@@ -146,65 +153,212 @@ class Janela(forms.WPFWindow):
 
     # ------------------------------------------------------------ lista de itens
     def _montar_lista(self):
-        cinza = SolidColorBrush(Color.FromRgb(94, 94, 92))
         for it in self.itens:
-            g = Grid()
-            g.Margin = Thickness(4, 3, 4, 3)
-            for w in (26, -1, 96, 120, 46):
-                cd = ColumnDefinition()
-                cd.Width = GridLength(1, GridUnitType.Star) if w < 0 else GridLength(w)
-                g.ColumnDefinitions.Add(cd)
-            chk = CheckBox()
-            chk.IsChecked = True
-            chk.VerticalAlignment = VerticalAlignment.Center
-            chk.ToolTip = u"Incluir na legenda"
-            txt = TextBox()
-            txt.Text = it["label"]
-            txt.VerticalAlignment = VerticalAlignment.Center
-            txt.Padding = Thickness(4, 2, 4, 2)
-            fora = it.get("em_prancha") is False
+            self._criar_linha(it, desmarcado=L.chave_item(it) in self.desmarcados)
+        self._titulo_lista()
+
+    def _titulo_lista(self):
+        n_fora = len([1 for ln in self.linhas if ln["it"].get("em_prancha") is False])
+        n_extra = len([1 for ln in self.linhas if ln["it"].get("extra")])
+        partes = []
+        if n_extra:
+            partes.append(u"{} acrescentado(s)".format(n_extra))
+        if n_fora:
+            partes.append(u"{} fora das pranchas, em laranja".format(n_fora))
+        self.txtItens.Text = u"Itens ({}{})".format(len(self.linhas), u" · " + u" · ".join(partes) if partes else u"")
+
+    def _criar_linha(self, it, desmarcado=False):
+        cinza = SolidColorBrush(Color.FromRgb(94, 94, 92))
+        extra = bool(it.get("extra"))
+        borda = Border()
+        borda.BorderThickness = Thickness(0, 2, 0, 2)
+        borda.BorderBrush = Brushes.Transparent
+        borda.AllowDrop = True
+        borda.Background = Brushes.Transparent
+        g = Grid()
+        g.Margin = Thickness(2, 1, 4, 1)
+        for w in (18, 26, -1, 96, 120, 46):
+            cd = ColumnDefinition()
+            cd.Width = GridLength(1, GridUnitType.Star) if w < 0 else GridLength(w)
+            g.ColumnDefinitions.Add(cd)
+        alca = TextBlock()
+        alca.Text = u"≡"
+        alca.FontSize = 16
+        alca.Foreground = cinza
+        alca.VerticalAlignment = VerticalAlignment.Center
+        alca.HorizontalAlignment = HorizontalAlignment.Center
+        alca.Cursor = Cursors.SizeAll
+        alca.Background = Brushes.Transparent
+        alca.ToolTip = u"Arraste para mudar a ordem na legenda"
+        chk = CheckBox()
+        chk.IsChecked = not desmarcado
+        chk.VerticalAlignment = VerticalAlignment.Center
+        chk.ToolTip = u"Incluir na legenda"
+        txt = TextBox()
+        txt.Text = it["label"]
+        txt.VerticalAlignment = VerticalAlignment.Center
+        txt.Padding = Thickness(4, 2, 4, 2)
+        fora = it.get("em_prancha") is False
+        if extra:
+            cat = it["sym"].Category.Name if it["sym"].Category else u""
+            dica = u"Acrescentado: {} : {} ({})\nClique com o botão direito para retirar.".format(
+                it["sym"].FamilyName, L.elem_name(it["sym"]), cat)
+        else:
             dica = u"{}  ·  {} elemento(s) no modelo".format(it["sym"].FamilyName, it["count"])
             if it.get("em_prancha"):
                 dica += u"  ·  aparece em {} planta(s) {} em prancha".format(it["views"], u"/".join(CFG["vistas"]))
             elif fora:
                 dica += u"\nNão aparece em nenhuma planta {} colocada em prancha (desmarque se não deve entrar)".format(u"/".join(CFG["vistas"]))
-            txt.ToolTip = dica
-            if fora:
-                txt.Foreground = SolidColorBrush(Color.FromRgb(178, 107, 0))
-                txt.FontStyle = FontStyles.Italic
-            med = TextBlock()
-            med.VerticalAlignment = VerticalAlignment.Center
-            med.Margin = Thickness(8, 0, 4, 0)
-            med.Foreground = cinza
-            med.FontSize = 12
-            med.TextTrimming = TextTrimming.CharacterEllipsis
-            sl = Slider()
-            sl.Minimum, sl.Maximum, sl.Value = 25, 300, 100
-            sl.TickFrequency = 5
-            sl.IsSnapToTickEnabled = True
-            sl.VerticalAlignment = VerticalAlignment.Center
-            sl.ToolTip = u"Escala do símbolo (100% = como aparece na prancha). Duplo clique volta a 100%."
-            pct = TextBlock()
-            pct.Text = u"100%"
-            pct.VerticalAlignment = VerticalAlignment.Center
-            pct.HorizontalAlignment = HorizontalAlignment.Right
-            pct.FontWeight = FontWeights.SemiBold
-            for el, c in ((chk, 0), (txt, 1), (med, 2), (sl, 3), (pct, 4)):
-                Grid.SetColumn(el, c)
-                g.Children.Add(el)
-            ln = {"it": it, "chk": chk, "txt": txt, "med": med, "sl": sl, "pct": pct, "id": it["sym"].Id.ToString()}
-            chk.Click += lambda s, a, ln=ln: (self.sujos.add(ln["id"]), self.timer.Stop(), self.timer.Start(), self._mudou())
-            txt.TextChanged += self._mudou
+        txt.ToolTip = dica
+        if fora:
+            txt.Foreground = SolidColorBrush(Color.FromRgb(178, 107, 0))
+            txt.FontStyle = FontStyles.Italic
+        med = TextBlock()
+        med.VerticalAlignment = VerticalAlignment.Center
+        med.Margin = Thickness(8, 0, 4, 0)
+        med.Foreground = cinza
+        med.FontSize = 12
+        med.TextTrimming = TextTrimming.CharacterEllipsis
+        sl = Slider()
+        sl.Minimum, sl.Maximum, sl.Value = 25, 300, 100
+        sl.TickFrequency = 5
+        sl.IsSnapToTickEnabled = True
+        sl.VerticalAlignment = VerticalAlignment.Center
+        sl.ToolTip = u"Escala do símbolo (100% = como aparece na prancha). Duplo clique volta a 100%."
+        pct = TextBlock()
+        pct.Text = u"100%"
+        pct.VerticalAlignment = VerticalAlignment.Center
+        pct.HorizontalAlignment = HorizontalAlignment.Right
+        pct.FontWeight = FontWeights.SemiBold
+        if extra:
+            sl.IsEnabled = False
+            sl.ToolTip = u"Símbolo acrescentado: entra no tamanho da própria família"
+            pct.Text = u"—"
+            med.Text = u"acrescentado"
+        for el, c in ((alca, 0), (chk, 1), (txt, 2), (med, 3), (sl, 4), (pct, 5)):
+            Grid.SetColumn(el, c)
+            g.Children.Add(el)
+        borda.Child = g
+        ln = {"it": it, "chk": chk, "txt": txt, "med": med, "sl": sl, "pct": pct, "id": L.chave_item(it),
+              "borda": borda, "padrao": it.get("padrao", it["label"])}
+        chk.Click += lambda s, a, ln=ln: (self.sujos.add(ln["id"]), self.timer.Stop(), self.timer.Start(), self._mudou())
+        txt.TextChanged += self._mudou
+        if not extra:
             sl.ValueChanged += lambda s, a, ln=ln: self._escala(ln)
             sl.MouseDoubleClick += lambda s, a, ln=ln: setattr(ln["sl"], "Value", 100)
-            self.lista.Children.Add(g)
-            self.linhas.append(ln)
-        n_fora = len([1 for it in self.itens if it.get("em_prancha") is False])
-        self.txtItens.Text = u"Itens ({}{})".format(
-            len(self.itens), u" · {} fora das pranchas, em laranja".format(n_fora) if n_fora else u"")
+        else:
+            menu = ContextMenu()
+            mi = MenuItem()
+            mi.Header = u"Retirar este item da lista"
+            mi.Click += lambda s, a, ln=ln: self._retirar(ln)
+            menu.Items.Add(mi)
+            borda.ContextMenu = menu
+        # arrastar para reordenar
+        alca.PreviewMouseLeftButtonDown += lambda s, a, ln=ln: self._arrastar(ln)
+        borda.PreviewDragOver += lambda s, a, ln=ln: self._sobre(ln, a)
+        borda.DragLeave += lambda s, a, ln=ln: self._marca(ln, None)
+        borda.PreviewDrop += lambda s, a, ln=ln: self._soltar(ln, a)
+        self.lista.Children.Add(borda)
+        self.linhas.append(ln)
+        return ln
+
+    # ------------------------------------------------------------ ordem (arrastar)
+    def _arrastar(self, ln):
+        self._arrastando = ln
+        try:
+            DragDrop.DoDragDrop(ln["borda"], DataObject("fjaItem", ln["id"]), DragDropEffects.Move)
+        finally:
+            self._arrastando = None
+            for x in self.linhas:
+                self._marca(x, None)
+
+    def _depois(self, ln, a):
+        p = a.GetPosition(ln["borda"])
+        return p.Y > ln["borda"].ActualHeight / 2.0
+
+    def _marca(self, ln, depois):
+        cor = SolidColorBrush(Color.FromRgb(121, 86, 169))
+        b = ln["borda"]
+        b.BorderBrush = Brushes.Transparent if depois is None else cor
+        if depois is not None:
+            b.BorderThickness = Thickness(0, 0, 0, 2) if depois else Thickness(0, 2, 0, 0)
+        else:
+            b.BorderThickness = Thickness(0, 2, 0, 2)
+
+    def _sobre(self, ln, a):
+        if getattr(self, "_arrastando", None) is None:
+            a.Effects = getattr(DragDropEffects, "None")
+        else:
+            a.Effects = DragDropEffects.Move
+            self._marca(ln, self._depois(ln, a))
+        a.Handled = True
+
+    def _soltar(self, alvo, a):
+        orig = getattr(self, "_arrastando", None)
+        a.Handled = True
+        self._marca(alvo, None)
+        if orig is None or orig is alvo:
+            return
+        depois = self._depois(alvo, a)
+        self.linhas.remove(orig)
+        i = self.linhas.index(alvo) + (1 if depois else 0)
+        self.linhas.insert(i, orig)
+        self.lista.Children.Remove(orig["borda"])
+        self.lista.Children.Insert(i, orig["borda"])
+        self._mudou()
+
+    def _ordem(self):
+        return [ln["id"] for ln in self.linhas]
+
+    # ------------------------------------------------------------ itens acrescentados
+    def _adicionar(self, s, a):
+        ja = set(ln["id"] for ln in self.linhas)
+        opcoes = []
+        for sy in L.simbolos_para_extra(doc):
+            it = L.item_extra(doc, sy)
+            if L.chave_item(it) in ja:
+                continue
+            cat = sy.Category.Name if sy.Category else u""
+            opcoes.append((u"{} · {} : {}".format(cat, sy.FamilyName, L.elem_name(sy)), it))
+        if not opcoes:
+            forms.alert(u"O projeto não tem outros símbolos (anotações genéricas) nem detail items para acrescentar.", title=TITULO)
+            return
+        nomes = [o[0] for o in opcoes]
+        esc = forms.SelectFromList.show(nomes, title=u"Acrescentar à legenda: símbolos e detail items",
+                                        multiselect=True, button_name=u"Acrescentar")
+        if not esc:
+            return
+        por_nome = dict(opcoes)
+        for n in esc:
+            ln = self._criar_linha(por_nome[n])
+            self.sujos.add(ln["id"])
+        self._titulo_lista()
+        self._mudou()
+
+    def _retirar(self, ln):
+        self.linhas.remove(ln)
+        self.lista.Children.Remove(ln["borda"])
+        self._titulo_lista()
+        self._mudou()
+
+    def _config_json(self):
+        """Ajustes gravados na legenda ao Gerar: ordem, textos editados, desmarcados, extras."""
+        import json
+        rot, desm, extras = {}, [], []
+        for ln in self.linhas:
+            t = (ln["txt"].Text or u"").strip().upper()
+            if ln["it"].get("extra"):
+                extras.append({"uid": ln["it"]["sym"].UniqueId, "rotulo": t})
+            elif t and t != (ln["padrao"] or u"").upper():
+                rot[ln["id"]] = t
+            if not ln["chk"].IsChecked:
+                desm.append(ln["id"])
+        return json.dumps({"ordem": self._ordem(), "rotulos": rot, "desmarcados": desm, "extras": extras})
 
     def _todos100(self, s, a):
         for ln in self.linhas:
+            if ln["it"].get("extra"):
+                continue
             ln["sl"].Value = 100
             self.sujos.add(ln["id"])
 
@@ -231,7 +385,7 @@ class Janela(forms.WPFWindow):
     # ------------------------------------------------------------ cor dos símbolos
     def _cor_modelo(self):
         """Cor do modelo: uma só para a legenda (a mais usada nos elementos da disciplina)."""
-        return L.cor_dominante(self.itens)
+        return L.cor_dominante([ln["it"] for ln in self.linhas] or self.itens)
 
     def _amostra(self):
         c = self._cor_modelo() if self.cor is None else ((0, 0, 0) if self.cor == "preto" else self.cor)
@@ -337,7 +491,8 @@ class Janela(forms.WPFWindow):
     def _ha_mudanca(self):
         return (any(int(round(ln["sl"].Value)) != self.pct_feito.get(ln["id"], 100) for ln in self.linhas)
                 or self._opcoes_tabela() != getattr(self, "tabela_feita", None)
-                or self.cor != getattr(self, "cor_feita", None))
+                or self.cor != getattr(self, "cor_feita", None)
+                or self._ordem() != getattr(self, "ordem_feita", None))
 
     def _largura_mm(self):
         try:
@@ -457,7 +612,7 @@ class Janela(forms.WPFWindow):
             v = int(round(ln["sl"].Value))
             pcts[ln["id"]] = v
             b = self.base.get(ln["id"])
-            if v != 100 and b:
+            if v != 100 and b and not it.get("extra"):
                 fk = it["sym"].Family.Id.ToString()
                 tamanhos.setdefault(fk, max(b) * v / 100.0)
         if not escolhidos:
@@ -470,6 +625,7 @@ class Janela(forms.WPFWindow):
             op = self._opcoes_tabela()
             op["tamanhos"] = tamanhos
             op["cor"] = self.cor
+            op["config"] = self._config_json()
             res = L.atualizar_legenda(doc, escolhidos, op)
         except Exception as e:
             self._desfazer()
@@ -483,7 +639,7 @@ class Janela(forms.WPFWindow):
             return
         self.res = res
         view = res["view"]
-        porid = dict((it["sym"].Id.ToString(), it) for it in res["items"])
+        porid = dict((L.chave_item(it), it) for it in res["items"])
         self.caixas = {}
         for ln in self.linhas:
             it = porid.get(ln["id"])
@@ -501,11 +657,12 @@ class Janela(forms.WPFWindow):
                 self.base[ln["id"]] = (mm[0] * 100.0 / v, mm[1] * 100.0 / v)
             ln["med"].Text = (u"{} × {} mm".format(_mm(mm[0]), _mm(mm[1])) if mm else u"sem símbolo")
             modo = {"leg": u"família (LEG)", "simbolos": u"anotações", "planta": u"desenho da planta",
-                    "componente": u"componente de legenda"}.get(it.get("modo"), it.get("modo") or u"")
+                    "componente": u"componente de legenda", "extra": u"símbolo acrescentado"}.get(it.get("modo"), it.get("modo") or u"")
             ln["med"].ToolTip = u"Símbolo: {}{}".format(modo, u" · redimensionado pelo DWG" if it.get("redimensionado") else u"")
         self.pct_feito = pcts
         self.tabela_feita = self._opcoes_tabela()
         self.cor_feita = self.cor
+        self.ordem_feita = self._ordem()
         try:
             t_p = L.agora()
             self.prev = PreviewControl(doc, view.Id)
@@ -569,6 +726,9 @@ def main():
     t = L.agora()
     try:
         itens = L.collect_items(doc)
+        for it in itens:
+            it["padrao"] = it["label"]
+        itens, desmarcados = L.aplicar_config(doc, itens)
         L.tempo(u"LER OS ITENS DO MODELO ({})".format(len(itens)), t)
     except Exception as e:
         forms.alert(u"Erro ao ler os itens: {}".format(e), title=TITULO)
@@ -577,7 +737,7 @@ def main():
         forms.alert(u"Nenhuma família '(LOG)' posicionada no modelo.", title=TITULO)
         return
     t = L.agora()
-    j = Janela(itens)
+    j = Janela(itens, desmarcados)
     L.tempo(u"montar a janela", t)
     j.ShowDialog()
     if j.gravado and j.res is not None:

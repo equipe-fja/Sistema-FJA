@@ -50,12 +50,14 @@
         <Border DockPanel.Dock="Top" Padding="14,10" BorderBrush="{DynamicResource Linha}" BorderThickness="0,0,0,1">
           <DockPanel>
             <Button x:Name="btTodos100" DockPanel.Dock="Right" Content="Voltar todos a 100%" Padding="10,3" Style="{DynamicResource Discreto}"/>
+            <Button x:Name="btAdicionar" DockPanel.Dock="Right" Content="+ Acrescentar símbolo…" Padding="10,3" Margin="0,0,8,0" Style="{DynamicResource Discreto}"
+                    ToolTip="Acrescentar à legenda um símbolo (anotação genérica) ou detail item do projeto; a cor é aplicada como nos demais"/>
             <TextBlock x:Name="txtItens" FontWeight="SemiBold" VerticalAlignment="Center"/>
           </DockPanel>
         </Border>
         <Border DockPanel.Dock="Top" Padding="14,6" Background="{DynamicResource Lateral}">
           <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource Suave}" FontSize="12"
-                     Text="Marque os itens e ajuste o texto. A escala de cada símbolo vai de 25% a 300% (100% = como aparece na prancha): ao mexer, a prévia mostra uma caixa vermelha no tamanho novo; Atualizar prévia refaz os símbolos que mudaram. A medida é a do símbolo no papel."/>
+                     Text="Marque os itens e ajuste o texto; arraste pelo ≡ para mudar a ordem. A escala de cada símbolo vai de 25% a 300% (100% = como aparece na prancha): ao mexer, a prévia mostra uma caixa vermelha no tamanho novo; Atualizar prévia refaz os símbolos que mudaram. A medida é a do símbolo no papel."/>
         </Border>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel x:Name="lista" Margin="6,4"/>

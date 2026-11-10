@@ -133,6 +133,108 @@ def is_marked(elem, schema):
 
 
 
+# ---------------------------------------------------------------- ajustes da legenda (gravados no modelo)
+# Ordem dos itens, textos editados, itens desmarcados e itens extras (simbolos e
+# detail items acrescentados a mao) ficam numa entidade da vista de legenda, para
+# a equipe toda e para o botao Legenda sem janela.
+CFG_FIELD = "Json"
+
+
+def _guid_cfg():
+    if C.get("guid_cfg"):
+        return System.Guid(C["guid_cfg"])
+    import hashlib
+    h = bytearray(hashlib.md5(("cfg:" + C["guid"]).encode("ascii")).digest())
+    h[7] = (h[7] & 0x0F) | 0x30  # versao 3 (formato de GUID valido)
+    return System.Guid(System.Array[System.Byte](list(h)))
+
+
+def get_schema_cfg():
+    guid = _guid_cfg()
+    sc = Schema.Lookup(guid)
+    if sc is not None:
+        return sc
+    sb = SchemaBuilder(guid)
+    sb.SetSchemaName(C["schema"] + "Cfg")
+    sb.SetReadAccessLevel(AccessLevel.Public)
+    sb.SetWriteAccessLevel(AccessLevel.Public)
+    sb.AddSimpleField(CFG_FIELD, System.String)
+    return sb.Finish()
+
+
+def ler_config(doc):
+    """Ajustes gravados na vista de legenda: {"ordem": [chave], "rotulos": {chave: texto},
+    "desmarcados": [chave], "extras": [{"uid": UniqueId do tipo, "rotulo": texto}]}."""
+    import json
+    try:
+        _, target, _ = find_legends(doc)
+        if target is None:
+            return {}
+        sc = Schema.Lookup(_guid_cfg())
+        if sc is None:
+            return {}
+        ent = target.GetEntity(sc)
+        if ent is None or not ent.IsValid():
+            return {}
+        return json.loads(ent.Get[System.String](CFG_FIELD) or "{}")
+    except Exception:
+        return {}
+
+
+def _gravar_config(view, cfg_json):
+    sc = get_schema_cfg()
+    ent = Entity(sc)
+    ent.Set[System.String](CFG_FIELD, cfg_json)
+    view.SetEntity(ent)
+
+
+def chave_item(it):
+    """Chave estavel do item: UniqueId do tipo (extras com prefixo 'x:')."""
+    return (u"x:" if it.get("extra") else u"") + it["sym"].UniqueId
+
+
+def item_extra(doc, sym, rotulo=None):
+    """Item acrescentado a mao: tipo de simbolo (anotacao generica) ou detail item,
+    colocado direto na legenda."""
+    nome = rotulo or re.sub(r"^\([A-Z]+\)\s*", u"", sym.FamilyName.strip()).upper()
+    return {"sym": sym, "rep": None, "count": 0, "views": 0, "extra": True, "label": nome,
+            "cor": None, "cor_origem": u"", "cores_cont": {}, "em_prancha": None}
+
+
+def simbolos_para_extra(doc):
+    """Tipos de anotacao generica e de detail item do projeto (para acrescentar a legenda),
+    sem as familias '(LEG)' da propria legenda."""
+    res = []
+    for bic in (DB.BuiltInCategory.OST_GenericAnnotation, DB.BuiltInCategory.OST_DetailComponents):
+        for sy in DB.FilteredElementCollector(doc).OfCategory(bic).OfClass(DB.FamilySymbol):
+            n = norm_ascii(sy.FamilyName)
+            if "(LEG)" in n or n.endswith("__ORIG"):
+                continue
+            res.append(sy)
+    res.sort(key=lambda sy: (norm_ascii(sy.Category.Name if sy.Category else u""), norm_ascii(sy.FamilyName),
+                             norm_ascii(elem_name(sy))))
+    return res
+
+
+def aplicar_config(doc, items, cfg=None):
+    """Aplica os ajustes gravados: extras, textos, ordem. Devolve (itens, chaves desmarcadas)."""
+    cfg = ler_config(doc) if cfg is None else cfg
+    items = list(items)
+    for x in cfg.get("extras") or []:
+        sym = doc.GetElement(x.get("uid") or u"")
+        if isinstance(sym, DB.FamilySymbol):
+            items.append(item_extra(doc, sym, x.get("rotulo")))
+    rot = cfg.get("rotulos") or {}
+    for it in items:
+        k = chave_item(it)
+        if rot.get(k):
+            it["label"] = rot[k]
+    ordem = dict((k, i) for i, k in enumerate(cfg.get("ordem") or []))
+    pos = dict((chave_item(it), i) for i, it in enumerate(items))
+    items.sort(key=lambda it: (ordem.get(chave_item(it), len(ordem) + pos[chave_item(it)])))
+    return items, set(cfg.get("desmarcados") or [])
+
+
 # ---------------------------------------------------------------- simbolos aninhados
 # As familias desenham o simbolo em planta com anotacoes genericas aninhadas,
 # ligadas/desligadas por parametros da familia e por nivel de detalhe.
@@ -1197,7 +1299,9 @@ def atualizar_legenda(doc, items=None, opcoes=None):
     t_ini = agora()
     redim = set(opcoes.get("redim") or ())
     if items is None:
-        items = collect_items(doc)
+        # botao sem janela: usa os ajustes gravados na legenda (ordem, textos, extras)
+        items, desm = aplicar_config(doc, collect_items(doc))
+        items = [it for it in items if chave_item(it) not in desm]
     if not items:
         return {"ok": False, "msg": u"Nenhuma fam\u00edlia '{}' posicionada no modelo.".format("' / '".join(C["familias"]))}
     if cor is None:
@@ -1230,6 +1334,8 @@ def atualizar_legenda(doc, items=None, opcoes=None):
     pasta_leg = os.path.join(System.IO.Path.GetTempPath(), "FJA_LEG")
     t_fams = agora()
     for it in items:
+        if it.get("extra"):
+            continue
         fam = it["sym"].Family
         key = fam.Id.ToString()
         if key in legs:
@@ -1371,16 +1477,24 @@ def atualizar_legenda(doc, items=None, opcoes=None):
         prov_top = line_y - MM_FIRST_ROW * k
         for it in items:
             sym_ids = []
-            lf = legs.get(it["sym"].Family.Id.ToString())
-            lsym = _first_symbol(doc, lf) if lf is not None else None
+            lf = None if it.get("extra") else legs.get(it["sym"].Family.Id.ToString())
+            lsym = it["sym"] if it.get("extra") else (_first_symbol(doc, lf) if lf is not None else None)
             if lsym is not None:
                 if not lsym.IsActive:
                     lsym.Activate()
                     doc.Regenerate()
-                sym_ids = [doc.Create.NewFamilyInstance(DB.XYZ.Zero, lsym, target).Id]
-                it["modo"] = "leg"
-                it["leg"] = lf.Name
-            vspecs = [] if sym_ids else visible_specs(nested.get(it["sym"].Family.Id.ToString(), []), it["rep"], it["sym"])
+                try:
+                    sym_ids = [doc.Create.NewFamilyInstance(DB.XYZ.Zero, lsym, target).Id]
+                except Exception:
+                    if not it.get("extra"):
+                        raise
+                    sym_ids = []  # extra que nao pode ser colocado direto: vai como componente de legenda
+                if it.get("extra"):
+                    it["modo"] = "extra"
+                else:
+                    it["modo"] = "leg"
+                    it["leg"] = lf.Name
+            vspecs = [] if (sym_ids or it.get("extra")) else visible_specs(nested.get(it["sym"].Family.Id.ToString(), []), it["rep"], it["sym"])
             if vspecs:
                 sym_ids = place_nested_symbols(doc, target, vspecs, it["rep"], it["sym"])
                 it["modo"] = "simbolos"
@@ -1389,7 +1503,7 @@ def atualizar_legenda(doc, items=None, opcoes=None):
                     # anotacao sem nada visivel na legenda: descarta e tenta a planta
                     doc.Delete(List[DB.ElementId](sym_ids))
                     sym_ids = []
-            if not sym_ids:
+            if not sym_ids and not it.get("extra"):
                 sym_ids = draw_plan_copy(doc, target, it)
                 it["modo"] = "planta"
             if not sym_ids and tpl_id is not None:
@@ -1523,6 +1637,8 @@ def atualizar_legenda(doc, items=None, opcoes=None):
 
         if tpl_id is not None:
             doc.Delete(tpl_id)
+        if opcoes.get("config") is not None:
+            _gravar_config(target, opcoes["config"])
         t_c = agora()
         t.Commit()
         tempo(u"gravar a transação", t_c)
