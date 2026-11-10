@@ -54,7 +54,7 @@ namespace FJA.Revit.Legendas
             public Border Borda;
             public TextBox Desc, Cod;
             public TextBlock AtTipo, AtCod, Sit;
-            public Button Ok;
+            public Button Ok, Apagar;
         }
 
         readonly List<NoFamilia> familias = new List<NoFamilia>();
@@ -66,10 +66,10 @@ namespace FJA.Revit.Legendas
             Vermelho = new SolidColorBrush(WColor.FromRgb(179, 38, 30)), Azul = new SolidColorBrush(WColor.FromRgb(47, 95, 138)),
             Cinza = new SolidColorBrush(WColor.FromRgb(94, 94, 92)), Roxo = new SolidColorBrush(WColor.FromRgb(121, 86, 169));
 
-        // colunas do tipo: recuo | ≡ | description | como está | código | como está | qtde | origem | situação | ✓
-        static readonly double[] COLS_T = { 30, 18, -1, -0.9, 96, 84, 44, 130, 200, 34 };
-        // colunas da família: ▾ | ≡ | sigla + nome | como está | resumo | ✓
-        static readonly double[] COLS_F = { 18, 18, -1, -1, 300, 34 };
+        // colunas do tipo: recuo | ≡ | description | como está | código | como está | qtde | origem | situação | ✓ | ✕
+        static readonly double[] COLS_T = { 30, 18, -1, -0.9, 96, 84, 44, 130, 200, 34, 32 };
+        // colunas da família: ▾ | ≡ | sigla + nome | como está | resumo | ✓ | (vazio, alinhado ao ✕)
+        static readonly double[] COLS_F = { 18, 18, -1, -1, 300, 34, 32 };
 
         public JanelaCodificacao(Document doc, Disciplina inicial)
         {
@@ -201,7 +201,7 @@ namespace FJA.Revit.Legendas
             var cab = new Border { Padding = new Thickness(12, 8, 12, 8), BorderBrush = Pincel("Linha", 226, 226, 223), BorderThickness = new Thickness(0, 0, 0, 1) };
             DockPanel.SetDock(cab, Dock.Top);
             var gc = Grade(COLS_T);
-            string[] tit = { "", "", "Description (= nome do tipo)", "Como está", "Código", "Como está", "Qtde", "Origem", "Situação", "" };
+            string[] tit = { "", "", "Description (= nome do tipo)", "Como está", "Código", "Como está", "Qtde", "Origem", "Situação", "", "" };
             for (int i = 0; i < tit.Length; i++)
             {
                 var tb = new TextBlock { Text = tit[i], FontWeight = FontWeights.SemiBold, FontSize = 12, Foreground = Pincel("Suave", 94, 94, 92), Margin = new Thickness(0, 0, 8, 0) };
@@ -378,9 +378,14 @@ namespace FJA.Revit.Legendas
             var org = Cinzento(tp.Origem);
             var sit = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
             var ok = BotaoOk("Aplicar só este tipo");
-            Por(g, guia, 0); Por(g, alca, 1); Por(g, desc, 2); Por(g, atTipo, 3); Por(g, cx, 4); Por(g, atCod, 5); Por(g, qt, 6); Por(g, org, 7); Por(g, sit, 8); Por(g, ok, 9);
+            var del = Botao("✕", "Discreto");
+            del.Padding = new Thickness(6, 2, 6, 2);
+            del.Foreground = Vermelho;
+            del.ToolTip = "Apagar este tipo do modelo" + (tp.Quantidade > 0 ? $" (e os {tp.Quantidade} elemento(s) dele)" : "");
+            Por(g, guia, 0); Por(g, alca, 1); Por(g, desc, 2); Por(g, atTipo, 3); Por(g, cx, 4); Por(g, atCod, 5); Por(g, qt, 6); Por(g, org, 7); Por(g, sit, 8); Por(g, ok, 9); Por(g, del, 10);
             borda.Child = g;
-            var nt = new NoTipo { Tp = tp, Pai = nf, Borda = borda, Desc = desc, Cod = cx, AtTipo = atTipo, AtCod = atCod, Sit = sit, Ok = ok };
+            var nt = new NoTipo { Tp = tp, Pai = nf, Borda = borda, Desc = desc, Cod = cx, AtTipo = atTipo, AtCod = atCod, Sit = sit, Ok = ok, Apagar = del };
+            del.Click += (s, a) => ApagarTipo(nt);
             desc.TextChanged += (s, a) => { tp.Desc = (desc.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); } };
             cx.TextChanged += (s, a) => { tp.Codigo = (cx.Text ?? "").Trim(); if (!trocando) { alterado = true; Situacoes(); AtualizarResumo(nf); } };
             ok.Click += (s, a) => Aplicar(new List<NoTipo> { nt });
@@ -429,6 +434,56 @@ namespace FJA.Revit.Legendas
         {
             b.BorderBrush = depois == null ? Brushes.Transparent : Roxo;
             b.BorderThickness = depois == null ? new Thickness(0, 2, 0, 2) : depois.Value ? new Thickness(0, 0, 0, 2) : new Thickness(0, 2, 0, 0);
+        }
+
+        // ------------------------------------------------------------ apagar
+        void ApagarTipo(NoTipo nt)
+        {
+            var tp = nt.Tp;
+            bool unico = nt.Pai.Tipos.Count <= 1;
+            try { unico = tp.Sym.Family.GetFamilySymbolIds().Count <= 1; } catch { }
+            string oQue = unico ? $"a família {tp.Sym.FamilyName} (é o único tipo dela)" : $"o tipo {tp.Sym.FamilyName} : {tp.Sym.Name}";
+            var td = new TaskDialog("Codificação")
+            {
+                MainInstruction = "Apagar " + oQue + "?",
+                MainContent = (tp.Quantidade > 0
+                        ? $"Os {tp.Quantidade} elemento(s) desse tipo no modelo também serão apagados" + (tp.Origem.Contains("link") ? " (inclusive cópias do Copiar do link)" : "") + ".
+
+"
+                        : "Não há elementos desse tipo no modelo.
+
+")
+                    + (tp.MarcaAtual != "" ? $"O código {tp.MarcaAtual} continua reservado (não é reaproveitado). " : "")
+                    + "Dá para desfazer com Ctrl+Z no Revit depois de fechar esta janela.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (td.Show() != TaskDialogResult.Yes) return;
+            string nome = tp.Sym.FamilyName + " : " + tp.Sym.Name;
+            try
+            {
+                int n = cod.Apagar(tp.Sym);
+                var nf = nt.Pai;
+                if (unico)
+                {
+                    familias.Remove(nf);
+                    arvore.Children.Remove(nf.Bloco);
+                }
+                else
+                {
+                    nf.Tipos.Remove(nt);
+                    nf.Filhos.Children.Remove(nt.Borda);
+                    AtualizarResumo(nf);
+                }
+                reservas = cod.Reservas();
+                Aplicados++;
+                Situacoes();
+                txtStatus.Text = $"Apagado: {nome}" + (unico ? " (família inteira)" : "") + $". {n} elemento(s) saíram do modelo.";
+            }
+            catch (Exception e)
+            {
+                TaskDialog.Show("Codificação", "Não foi possível apagar " + nome + ": " + e.Message);
+            }
         }
 
         // ------------------------------------------------------------ situação, numerar, aplicar

@@ -198,6 +198,33 @@ namespace FJA.Revit.Legendas
             return Sigla + ".999";
         }
 
+        /// <summary>Apaga o tipo (e os elementos dele). Se for o único tipo da família, apaga a família.
+        /// O código dele continua reservado. Devolve quantos elementos saíram do modelo.</summary>
+        public int Apagar(FamilySymbol s)
+        {
+            Element alvo = s;
+            try { if (s.Family.GetFamilySymbolIds().Count <= 1) alvo = s.Family; } catch { }
+            using (var t = ResolverFalhas.Iniciar(doc, "Codificação: apagar " + s.FamilyName + " : " + s.Name))
+            {
+                // o código do tipo apagado fica reservado, mesmo que nunca tenha passado pelo Aplicar
+                string m = Marca(s);
+                if (m != "" && Padrao.IsMatch(m))
+                {
+                    var tudo = LerTudo();
+                    var res = tudo.Obj(Sigla);
+                    if (!res.ContainsKey(m)) res[m] = s.UniqueId;
+                    tudo[Sigla] = res;
+                    var ds = Armazem(true);
+                    var ent = new Entity(Schema.Lookup(GUID_RESERVAS));
+                    ent.Set(CAMPO, Json.Gravar(tudo));
+                    ds.SetEntity(ent);
+                }
+                int n = doc.Delete(alvo.Id).Count;
+                t.Commit();
+                return n;
+            }
+        }
+
         /// <summary>Grava, para cada tipo: o código no Type Mark, a Description (que também renomeia o tipo) e o
         /// nome da família (mantendo a sigla). Uma transação; um tipo com erro (ex.: nome repetido) não impede os
         /// outros: o erro fica em TipoPonto.Erro. Devolve quantos tipos mudaram.</summary>

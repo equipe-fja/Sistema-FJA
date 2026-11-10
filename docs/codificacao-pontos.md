@@ -49,6 +49,7 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - **Família** editável sem a sigla, que é mantida, por exemplo `(LOG) `. Os tipos da mesma família acompanham a mudança.
   - **Árvore** (2.8.4): cada família é um nó, com sigla fixa, nome editável e "como está" ao lado; os tipos ficam embaixo, com Description, código e "como está". As famílias e os tipos (dentro da família) podem ser arrastados, e a ordem vale para numerar.
   - O **✓** aplica a linha: no tipo, só ele; na família, o nome e todos os tipos dela. **Aplicar tudo** aplica todos.
+  - **✕ no tipo** (2.8.5): apaga o tipo e os elementos dele, com confirmação que mostra a quantidade. Se for o único tipo, apaga a família. O código continua reservado, e dá para desfazer com Ctrl+Z.
   - Cada tipo é gravado numa subtransação, então um erro (como um nome de tipo repetido na família) não impede os outros e aparece na linha.
   - As reservas ficam num DataStorage (`FJA_CodigosPontos`, JSON `{sigla: {código: UniqueId do tipo}}`).
 - **Legendas:**
