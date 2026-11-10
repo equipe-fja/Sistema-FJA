@@ -101,7 +101,7 @@ namespace FJA.Revit.Legendas
         {
             LigadosAoSistema = 0;
             var syms = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                .Where(s => col.EhFamiliaDaDisciplina(s.FamilyName)).ToList();
+                .Where(col.EhDaDisciplina).ToList();
             var porTipo = new Dictionary<string, List<FamilyInstance>>();
             var cats = syms.Where(s => s.Category != null).Select(s => s.Category.Id).GroupBy(i => i.ToString()).Select(g => g.First()).ToList();
             if (cats.Count > 0)

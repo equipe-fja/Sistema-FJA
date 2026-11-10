@@ -85,10 +85,10 @@ namespace FJA.Revit.Legendas
             AplicarEstilo();
             Montar();
             trocando = true;
-            foreach (var d in Disciplina.Todas) cbDisc.Items.Add(d.Codigo + " · " + d.Titulo.Replace("LEGENDA DE ", "").ToLowerInvariant());
-            cbDisc.SelectedIndex = Math.Max(0, Array.IndexOf(Disciplina.Todas, inicial));
+            foreach (var d in Disciplina.ParaCodificacao) cbDisc.Items.Add(d.Codigo + " · " + d.Titulo.Replace("LEGENDA DE ", "").ToLowerInvariant());
+            cbDisc.SelectedIndex = Math.Max(0, Array.IndexOf(Disciplina.ParaCodificacao, inicial));
             trocando = false;
-            Carregar(Disciplina.Todas[cbDisc.SelectedIndex]);
+            Carregar(Disciplina.ParaCodificacao[cbDisc.SelectedIndex]);
             Closing += (s, a) =>
             {
                 if (alterado && Tipos.Any(t => t.Tp.Pendente) && !Confirmar("Fechar sem aplicar as alterações?")) a.Cancel = true;
@@ -267,11 +267,11 @@ namespace FJA.Revit.Legendas
             cbDisc.SelectionChanged += (s, a) =>
             {
                 if (trocando || cbDisc.SelectedIndex < 0) return;
-                var d = Disciplina.Todas[cbDisc.SelectedIndex];
+                var d = Disciplina.ParaCodificacao[cbDisc.SelectedIndex];
                 if (d == D) return;
                 if (alterado && Tipos.Any(t => t.Tp.Pendente) && !Confirmar("Descartar as alterações de " + D.Codigo + "?"))
                 {
-                    trocando = true; cbDisc.SelectedIndex = Array.IndexOf(Disciplina.Todas, D); trocando = false;
+                    trocando = true; cbDisc.SelectedIndex = Array.IndexOf(Disciplina.ParaCodificacao, D); trocando = false;
                     return;
                 }
                 Carregar(d);

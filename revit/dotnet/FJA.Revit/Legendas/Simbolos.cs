@@ -566,6 +566,151 @@ namespace FJA.Revit.Legendas
         }
 
         /// <summary>Nome da família (LEG) de um símbolo acrescentado à mão, quando a escala dele é ajustada.</summary>
+        // ------------------------------------------------------------ símbolos fixos (ex.: eletrodutos, ELE)
+        public static string NomeFixo(Disciplina d, Fixo fx) => d.Prefixo + " (FIX) " + fx.Rotulo;
+
+        /// <summary>Tipo do símbolo fixo: a família do projeto que bate com 'Procura' ou a "(SIGLA) (FIX) RÓTULO"
+        /// criada pela ferramenta. null se nenhuma existir.</summary>
+        public static FamilySymbol SimboloFixo(Document doc, Disciplina d, Fixo fx)
+        {
+            if (fx.Procura != null && fx.Procura.Length == 2)
+            {
+                var ids = new[] { new ElementId(BuiltInCategory.OST_GenericAnnotation), new ElementId(BuiltInCategory.OST_DetailComponents) };
+                foreach (FamilySymbol s in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
+                {
+                    try
+                    {
+                        if (s.Category == null || !ids.Contains(s.Category.Id)) continue;
+                        if (Texto.Norm(s.FamilyName).Contains(fx.Procura[0]) && Texto.Norm(s.Name).Contains(fx.Procura[1])) return s;
+                    }
+                    catch { }
+                }
+            }
+            var f = FamiliaPorNome(doc, NomeFixo(d, fx));
+            return f != null ? PrimeiroTipo(doc, f) : null;
+        }
+
+        /// <summary>Cria (e carrega) as famílias dos símbolos fixos que faltam no projeto. Fora de transação.
+        /// Devolve os erros.</summary>
+        public static List<string> GarantirFixos(Document doc, Disciplina d, string pasta)
+        {
+            var erros = new List<string>();
+            if (d.Fixos == null) return erros;
+            foreach (var fx in d.Fixos)
+            {
+                if (SimboloFixo(doc, d, fx) != null) continue;
+                try { CriarFixo(doc, d, fx, pasta); }
+                catch (Exception e) { erros.Add(fx.Rotulo + ": " + e.Message); }
+            }
+            return erros;
+        }
+
+        static readonly byte[] COR_ELE = { 65, 100, 215 }, COR_ELETROCALHA = { 189, 242, 253 };
+        // seta de eletroduto (mm de papel, como na família "Eletroduto que sobe, desce ou passa")
+        static readonly double[][] SetaSobe = { new[] { 4.16, 3.04 }, new[] { 6.25, 6.25 }, new[] { 3.04, 4.16 }, new[] { 3.60, 3.60 } };
+        static readonly double[][] SetaDesce = { new[] { 2.74, 3.85 }, new[] { 0.66, 0.66 }, new[] { 3.85, 2.74 }, new[] { 3.30, 3.30 } };
+
+        static void CriarFixo(Document doc, Disciplina d, Fixo fx, string pasta)
+        {
+            var app = doc.Application;
+            string tpl = ModeloAnotacao(app) ?? throw new Exception("modelo de família 'Anotação genérica' não encontrado");
+            string nome = NomeFixo(d, fx);
+            Document fdoc = app.NewFamilyDocument(tpl);
+            try
+            {
+                using (var t = ResolverFalhas.Iniciar(fdoc, "Simbolo fixo"))
+                {
+                    View v = VistaDaFamilia(fdoc);
+                    foreach (var tn in new FilteredElementCollector(fdoc).OfClass(typeof(TextNote)).ToElementIds().ToList())
+                        fdoc.Delete(tn);
+                    // linhas grossas numa subcategoria própria
+                    GraphicsStyle grossa = null;
+                    try
+                    {
+                        var cat = fdoc.OwnerFamily.FamilyCategory;
+                        var sub = cat.SubCategories.Contains("FJA Linha grossa") ? cat.SubCategories.get_Item("FJA Linha grossa")
+                            : fdoc.Settings.Categories.NewSubcategory(cat, "FJA Linha grossa");
+                        sub.SetLineWeight(4, GraphicsStyleType.Projection);
+                        grossa = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+                    }
+                    catch { }
+                    const double k = 1.0 / 304.8;
+                    Func<double, double, XYZ> P = (x, y) => new XYZ(x * k, y * k, 0);
+                    Action<double, double, double, double, bool> L = (x0, y0, x1, y1, g) =>
+                    {
+                        var c = fdoc.FamilyCreate.NewDetailCurve(v, Line.CreateBound(P(x0, y0), P(x1, y1)));
+                        if (g && grossa != null) { try { c.LineStyle = grossa; } catch { } }
+                    };
+                    Action<double[][], byte[]> R = (pts, rgb) =>
+                    {
+                        var tipo = TipoSolido(fdoc, rgb);
+                        if (tipo == null) return;
+                        var loop = new CurveLoop();
+                        for (int i = 0; i < pts.Length; i++)
+                        {
+                            var a = pts[i]; var b = pts[(i + 1) % pts.Length];
+                            loop.Append(Line.CreateBound(P(a[0], a[1]), P(b[0], b[1])));
+                        }
+                        try
+                        {
+                            var fr = FilledRegion.Create(fdoc, tipo, v.Id, new List<CurveLoop> { loop });
+                            var inv = FilledRegion.GetValidLineStyleIdsForFilledRegion(fdoc)
+                                .FirstOrDefault(i => (fdoc.GetElement(i) as GraphicsStyle)?.GraphicsStyleCategory?.Id == new ElementId(BuiltInCategory.OST_InvisibleLines));
+                            if (inv != null) fr.SetLineStyleId(inv);
+                        }
+                        catch { }
+                    };
+                    double h = 12.5 / 2;
+                    switch (fx.Id)
+                    {
+                        case "sobe":
+                        case "desce":
+                            fdoc.FamilyCreate.NewDetailCurve(v, Arc.Create(XYZ.Zero, 0.94 * k, 0, 2 * Math.PI, XYZ.BasisX, XYZ.BasisY));
+                            L(0.66, 0.66, 6.25, 6.25, false);
+                            var seta = fx.Id == "sobe" ? SetaSobe : SetaDesce;
+                            R(seta, COR_ELE);
+                            for (int i = 0; i < 4; i++) L(seta[i][0], seta[i][1], seta[(i + 1) % 4][0], seta[(i + 1) % 4][1], false);
+                            break;
+                        case "teto":   // tracejado 3 mm / 3 mm
+                            L(-h, 0, -4.5, 0, true); L(-1.5, 0, 1.5, 0, true); L(4.5, 0, h, 0, true);
+                            break;
+                        case "piso":   // traço longo - curto - longo
+                            L(-h, 0, -1.86, 0, true); L(-0.24, 0, 1.13, 0, true); L(2.62, 0, h, 0, true);
+                            break;
+                        case "eletrocalha":
+                            double e = 1.735;
+                            R(new[] { new[] { -h, -e }, new[] { h, -e }, new[] { h, e }, new[] { -h, e } }, COR_ELETROCALHA);
+                            L(-h, e, h, e, true); L(-h, -e, h, -e, true);
+                            break;
+                        default:
+                            throw new Exception("símbolo fixo desconhecido: " + fx.Id);
+                    }
+                    t.Commit();
+                }
+                Salvar(fdoc, doc, pasta, nome);
+            }
+            finally { fdoc.Close(false); }
+        }
+
+        /// <summary>Tipo de região preenchida sólida na cor, na família (null se o modelo não tiver nenhum para copiar).</summary>
+        static ElementId TipoSolido(Document fdoc, byte[] rgb)
+        {
+            string nome = $"FJA - SOLIDO {rgb[0]:000}-{rgb[1]:000}-{rgb[2]:000}";
+            var tipos = new FilteredElementCollector(fdoc).OfClass(typeof(FilledRegionType)).Cast<FilledRegionType>().ToList();
+            var achado = tipos.FirstOrDefault(x => x.Name == nome);
+            if (achado != null) return achado.Id;
+            if (tipos.Count == 0) return null;
+            var solido = new FilteredElementCollector(fdoc).OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                .FirstOrDefault(fp => { try { var p = fp.GetFillPattern(); return p.IsSolidFill && p.Target == FillPatternTarget.Drafting; } catch { return false; } });
+            if (solido == null) return null;
+            var novo = tipos[0].Duplicate(nome) as FilledRegionType;
+            novo.ForegroundPatternId = solido.Id;
+            novo.ForegroundPatternColor = new Color(rgb[0], rgb[1], rgb[2]);
+            novo.BackgroundPatternId = ElementId.InvalidElementId;
+            try { novo.IsMasking = false; } catch { }
+            return novo.Id;
+        }
+
         public static string NomeLegExtra(Disciplina d, FamilySymbol sym)
         {
             string fam = Regex.Replace(sym.FamilyName.Trim(), @"^\([A-Z]+\)\s*", "").ToUpperInvariant();

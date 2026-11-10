@@ -129,6 +129,15 @@ namespace FJA.Revit.Legendas
                 if (doc.GetElement(x.Txt("uid") ?? "") is FamilySymbol s)
                     itens.Add(Coleta.ItemExtra(s, x.Txt("rotulo")));
             }
+            // símbolos fixos da disciplina: entram em toda legenda que ainda não gravou a lista de acrescentados
+            if (!cfg.ContainsKey("extras") && D.Fixos != null)
+            {
+                foreach (var fx in D.Fixos)
+                {
+                    var s = Simbolos.SimboloFixo(doc, D, fx);
+                    if (s != null && !itens.Any(i => i.Extra && i.Sym.Id == s.Id)) itens.Add(Coleta.ItemExtra(s, fx.Rotulo));
+                }
+            }
             var rot = cfg.Obj("rotulos");
             foreach (var it in itens)
             {
@@ -388,7 +397,7 @@ namespace FJA.Revit.Legendas
                 if (legs.ContainsKey(key)) continue;
                 double tF = Tempos.Agora;
                 // variação (baixa/média/alta): família (LEG) própria, montada com a instância representante dela
-                string nomeLeg = Simbolos.NomeLeg(D, col, it.Sym) + (it.Variante != "" ? " - " + it.Variante : "");
+                string nomeLeg = Simbolos.NomeLeg(D, col, it.Sym) + (it.VarLegNome != "" ? " - " + it.VarLegNome : "");
                 Family lf = Simbolos.FamiliaPorNome(doc, nomeLeg);
                 double tam = op.Tamanhos.TryGetValue(key, out double tt) ? tt : 0;
                 if (lf != null && tam > 0)
@@ -487,6 +496,7 @@ namespace FJA.Revit.Legendas
                 var velhos = new FilteredElementCollector(doc, alvo.Id).WhereElementIsNotElementType()
                     .Where(e => e.Id != tplId && e.OwnerViewId == alvo.Id && Marcado(e, schema)).Select(e => e.Id).ToList();
                 if (velhos.Count > 0) doc.Delete(velhos);
+                if (D.LegadoLum && !res.Criada && LerConfig(alvo).Count == 0) LimparLegadoLum(alvo, schema);
 
                 double k = alvo.Scale / 304.8;
                 double x0 = 0, y0 = 0;
@@ -541,7 +551,7 @@ namespace FJA.Revit.Legendas
                     byte[] cor = CorDoItem(it, op);
                     foreach (var i in ids)
                     {
-                        Cores.Pintar(alvo, i, cor);
+                        Cores.Pintar(alvo, i, cor, it.SoLinhas);
                         Marcar(doc.GetElement(i), schema);
                     }
                     var to = new TextNoteOptions(est.Item2) { HorizontalAlignment = HorizontalTextAlignment.Left };
@@ -708,6 +718,54 @@ namespace FJA.Revit.Legendas
             res.Vista = alvo;
             res.Itens = itens;
             return res;
+        }
+
+        /// <summary>Legenda LUM feita pelo botão antigo (Python): apaga os textos "SIGLA.NN - ...", as linhas
+        /// magenta que ele desenhou e o título com o sublinhado (a ferramenta cria os seus).</summary>
+        void LimparLegadoLum(View alvo, Schema schema)
+        {
+            var rx = new System.Text.RegularExpressions.Regex(@"^[A-Z]{2,4}[.-]\d{2,3}\s*-");
+            var apagar = new List<ElementId>();
+            TextNote tituloVelho = null;
+            var els = new FilteredElementCollector(doc, alvo.Id).WhereElementIsNotElementType()
+                .Where(e => e.OwnerViewId == alvo.Id && !Marcado(e, schema)).ToList();
+            foreach (var e in els)
+            {
+                if (e is TextNote tn)
+                {
+                    string t = Texto.Norm(tn.Text);
+                    if (rx.IsMatch(t)) apagar.Add(e.Id);
+                    else if (t == Texto.Norm(D.Titulo)) { tituloVelho = tn; apagar.Add(e.Id); }
+                }
+                else if (e is CurveElement)
+                {
+                    try
+                    {
+                        var c = alvo.GetElementOverrides(e.Id).ProjectionLineColor;
+                        if (c != null && c.IsValid && c.Red == 255 && c.Green == 0 && c.Blue == 128) apagar.Add(e.Id);
+                    }
+                    catch { }
+                }
+            }
+            var bb = tituloVelho?.get_BoundingBox(alvo);
+            if (bb != null)
+            {
+                foreach (var ce in els.OfType<CurveElement>())
+                {
+                    try
+                    {
+                        var g = ce.GeometryCurve;
+                        XYZ p0 = g.GetEndPoint(0), p1 = g.GetEndPoint(1);
+                        if (Math.Abs(p0.Y - p1.Y) > 1e-4) continue;
+                        if (p0.Y < bb.Min.Y - 1.0 || p0.Y > bb.Min.Y + 0.1) continue;
+                        if (Math.Min(p0.X, p1.X) < bb.Min.X - 3.0 || Math.Min(p0.X, p1.X) > bb.Max.X) continue;
+                        apagar.Add(ce.Id);
+                    }
+                    catch { }
+                }
+            }
+            apagar = apagar.Distinct().ToList();
+            if (apagar.Count > 0) doc.Delete(apagar);
         }
 
         sealed class Linha

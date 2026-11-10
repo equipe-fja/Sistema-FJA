@@ -156,7 +156,10 @@ namespace FJA.Revit.Legendas
             return DeChave(soma.OrderByDescending(x => x.Value[0]).ThenByDescending(x => x.Value[1]).First().Key);
         }
 
-        public static void Pintar(View view, ElementId id, byte[] rgb)
+        public static void Pintar(View view, ElementId id, byte[] rgb) => Pintar(view, id, rgb, false);
+
+        /// <param name="soLinhas">true: só as linhas (o preenchimento mantém a cor da família).</param>
+        public static void Pintar(View view, ElementId id, byte[] rgb, bool soLinhas)
         {
             if (rgb == null)
             {
@@ -167,6 +170,7 @@ namespace FJA.Revit.Legendas
             var o = view.GetElementOverrides(id);
             o.SetProjectionLineColor(c);
             o.SetCutLineColor(c);
+            if (soLinhas) { view.SetElementOverrides(id, o); return; }
             try { o.SetSurfaceForegroundPatternColor(c); } catch { }
             try { o.SetSurfaceBackgroundPatternColor(c); } catch { }
             try { o.SetCutForegroundPatternColor(c); } catch { }

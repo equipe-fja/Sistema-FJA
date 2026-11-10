@@ -23,6 +23,11 @@ namespace FJA.Revit.Legendas
         public byte[] Cor;            // cor quando não der para ler a do modelo
         public string Codigo;         // disciplina no Sistema FJA (cor do projeto)
         public string PrefixoLeg;     // "(LOG)" em "(LOG) (LEG) NOME"
+        public BuiltInCategory[] Categorias; // tipos destas categorias entram mesmo sem a sigla (se não tiverem a de outra disciplina)
+        public bool PorAltura;        // ELE: um item por tipo + altura do ponto ("Elevação do ponto"), quadros e pontos de piso
+        public Fixo[] Fixos;          // símbolos fixos que já vêm em toda legenda nova (como os acrescentados à mão)
+        public bool NaCodificacao = true; // aparece na ferramenta Codificação
+        public bool LegadoLum;        // apaga o que o botão antigo (Python) da legenda LUM deixou na vista
 
         static readonly string[] BasesGerais = { "LOG - LEGENDA GRAFICA", "ELE - LEGENDA GRAFICA" };
 
@@ -76,10 +81,72 @@ namespace FJA.Revit.Legendas
             Codigo = "SON",
         };
 
-        /// <summary>Disciplinas da ferramenta Legendas (ELE e LUM ainda pelos botões próprios, em Python).</summary>
-        public static readonly Disciplina[] Todas = { LOG, AUT, SON };
+        public static readonly Disciplina ELE = new Disciplina
+        {
+            Botao = "Legenda ELE",
+            Alvo = "ELE - LEGENDA DE PONTOS ELÉTRICOS",
+            Titulo = "LEGENDA DE PONTOS ELÉTRICOS",
+            Familias = new[] { "(ELE)" },
+            Categorias = new[]
+            {
+                BuiltInCategory.OST_ElectricalFixtures, BuiltInCategory.OST_LightingDevices,
+                BuiltInCategory.OST_CommunicationDevices, BuiltInCategory.OST_TelephoneDevices,
+                BuiltInCategory.OST_DataDevices, BuiltInCategory.OST_SecurityDevices,
+                BuiltInCategory.OST_FireAlarmDevices, BuiltInCategory.OST_NurseCallDevices,
+                BuiltInCategory.OST_ElectricalEquipment,
+            },
+            Vistas = new[] { "ELE" },
+            Bases = new[] { "ELE - LEGENDA GRAFICA", "ELE - LEGENDA" },
+            // mesma marca do botão antigo em Python: a ferramenta reconhece e substitui o que ele criou
+            Guid = "6f3b2c1e-8d4a-4f7b-9c2e-1a5d7e9b3c41",
+            Schema = "FJA_LegendaELE",
+            Marca = "LegendaELE",
+            Cor = new byte[] { 65, 100, 215 },
+            Codigo = "ELE",
+            PorAltura = true,
+            NaCodificacao = false,
+            Fixos = new[]
+            {
+                new Fixo { Id = "sobe", Rotulo = "ELETRODUTO QUE SOBE", Procura = new[] { "ELETRODUTO QUE SOBE", "SOBE" } },
+                new Fixo { Id = "desce", Rotulo = "ELETRODUTO QUE DESCE", Procura = new[] { "ELETRODUTO QUE SOBE", "DESCE" } },
+                new Fixo { Id = "teto", Rotulo = "ELETRODUTO PELO TETO" },
+                new Fixo { Id = "piso", Rotulo = "ELETRODUTO PELO PISO" },
+                new Fixo { Id = "eletrocalha", Rotulo = "ELETROCALHA PERFURADA SEM TAMPA" },
+            },
+        };
+
+        public static readonly Disciplina LUM = new Disciplina
+        {
+            Botao = "Legenda LUM",
+            Alvo = "ELE - LEGENDA DE LUMINÁRIAS",
+            Titulo = "LEGENDA DE LUMINÁRIAS",
+            Familias = new[] { "(LUM)" },
+            Categorias = new[] { BuiltInCategory.OST_LightingFixtures },
+            Vistas = new[] { "LUM", "ELE" },
+            Bases = new[] { "ELE - LEGENDA GRAFICA", "LUM - LEGENDA", "ELE - LEGENDA" },
+            Guid = "c3a81f5e-7d29-4b6a-9e14-58f2d0b6a7c3",
+            Schema = "FJA_LegendaLUM",
+            Marca = "LegendaLUM",
+            Cor = new byte[] { 255, 0, 128 },
+            Codigo = "LUM",
+            LegadoLum = true,
+        };
+
+        /// <summary>Disciplinas da ferramenta Legendas.</summary>
+        public static readonly Disciplina[] Todas = { LOG, AUT, SON, ELE, LUM };
+
+        /// <summary>Disciplinas da ferramenta Codificação (ELE ainda sem códigos).</summary>
+        public static readonly Disciplina[] ParaCodificacao = Todas.Where(d => d.NaCodificacao).ToArray();
 
         public string Sigla => Codigo;
+    }
+
+    /// <summary>Símbolo fixo da legenda (ex.: eletroduto que sobe). Usa a família do projeto que bate com
+    /// 'Procura' (nome da família e do tipo); sem ela, cria a anotação "(SIGLA) (FIX) RÓTULO".</summary>
+    public sealed class Fixo
+    {
+        public string Id, Rotulo;
+        public string[] Procura;      // [trecho do nome da família, trecho do nome do tipo]
     }
 
     /// <summary>Um item da legenda (um tipo de família, ou um símbolo acrescentado à mão).</summary>
@@ -96,6 +163,9 @@ namespace FJA.Revit.Legendas
         public string Codigo = "";          // código do ponto (Type Mark, ferramenta Codificação)
         public string Variante = "";        // variação do mesmo tipo (ex.: "BAIXA"), pelos parâmetros Sim/Não da instância
         public string VarKey = "";
+        public string VarLeg;               // variação do desenho, quando difere da do item (ELE: Baixa/Média/Alta da altura)
+        public int? Altura;                 // ELE: altura do ponto (mm)
+        public bool SoLinhas;               // pinta só as linhas (o preenchimento tem cor própria, ex.: eletrocalha)
         public byte[] Cor;                  // cor mais frequente deste tipo
         public string CorOrigem = "";
         public Dictionary<string, int[]> CoresCont = new Dictionary<string, int[]>(); // "r,g,b" -> [nas plantas da disciplina, demais]
@@ -112,7 +182,11 @@ namespace FJA.Revit.Legendas
         public string Chave => (Extra ? "x:" : "") + Sym.UniqueId + (VarKey != "" ? "|" + VarKey : "");
 
         /// <summary>Chave da família de símbolo (LEG) deste item: por família (e variação), ou "x:" para os acrescentados.</summary>
-        public string ChaveLeg => Extra ? "x:" + Sym.Id : Sym.Family.Id + (VarKey != "" ? "|" + VarKey : "");
+        public string ChaveLeg => Extra ? "x:" + Sym.Id : Sym.Family.Id + (VarLegEf != "" ? "|" + VarLegEf : "");
+
+        /// <summary>Variação do desenho (nome e chave da família (LEG)).</summary>
+        public string VarLegEf => VarLeg ?? VarKey;
+        public string VarLegNome => VarLeg ?? Variante;
 
         /// <summary>Cópia "limpa" para outra legenda: texto original, sem resultado de montagem.</summary>
         public Item Novo()

@@ -24,7 +24,22 @@ namespace FJA.Revit.Legendas
         {
             string n = Texto.Norm(nome);
             if (!D.FamiliasN.Any(p => n.StartsWith(p))) return false;
-            return !n.Contains("(LEG)") && !n.EndsWith("__ORIG");
+            return !n.Contains("(LEG)") && !n.Contains("(FIX)") && !n.EndsWith("__ORIG");
+        }
+
+        static readonly Regex RxSigla = new Regex(@"^\(\s*[A-Z]+\s*\)");
+
+        /// <summary>O tipo é da disciplina: tem a sigla dela no nome da família ou, nas disciplinas por
+        /// categoria (ELE, LUM), é de uma das categorias e não tem a sigla de outra disciplina.</summary>
+        public bool EhDaDisciplina(FamilySymbol s)
+        {
+            string n = Texto.Norm(s.FamilyName);
+            if (n.Contains("(LEG)") || n.Contains("(FIX)") || n.EndsWith("__ORIG")) return false;
+            if (D.FamiliasN.Any(p => n.StartsWith(p))) return true;
+            if (D.Categorias == null || s.Category == null) return false;
+            var cid = s.Category.Id;
+            if (!D.Categorias.Any(c => cid == new ElementId(c))) return false;
+            return !RxSigla.IsMatch(n);
         }
 
         public string RotuloItem(FamilySymbol sym, bool multi)
@@ -190,7 +205,7 @@ namespace FJA.Revit.Legendas
         {
             double t0 = Tempos.Agora;
             var syms = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                .Where(s => EhFamiliaDaDisciplina(s.FamilyName)).ToList();
+                .Where(EhDaDisciplina).ToList();
             var symOk = new HashSet<string>(syms.Select(s => s.Id.ToString()));
             var cats = new Dictionary<string, ElementId>();
             foreach (var s in syms)
@@ -204,6 +219,21 @@ namespace FJA.Revit.Legendas
                 .Cast<FamilyInstance>()
                 .Where(e => e.SuperComponent == null && symOk.Contains(e.GetTypeId().ToString()) && !EmVistaDeLegenda(e))
                 .ToList();
+            // ELE: só pontos de parede (com "Elevação do ponto"), de piso, caixas e quadros; altura de cada um
+            var bloco = new Dictionary<string, int>();
+            var alturas = new Dictionary<string, int?>();
+            if (D.PorAltura)
+            {
+                var ok = new List<FamilyInstance>();
+                foreach (var i in insts)
+                {
+                    if (!Eletrica.Inclui(i, out int bl, out int? h)) continue;
+                    string k = i.Id.ToString();
+                    bloco[k] = bl; alturas[k] = h;
+                    ok.Add(i);
+                }
+                insts = ok;
+            }
             Tempos.Marca($"  instâncias no modelo: {insts.Count}", t1);
             if (insts.Count == 0) return new List<Item>();
 
@@ -250,8 +280,20 @@ namespace FJA.Revit.Legendas
             // variações: por tipo, parâmetros Sim/Não que mudam entre as instâncias (ex.: Baixa, Média, Alta)
             double tv = Tempos.Agora;
             var assin = new Dictionary<string, string>();
+            var defsTipo = new Dictionary<string, List<Definition>>();
             int comVariacao = 0;
-            foreach (var g in insts.GroupBy(x => x.GetTypeId().ToString()))
+            if (D.PorAltura)
+            {
+                // ELE: o item é tipo + altura; a variação do desenho (Baixa/Média/Alta) acompanha a altura
+                foreach (var i in insts)
+                {
+                    var h = alturas[i.Id.ToString()];
+                    if (h != null) assin[i.Id.ToString()] = "h" + h.Value;
+                }
+                foreach (var g in insts.GroupBy(x => x.GetTypeId().ToString()))
+                    defsTipo[g.Key] = ParametrosDeVariacao(g.ToList());
+            }
+            else foreach (var g in insts.GroupBy(x => x.GetTypeId().ToString()))
             {
                 var lista = g.ToList();
                 var defs = ParametrosDeVariacao(lista);
@@ -333,6 +375,7 @@ namespace FJA.Revit.Legendas
                 famTipos[fk] = famTipos.TryGetValue(fk, out int c) ? c + 1 : 1;
             }
             var itens = new List<Item>();
+            var ordemEle = new Dictionary<string, string>();
             foreach (var kv in tipos)
             {
                 var a = kv.Value;
@@ -342,12 +385,27 @@ namespace FJA.Revit.Legendas
                 try { desc = (a.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "").Trim(); } catch { }
                 string rot = desc != "" ? desc.ToUpperInvariant() : RotuloItem(a.Sym, famTipos[a.Sym.Family.Id.ToString()] > 1);
                 string varTxt = a.Var == "-" ? "SEM VARIAÇÃO" : a.Var;
-                if (a.Var != "") rot = rot + " – " + varTxt;
+                string varLeg = null, ordem = null;
+                int? alt = null;
+                if (D.PorAltura)
+                {
+                    string rk = a.Rep.Id.ToString();
+                    int bl = bloco.TryGetValue(rk, out int b0) ? b0 : 0;
+                    alt = alturas.TryGetValue(rk, out var h0) ? h0 : null;
+                    rot = Eletrica.Rotulo(a.Sym, bl, alt);
+                    ordem = Eletrica.Ordem(a.Sym, bl, alt);
+                    var defs = defsTipo.TryGetValue(a.Sym.Id.ToString(), out var dl) ? dl : new List<Definition>();
+                    varLeg = defs.Count > 0 ? Assinatura(a.Rep, defs) : "";
+                    if (varLeg == "-") varLeg = "PADRÃO";
+                    varTxt = "";
+                }
+                else if (a.Var != "") rot = rot + " – " + varTxt;
+                if (ordem != null) ordemEle[kv.Key] = ordem;
                 itens.Add(new Item
                 {
                     Sym = a.Sym, Rep = a.Rep, Quantidade = a.Inst.Count,
                     Vistas = nviews.TryGetValue(a.Sym.Id.ToString(), out var hs) ? hs.Count : 0,
-                    Variante = a.Var == "" ? "" : varTxt, VarKey = a.Var,
+                    Variante = a.Var == "" ? "" : varTxt, VarKey = a.Var, VarLeg = varLeg, Altura = alt,
                     EmPrancha = verificado ? a.Vistos > 0 : (a.Vistos > 0 ? true : (bool?)null),
                     Cor = Cores.DeChave(melhor), CorOrigem = a.Origem[melhor],
                     CoresCont = a.Cores,
@@ -355,6 +413,8 @@ namespace FJA.Revit.Legendas
                     Geo = a.Geo, GeoInst = a.GeoInst,
                 });
             }
+            if (D.PorAltura)
+                return itens.OrderBy(x => OrdemEle(ordemEle, x), StringComparer.Ordinal).ToList();
             return itens
                 .OrderBy(x => Texto.Norm(x.Sym.Category != null ? x.Sym.Category.Name : ""), StringComparer.Ordinal)
                 .ThenBy(x => Texto.Norm(x.Rotulo.Split('–')[0]), StringComparer.Ordinal)
@@ -363,11 +423,19 @@ namespace FJA.Revit.Legendas
                 .ToList();
         }
 
+        static string OrdemEle(Dictionary<string, string> ordem, Item x)
+        {
+            string k = x.Sym.Id.ToString() + (x.VarKey != "" ? "|" + x.VarKey : "");
+            return ordem.TryGetValue(k, out string o) ? o : "9";
+        }
+
         /// <summary>Item acrescentado à mão: tipo de símbolo (anotação genérica) ou detail item.</summary>
         public static Item ItemExtra(FamilySymbol sym, string rotulo = null)
         {
-            string nome = rotulo ?? Regex.Replace(sym.FamilyName.Trim(), @"^\([A-Z]+\)\s*", "").ToUpperInvariant();
-            return new Item { Sym = sym, Extra = true, Rotulo = nome, Padrao = nome };
+            string nome = rotulo ?? Regex.Replace(sym.FamilyName.Trim(), @"^(\([A-Z]+\)\s*)+", "").ToUpperInvariant();
+            // símbolos fixos criados pela ferramenta: o preenchimento tem cor própria (ex.: eletrocalha)
+            bool fixo = Texto.Norm(sym.FamilyName).Contains("(FIX)");
+            return new Item { Sym = sym, Extra = true, Rotulo = nome, Padrao = nome, SoLinhas = fixo };
         }
 
         /// <summary>Tipos de anotação genérica e de detail item do projeto (para acrescentar), sem os (LEG).</summary>

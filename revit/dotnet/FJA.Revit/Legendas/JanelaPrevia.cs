@@ -141,6 +141,14 @@ namespace FJA.Revit.Legendas
                 catch (Exception e) { lista0 = new List<Item>(); txtStatus.Text = "Erro ao ler os itens: " + e.Message; }
                 Tempos.Marca($"LER OS ITENS {d.Codigo} DO MODELO ({lista0.Count})", t);
                 cacheItens[d.Codigo] = lista0;
+                // símbolos fixos (ex.: eletrodutos ELE): cria as famílias que faltam, fora da prévia
+                if (d.Fixos != null)
+                {
+                    double tf = Tempos.Agora;
+                    var errosFixos = Simbolos.GarantirFixos(doc, d, Path.Combine(Path.GetTempPath(), "FJA_LEG"));
+                    if (errosFixos.Count > 0) TaskDialog.Show(d.Botao, "Não foi possível criar os símbolos fixos:\n\n" + string.Join("\n", errosFixos));
+                    Tempos.Marca("símbolos fixos", tf);
+                }
             }
             itensIniciais = lista0;
             var legs = montagem.ListarLegendas();
