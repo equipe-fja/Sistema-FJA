@@ -18,7 +18,7 @@ from Autodesk.Revit.UI import PreviewControl
 from System import TimeSpan
 from System.Collections.Generic import List
 from System.Windows import Thickness, VerticalAlignment, GridLength, GridUnitType, TextTrimming, Visibility, \
-    HorizontalAlignment, FontWeights
+    HorizontalAlignment, FontWeights, FontStyles
 from System.Windows.Controls import Grid, ColumnDefinition, CheckBox, TextBox, TextBlock, Slider
 from System.Windows.Media import SolidColorBrush, Color
 from System.Windows.Threading import DispatcherTimer
@@ -162,7 +162,16 @@ class Janela(forms.WPFWindow):
             txt.Text = it["label"]
             txt.VerticalAlignment = VerticalAlignment.Center
             txt.Padding = Thickness(4, 2, 4, 2)
-            txt.ToolTip = u"{}  ·  {} elemento(s) em {} vista(s)".format(it["sym"].FamilyName, it["count"], it["views"])
+            fora = it.get("em_prancha") is False
+            dica = u"{}  ·  {} elemento(s) no modelo".format(it["sym"].FamilyName, it["count"])
+            if it.get("em_prancha"):
+                dica += u"  ·  aparece em {} planta(s) {} em prancha".format(it["views"], u"/".join(CFG["vistas"]))
+            elif fora:
+                dica += u"\nNão aparece em nenhuma planta {} colocada em prancha (desmarque se não deve entrar)".format(u"/".join(CFG["vistas"]))
+            txt.ToolTip = dica
+            if fora:
+                txt.Foreground = SolidColorBrush(Color.FromRgb(178, 107, 0))
+                txt.FontStyle = FontStyles.Italic
             med = TextBlock()
             med.VerticalAlignment = VerticalAlignment.Center
             med.Margin = Thickness(8, 0, 4, 0)
@@ -190,7 +199,9 @@ class Janela(forms.WPFWindow):
             sl.MouseDoubleClick += lambda s, a, ln=ln: setattr(ln["sl"], "Value", 100)
             self.lista.Children.Add(g)
             self.linhas.append(ln)
-        self.txtItens.Text = u"Itens ({})".format(len(self.itens))
+        n_fora = len([1 for it in self.itens if it.get("em_prancha") is False])
+        self.txtItens.Text = u"Itens ({}{})".format(
+            len(self.itens), u" · {} fora das pranchas, em laranja".format(n_fora) if n_fora else u"")
 
     def _todos100(self, s, a):
         for ln in self.linhas:
@@ -559,12 +570,12 @@ def main():
     t = L.agora()
     try:
         itens = L.collect_items(doc)
-        L.tempo(u"LER OS ITENS NAS VISTAS DAS PRANCHAS ({})".format(len(itens)), t)
+        L.tempo(u"LER OS ITENS DO MODELO ({})".format(len(itens)), t)
     except Exception as e:
         forms.alert(u"Erro ao ler os itens: {}".format(e), title=TITULO)
         return
     if not itens:
-        forms.alert(u"Nenhuma família '(LOG)' aparece nas vistas das pranchas.", title=TITULO)
+        forms.alert(u"Nenhuma família '(LOG)' posicionada no modelo.", title=TITULO)
         return
     t = L.agora()
     j = Janela(itens)

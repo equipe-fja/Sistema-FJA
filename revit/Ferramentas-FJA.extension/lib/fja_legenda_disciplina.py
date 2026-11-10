@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Legenda de pontos por disciplina (LOG, AUT, SON...): cria/atualiza uma vista de
 legenda com todas as familias cujo nome comeca com o prefixo da disciplina (ex.:
-'(LOG)') e que aparecem em vistas colocadas em pranchas (um item por tipo). Cada
+'(LOG)') e posicionadas no modelo (um item por tipo). Cada
 simbolo e pintado com a cor que o elemento tem nessas vistas (sobreposicao do
 elemento, filtros da vista ou do modelo de vista, sobreposicao da categoria ou
 estilo de objeto, nessa ordem); a janela de previa permite trocar por outra cor,
@@ -472,11 +472,13 @@ def item_label(sym, multi):
     return nome.upper()
 
 
-def collect_items(doc):
-    """Um item por tipo de familia '(LOG)' visivel em alguma vista de prancha.
-    Rapido: so procura nas vistas as categorias das familias da disciplina (filtro
-    rapido antes do teste de visibilidade da vista) e pula vistas que escondem essas
-    categorias."""
+def collect_items(doc, prazo_verificacao=4.0):
+    """Um item por tipo de familia '(LOG)' posicionado no modelo (aparecendo ou nao em
+    prancha). Rapido: nao percorre as vistas das pranchas.
+    - cor: calculada (filtros, sobreposicoes, categoria) numa vista de referencia, de
+      preferencia uma planta LOG em prancha do mesmo nivel do elemento;
+    - "em_prancha": verificacao leve so nas plantas LOG em prancha (True/False), ou None
+      se essa verificacao passar de prazo_verificacao segundos."""
     t0 = agora()
     syms = [sy for sy in DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol)
             if norm_ascii(sy.FamilyName).startswith(C["familias"])]
@@ -489,64 +491,89 @@ def collect_items(doc):
     if not sym_ok or not cat_ids:
         return []
     catf = DB.ElementMulticategoryFilter(List[DB.ElementId](list(cat_ids.values())))
-    # instancias no modelo (sem vista: rapido); sem nenhuma, nada a fazer
     t1 = agora()
-    no_modelo = [e for e in DB.FilteredElementCollector(doc).WherePasses(catf).OfClass(DB.FamilyInstance)
-                 if e.GetTypeId().ToString() in sym_ok]
-    tempo(u"  instâncias no modelo: {}".format(len(no_modelo)), t1)
-    if not no_modelo:
+    insts = [e for e in DB.FilteredElementCollector(doc).WherePasses(catf).OfClass(DB.FamilyInstance)
+             if e.SuperComponent is None and e.GetTypeId().ToString() in sym_ok]
+    tempo(u"  instâncias no modelo: {}".format(len(insts)), t1)
+    if not insts:
         return []
+
+    # vistas de referencia: vistas em prancha; plantas da disciplina (LOG) primeiro
     t2 = agora()
     views = sheet_views(doc)
-    tempo(u"  vistas em pranchas: {}".format(len(views)), t2)
-
-    types = {}
-    cache = {}
-    lentas = []
-    puladas = 0
-    t3 = agora()
-    for v in views:
-        tv = agora()
+    disc = [v for v in views if C["vistas"] and norm_ascii(elem_name(v)).startswith(C["vistas"])]
+    plantas_disc = [v for v in disc if isinstance(v, DB.ViewPlan)]
+    plantas = [v for v in views if isinstance(v, DB.ViewPlan)]
+    por_nivel = {}
+    for v in plantas_disc + [p for p in plantas if p not in plantas_disc]:
         try:
-            if all(v.GetCategoryHidden(c) for c in cat_ids.values()):
-                puladas += 1
-                continue
+            lid = v.GenLevel.Id.ToString() if v.GenLevel is not None else None
+        except Exception:
+            lid = None
+        if lid:
+            por_nivel.setdefault(lid, []).append(v)
+    ref_geral = (plantas_disc or disc or plantas or views or [None])[0]
+    tempo(u"  vistas em pranchas: {} ({} plantas {})".format(
+        len(views), len(plantas_disc), u"/".join(C["vistas"]) or u"-"), t2)
+
+    # verificacao leve: o que aparece nas plantas da disciplina em prancha
+    t3 = agora()
+    vistos, nviews = {}, {}
+    verificado = True
+    for v in plantas_disc:
+        if agora() - t3 > prazo_verificacao:
+            verificado = False
+            break
+        try:
+            for e in DB.FilteredElementCollector(doc, v.Id).WherePasses(catf).OfClass(DB.FamilyInstance):
+                k = e.GetTypeId().ToString()
+                if k in sym_ok:
+                    vistos[e.Id.ToString()] = v
+                    nviews.setdefault(k, set()).add(v.Id.ToString())
         except Exception:
             pass
-        prefer = norm_ascii(elem_name(v)).startswith(C["vistas"]) if C["vistas"] else False
-        try:
-            col = DB.FilteredElementCollector(doc, v.Id).WherePasses(catf).OfClass(DB.FamilyInstance)
-        except Exception:
-            continue
-        for inst in col:
-            if inst.SuperComponent is not None:
-                continue
-            key = inst.GetTypeId().ToString()
-            if key not in sym_ok:
-                continue
-            it = types.get(key)
-            if it is None:
-                it = types[key] = {"sym": inst.Symbol, "rep": inst, "inst": set(), "views": set(),
-                                   "cores": {}}
-            it["inst"].add(inst.Id.ToString())
-            it["views"].add(elem_name(v))
-            # vista de planta onde o elemento aparece (para copiar o desenho se a
-            # familia nao tiver anotacao aninhada); prefere as vistas LOG
-            if isinstance(v, DB.ViewPlan) and (it.get("geo") is None or (prefer and not it["geo_pref"])):
-                it["geo"], it["geo_pref"], it["geo_inst"] = v, prefer, inst
+    tempo(u"  conferir nas {} plantas {} em prancha{}".format(
+        len(plantas_disc), u"/".join(C["vistas"]), u"" if verificado else u" (interrompido)"), t3)
+
+    t4 = agora()
+    types = {}
+    cache = {}
+    for inst in insts:
+        key = inst.GetTypeId().ToString()
+        it = types.get(key)
+        if it is None:
+            it = types[key] = {"sym": inst.Symbol, "rep": None, "inst": set(), "cores": {}, "vistos": 0}
+        it["inst"].add(inst.Id.ToString())
+        v_vis = vistos.get(inst.Id.ToString())
+        if v_vis is not None:
+            it["vistos"] += 1
+        # vista de referencia: onde aparece; senao planta do mesmo nivel; senao a geral
+        v = v_vis
+        if v is None:
             try:
-                cor, origem = effective_color(doc, v, inst, cache)
+                cand = por_nivel.get(inst.LevelId.ToString()) if inst.LevelId is not None else None
             except Exception:
-                cor, origem = C.get("cor") or (0, 0, 0), u"padrão"
-            ck = (cor, origem)
-            n = it["cores"].get(ck, [0, 0])
-            n[0 if prefer else 1] += 1
-            it["cores"][ck] = n
-        lentas.append((agora() - tv, elem_name(v)))
-    tempo(u"  procurar nas vistas ({} lidas, {} puladas)".format(len(views) - puladas, puladas), t3)
-    lentas.sort(reverse=True)
-    for d, nome in lentas[:5]:
-        TEMPOS.append((u"    vista lenta: {}".format(nome)[:60], d, agora()))
+                cand = None
+            v = cand[0] if cand else ref_geral
+        # representante: de preferencia um que aparece numa planta da disciplina
+        if it["rep"] is None or (v_vis is not None and it.get("rep_vis") is None):
+            it["rep"], it["rep_vis"] = inst, v_vis
+        if isinstance(v, DB.ViewPlan) and (it.get("geo") is None or (v_vis is not None and it.get("geo_vis") is None)):
+            it["geo"], it["geo_inst"], it["geo_vis"] = v, inst, v_vis
+        if v is not None:
+            try:
+                ck = effective_color(doc, v, inst, cache)
+            except Exception:
+                ck = (C.get("cor") or (0, 0, 0), u"padrão")
+        else:
+            ck = (C.get("cor") or (0, 0, 0), u"padrão")
+        n = it["cores"].get(ck, [0, 0])
+        n[0 if v_vis is not None else 1] += 1
+        it["cores"][ck] = n
+    for k, it in types.items():
+        it["views"] = set(nviews.get(k, ()))
+        it["em_prancha"] = (it["vistos"] > 0) if verificado else (True if it["vistos"] else None)
+    tempo(u"  cores e representantes", t4)
     fam_types = {}
     for it in types.values():
         fk = it["sym"].Family.Id.ToString()
@@ -559,6 +586,7 @@ def collect_items(doc):
         items.append({
             "sym": sym, "rep": it["rep"], "count": len(it["inst"]), "views": len(it["views"]),
             "cor": best[0], "cor_origem": best[1],
+            "em_prancha": it.get("em_prancha"),
             "label": item_label(sym, fam_types[sym.Family.Id.ToString()] > 1),
             "geo": it.get("geo"), "geo_inst": it.get("geo_inst"),
         })
@@ -1127,7 +1155,7 @@ def atualizar_legenda(doc, items=None, opcoes=None):
     if items is None:
         items = collect_items(doc)
     if not items:
-        return {"ok": False, "msg": u"Nenhuma fam\u00edlia '{}' aparece nas vistas das pranchas.".format("' / '".join(C["familias"]))}
+        return {"ok": False, "msg": u"Nenhuma fam\u00edlia '{}' posicionada no modelo.".format("' / '".join(C["familias"]))}
 
     src, target, others = find_legends(doc)
     tempo(u"legendas do projeto", t_ini)
