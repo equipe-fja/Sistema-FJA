@@ -18,6 +18,7 @@ namespace FJA.Revit.Legendas
         public string Codigo = "";        // código proposto/editado
         public string DescAtual = "";     // Description atual
         public string Desc = "";          // Description proposta/editada; ao aplicar, também vira o nome do tipo
+        public bool DescFormula;          // a Description é calculada por fórmula dentro da família (só leitura no projeto)
         public string TipoAtual = "";     // nome do tipo atual
         public string Prefixo = "";       // sigla da família, mantida ao renomear: "(LOG) "
         public string FamAtual = "";      // nome da família sem a sigla
@@ -129,13 +130,15 @@ namespace FJA.Revit.Legendas
                     : (temModelo ? "modelo + " : "") + string.Join(", ", nomesLink);
                 string m = Marca(s);
                 string da = Param(s, BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                bool roDesc = false;
+                try { var pdr = s.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION); roDesc = pdr != null && pdr.IsReadOnly; } catch { }
                 var mp = Regex.Match(s.FamilyName, @"^\s*(\([A-Za-z]+\)\s*)(.*)$");
                 string pre = mp.Success ? mp.Groups[1].Value : "", fam = mp.Success ? mp.Groups[2].Value : s.FamilyName;
                 r.Add(new TipoPonto
                 {
                     Sym = s, Quantidade = insts.Count, Origem = origem, MarcaAtual = m, Codigo = m,
                     DescAtual = da, Desc = da != "" ? da : DescricaoPadrao(s), TipoAtual = s.Name,
-                    Prefixo = pre, FamAtual = fam, Fam = fam,
+                    Prefixo = pre, FamAtual = fam, Fam = fam, DescFormula = roDesc,
                 });
             }
             var rx = Padrao;
@@ -217,6 +220,62 @@ namespace FJA.Revit.Legendas
             }
         }
 
+        /// <summary>Tipos que vão gravar uma Description nova, mas cuja Description é calculada por fórmula na família.</summary>
+        public static List<TipoPonto> PrecisamLiberarDescricao(IEnumerable<TipoPonto> tipos) =>
+            tipos.Where(t => t.DescFormula && t.Pendente && (t.Desc ?? "").Trim() != t.DescAtual).ToList();
+
+        /// <summary>Remove a fórmula da Description nas famílias desses tipos (abre a família, tira a fórmula,
+        /// mantém o valor que cada tipo tinha e recarrega). Precisa ser chamado fora de transação. Devolve os
+        /// erros, por família; os tipos liberados passam a ter DescFormula = false.</summary>
+        public List<string> LiberarDescricoes(IEnumerable<TipoPonto> tipos)
+        {
+            var erros = new List<string>();
+            foreach (var gr in tipos.GroupBy(t => t.Sym.Family.Id.ToString()).ToList())
+            {
+                var fam = gr.First().Sym.Family;
+                string nome = fam.Name;
+                Document fd = null;
+                try
+                {
+                    fd = doc.EditFamily(fam);
+                    var fm = fd.FamilyManager;
+                    var fp = fm.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                    if (fp == null) throw new Exception("a família não tem o parâmetro Description");
+                    using (var tf = new Transaction(fd, "FJA: Description sem fórmula"))
+                    {
+                        tf.Start();
+                        var valores = new Dictionary<string, string>();
+                        foreach (FamilyType ft in fm.Types) valores[ft.Name] = ft.AsString(fp) ?? "";
+                        if (fp.IsDeterminedByFormula) fm.SetFormula(fp, null);
+                        foreach (FamilyType ft in fm.Types)
+                        {
+                            fm.CurrentType = ft;
+                            if (valores.TryGetValue(ft.Name, out string v)) fm.Set(fp, v);
+                        }
+                        tf.Commit();
+                    }
+                    fd.LoadFamily(doc, new Sobrescrever());
+                    foreach (var tp in gr)
+                    {
+                        if (doc.GetElement(tp.Sym.Id) is FamilySymbol ns) tp.Sym = ns;
+                        var pd = tp.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                        tp.DescFormula = pd == null || pd.IsReadOnly;
+                        if (tp.DescFormula) tp.Erro = "a Description continua por fórmula na família";
+                    }
+                }
+                catch (Exception e)
+                {
+                    erros.Add(nome + ": " + e.Message);
+                    foreach (var tp in gr) tp.Erro = "não deu para tirar a fórmula da Description na família (" + e.Message + ")";
+                }
+                finally
+                {
+                    try { fd?.Close(false); } catch { }
+                }
+            }
+            return erros;
+        }
+
         /// <summary>Apaga o tipo (e os elementos dele). Se for o único tipo da família, apaga a família.
         /// O código dele continua reservado. Devolve quantos elementos saíram do modelo.</summary>
         public int Apagar(FamilySymbol s)
@@ -286,7 +345,9 @@ namespace FJA.Revit.Legendas
                         if (dd != tp.DescAtual)
                         {
                             var pd = tp.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
-                            if (pd != null && !pd.IsReadOnly) pd.Set(dd);
+                            if (pd == null) throw new Exception("o tipo não tem o parâmetro Description");
+                            if (pd.IsReadOnly) throw new Exception("a Description é calculada por fórmula dentro da família");
+                            pd.Set(dd);
                         }
                         if (dd != "" && dd != tp.Sym.Name)
                         {

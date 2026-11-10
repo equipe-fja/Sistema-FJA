@@ -568,7 +568,7 @@ namespace FJA.Revit.Legendas
                 else if (!renumerado && reservas.TryGetValue(c, out string uid) && uid != tp.Sym.UniqueId && !naTabela.Contains(uid)) { txt = "código já usado por um tipo apagado"; cor = Ambar; }
                 else { txt = c == tp.MarcaAtual ? "código gravado" : "código muda"; cor = c == tp.MarcaAtual ? Verde : Azul; }
                 var muda = new List<string>();
-                if (tp.Desc != tp.DescAtual) muda.Add("description");
+                if (tp.Desc != tp.DescAtual) muda.Add(tp.DescFormula ? "description (hoje por fórmula na família)" : "description");
                 if (tp.Desc != "" && tp.Desc != tp.TipoAtual) muda.Add("nome do tipo");
                 if (nomesRep.Contains(t.Pai.Id + "|" + tp.Desc)) { muda.Add("NOME DE TIPO REPETIDO"); cor = Vermelho; problemas++; }
                 if (muda.Count > 0) { txt += " · " + string.Join(", ", muda); if (cor == Verde) cor = Azul; }
@@ -648,6 +648,20 @@ namespace FJA.Revit.Legendas
             if (fora > 0 && !Confirmar(fora + " código(s) fora do padrão " + D.Codigo + ".NN. Aplicar assim mesmo?")) return;
             try
             {
+                // Description calculada por fórmula na família: só dá para gravar depois de tirar a fórmula
+                var formula = Codificacao.PrecisamLiberarDescricao(alvo.Select(t => t.Tp));
+                if (formula.Count > 0)
+                {
+                    var fams = formula.GroupBy(t => t.Sym.FamilyName).ToList();
+                    string lista = string.Join("\n", fams.Take(8).Select(g => "• " + g.Key + " (hoje: \"" + g.First().DescAtual + "\")"))
+                        + (fams.Count > 8 ? "\n• … e mais " + (fams.Count - 8) : "");
+                    if (Confirmar("A Description de " + fams.Count + " família(s) é calculada por uma fórmula dentro da família, por isso não pode ser alterada no projeto:\n\n"
+                        + lista + "\n\nTirar a fórmula da Description (a família é aberta e recarregada; os outros tipos mantêm o valor que têm hoje) e gravar a Description nova?"))
+                    {
+                        var errosF = cod.LiberarDescricoes(formula);
+                        if (errosF.Count > 0) TaskDialog.Show("Codificação", "Não foi possível tirar a fórmula de:\n\n" + string.Join("\n", errosF));
+                    }
+                }
                 int n = cod.Aplicar(alvo.Select(t => t.Tp).ToList(), renumerado);
                 Aplicados += n;
                 string msgLeg = "";

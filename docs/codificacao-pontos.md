@@ -54,6 +54,7 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - **Atualizar as legendas ao aplicar** (2.9.1, ligado por padrão): depois de aplicar, refaz as legendas gravadas da disciplina com os nomes, Descriptions e códigos novos. Mantém a ordem, os itens e as opções de cada legenda. O texto editado à mão de um tipo alterado volta a seguir a Description.
   - Ao renomear uma família, as famílias de símbolo dela (`(SIGLA) (LEG) NOME` e as variações) são renomeadas junto, então a legenda mantém os símbolos e as escalas.
   - Depois de gravar, a ferramenta confere se o nome do tipo e a Description ficaram mesmo gravados. Se não ficaram, mostra o erro na linha.
+  - **Description por fórmula** (2.9.2): algumas famílias calculam a Description por fórmula (ex.: "(LOG) PONTO DE TV COAXIAL - CONJUNTO 4X2" = "4x2"); no projeto ela fica só leitura. A situação avisa, e ao aplicar a ferramenta pede para tirar a fórmula: abre a família, tira a fórmula mantendo o valor de cada tipo, recarrega e então grava a Description nova.
   - **✕ no tipo** (2.8.5): apaga o tipo e os elementos dele, com confirmação que mostra a quantidade. Se for o único tipo, apaga a família. O código continua reservado, e dá para desfazer com Ctrl+Z.
   - Cada tipo é gravado numa subtransação, então um erro (como um nome de tipo repetido na família) não impede os outros e aparece na linha.
   - As reservas ficam num DataStorage (`FJA_CodigosPontos`, JSON `{sigla: {código: UniqueId do tipo}}`).
