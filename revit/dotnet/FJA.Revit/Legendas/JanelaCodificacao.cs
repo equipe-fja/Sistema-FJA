@@ -62,6 +62,7 @@ namespace FJA.Revit.Legendas
         readonly List<NoFamilia> familias = new List<NoFamilia>();
         IEnumerable<NoTipo> Tipos => familias.SelectMany(f => f.Tipos);
         object arrastando;
+        CheckBox chkLegendas;
         ComboBox cbDisc; StackPanel arvore; TextBlock txtStatus; Button btNumerar, btRenumerar, btAplicar, btFechar, btExpandir;
 
         static readonly Brush Verde = new SolidColorBrush(WColor.FromRgb(46, 115, 64)), Ambar = new SolidColorBrush(WColor.FromRgb(138, 93, 5)),
@@ -252,7 +253,12 @@ namespace FJA.Revit.Legendas
             btFechar.Margin = new Thickness(0, 0, 8, 0);
             btAplicar = Botao("Aplicar tudo", "Primario");
             btAplicar.ToolTip = "Grava todas as alterações: nomes das famílias, Description e nome dos tipos, e códigos";
-            bts.Children.Add(btFechar); bts.Children.Add(btAplicar);
+            chkLegendas = new CheckBox
+            {
+                Content = "Atualizar as legendas ao aplicar", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0),
+                ToolTip = "Depois de aplicar, refaz as legendas da disciplina (ferramenta Legendas) com os nomes, Descriptions e códigos novos, mantendo a ordem, os itens e as opções de cada uma",
+            };
+            bts.Children.Add(chkLegendas); bts.Children.Add(btFechar); bts.Children.Add(btAplicar);
             txtStatus = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Foreground = Cinza };
             rod.Children.Add(bts); rod.Children.Add(txtStatus);
             g.Children.Add(rod);
@@ -465,6 +471,38 @@ namespace FJA.Revit.Legendas
             b.BorderThickness = depois == null ? new Thickness(0, 2, 0, 2) : depois.Value ? new Thickness(0, 0, 0, 2) : new Thickness(0, 2, 0, 0);
         }
 
+        // ------------------------------------------------------------ legendas
+        /// <summary>Refaz as legendas gravadas da disciplina com os nomes e códigos novos. Devolve um resumo.</summary>
+        string AtualizarLegendas(HashSet<string> mudaram)
+        {
+            var mont = new Montagem(doc, D);
+            var legs = mont.ListarLegendas().Where(v => mont.LerConfig(v).Count > 0 || Texto.Norm(v.Name) == Texto.Norm(D.Alvo)).ToList();
+            if (legs.Count == 0) return " Nenhuma legenda " + D.Codigo + " para atualizar.";
+            txtStatus.Text = "Atualizando " + legs.Count + " legenda(s)…";
+            var feitas = new List<string>();
+            var erros = new List<string>();
+            List<Item> baseItens;
+            try { baseItens = new Coleta(doc, D).Itens(); }
+            catch (Exception e) { return " Legendas não atualizadas: " + e.Message; }
+            using (var tg = new TransactionGroup(doc, "Codificação: atualizar legendas " + D.Codigo))
+            {
+                tg.Start();
+                foreach (var v in legs)
+                {
+                    try
+                    {
+                        var r = mont.AtualizarGravada(v, baseItens, mudaram);
+                        if (r.Ok) feitas.Add(v.Name); else erros.Add(v.Name + ": " + r.Msg);
+                    }
+                    catch (Exception e) { erros.Add(v.Name + ": " + e.Message); }
+                }
+                tg.Assimilate();
+            }
+            string s = feitas.Count > 0 ? " Legenda(s) atualizada(s): " + string.Join(", ", feitas) + "." : "";
+            if (erros.Count > 0) s += " Não atualizadas: " + string.Join("; ", erros);
+            return s;
+        }
+
         // ------------------------------------------------------------ apagar
         void ApagarTipo(NoTipo nt)
         {
@@ -612,6 +650,8 @@ namespace FJA.Revit.Legendas
             {
                 int n = cod.Aplicar(alvo.Select(t => t.Tp).ToList(), renumerado);
                 Aplicados += n;
+                string msgLeg = "";
+                if (n > 0 && chkLegendas.IsChecked == true) msgLeg = AtualizarLegendas(new HashSet<string>(cod.MudouUid));
                 reservas = cod.Reservas();
                 // relê o que está gravado (família renomeada vale para todos os tipos dela)
                 foreach (var f in familias)
@@ -631,7 +671,7 @@ namespace FJA.Revit.Legendas
                 Situacoes();
                 int erros = alvo.Count(t => t.Tp.Erro != null);
                 txtStatus.Text = n + " tipo(s) atualizado(s) em " + D.Codigo + "."
-                    + (erros > 0 ? " " + erros + " com erro (em vermelho; passe o mouse para ver)." : "");
+                    + (erros > 0 ? " " + erros + " com erro (em vermelho; passe o mouse para ver)." : "") + msgLeg;
             }
             catch (Exception e)
             {

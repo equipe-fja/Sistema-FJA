@@ -198,6 +198,25 @@ namespace FJA.Revit.Legendas
             return Sigla + ".999";
         }
 
+        /// <summary>UniqueId dos tipos alterados no último Aplicar (para atualizar as legendas).</summary>
+        public readonly HashSet<string> MudouUid = new HashSet<string>();
+
+        /// <summary>Família renomeada: as famílias de símbolo da legenda dela, "(SIGLA) (LEG) NOME" e as variações
+        /// "(SIGLA) (LEG) NOME - BAIXA", acompanham (assim a legenda mantém os símbolos e as escalas ajustadas).</summary>
+        void RenomearLeg(string antes, string depois)
+        {
+            if (string.IsNullOrEmpty(antes) || antes == depois) return;
+            string pre = D.Prefixo + " (LEG) ";
+            string velho = Texto.Norm(pre + antes);
+            foreach (Family f in new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>().ToList())
+            {
+                string n = Texto.Norm(f.Name);
+                if (n != velho && !n.StartsWith(velho + " - ")) continue;
+                string resto = f.Name.Length > (pre + antes).Length ? f.Name.Substring((pre + antes).Length) : "";
+                try { f.Name = pre + depois + resto; } catch { }
+            }
+        }
+
         /// <summary>Apaga o tipo (e os elementos dele). Se for o único tipo da família, apaga a família.
         /// O código dele continua reservado. Devolve quantos elementos saíram do modelo.</summary>
         public int Apagar(FamilySymbol s)
@@ -235,6 +254,7 @@ namespace FJA.Revit.Legendas
         public int Aplicar(IEnumerable<TipoPonto> tipos, bool liberarApagados)
         {
             int n = 0;
+            MudouUid.Clear();
             using (var t = ResolverFalhas.Iniciar(doc, "Codificação " + Sigla))
             {
                 var tudo = LerTudo();
@@ -277,10 +297,16 @@ namespace FJA.Revit.Legendas
                         string novoF = tp.Prefixo + fam;
                         if (fam != "" && tp.Sym.Family.Name != novoF)
                         {
+                            string legAntes = col.RotuloItem(tp.Sym, false);
                             try { tp.Sym.Family.Name = novoF; }
                             catch (Exception e) { throw new Exception("não deu para renomear a família para \"" + novoF + "\" (" + e.Message + ")"); }
+                            RenomearLeg(legAntes, col.RotuloItem(tp.Sym, false));
                         }
+                        // confere o que ficou gravado
+                        if (dd != "" && tp.Sym.Name != dd) throw new Exception("o Revit não aceitou o nome do tipo \"" + dd + "\"");
+                        if (Param(tp.Sym, BuiltInParameter.ALL_MODEL_DESCRIPTION) != dd) throw new Exception("a Description não foi gravada");
                         sub.Commit();
+                        MudouUid.Add(tp.Sym.UniqueId);
                         tp.MarcaAtual = c;
                         tp.DescAtual = dd;
                         tp.TipoAtual = tp.Sym.Name;

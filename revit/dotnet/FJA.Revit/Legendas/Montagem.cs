@@ -177,6 +177,54 @@ namespace FJA.Revit.Legendas
             }
         }
 
+        /// <summary>Opções gravadas numa legenda (as mesmas que a janela Legendas grava).</summary>
+        public static Opcoes OpcoesGravadas(Dictionary<string, object> cfg)
+        {
+            var o = cfg.Obj("opcoes");
+            double Num(string k, double pad) { try { return o.ContainsKey(k) ? Convert.ToDouble(o[k], System.Globalization.CultureInfo.InvariantCulture) : pad; } catch { return pad; } }
+            bool Sim(string k) => o.ContainsKey(k) && o[k] is bool bb && bb;
+            var op = new Opcoes
+            {
+                PassoMm = Num("passo", MM_ROW_STEP), LarguraMm = Num("largura", MM_LARGURA),
+                LinhasH = Sim("linhasH"), LinhaV = Sim("linhaV"), Margens = Sim("margens"),
+                TypeMark = o.ContainsKey("typeMark") ? (int)Num("typeMark", 0) : ((int)Num("texto", 0) == 1 ? 2 : 0),
+            };
+            int m = (int)Num("modoCor", 0);
+            op.Modo = m >= 0 && m <= 3 ? (ModoCor)m : ModoCor.Modelo;
+            var oc = o.Lista("cor");
+            if (oc.Count == 3) op.Cor = oc.Select(x => (byte)Convert.ToInt32(x)).ToArray();
+            return op;
+        }
+
+        /// <summary>Refaz uma legenda gravada com os ajustes dela (ordem, textos, desmarcados, acrescentados,
+        /// opções), lendo de novo os nomes, Descriptions e códigos dos tipos. Os textos editados à mão dos tipos em
+        /// 'esquecerTextos' (UniqueId) voltam a seguir a Description.</summary>
+        public ResultadoLegenda AtualizarGravada(View v, List<Item> baseItens, ISet<string> esquecerTextos)
+        {
+            var cfg = LerConfig(v);
+            var rot = cfg.Obj("rotulos");
+            foreach (var k in rot.Keys.ToList())
+            {
+                string uid = k.StartsWith("x:") ? k.Substring(2) : k;
+                int bar = uid.IndexOf('|');
+                if (bar >= 0) uid = uid.Substring(0, bar);
+                if (esquecerTextos != null && esquecerTextos.Contains(uid)) rot.Remove(k);
+            }
+            cfg["rotulos"] = rot;
+            var itens = baseItens.Select(i => i.Novo()).ToList();
+            var desm = AplicarConfig(itens, cfg);
+            itens = itens.Where(i => !desm.Contains(i.Chave)).ToList();
+            var op = OpcoesGravadas(cfg);
+            if (op.Modo == ModoCor.Sistema)
+            {
+                try { op.Cor = CorSistema.Ler(doc, D.Codigo).Item1; } catch { op.Cor = null; }
+                if (op.Cor == null) op.Modo = ModoCor.Modelo;
+            }
+            if (op.Modo == ModoCor.Escolhida && op.Cor == null) op.Modo = ModoCor.Modelo;
+            op.Config = Json.Gravar(cfg);
+            return Atualizar(itens, op, v, null);
+        }
+
         // ------------------------------------------------------------ vistas
         /// <summary>(base, alvo, outras). Base = a primeira legenda que bate com Bases.</summary>
         public Tuple<View, View, List<View>> Legendas()

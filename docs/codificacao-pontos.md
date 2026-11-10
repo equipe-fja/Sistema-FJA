@@ -51,6 +51,9 @@ Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da discipli
   - O **✓** aplica a linha: no tipo, só ele; na família, o nome e todos os tipos dela. **Aplicar tudo** aplica todos.
   - **Como está** (2.8.6): sem colunas próprias; aparece no tooltip de cada campo, e um **↶** ao lado do campo alterado volta ao valor gravado.
   - **Renumerar tudo** (2.8.7): recomeça em SIGLA.01 sem buracos. Os códigos de tipos apagados deixam de ficar reservados quando se aplica. O **Numerar os sem código** continua respeitando as reservas.
+  - **Atualizar as legendas ao aplicar** (2.9.1, ligado por padrão): depois de aplicar, refaz as legendas gravadas da disciplina com os nomes, Descriptions e códigos novos. Mantém a ordem, os itens e as opções de cada legenda. O texto editado à mão de um tipo alterado volta a seguir a Description.
+  - Ao renomear uma família, as famílias de símbolo dela (`(SIGLA) (LEG) NOME` e as variações) são renomeadas junto, então a legenda mantém os símbolos e as escalas.
+  - Depois de gravar, a ferramenta confere se o nome do tipo e a Description ficaram mesmo gravados. Se não ficaram, mostra o erro na linha.
   - **✕ no tipo** (2.8.5): apaga o tipo e os elementos dele, com confirmação que mostra a quantidade. Se for o único tipo, apaga a família. O código continua reservado, e dá para desfazer com Ctrl+Z.
   - Cada tipo é gravado numa subtransação, então um erro (como um nome de tipo repetido na família) não impede os outros e aparece na linha.
   - As reservas ficam num DataStorage (`FJA_CodigosPontos`, JSON `{sigla: {código: UniqueId do tipo}}`).
