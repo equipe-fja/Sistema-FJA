@@ -1,6 +1,6 @@
 # Codificação de pontos (disciplinas complementares) — plano
 
-Situação: proposta aprovada em 10/11/2026 (decisões abaixo); implementação a começar.
+Situação: fases 1 e 2 implementadas na extensão 2.8.0 (10/11/2026), ainda não testadas no Revit. Fase 3 resolvida pelo Copiar do link (abaixo).
 
 ## Objetivo
 Dar a cada tipo de ponto das disciplinas complementares — (LOG), (AUT), (SON) e, depois, ELE e LUM — um código, gravado no **Type Mark**. A ferramenta Legendas e os tags de planta passam a usar esse código.
@@ -31,17 +31,26 @@ Dar a cada tipo de ponto das disciplinas complementares — (LOG), (AUT), (SON) 
 - **Aplicar** grava os Type Marks numa única transação.
 - **Numeração estável:** a tabela de códigos fica gravada no modelo (DataStorage com JSON), e um código não é reaproveitado sem confirmação.
 
-## Modelos vinculados (decisão 4)
-O Revit não deixa alterar, a partir do modelo federado, os parâmetros de um modelo vinculado. A proposta:
-- **A tabela fica no modelo federado.** Num DataStorage, cada código é guardado por chave modelo vinculado (nome do arquivo) + UniqueId do tipo, com "família : tipo" como reserva. O UniqueId não muda ao recarregar o vínculo.
-- **Legendas no federado:**
-  - lê também os pontos dos vínculos (instâncias nos documentos vinculados);
-  - usa os códigos da tabela para ordenar e montar os textos.
-- **Tags de planta:** um tag de elemento vinculado mostra o Type Mark gravado no próprio vínculo. Para os tags baterem com a legenda, o código precisa chegar ao modelo da disciplina:
-  - no federado, **Exportar códigos** grava `<modelo vinculado>.codigos-fja.json` na pasta do vínculo;
-  - no modelo da disciplina, **Importar códigos** lê esse arquivo e grava os Type Marks;
-  - a ferramenta avisa quando um Type Mark do vínculo difere da tabela do federado.
-- **Alternativa mais simples** (se a FJA preferir): o código nasce sempre no modelo da disciplina, e o federado só lê o Type Mark do vínculo. Sem tabela no federado e sem arquivo intermediário, mas a codificação precisa ser feita abrindo cada modelo.
+## Modelos vinculados (decisão 4, revista em 10/11)
+O Revit não deixa alterar, a partir do modelo federado, os parâmetros de um modelo vinculado. Por sugestão da FJA, o controle é feito pelo **Copiar do link** (Links › Copiar do link e Verificar alterações):
+1. Os pontos do modelo da disciplina são copiados para o federado. Cada cópia leva `FJA_CopiaLink`, com o link e o UniqueId da origem.
+2. Os tipos passam a existir no federado. A Codificação grava o Type Mark neles, então os tags do federado mostram o código e a Legendas lê as cópias.
+3. **Verificar alterações** mantém as cópias em dia com o link. Quando a cópia é refeita, o tipo do federado, com o seu Type Mark, é mantido, porque tem o mesmo nome.
+4. Na Codificação, a coluna **Origem** mostra "modelo", o nome do link ou "modelo + link".
+
+Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da disciplina quiser os mesmos códigos nos tags do próprio modelo dela, dá para acrescentar depois.
+
+## Implementado (2.8.0)
+- **Legendas › Codificação** (C#, comando `CodificacaoPontos`; `Legendas/Codificacao.cs` e `JanelaCodificacao.cs`):
+  - mostra a disciplina (LOG, AUT, SON) e uma tabela de tipos;
+  - **Numerar os sem código** (vazios ou fora do padrão) e **Renumerar tudo na ordem da lista**, que pede confirmação;
+  - situação de cada código: sem código, repetido (bloqueia), fora do padrão (pede confirmação), já usado por tipo apagado, gravado, muda ao aplicar;
+  - **Aplicar no Type Mark** grava numa única transação.
+  - As reservas ficam num DataStorage (`FJA_CodigosPontos`, JSON `{sigla: {código: UniqueId do tipo}}`).
+- **Legendas:**
+  - nova opção **Texto dos itens**: só o nome, "código – nome" ou só o nome com a ordem pelo código;
+  - a opção fica gravada em cada legenda;
+  - a dica de cada item mostra o código.
 
 ## Fases
 1. Ferramenta de codificação no modelo aberto, gravando o Type Mark, com a tabela no modelo.
