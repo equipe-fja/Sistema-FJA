@@ -22,19 +22,26 @@ using RView = Autodesk.Revit.DB.View;
 namespace FJA.Revit.Legendas
 {
     /// <summary>
-    /// Prévia da legenda: lista dos itens (incluir, texto, escala, ordem por arrastar, itens acrescentados),
-    /// opções da tabela e cor, e a legenda desenhada pelo próprio Revit ao lado.
+    /// Ferramenta Legendas: disciplina, legendas já criadas por ela (e "+ Nova legenda"), a lista de itens da
+    /// legenda escolhida (incluir, texto, escala, ordem por arrastar, itens acrescentados), opções da tabela e cor,
+    /// e a legenda desenhada pelo próprio Revit ao lado.
     /// Cada "Atualizar prévia" refaz a legenda dentro de um grupo de transações desfeito na atualização
-    /// seguinte; "Gerar legenda" grava; "Cancelar" (ou fechar) desfaz tudo.
+    /// seguinte; "Criar/Gravar legenda" grava; trocar de legenda ou fechar sem gravar desfaz.
     /// Montada em código (sem XAML compilado: a DLL é carregada da memória, ver docs/revit-csharp.md).
     /// </summary>
     public sealed class JanelaPrevia : Window
     {
         readonly Document doc;
-        readonly Disciplina D;
-        readonly Montagem montagem;
-        readonly Coleta coleta;
-        readonly List<Item> itensIniciais;
+        Disciplina D;
+        Montagem montagem;
+        Coleta coleta;
+        List<Item> itensIniciais = new List<Item>();
+        readonly Dictionary<string, List<Item>> cacheItens = new Dictionary<string, List<Item>>();
+        RView legenda;          // legenda escolhida (null = nova, ainda não gravada)
+        string nomeNova;        // nome da legenda nova
+        bool alterado;          // a pessoa mexeu em algo desde que escolheu a legenda
+        bool trocando;          // ignorar eventos enquanto a lista/opções são preenchidas
+        ComboBox cbDisc; ListBox lbLegendas; Button btNova; TextBlock txtLegenda;
 
         sealed class Linha
         {
@@ -52,7 +59,7 @@ namespace FJA.Revit.Legendas
         PreviewControl prev;
         ResultadoLegenda res;
         public bool Gravado { get; private set; }
-        public RView VistaGerada => res?.Vista;
+        public RView VistaGerada { get; private set; }
 
         readonly Dictionary<string, double[]> baseMm = new Dictionary<string, double[]>();   // mm a 100%
         readonly Dictionary<string, double[]> caixas = new Dictionary<string, double[]>();  // cx, cy, w, h (pés)
@@ -79,33 +86,161 @@ namespace FJA.Revit.Legendas
 
         static readonly byte[] COR_CAIXA = { 200, 30, 30 };
 
-        public JanelaPrevia(Document doc, Disciplina d, List<Item> itens, HashSet<string> desmarcados, double inicioAbertura)
+        public JanelaPrevia(Document doc, Disciplina inicial, double inicioAbertura)
         {
             this.doc = doc;
-            D = d;
-            montagem = new Montagem(doc, d);
-            coleta = new Coleta(doc, d);
-            itensIniciais = itens;
             this.inicioAbertura = inicioAbertura;
-            Title = d.Botao + " · prévia";
-            Width = 1320; Height = 800; MinWidth = 1000; MinHeight = 560;
+            Title = "Legendas";
+            Width = 1480; Height = 860; MinWidth = 1150; MinHeight = 600;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ShowInTaskbar = false;
             AplicarEstilo();
-            Montar();
-            foreach (var it in itens) CriarLinha(it, desmarcados.Contains(it.Chave));
-            TituloLista();
-            LerPreferencias();
             timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
             timer.Tick += (s, a) => { timer.Stop(); DesenharCaixas(); };
-            Closing += (s, a) => { if (!Gravado) Desfazer(); else FecharPrevia(); };
+            Montar();
+            LerPreferencias();
+            Closing += (s, a) =>
+            {
+                if (alterado && tg != null && !Confirmar("Fechar sem gravar as alterações de \"" + NomeAtual() + "\"?")) { a.Cancel = true; return; }
+                Desfazer();
+            };
+            trocando = true;
+            foreach (var d in Disciplina.Todas) cbDisc.Items.Add(d.Codigo + " · " + d.Titulo.Replace("LEGENDA DE ", "").ToLowerInvariant());
+            cbDisc.SelectedIndex = Math.Max(0, Array.IndexOf(Disciplina.Todas, inicial));
+            trocando = false;
             ContentRendered += Primeira;
         }
 
         void Primeira(object s, EventArgs a)
         {
             ContentRendered -= Primeira;
-            Atualizar();
+            CarregarDisciplina(Disciplina.Todas[cbDisc.SelectedIndex]);
+        }
+
+        string NomeAtual() => legenda != null ? legenda.Name : (nomeNova ?? "legenda nova");
+
+        bool Confirmar(string pergunta)
+        {
+            var td = new TaskDialog("Legendas") { MainInstruction = pergunta, CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Yes | Autodesk.Revit.UI.TaskDialogCommonButtons.No, DefaultButton = Autodesk.Revit.UI.TaskDialogResult.No };
+            return td.Show() == Autodesk.Revit.UI.TaskDialogResult.Yes;
+        }
+
+        // ------------------------------------------------------------ disciplina e legendas
+        void CarregarDisciplina(Disciplina d)
+        {
+            Desfazer();
+            D = d;
+            montagem = new Montagem(doc, d);
+            coleta = new Coleta(doc, d);
+            corSistema = null;
+            if (!cacheItens.TryGetValue(d.Codigo, out var lista0))
+            {
+                txtStatus.Text = "Lendo os itens " + d.Codigo + " do modelo…";
+                double t = Tempos.Agora;
+                try { lista0 = coleta.Itens(); }
+                catch (Exception e) { lista0 = new List<Item>(); txtStatus.Text = "Erro ao ler os itens: " + e.Message; }
+                Tempos.Marca($"LER OS ITENS {d.Codigo} DO MODELO ({lista0.Count})", t);
+                cacheItens[d.Codigo] = lista0;
+            }
+            itensIniciais = lista0;
+            var legs = montagem.ListarLegendas();
+            PreencherLegendas(legs, null);
+            if (legs.Count > 0) lbLegendas.SelectedIndex = 0;
+            else if (lista0.Count > 0) NovaLegenda(d.Alvo);
+            else
+            {
+                LimparLista();
+                txtLegenda.Text = "Nenhuma legenda " + d.Codigo;
+                txtStatus.Text = "Nenhuma família '" + string.Join("' / '", d.Familias) + "' posicionada no modelo.";
+            }
+        }
+
+        void PreencherLegendas(List<RView> legs, string nova)
+        {
+            trocando = true;
+            lbLegendas.Items.Clear();
+            foreach (var v in legs) lbLegendas.Items.Add(new ListBoxItem { Content = v.Name, Tag = v, Padding = new Thickness(8, 6, 8, 6), ToolTip = v.Name });
+            if (nova != null)
+                lbLegendas.Items.Add(new ListBoxItem { Content = nova + "  (nova)", Tag = nova, Padding = new Thickness(8, 6, 8, 6), FontStyle = FontStyles.Italic });
+            trocando = false;
+        }
+
+        object selAnterior;
+
+        void LegendaClicada()
+        {
+            if (trocando || !(lbLegendas.SelectedItem is ListBoxItem li)) return;
+            if (li.Tag == selAnterior) return;
+            if (alterado && tg != null && !Confirmar("Descartar as alterações de \"" + NomeAtual() + "\"?"))
+            {
+                trocando = true;
+                lbLegendas.SelectedItem = lbLegendas.Items.Cast<ListBoxItem>().FirstOrDefault(x => x.Tag == selAnterior);
+                trocando = false;
+                return;
+            }
+            selAnterior = li.Tag;
+            if (li.Tag is RView v) Selecionar(v, null);
+            else Selecionar(null, (string)li.Tag);
+        }
+
+        void NovaLegenda(string sugestao = null)
+        {
+            if (alterado && tg != null && !Confirmar("Descartar as alterações de \"" + NomeAtual() + "\"?")) return;
+            string nome = Escolha.Nome(this, "Nova legenda " + D.Codigo, "Nome da vista de legenda:", montagem.NomeLivre(sugestao ?? D.Alvo));
+            if (string.IsNullOrWhiteSpace(nome)) return;
+            nome = montagem.NomeLivre(nome.Trim());
+            PreencherLegendas(montagem.ListarLegendas(), nome);
+            trocando = true;
+            lbLegendas.SelectedIndex = lbLegendas.Items.Count - 1;
+            trocando = false;
+            selAnterior = nome;
+            Selecionar(null, nome);
+        }
+
+        void LimparLista()
+        {
+            linhas.Clear();
+            lista.Children.Clear();
+            baseMm.Clear();
+            caixas.Clear();
+            pctFeito = new Dictionary<string, int>();
+            res = null;
+            TituloLista();
+        }
+
+        /// <summary>Abre uma legenda (ou uma nova) na lista e na prévia.</summary>
+        void Selecionar(RView v, string nova)
+        {
+            Desfazer();
+            legenda = v;
+            nomeNova = v == null ? nova : null;
+            trocando = true;
+            LimparLista();
+            var itens = itensIniciais.Select(i => i.Novo()).ToList();
+            var cfg = v != null ? montagem.LerConfig(v) : new Dictionary<string, object>();
+            var desm = montagem.AplicarConfig(itens, cfg);
+            foreach (var it in itens) CriarLinha(it, desm.Contains(it.Chave));
+            TituloLista();
+            // opções gravadas nesta legenda (ou as últimas usadas)
+            var o = cfg.Obj("opcoes");
+            double Num(string k, double pad) { try { return o.ContainsKey(k) ? Convert.ToDouble(o[k], CultureInfo.InvariantCulture) : pad; } catch { return pad; } }
+            bool Sim(string k) => o.ContainsKey(k) && o[k] is bool bb && bb;
+            slPasso.Value = Num("passo", Montagem.MM_ROW_STEP);
+            txtLargura.Text = Texto.Mm(Num("largura", Montagem.MM_LARGURA) / 10.0);
+            chkH.IsChecked = Sim("linhasH"); chkV.IsChecked = Sim("linhaV"); chkM.IsChecked = Sim("margens");
+            var oc = o.Lista("cor");
+            if (oc.Count == 3) corEscolhida = oc.Select(x => (byte)Convert.ToInt32(x)).ToArray();
+            int m = o.ContainsKey("modoCor") ? (int)Num("modoCor", 0) : (int)modoPadrao;
+            if (m < 0 || m > 3) m = 0;
+            mudandoCor = true; cbCor.SelectedIndex = m; mudandoCor = false;
+            AplicarModo((ModoCor)m, true);
+            txtPasso.Text = Texto.Mm(slPasso.Value) + " mm";
+            trocando = false;
+            txtLegenda.Text = v != null ? v.Name : nova + "  (nova)";
+            btGerar.Content = v != null ? "Gravar legenda" : "Criar legenda";
+            alterado = false;
+            if (linhas.Count > 0) Atualizar();
+            else txtStatus.Text = "Nenhum item.";
         }
 
         // ------------------------------------------------------------ estilo e montagem da janela
@@ -173,14 +308,37 @@ namespace FJA.Revit.Legendas
             g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             g.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(580) });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(270) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(560) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // disciplina e legendas
+            var cLeg = Cartao();
+            WGrid.SetRowSpan(cLeg, 2);
+            var dl = new DockPanel { Margin = new Thickness(12) };
+            var rd = new TextBlock { Text = "Disciplina", Margin = new Thickness(2, 0, 0, 4), Foreground = Pincel("Suave", 94, 94, 92), FontSize = 12 };
+            DockPanel.SetDock(rd, Dock.Top);
+            cbDisc = new ComboBox { Margin = new Thickness(0, 0, 0, 14) };
+            DockPanel.SetDock(cbDisc, Dock.Top);
+            var rl = new TextBlock { Text = "Legendas criadas", Margin = new Thickness(2, 0, 0, 4), Foreground = Pincel("Suave", 94, 94, 92), FontSize = 12 };
+            DockPanel.SetDock(rl, Dock.Top);
+            btNova = Botao("+ Nova legenda", "Discreto");
+            btNova.HorizontalAlignment = HorizontalAlignment.Left;
+            btNova.Margin = new Thickness(0, 8, 0, 0);
+            btNova.ToolTip = "Cria outra legenda desta disciplina (outra vista), com os seus próprios itens, ordem e opções";
+            DockPanel.SetDock(btNova, Dock.Bottom);
+            lbLegendas = new ListBox { BorderThickness = new Thickness(0), Background = Brushes.Transparent };
+            dl.Children.Add(rd); dl.Children.Add(cbDisc); dl.Children.Add(rl); dl.Children.Add(btNova); dl.Children.Add(lbLegendas);
+            cLeg.Child = dl;
+            g.Children.Add(cLeg);
 
             // ajustes
             var topo = Cartao();
             topo.Padding = new Thickness(14, 10, 14, 10);
             topo.Margin = new Thickness(0, 0, 0, 12);
+            WGrid.SetColumn(topo, 2);
             WGrid.SetColumnSpan(topo, 3);
             var wp = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
             var p1 = Horizontal(new Thickness(0, 4, 24, 4));
@@ -201,14 +359,13 @@ namespace FJA.Revit.Legendas
             chkH = new CheckBox { Content = "Linhas entre itens", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 16, 4) };
             chkV = new CheckBox { Content = "Linha entre símbolo e texto", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 16, 4) };
             chkM = new CheckBox { Content = "Margens (contorno)", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 24, 4) };
-            btAtualizar = Botao("Atualizar prévia");
-            foreach (UIElement el in new UIElement[] { p1, p2, p3, chkH, chkV, chkM, btAtualizar }) wp.Children.Add(el);
+            foreach (UIElement el in new UIElement[] { p1, p2, p3, chkH, chkV, chkM }) wp.Children.Add(el);
             topo.Child = wp;
             g.Children.Add(topo);
 
             // itens
             var cIt = Cartao();
-            WGrid.SetRow(cIt, 1);
+            WGrid.SetRow(cIt, 1); WGrid.SetColumn(cIt, 2);
             var dp = new DockPanel();
             var cab = new Border { Padding = new Thickness(14, 10, 14, 10), BorderBrush = Pincel("Linha", 226, 226, 223), BorderThickness = new Thickness(0, 0, 0, 1) };
             DockPanel.SetDock(cab, Dock.Top);
@@ -254,23 +411,36 @@ namespace FJA.Revit.Legendas
 
             // prévia
             var cPv = Cartao();
-            WGrid.SetRow(cPv, 1); WGrid.SetColumn(cPv, 2);
+            WGrid.SetRow(cPv, 1); WGrid.SetColumn(cPv, 4);
+            var dpv = new DockPanel();
+            var cabPv = new Border { Padding = new Thickness(14, 8, 10, 8), BorderBrush = Pincel("Linha", 226, 226, 223), BorderThickness = new Thickness(0, 0, 0, 1) };
+            DockPanel.SetDock(cabPv, Dock.Top);
+            var dcp = new DockPanel();
+            btAtualizar = Botao("Atualizar prévia", "Discreto");
+            btAtualizar.Margin = new Thickness(0, 0, 8, 0);
+            btGerar = Botao("Criar legenda", "Primario");
+            var bp = new StackPanel { Orientation = Orientation.Horizontal };
+            bp.Children.Add(btAtualizar); bp.Children.Add(btGerar);
+            DockPanel.SetDock(bp, Dock.Right);
+            txtLegenda = new TextBlock { FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+            dcp.Children.Add(bp); dcp.Children.Add(txtLegenda);
+            cabPv.Child = dcp;
             var gp = new WGrid();
             hostPrev = new WGrid { Background = Brushes.White };
             txtPrevVazia = new TextBlock { Text = "Gerando a prévia…", HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = Pincel("Fraco", 143, 143, 140) };
             gp.Children.Add(hostPrev); gp.Children.Add(txtPrevVazia);
-            cPv.Child = gp;
+            dpv.Children.Add(cabPv); dpv.Children.Add(gp);
+            cPv.Child = dpv;
             g.Children.Add(cPv);
 
             // rodapé
             var rod = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
-            WGrid.SetRow(rod, 2); WGrid.SetColumnSpan(rod, 3);
+            WGrid.SetRow(rod, 2); WGrid.SetColumnSpan(rod, 5);
             var bts = new StackPanel { Orientation = Orientation.Horizontal };
             DockPanel.SetDock(bts, Dock.Right);
-            btCancelar = Botao("Cancelar", "Discreto");
-            btCancelar.Margin = new Thickness(0, 0, 8, 0);
-            btGerar = Botao("Gerar legenda", "Primario");
-            bts.Children.Add(btCancelar); bts.Children.Add(btGerar);
+            btCancelar = Botao("Fechar", "Discreto");
+            btCancelar.ToolTip = "Fecha a ferramenta; o que não foi gravado é desfeito";
+            bts.Children.Add(btCancelar);
             txtStatus = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Foreground = Pincel("Suave", 94, 94, 92) };
             rod.Children.Add(bts); rod.Children.Add(txtStatus);
             g.Children.Add(rod);
@@ -285,7 +455,22 @@ namespace FJA.Revit.Legendas
             btCancelar.Click += (s, a) => Close();
             btTodos100.Click += (s, a) => { foreach (var ln in linhas) { ln.Sl.Value = 100; sujos.Add(ln.Id); } };
             btAcrescentar.Click += (s, a) => Acrescentar();
-            cbCor.SelectionChanged += (s, a) => { if (!mudandoCor) AplicarModo((ModoCor)cbCor.SelectedIndex, false); };
+            cbCor.SelectionChanged += (s, a) => { if (!mudandoCor && !trocando) { alterado = true; AplicarModo((ModoCor)cbCor.SelectedIndex, false); } };
+            cbDisc.SelectionChanged += (s, a) =>
+            {
+                if (trocando || cbDisc.SelectedIndex < 0) return;
+                var d = Disciplina.Todas[cbDisc.SelectedIndex];
+                if (d == D) return;
+                if (alterado && tg != null && !Confirmar("Descartar as alterações de \"" + NomeAtual() + "\"?"))
+                {
+                    trocando = true; cbDisc.SelectedIndex = Array.IndexOf(Disciplina.Todas, D); trocando = false;
+                    return;
+                }
+                selAnterior = null;
+                CarregarDisciplina(d);
+            };
+            lbLegendas.SelectionChanged += (s, a) => LegendaClicada();
+            btNova.Click += (s, a) => NovaLegenda();
             swCor.MouseLeftButtonUp += (s, a) => EscolherCor(true);
         }
 
@@ -351,6 +536,7 @@ namespace FJA.Revit.Legendas
 
         void Escala(Linha ln)
         {
+            if (!trocando) alterado = true;
             int v = (int)Math.Round(ln.Sl.Value);
             ln.Pct.Text = v + "%";
             if (baseMm.TryGetValue(ln.Id, out var b))
@@ -438,6 +624,12 @@ namespace FJA.Revit.Legendas
             return Json.Gravar(new Dictionary<string, object>
             {
                 { "ordem", linhas.Select(l => (object)l.Id).ToList() }, { "rotulos", rot }, { "desmarcados", desm }, { "extras", extras },
+                { "opcoes", new Dictionary<string, object>
+                    {
+                        { "passo", Math.Round(slPasso.Value, 1) }, { "largura", LarguraMm() }, { "linhasH", chkH.IsChecked == true },
+                        { "linhaV", chkV.IsChecked == true }, { "margens", chkM.IsChecked == true }, { "modoCor", (int)modo },
+                        { "cor", corEscolhida != null ? corEscolhida.Select(x => (object)(int)x).ToList() : null },
+                    } },
             });
         }
 
@@ -453,11 +645,10 @@ namespace FJA.Revit.Legendas
             int m = 0;
             try { m = Convert.ToInt32(p.ContainsKey("modo") ? p["modo"] : 0); } catch { }
             if (m < 0 || m > 3) m = 0;
-            mudandoCor = true;
-            cbCor.SelectedIndex = m;
-            mudandoCor = false;
-            AplicarModo((ModoCor)m, true);
+            modoPadrao = (ModoCor)m;
         }
+
+        ModoCor modoPadrao = ModoCor.Modelo;
 
         void GravarPreferencias()
         {
@@ -602,6 +793,8 @@ namespace FJA.Revit.Legendas
 
         void Mudou()
         {
+            if (trocando) return;
+            alterado = true;
             txtPasso.Text = Texto.Mm(slPasso.Value) + " mm";
             Pendente();
         }
@@ -741,7 +934,7 @@ namespace FJA.Revit.Legendas
                     LinhasH = chkH.IsChecked == true, LinhaV = chkV.IsChecked == true, Margens = chkM.IsChecked == true,
                     Config = ConfigJson(),
                 });
-                r = montagem.Atualizar(escolhidos, op);
+                r = montagem.Atualizar(escolhidos, op, legenda, nomeNova);
             }
             catch (Exception e)
             {
@@ -845,11 +1038,15 @@ namespace FJA.Revit.Legendas
             }
             timer.Stop();
             FecharPrevia();
+            RView salva = res.Vista;
             try
             {
                 ApagarCaixas();
                 tg.Assimilate();
+                tg.Dispose();
+                tg = null;
                 Gravado = true;
+                VistaGerada = salva;
             }
             catch (Exception e)
             {
@@ -857,15 +1054,47 @@ namespace FJA.Revit.Legendas
                 Desfazer();
                 return;
             }
-            tg.Dispose();
-            tg = null;
-            Close();
+            // continua na mesma legenda, agora gravada (a escala volta a valer 100% no tamanho novo)
+            alterado = false;
+            PreencherLegendas(montagem.ListarLegendas(), null);
+            var li = lbLegendas.Items.Cast<ListBoxItem>().FirstOrDefault(x => x.Tag is RView v && v.Id == salva.Id);
+            trocando = true;
+            lbLegendas.SelectedItem = li;
+            trocando = false;
+            selAnterior = li?.Tag;
+            Selecionar(salva, null);
+            txtStatus.Text = "Legenda \"" + salva.Name + "\" gravada. " + txtStatus.Text;
         }
     }
 
     /// <summary>Lista com busca e seleção múltipla (para acrescentar símbolos).</summary>
     static class Escolha
     {
+        /// <summary>Pede um nome (texto). Devolve null se cancelar.</summary>
+        public static string Nome(Window dono, string titulo, string pergunta, string sugestao)
+        {
+            var w = new Window
+            {
+                Title = titulo, Width = 520, SizeToContent = SizeToContent.Height, Owner = dono, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ShowInTaskbar = false, ResizeMode = ResizeMode.NoResize, Background = dono.Background, FontFamily = dono.FontFamily, FontSize = dono.FontSize,
+            };
+            var sp = new StackPanel { Margin = new Thickness(16) };
+            sp.Children.Add(new TextBlock { Text = pergunta, Margin = new Thickness(0, 0, 0, 6) });
+            var tb = new TextBox { Text = sugestao ?? "", Padding = new Thickness(4, 3, 4, 3) };
+            sp.Children.Add(tb);
+            var bts = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
+            var ok = new Button { Content = "Criar", Padding = new Thickness(16, 5, 16, 5), IsDefault = true };
+            var cancelar = new Button { Content = "Cancelar", Padding = new Thickness(16, 5, 16, 5), Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+            if (dono.TryFindResource("Primario") is Style sp1) ok.Style = sp1;
+            if (dono.TryFindResource("Discreto") is Style sd) { cancelar.Style = sd; cancelar.Width = double.NaN; cancelar.Padding = new Thickness(16, 5, 16, 5); }
+            bts.Children.Add(cancelar); bts.Children.Add(ok);
+            sp.Children.Add(bts);
+            w.Content = sp;
+            ok.Click += (s, a) => w.DialogResult = true;
+            w.Loaded += (s, a) => { tb.Focus(); tb.SelectAll(); };
+            return w.ShowDialog() == true ? tb.Text : null;
+        }
+
         public static List<int> Mostrar(Window dono, string titulo, List<string> opcoes)
         {
             var w = new Window
@@ -881,7 +1110,7 @@ namespace FJA.Revit.Legendas
             var ok = new Button { Content = "Acrescentar", Padding = new Thickness(16, 5, 16, 5), IsDefault = true };
             var cancelar = new Button { Content = "Cancelar", Padding = new Thickness(16, 5, 16, 5), Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
             if (dono.TryFindResource("Primario") is Style sp) ok.Style = sp;
-            if (dono.TryFindResource("Discreto") is Style sd) cancelar.Style = sd;
+            if (dono.TryFindResource("Discreto") is Style sd) { cancelar.Style = sd; cancelar.Width = double.NaN; cancelar.Padding = new Thickness(16, 5, 16, 5); }
             bts.Children.Add(cancelar); bts.Children.Add(ok);
             var lb = new ListBox { SelectionMode = SelectionMode.Extended };
             Action filtrar = () =>

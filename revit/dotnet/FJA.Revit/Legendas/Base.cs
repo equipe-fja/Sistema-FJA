@@ -45,6 +45,41 @@ namespace FJA.Revit.Legendas
             Cor = new byte[] { 121, 86, 169 },
             Codigo = "LOG",
         };
+
+        public static readonly Disciplina AUT = new Disciplina
+        {
+            Botao = "Legenda AUT",
+            Alvo = "AUT - LEGENDA DE PONTOS DE AUTOMAÇÃO",
+            Titulo = "LEGENDA DE PONTOS DE AUTOMAÇÃO",
+            Familias = new[] { "(AUT)" },
+            Vistas = new[] { "AUT" },
+            Bases = new[] { "AUT - LEGENDA GRAFICA", "AUT - LEGENDA" },
+            Guid = "1d86c717-cc28-4626-b9c1-efb5663f1b10",
+            Schema = "FJA_LegendaAUT",
+            Marca = "LegendaAUT",
+            Cor = new byte[] { 255, 110, 45 },
+            Codigo = "AUT",
+        };
+
+        public static readonly Disciplina SON = new Disciplina
+        {
+            Botao = "Legenda SON",
+            Alvo = "SON - LEGENDA DE PONTOS DE SONORIZAÇÃO",
+            Titulo = "LEGENDA DE PONTOS DE SONORIZAÇÃO",
+            Familias = new[] { "(SON)", "(SNZ)" },
+            Vistas = new[] { "SON", "SNZ" },
+            Bases = new[] { "SON - LEGENDA GRAFICA", "SNZ - LEGENDA GRAFICA", "SON - LEGENDA", "SNZ - LEGENDA" },
+            Guid = "721db198-2a3c-40f5-bb77-93fd4d40a439",
+            Schema = "FJA_LegendaSON",
+            Marca = "LegendaSON",
+            Cor = new byte[] { 140, 195, 25 },
+            Codigo = "SON",
+        };
+
+        /// <summary>Disciplinas da ferramenta Legendas (ELE e LUM ainda pelos botões próprios, em Python).</summary>
+        public static readonly Disciplina[] Todas = { LOG, AUT, SON };
+
+        public string Sigla => Codigo;
     }
 
     /// <summary>Um item da legenda (um tipo de família, ou um símbolo acrescentado à mão).</summary>
@@ -72,6 +107,15 @@ namespace FJA.Revit.Legendas
         public double[] Mm;                 // medida no papel (largura, altura)
 
         public string Chave => (Extra ? "x:" : "") + Sym.UniqueId;
+
+        /// <summary>Cópia "limpa" para outra legenda: texto original, sem resultado de montagem.</summary>
+        public Item Novo()
+        {
+            var c = Copia();
+            c.Rotulo = c.Padrao ?? c.Rotulo;
+            c.CorLegenda = null;
+            return c;
+        }
 
         public Item Copia()
         {

@@ -92,11 +92,13 @@ namespace FJA.Revit.Legendas
             catch { return false; }
         }
 
-        public Dictionary<string, object> LerConfig()
+        public Dictionary<string, object> LerConfig() => LerConfig(Legendas().Item2);
+
+        /// <summary>Ajustes gravados numa vista de legenda (vazio se não houver).</summary>
+        public Dictionary<string, object> LerConfig(View alvo)
         {
             try
             {
-                var alvo = Legendas().Item2;
                 if (alvo == null) return new Dictionary<string, object>();
                 var sc = Schema.Lookup(GuidCfg());
                 if (sc == null) return new Dictionary<string, object>();
@@ -139,6 +141,38 @@ namespace FJA.Revit.Legendas
             itens.Clear();
             itens.AddRange(ord);
             return new HashSet<string>(cfg.Lista("desmarcados").Select(Convert.ToString));
+        }
+
+        /// <summary>Legendas desta disciplina feitas pela ferramenta: com os ajustes gravados, com o nome padrão
+        /// ou com textos marcados por ela.</summary>
+        public List<View> ListarLegendas()
+        {
+            Schema sc = Schema.Lookup(GuidCfg()), mk = Schema.Lookup(new Guid(D.Guid));
+            string alvoN = Texto.Norm(D.Alvo);
+            var r = new List<View>();
+            foreach (View v in new FilteredElementCollector(doc).OfClass(typeof(View)))
+            {
+                try { if (v.ViewType != ViewType.Legend || v.IsTemplate) continue; } catch { continue; }
+                bool ok = Texto.Norm(v.Name) == alvoN;
+                if (!ok && sc != null) { try { var e = v.GetEntity(sc); ok = e != null && e.IsValid(); } catch { } }
+                if (!ok && mk != null)
+                    ok = new FilteredElementCollector(doc, v.Id).OfClass(typeof(TextNote)).Any(t => Marcado(t, mk));
+                if (ok) r.Add(v);
+            }
+            return r.OrderBy(v => v.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        /// <summary>Nome livre para uma vista nova (acrescenta " (2)", " (3)"... se já existir).</summary>
+        public string NomeLivre(string nome)
+        {
+            var nomes = new HashSet<string>(new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.ViewType == ViewType.Legend).Select(v => Texto.Norm(v.Name)));
+            if (!nomes.Contains(Texto.Norm(nome))) return nome;
+            for (int i = 2; ; i++)
+            {
+                string n = nome + " (" + i + ")";
+                if (!nomes.Contains(Texto.Norm(n))) return n;
+            }
         }
 
         // ------------------------------------------------------------ vistas
@@ -228,7 +262,11 @@ namespace FJA.Revit.Legendas
         }
 
         // ------------------------------------------------------------ principal
-        public ResultadoLegenda Atualizar(List<Item> itens, Opcoes op)
+        public ResultadoLegenda Atualizar(List<Item> itens, Opcoes op) => Atualizar(itens, op, Legendas().Item2, null);
+
+        /// <summary>Monta a legenda na vista 'alvo'; sem vista, cria uma nova (cópia da legenda base) com o nome
+        /// 'nomeNova' (ou o nome padrão da disciplina).</summary>
+        public ResultadoLegenda Atualizar(List<Item> itens, Opcoes op, View alvo, string nomeNova)
         {
             var res = new ResultadoLegenda();
             double tIni = Tempos.Agora;
@@ -243,8 +281,9 @@ namespace FJA.Revit.Legendas
                 foreach (var it in itens) it.CorLegenda = cu;
             }
             var leg = Legendas();
-            View src = leg.Item1, alvo = leg.Item2;
-            var outras = leg.Item3;
+            View src = leg.Item1;
+            var outras = leg.Item3.ToList();
+            if (leg.Item2 != null && (alvo == null || leg.Item2.Id != alvo.Id)) outras.Add(leg.Item2);
             Tempos.Marca("legendas do projeto", tIni);
             View baseV = src ?? alvo ?? outras.FirstOrDefault();
             if (baseV == null) { res.Msg = "O projeto não tem nenhuma vista de legenda para servir de base."; return res; }
@@ -362,7 +401,7 @@ namespace FJA.Revit.Legendas
                 if (alvo == null)
                 {
                     alvo = doc.GetElement(baseV.Duplicate(ViewDuplicateOption.Duplicate)) as View;
-                    alvo.Name = D.Alvo;
+                    alvo.Name = NomeLivre(string.IsNullOrWhiteSpace(nomeNova) ? D.Alvo : nomeNova.Trim());
                     res.Criada = true;
                     var apagar = new FilteredElementCollector(doc, alvo.Id).WhereElementIsNotElementType()
                         .Where(e => e.OwnerViewId == alvo.Id && ConteudoDaVista(e)).Select(e => e.Id).ToList();

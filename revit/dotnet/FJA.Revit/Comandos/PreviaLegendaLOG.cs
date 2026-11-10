@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using FJA.Revit.Legendas;
@@ -8,13 +7,14 @@ using FJA.Revit.Nucleo;
 namespace FJA.Revit.Comandos
 {
     /// <summary>
-    /// Legendas › Prévia LOG: a legenda de pontos de lógica numa janela com prévia do próprio Revit
-    /// (escala por item, ordem por arrastar, símbolos acrescentados, opções da tabela e cor).
-    /// Os ajustes ficam gravados na vista de legenda e valem também para o botão Legenda LOG (Python).
+    /// Legendas (ferramenta única): escolhe a disciplina (LOG, AUT, SON), vê as legendas já criadas e cria novas;
+    /// para a legenda escolhida, a lista de itens (texto, ordem arrastando, escala, símbolos acrescentados),
+    /// opções da tabela e cor, e a prévia desenhada pelo Revit, criada ou atualizada ali mesmo.
+    /// Os ajustes ficam gravados em cada vista de legenda (valem também para os botões Legenda LOG/AUT/SON).
     /// </summary>
-    public class PreviaLegendaLOG : ComandoFJA
+    public class FerramentaLegendas : ComandoFJA
     {
-        protected virtual Disciplina Disc => Disciplina.LOG;
+        protected virtual Disciplina Inicial => Disciplina.LOG;
 
         public override Result Executar(UIApplication app, ref string mensagem)
         {
@@ -25,36 +25,19 @@ namespace FJA.Revit.Comandos
             Document doc = uidoc.Document;
             if (doc.IsFamilyDocument) { mensagem = "Abra um projeto (não uma família)."; return Result.Failed; }
 
-            var D = Disc;
             double t = Tempos.Agora;
-            List<Item> itens;
-            HashSet<string> desmarcados;
-            try
-            {
-                itens = new Coleta(doc, D).Itens();
-                desmarcados = new Montagem(doc, D).AplicarConfig(itens);
-            }
-            catch (Exception e)
-            {
-                mensagem = "Erro ao ler os itens: " + e.Message;
-                return Result.Failed;
-            }
-            Tempos.Marca($"LER OS ITENS DO MODELO ({itens.Count})", t);
-            if (itens.Count == 0)
-            {
-                TaskDialog.Show(D.Botao, "Nenhuma família '" + string.Join("' / '", D.Familias) + "' posicionada no modelo.");
-                return Result.Cancelled;
-            }
-            t = Tempos.Agora;
-            var j = new JanelaPrevia(doc, D, itens, desmarcados, inicio);
+            var j = new JanelaPrevia(doc, Inicial, inicio);
             new System.Windows.Interop.WindowInteropHelper(j) { Owner = app.MainWindowHandle };
             Tempos.Marca("montar a janela", t);
             j.ShowDialog();
-            if (j.Gravado && j.VistaGerada != null)
+            if (j.Gravado && j.VistaGerada != null && j.VistaGerada.IsValidObject)
             {
                 try { uidoc.ActiveView = j.VistaGerada; } catch { }
             }
             return j.Gravado ? Result.Succeeded : Result.Cancelled;
         }
     }
+
+    /// <summary>Nome antigo do botão (Prévia LOG, 2.6.0 a 2.6.5): abre a ferramenta Legendas em LOG.</summary>
+    public class PreviaLegendaLOG : FerramentaLegendas { }
 }

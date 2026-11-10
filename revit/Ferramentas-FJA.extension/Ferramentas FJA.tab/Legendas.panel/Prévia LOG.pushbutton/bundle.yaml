@@ -1,6 +1,6 @@
 title:
-  pt_br: "Prévia\nLOG"
-  en_us: "Prévia\nLOG"
+  pt_br: "Legendas"
+  en_us: "Legendas"
 tooltip:
-  pt_br: "Abre a legenda de pontos de lógica numa janela com prévia (C#). Escolha os itens e os textos, a ordem (arrastando), o tamanho dos símbolos, as linhas, a largura e a cor; acrescente símbolos e detail items. Veja o resultado antes de gravar; Cancelar desfaz tudo."
-  en_us: "Abre a legenda de pontos de lógica numa janela com prévia (C#). Escolha os itens e os textos, a ordem (arrastando), o tamanho dos símbolos, as linhas, a largura e a cor; acrescente símbolos e detail items. Veja o resultado antes de gravar; Cancelar desfaz tudo."
+  pt_br: "Ferramenta de legendas por disciplina (LOG, AUT, SON): escolha a disciplina, veja as legendas criadas ou crie uma nova; ajuste itens, textos, ordem (arrastando), escala dos símbolos, linhas, largura e cor, e veja a prévia antes de gravar."
+  en_us: "Ferramenta de legendas por disciplina (LOG, AUT, SON): escolha a disciplina, veja as legendas criadas ou crie uma nova; ajuste itens, textos, ordem (arrastando), escala dos símbolos, linhas, largura e cor, e veja a prévia antes de gravar."

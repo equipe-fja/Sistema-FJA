@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Prévia LOG: a legenda de pontos de lógica numa janela com prévia do próprio Revit.
-Desde a 2.6.0 em C# (revit/dotnet/FJA.Revit, comando PreviaLegendaLOG); ver docs/revit-csharp.md."""
+"""Legendas: ferramenta única de legendas por disciplina (LOG, AUT, SON), com lista de legendas, itens e prévia.
+Em C# (revit/dotnet/FJA.Revit, comando FerramentaLegendas); ver docs/revit-csharp.md."""
 import fja_dotnet as D
 
-D.rodar_botao("PreviaLegendaLOG", __revit__, u"Legenda LOG · prévia")
+D.rodar_botao("FerramentaLegendas", __revit__, u"Legendas")
