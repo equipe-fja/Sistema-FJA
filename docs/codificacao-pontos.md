@@ -18,7 +18,7 @@ Dar a cada tipo de ponto das disciplinas complementares — (LOG), (AUT), (SON) 
    - só ordenar pelo código.
 4. **Modelos vinculados:** ver abaixo.
 
-## Ferramenta (C#, Ferramentas FJA › Legendas › Codificação)
+## Ferramenta (C#, Ferramentas FJA › Pontos › Codificação)
 - Seletor de disciplina, igual ao da Legendas.
 - Tabela com uma linha por tipo, com as colunas:
   - família : tipo;
@@ -41,7 +41,7 @@ O Revit não deixa alterar, a partir do modelo federado, os parâmetros de um mo
 Fica dispensado o arquivo de exportar e importar. Se um dia a equipe da disciplina quiser os mesmos códigos nos tags do próprio modelo dela, dá para acrescentar depois.
 
 ## Implementado (2.8.0)
-- **Legendas › Codificação** (C#, comando `CodificacaoPontos`; `Legendas/Codificacao.cs` e `JanelaCodificacao.cs`):
+- **Pontos › Codificação** (C#, comando `CodificacaoPontos`; `Legendas/Codificacao.cs` e `JanelaCodificacao.cs`):
   - mostra a disciplina (LOG, AUT, SON) e uma tabela de tipos;
   - **Numerar os sem código** (vazios ou fora do padrão) e **Renumerar tudo na ordem da lista**, que pede confirmação;
   - situação de cada código: sem código, repetido (bloqueia), fora do padrão (pede confirmação), já usado por tipo apagado, gravado, muda ao aplicar;

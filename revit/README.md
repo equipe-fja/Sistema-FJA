@@ -4,11 +4,12 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.13.0)
+## Conteúdo atual (extensão 2.14.0)
+- Painel **Pontos** (2.14.0; antes "Legendas"): ferramentas Legendas e Codificação.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
-- Legendas › **Legendas** (C#; ferramenta única desde 2.7.0, ELE e LUM desde 2.10.0) — legendas de LOG, AUT, SON, ELE e LUM numa janela com prévia: itens e textos, ordem arrastando, escala por símbolo (DWG), símbolos acrescentados, linhas, margens, largura, Type Mark e cor (do modelo, do Sistema FJA, escolhida no seletor FJA ou preto). Os ajustes ficam gravados em cada vista. Os botões antigos em Python (Legenda LOG/AUT/SON/ELE/LUM) foram retirados em 2.13.0.
-- Legendas › **Codificação** (C#, desde 2.8.0) — códigos SIGLA.NN no Type Mark, nomes de família e tipo (ver `docs/codificacao-pontos.md`).
+- Pontos › **Legendas** (C#; ferramenta única desde 2.7.0, ELE e LUM desde 2.10.0) — legendas de LOG, AUT, SON, ELE e LUM numa janela com prévia: itens e textos, ordem arrastando, escala por símbolo (DWG), símbolos acrescentados, linhas, margens, largura, Type Mark e cor (do modelo, do Sistema FJA, escolhida no seletor FJA ou preto). Os ajustes ficam gravados em cada vista. Os botões antigos em Python (Legenda LOG/AUT/SON/ELE/LUM) foram retirados em 2.13.0.
+- Pontos › **Codificação** (C#, desde 2.8.0) — códigos SIGLA.NN no Type Mark, nomes de família e tipo (ver `docs/codificacao-pontos.md`).
 - Ícones do painel Legendas em preto (2.5.4), como os demais, com versão para tema escuro.
 - Suíte › **Sobre** (desde 2.5.0) — versão da extensão e da biblioteca C# (`FJA.Revit.dll`); primeiro botão em C#.
 - Suíte › **Atualizar** — baixa a versão mais recente publicada pelo sistema (banco: `revitPub/extensao-versao` e `revitPub/extensao`, gravados por `extDbPublicar` na página Firebase), grava na pasta da extensão em uso (espelhando, menos `.pyc`) e recarrega o pyRevit (lógica em `lib/fja_suite.py`).

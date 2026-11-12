@@ -57,8 +57,8 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 | Botão | Comando | Desde |
 |---|---|---|
 | Suíte › Sobre | `Sobre` | 2.5.0 |
-| Legendas › Codificação | `CodificacaoPontos` (`Legendas/Codificacao.cs`, `JanelaCodificacao.cs`) | 2.8.0 (10/11/2026) |
-| Legendas › Legendas (antes "Prévia LOG") | `FerramentaLegendas` (`Legendas/*.cs`; `PreviaLegendaLOG` = mesmo comando) | 2.6.0; ferramenta única desde 2.7.0 (10/11/2026) |
+| Pontos › Codificação | `CodificacaoPontos` (`Legendas/Codificacao.cs`, `JanelaCodificacao.cs`) | 2.8.0 (10/11/2026) |
+| Pontos › Legendas (antes "Prévia LOG") | `FerramentaLegendas` (`Legendas/*.cs`; `PreviaLegendaLOG` = mesmo comando) | 2.6.0; ferramenta única desde 2.7.0 (10/11/2026) |
 
 ### Prévia LOG (2.6.0)
 - Migrada em 10/11/2026 a pedido da FJA (janela elaborada e lógica em crescimento).
