@@ -44,3 +44,13 @@ Primeiro teste da FJA (família "teste", anotação genérica): o contorno das h
 - Causa 1: os estilos eram criados como subcategorias da categoria da família (Anotações genéricas / Itens de detalhe); o contorno de região só aceita estilos da categoria Linhas, então o Revit usava `<Thin Lines>`.
 - Causa 2: subcategorias da anotação genérica usam a tabela de espessuras de anotação (fixa); as linhas de detalhe do projeto usam a de modelo (varia com a escala) — o mesmo número de pena sai com outra espessura.
 - Correção: estilos da categoria Linhas com o nome do estilo do projeto (testado nos dois modelos .rft: linha, estilo embutido e contorno de região aceitos).
+
+## 2.15.2 (12/11/2026) — cor como aparece na vista e espessura na anotação
+Segundo teste da FJA: símbolo da legenda SNZ (9 linhas `PENA 2 VERMELHA (HID.Q)`) aparece verde e grosso; a família saiu vermelha e fina.
+- Causa da cor: o verde (140,195,25) é sobreposição gráfica em cada elemento (pintura da ferramenta Legendas). A ferramenta lia só o estilo.
+- Causa da espessura: dentro da anotação genérica o Revit desenha pela tabela de espessuras de anotação; as linhas de detalhe usam a de modelo da escala da vista (a pena 2 na 1:25 sai mais grossa). A API não dá acesso às tabelas (só `Category.Get/SetLineWeight`), então não dá para converter sozinho.
+- Correção (decisões da FJA):
+  - Cor, espessura e padrão **como aparecem na vista**: sobreposição do elemento › filtros (na ordem da vista ou do modelo de vista, só ativos e visíveis) › sobreposição da categoria › estilo. Regiões: também a cor do preenchimento sobreposta (tipo "NOME r-g-b").
+  - Quando o resultado difere do estilo original, a família usa um estilo da categoria Linhas com o nome **"PENA 2 VERDE 140-195-25 SOLID"** (pena, nome da cor pelo matiz, RGB, tipo de linha: SOLID ou o nome do padrão). Sem diferença, continua o estilo original (ligado ao do projeto pelo nome).
+  - **Espessura na anotação**: campo na janela, +0 a +6 penas, só para anotação genérica; guardado por pessoa (`ajustePena`).
+  - "Tudo preto": estilo preto do projeto com a pena final e o mesmo padrão; senão "PENA n PRETO 0-0-0 SOLID".

@@ -33,11 +33,11 @@ namespace FJA.Revit.Detalhes
         public Saida Resultado { get; private set; } = Saida.Cancelar;
 
         Canvas tela;
-        ComboBox cbTipo, cbOrigem, cbCores;
+        ComboBox cbTipo, cbOrigem, cbCores, cbAjuste;
         TextBox txNome, txPasta;
         CheckBox ckSubst, ckFora;
         TextBlock txInfo, txTamanho, txErro;
-        StackPanel pnPasta, pnAvisos;
+        StackPanel pnPasta, pnAvisos, pnAjuste;
         Button btCriar;
         bool montando = true;
 
@@ -158,6 +158,17 @@ namespace FJA.Revit.Detalhes
             cbTipo.SelectionChanged += (s, a) => Atualizar();
             pn.Children.Add(cbTipo);
 
+            pnAjuste = new StackPanel();
+            pnAjuste.Children.Add(Rotulo("Espessura na anotação"));
+            cbAjuste = new ComboBox();
+            cbAjuste.Items.Add("+0 (mesma pena do original)");
+            for (int i = 1; i <= 6; i++) cbAjuste.Items.Add("+" + i + (i == 1 ? " pena" : " penas"));
+            cbAjuste.SelectedIndex = Math.Max(0, Math.Min(6, o.AjustePena));
+            cbAjuste.SelectionChanged += (s, a) => Atualizar();
+            pnAjuste.Children.Add(cbAjuste);
+            pnAjuste.Children.Add(Nota("A anotação usa a tabela de espessuras de anotação, e as linhas de detalhe a de modelo (que muda com a escala). Aumente até ficar igual ao original; o valor fica guardado."));
+            pn.Children.Add(pnAjuste);
+
             pn.Children.Add(Rotulo("Nome da família"));
             txNome = new TextBox { Text = o.Nome ?? "", Padding = new Thickness(4, 3, 4, 3) };
             txNome.TextChanged += (s, a) => Atualizar();
@@ -185,7 +196,7 @@ namespace FJA.Revit.Detalhes
 
             pn.Children.Add(Rotulo("Cores"));
             cbCores = new ComboBox();
-            cbCores.Items.Add("Manter cores e espessuras");
+            cbCores.Items.Add("Como aparecem na vista");
             cbCores.Items.Add("Tudo preto (mantém espessuras)");
             cbCores.SelectedIndex = o.Preto ? 1 : 0;
             cbCores.SelectionChanged += (s, a) => Atualizar();
@@ -258,6 +269,7 @@ namespace FJA.Revit.Detalhes
             o.Origem = (OrigemFamilia)Math.Max(0, cbOrigem.SelectedIndex);
             if (o.Origem == OrigemFamilia.Escolhida && o.PontoEscolhido == null) o.Origem = OrigemFamilia.Centro;
             o.Preto = cbCores.SelectedIndex == 1;
+            o.AjustePena = Math.Max(0, cbAjuste.SelectedIndex);
             o.Substituir = ckSubst.IsChecked == true;
             o.SalvarFora = ckFora.IsChecked == true;
             o.Pasta = txPasta.Text ?? "";
@@ -297,6 +309,7 @@ namespace FJA.Revit.Detalhes
             btCriar.IsEnabled = Validar() == null;
 
             bool anot = o.Tipo == TipoFamilia.Anotacao;
+            pnAjuste.Visibility = anot ? WVisibility.Visible : WVisibility.Collapsed;
             double k = anot ? 1.0 / d.Escala : 1.0;
             txTamanho.Text = (anot ? "No papel: " : "Tamanho real: ") + Mm(d.Largura * k) + " × " + Mm(d.Altura * k) + " mm";
             txInfo.Text = "Vista: " + d.Vista.Name + " (1:" + d.Escala + ") · " + d.Resumo() + "."
@@ -305,6 +318,8 @@ namespace FJA.Revit.Detalhes
             pnAvisos.Children.Clear();
             var avisos = new List<string>(d.Avisos);
             if (o.Preto && d.Conta(TipoPeca.Componente) > 0) avisos.Add("Componentes aninhados mantêm as cores das próprias famílias.");
+            if (!o.Preto && d.Sobrepostos > 0)
+                avisos.Add("Há cor, espessura ou padrão vindos de sobreposição ou filtro da vista: a família leva o que aparece, com estilos no formato \"PENA 2 VERDE 140-195-25 SOLID\".");
             if (avisos.Count > 0)
             {
                 pnAvisos.Children.Add(new TextBlock { Text = "Avisos", FontWeight = FontWeights.SemiBold, FontSize = 12, Margin = new Thickness(0, 0, 0, 2) });

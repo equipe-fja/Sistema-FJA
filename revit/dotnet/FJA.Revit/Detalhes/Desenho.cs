@@ -17,6 +17,8 @@ namespace FJA.Revit.Detalhes
         public ElementId Padrao;        // LinePatternElement (InvalidElementId = sólido)
         public string NomePadrao;
         public bool Invisivel;
+        public bool Sobreposto;         // cor, espessura ou padrão vêm de sobreposição/filtro da vista
+        public string Chave;
         public bool Tracejado => Padrao != null && Padrao != ElementId.InvalidElementId && Padrao != LinePatternElement.GetSolidPatternId();
     }
 
@@ -31,7 +33,8 @@ namespace FJA.Revit.Detalhes
         // região
         public List<CurveLoop> Loops;
         public ElementId TipoRegiao;
-        public byte[] CorRegiao;        // cor do padrão de frente (ou de fundo)
+        public byte[] CorRegiao;        // cor do padrão de frente (ou de fundo), já com a sobreposição da vista
+        public bool CorSobreposta;      // a cor do preenchimento vem de sobreposição/filtro da vista
         public bool Solida, Mascara;
         // texto / componente
         public XYZ Ponto;
@@ -59,7 +62,11 @@ namespace FJA.Revit.Detalhes
         public int Escala;
         public readonly List<Peca> Pecas = new List<Peca>();
         public readonly List<ElementId> Originais = new List<ElementId>();  // o que foi selecionado (grupos inteiros)
-        public readonly Dictionary<ElementId, EstiloLinha> Estilos = new Dictionary<ElementId, EstiloLinha>();
+        public readonly Dictionary<string, EstiloLinha> Estilos = new Dictionary<string, EstiloLinha>();
+        readonly Dictionary<ElementId, EstiloLinha> estilosBase = new Dictionary<ElementId, EstiloLinha>();
+        List<Tuple<FilterElement, OverrideGraphicSettings>> filtros;
+        View vistaCategorias;
+        public int Sobrepostos;
         public readonly List<string> Avisos = new List<string>();
         public double MinX, MinY, MaxX, MaxY;
         bool temZ;
@@ -138,10 +145,124 @@ namespace FJA.Revit.Detalhes
             try { return e?.Name ?? ""; } catch { return ""; }
         }
 
-        EstiloLinha Estilo(ElementId gsId)
+        /// <summary>Estilo como o elemento aparece na vista: o estilo de linha com a cor, a espessura e o padrão
+        /// trocados pela sobreposição do elemento, pelos filtros (na ordem da vista ou do modelo de vista) ou pela
+        /// sobreposição da categoria, quando houver.</summary>
+        EstiloLinha Estilo(ElementId gsId, Element e)
+        {
+            var b = EstiloBase(gsId);
+            if (b == null) return null;
+            int? cor = null, peso = null; ElementId pad = null;
+            if (e != null && !b.Invisivel) Sobreposicao(e, ref cor, ref peso, ref pad, false);
+            var es = new EstiloLinha
+            {
+                Id = b.Id, Nome = b.Nome, R = b.R, G = b.G, B = b.B, Peso = b.Peso, Padrao = b.Padrao, NomePadrao = b.NomePadrao, Invisivel = b.Invisivel,
+            };
+            if (cor.HasValue)
+            {
+                byte r = (byte)((cor.Value >> 16) & 255), g = (byte)((cor.Value >> 8) & 255), bl = (byte)(cor.Value & 255);
+                if (r != es.R || g != es.G || bl != es.B) { es.R = r; es.G = g; es.B = bl; es.Sobreposto = true; }
+            }
+            if (peso.HasValue && peso.Value > 0 && peso.Value != es.Peso) { es.Peso = peso.Value; es.Sobreposto = true; }
+            if (pad != null && pad != ElementId.InvalidElementId && pad != es.Padrao)
+            {
+                es.Padrao = pad; es.Sobreposto = true;
+                es.NomePadrao = es.Tracejado ? NomeDe(Doc.GetElement(pad)) : null;
+            }
+            es.Chave = es.Id + "|" + es.R + "," + es.G + "," + es.B + "|" + es.Peso + "|" + es.Padrao;
+            if (Estilos.TryGetValue(es.Chave, out var ja)) return ja;
+            if (es.Sobreposto) Sobrepostos++;
+            Estilos[es.Chave] = es;
+            return es;
+        }
+
+        /// <summary>Vista que controla o parâmetro (o modelo de vista, se ele controlar).</summary>
+        View Controladora(BuiltInParameter bip)
+        {
+            try
+            {
+                ElementId tid = Vista.ViewTemplateId;
+                if (tid != null && tid != ElementId.InvalidElementId && Doc.GetElement(tid) is View tpl)
+                {
+                    var nc = tpl.GetNonControlledTemplateParameterIds();
+                    if (!nc.Any(i => i == new ElementId(bip))) return tpl;
+                }
+            }
+            catch { }
+            return Vista;
+        }
+
+        static bool FiltroPega(FilterElement f, Element e)
+        {
+            if (f is SelectionFilterElement sel) return sel.GetElementIds().Any(i => i == e.Id);
+            if (f is ParameterFilterElement pf)
+            {
+                try { if (e.Category == null || !pf.GetCategories().Any(c => c == e.Category.Id || c == e.Category.Parent?.Id)) return false; } catch { }
+                ElementFilter ef = null;
+                try { ef = pf.GetElementFilter(); } catch { }
+                if (ef == null) return true;
+                try { return ef.PassesFilter(e); } catch { return false; }
+            }
+            return false;
+        }
+
+        static int? Rgb(Color c)
+        {
+            try { if (c != null && c.IsValid) return (c.Red << 16) | (c.Green << 8) | c.Blue; } catch { }
+            return null;
+        }
+
+        /// <summary>Preenche o que estiver vazio (cor, espessura, padrão de linhas — ou a cor do preenchimento, se
+        /// superficie) na ordem: elemento › filtros › categoria.</summary>
+        void Sobreposicao(Element e, ref int? cor, ref int? peso, ref ElementId pad, bool superficie)
+        {
+            var lista = new List<OverrideGraphicSettings>();
+            try { lista.Add(Vista.GetElementOverrides(e.Id)); } catch { }
+            if (filtros == null)
+            {
+                filtros = new List<Tuple<FilterElement, OverrideGraphicSettings>>();
+                View fv = Controladora(BuiltInParameter.VIS_GRAPHICS_FILTERS);
+                vistaCategorias = Controladora(BuiltInParameter.VIS_GRAPHICS_MODEL);
+                IList<ElementId> ids;
+                try { ids = fv.GetOrderedFilters(); } catch { ids = fv.GetFilters().ToList(); }
+                foreach (var fid in ids)
+                {
+                    try
+                    {
+                        if (!fv.GetIsFilterEnabled(fid) || !fv.GetFilterVisibility(fid)) continue;
+                        if (Doc.GetElement(fid) is FilterElement fe) filtros.Add(Tuple.Create(fe, fv.GetFilterOverrides(fid)));
+                    }
+                    catch { }
+                }
+            }
+            foreach (var f in filtros) if (FiltroPega(f.Item1, e)) lista.Add(f.Item2);
+            try
+            {
+                if (e.Category != null)
+                {
+                    lista.Add(vistaCategorias.GetCategoryOverrides(e.Category.Id));
+                    if (e.Category.Parent != null) lista.Add(vistaCategorias.GetCategoryOverrides(e.Category.Parent.Id));
+                }
+            }
+            catch { }
+            foreach (var o in lista)
+            {
+                if (o == null) continue;
+                try
+                {
+                    if (superficie) { if (!cor.HasValue) cor = Rgb(o.SurfaceForegroundPatternColor); continue; }
+                    if (!cor.HasValue) cor = Rgb(o.ProjectionLineColor);
+                    if (!peso.HasValue && o.ProjectionLineWeight > 0) peso = o.ProjectionLineWeight;
+                    if (pad == null && o.ProjectionLinePatternId != null && o.ProjectionLinePatternId != ElementId.InvalidElementId) pad = o.ProjectionLinePatternId;
+                }
+                catch { }
+            }
+        }
+
+        EstiloLinha EstiloBase(ElementId gsId)
         {
             if (gsId == null || gsId == ElementId.InvalidElementId) return null;
-            if (Estilos.TryGetValue(gsId, out var ja)) return ja;
+            if (estilosBase.TryGetValue(gsId, out var ja)) return ja;
             var gs = Doc.GetElement(gsId) as GraphicsStyle;
             var cat = gs?.GraphicsStyleCategory;
             if (cat == null) return null;
@@ -155,7 +276,7 @@ namespace FJA.Revit.Detalhes
             }
             catch { es.Padrao = ElementId.InvalidElementId; }
             try { es.Invisivel = cat.BuiltInCategory == BuiltInCategory.OST_InvisibleLines; } catch { }
-            Estilos[gsId] = es;
+            estilosBase[gsId] = es;
             return es;
         }
 
@@ -218,7 +339,7 @@ namespace FJA.Revit.Detalhes
             if (e is CurveElement ce)
             {
                 var c = Local(ce.GeometryCurve);
-                var p = new Peca { Tipo = TipoPeca.Curva, Origem = e.Id, Curva = c, Estilo = Estilo(ce.LineStyle?.Id) };
+                var p = new Peca { Tipo = TipoPeca.Curva, Origem = e.Id, Curva = c, Estilo = Estilo(ce.LineStyle?.Id, e) };
                 p.Tracos.Add(Pontos(c));
                 Juntar(p);
             }
@@ -242,6 +363,17 @@ namespace FJA.Revit.Detalhes
                     if (cor != null && cor.IsValid) p.CorRegiao = new[] { cor.Red, cor.Green, cor.Blue };
                     var fpId = frente ? tipo.ForegroundPatternId : tipo.BackgroundPatternId;
                     try { p.Solida = (Doc.GetElement(fpId) as FillPatternElement)?.GetFillPattern()?.IsSolidFill ?? false; } catch { }
+                }
+                // cor do preenchimento sobreposta na vista (ex.: pintura das Legendas)
+                if (!p.Mascara)
+                {
+                    int? cs = null, ps = null; ElementId pp = null;
+                    Sobreposicao(e, ref cs, ref ps, ref pp, true);
+                    if (cs.HasValue)
+                    {
+                        var nc = new[] { (byte)((cs.Value >> 16) & 255), (byte)((cs.Value >> 8) & 255), (byte)(cs.Value & 255) };
+                        if (p.CorRegiao == null || !nc.SequenceEqual(p.CorRegiao)) { p.CorRegiao = nc; p.CorSobreposta = true; Sobrepostos++; }
+                    }
                 }
                 p.Estilo = EstiloDoContorno(fr);
                 Juntar(p);
@@ -324,7 +456,7 @@ namespace FJA.Revit.Detalhes
                 if (geo != null) andar(geo);
                 foreach (var kv in conta.OrderByDescending(x => x.Value))
                 {
-                    var es = Estilo(kv.Key);
+                    var es = Estilo(kv.Key, fr);
                     if (es != null && (Doc.GetElement(kv.Key) as GraphicsStyle)?.GraphicsStyleCategory?.Parent?.BuiltInCategory == BuiltInCategory.OST_Lines)
                         return es;
                 }

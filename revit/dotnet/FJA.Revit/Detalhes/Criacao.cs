@@ -23,6 +23,7 @@ namespace FJA.Revit.Detalhes
         public bool Substituir;
         public bool SalvarFora;
         public string Pasta = "";
+        public int AjustePena;              // só na anotação genérica: penas a mais (tabela de anotação × de modelo)
 
         static string Arquivo => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FJA", "familia-desenho.json");
 
@@ -39,6 +40,7 @@ namespace FJA.Revit.Detalhes
                 o.SalvarFora = d.TryGetValue("salvarFora", out var c) && c is bool b3 && b3;
                 o.Pasta = d.Txt("pasta") ?? "";
                 if (d.Txt("origem") == "inferior") o.Origem = OrigemFamilia.InferiorEsquerdo;
+                if (d.TryGetValue("ajustePena", out var aj) && aj is double dj) o.AjustePena = Math.Max(0, Math.Min(6, (int)dj));
             }
             catch { }
             return o;
@@ -53,6 +55,7 @@ namespace FJA.Revit.Detalhes
                 {
                     ["preto"] = Preto, ["substituir"] = Substituir, ["salvarFora"] = SalvarFora, ["pasta"] = Pasta ?? "",
                     ["origem"] = Origem == OrigemFamilia.InferiorEsquerdo ? "inferior" : "centro",
+                    ["ajustePena"] = AjustePena,
                 };
                 File.WriteAllText(Arquivo, Json.Gravar(d));
             }
@@ -130,8 +133,9 @@ namespace FJA.Revit.Detalhes
             public Transform T;
             public Category Cat;
             public CopyPasteOptions Copia;
-            public readonly Dictionary<ElementId, GraphicsStyle> Estilos = new Dictionary<ElementId, GraphicsStyle>();
-            public readonly Dictionary<ElementId, ElementId> TiposRegiao = new Dictionary<ElementId, ElementId>();
+            public readonly Dictionary<string, GraphicsStyle> Estilos = new Dictionary<string, GraphicsStyle>();
+            public readonly Dictionary<string, ElementId> TiposRegiao = new Dictionary<string, ElementId>();
+            public int Ajuste => O.Tipo == TipoFamilia.Anotacao ? O.AjustePena : 0;
             public readonly Dictionary<ElementId, ElementId> TiposTextoPreto = new Dictionary<ElementId, ElementId>();
             public readonly List<string> Avisos = new List<string>();
             public int Linhas, Regioes, Textos, Componentes, Falhas;
@@ -239,13 +243,18 @@ namespace FJA.Revit.Detalhes
         static GraphicsStyle Estilo(Contexto c, EstiloLinha es)
         {
             if (es == null) return null;
-            if (c.Estilos.TryGetValue(es.Id, out var ja)) return ja;
+            if (c.Estilos.TryGetValue(es.Chave, out var ja)) return ja;
             GraphicsStyle gs;
             if (es.Invisivel) gs = c.Invisivel();
             else
             {
                 Category linhasF = c.F.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
-                string nome = c.O.Preto && !EhPreto(es) ? NomePreto(c, es) : es.Nome;
+                int peso = Math.Max(1, Math.Min(16, es.Peso + c.Ajuste));
+                bool preto = c.O.Preto && !EhPreto(es);
+                string nome;
+                if (preto) nome = NomePreto(c, es, peso);
+                else if (es.Sobreposto || peso != es.Peso) nome = NomeConvencao(es.R, es.G, es.B, peso, es, c);
+                else nome = es.Nome;
                 if (string.IsNullOrWhiteSpace(nome)) nome = "Linha";
                 Category sub;
                 if (linhasF.SubCategories.Contains(nome)) sub = linhasF.SubCategories.get_Item(nome);
@@ -254,19 +263,51 @@ namespace FJA.Revit.Detalhes
                     sub = c.F.Settings.Categories.NewSubcategory(linhasF, nome);
                     // valem só se o projeto não tiver um estilo com este nome (aí vale o do projeto)
                     sub.LineColor = c.O.Preto ? new Color(0, 0, 0) : new Color(es.R, es.G, es.B);
-                    try { sub.SetLineWeight(Math.Max(1, Math.Min(16, es.Peso)), GraphicsStyleType.Projection); } catch { }
+                    try { sub.SetLineWeight(peso, GraphicsStyleType.Projection); } catch { }
                     try { sub.SetLinePatternId(Padrao(c, es), GraphicsStyleType.Projection); } catch { }
                 }
                 gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
             }
-            c.Estilos[es.Id] = gs;
+            c.Estilos[es.Chave] = gs;
             return gs;
+        }
+
+        /// <summary>Nome de estilo pela convenção da FJA: "PENA 2 VERDE 140-195-25 SOLID" (pena, cor, RGB, tipo de linha).</summary>
+        static string NomeConvencao(byte r, byte g, byte b, int peso, EstiloLinha es, Contexto c)
+        {
+            string tipo = es.Tracejado && !string.IsNullOrEmpty(es.NomePadrao) ? NomeValido(es.NomePadrao).ToUpperInvariant() : "SOLID";
+            return "PENA " + peso + " " + NomeCor(r, g, b) + " " + r + "-" + g + "-" + b + " " + tipo;
+        }
+
+        /// <summary>Nome da cor em português pelo matiz (aproximado).</summary>
+        public static string NomeCor(byte r, byte g, byte b)
+        {
+            double R = r / 255.0, G = g / 255.0, B = b / 255.0;
+            double max = Math.Max(R, Math.Max(G, B)), min = Math.Min(R, Math.Min(G, B)), d = max - min;
+            double s = max <= 0 ? 0 : d / max, v = max;
+            if (v < 0.16) return "PRETO";
+            if (s < 0.15) return v > 0.9 ? "BRANCO" : "CINZA";
+            double h;
+            if (d == 0) h = 0;
+            else if (max == R) h = 60 * (((G - B) / d) % 6);
+            else if (max == G) h = 60 * ((B - R) / d + 2);
+            else h = 60 * ((R - G) / d + 4);
+            if (h < 0) h += 360;
+            bool escuro = v < 0.6 && s < 0.8;
+            if (h < 15 || h >= 345) return escuro ? "MARROM" : "VERMELHO";
+            if (h < 40) return escuro ? "MARROM" : "LARANJA";
+            if (h < 70) return "AMARELO";
+            if (h < 150) return "VERDE";
+            if (h < 195) return "VERDE ÁGUA";
+            if (h < 255) return "AZUL";
+            if (h < 290) return "ROXO";
+            return "ROSA";
         }
 
         static bool EhPreto(EstiloLinha es) => es.R == 0 && es.G == 0 && es.B == 0;
 
         /// <summary>Estilo preto do projeto com a mesma espessura e padrão (prefere "PENA n"); senão "PRETO PENA n".</summary>
-        static string NomePreto(Contexto c, EstiloLinha es)
+        static string NomePreto(Contexto c, EstiloLinha es, int peso)
         {
             try
             {
@@ -279,7 +320,7 @@ namespace FJA.Revit.Detalhes
                     {
                         var cor = s.LineColor;
                         if (cor == null || cor.Red != 0 || cor.Green != 0 || cor.Blue != 0) continue;
-                        if ((s.GetLineWeight(GraphicsStyleType.Projection) ?? 1) != es.Peso) continue;
+                        if ((s.GetLineWeight(GraphicsStyleType.Projection) ?? 1) != peso) continue;
                         var p = s.GetLinePatternId(GraphicsStyleType.Projection);
                         if (p == null || p == ElementId.InvalidElementId) p = LinePatternElement.GetSolidPatternId();
                         if (p != pad) continue;
@@ -287,12 +328,12 @@ namespace FJA.Revit.Detalhes
                     }
                     catch { }
                 }
-                var melhor = cands.OrderBy(s => s.Name == "PENA " + es.Peso ? 0 : s.Name.StartsWith("PENA") ? 1 : s.Name.StartsWith("<") ? 3 : 2)
+                var melhor = cands.OrderBy(s => s.Name == "PENA " + peso ? 0 : s.Name.StartsWith("PENA") ? 1 : s.Name.StartsWith("<") ? 3 : 2)
                     .ThenBy(s => s.Name.Length).FirstOrDefault();
                 if (melhor != null) return melhor.Name;
             }
             catch { }
-            return "PRETO PENA " + es.Peso + (es.Tracejado && !string.IsNullOrEmpty(es.NomePadrao) ? " " + NomeValido(es.NomePadrao) : "");
+            return NomeConvencao(0, 0, 0, peso, es, c);
         }
 
         static ElementId Padrao(Contexto c, EstiloLinha es)
@@ -325,10 +366,11 @@ namespace FJA.Revit.Detalhes
 
         static void Regiao(Contexto c, Peca p)
         {
-            if (!c.TiposRegiao.TryGetValue(p.TipoRegiao, out var tipo))
+            string chave = p.TipoRegiao + "|" + (p.CorSobreposta ? string.Join(",", p.CorRegiao) : "");
+            if (!c.TiposRegiao.TryGetValue(chave, out var tipo))
             {
-                tipo = TipoRegiao(c, c.Doc.GetElement(p.TipoRegiao) as FilledRegionType);
-                c.TiposRegiao[p.TipoRegiao] = tipo;
+                tipo = TipoRegiao(c, c.Doc.GetElement(p.TipoRegiao) as FilledRegionType, p.CorSobreposta ? p.CorRegiao : null);
+                c.TiposRegiao[chave] = tipo;
             }
             var loops = p.Loops.Select(l => CurveLoop.CreateViaTransform(l, c.T)).ToList();
             var fr = FilledRegion.Create(c.F, tipo, c.VF.Id, loops);
@@ -349,20 +391,23 @@ namespace FJA.Revit.Detalhes
 
         /// <summary>Tipo de região recriado na família (a cópia de tipos entre documentos falha): mesmo nome, padrões
         /// de frente e fundo (copiados como FillPatternElement), cores, espessura e mascaramento.</summary>
-        static ElementId TipoRegiao(Contexto c, FilledRegionType orig)
+        static ElementId TipoRegiao(Contexto c, FilledRegionType orig, byte[] corVista)
         {
             if (orig == null) throw new Exception("tipo de região não encontrado");
-            string nome = Desenho.NomeDe(orig) + (c.O.Preto && !orig.IsMasking ? " - PRETO" : "");
+            bool preto = c.O.Preto && !orig.IsMasking;
+            if (preto) corVista = null;
+            string nome = Desenho.NomeDe(orig) + (preto ? " - PRETO" : corVista != null ? " " + corVista[0] + "-" + corVista[1] + "-" + corVista[2] : "");
             var tipos = new FilteredElementCollector(c.F).OfClass(typeof(FilledRegionType)).Cast<FilledRegionType>().ToList();
             var ja = tipos.FirstOrDefault(x => Desenho.NomeDe(x) == nome);
             if (ja != null) return ja.Id;
             if (tipos.Count == 0) throw new Exception("o modelo de família não tem tipo de região para duplicar");
             var nt = (FilledRegionType)tipos[0].Duplicate(nome);
-            var preto = new Color(0, 0, 0);
+            var pretoC = new Color(0, 0, 0);
             nt.ForegroundPatternId = Preenchimento(c, orig.ForegroundPatternId);
             nt.BackgroundPatternId = Preenchimento(c, orig.BackgroundPatternId);
-            try { nt.ForegroundPatternColor = c.O.Preto && !orig.IsMasking ? preto : orig.ForegroundPatternColor; } catch { }
-            try { nt.BackgroundPatternColor = c.O.Preto && !orig.IsMasking ? preto : orig.BackgroundPatternColor; } catch { }
+            var corV = corVista != null ? new Color(corVista[0], corVista[1], corVista[2]) : null;
+            try { nt.ForegroundPatternColor = preto ? pretoC : corV ?? orig.ForegroundPatternColor; } catch { }
+            try { nt.BackgroundPatternColor = preto ? pretoC : (corV != null && orig.ForegroundPatternId == ElementId.InvalidElementId ? corV : orig.BackgroundPatternColor); } catch { }
             try { nt.IsMasking = orig.IsMasking; } catch { }
             try { nt.LineWeight = orig.LineWeight; } catch { }
             return nt.Id;
