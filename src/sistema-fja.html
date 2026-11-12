@@ -1,4 +1,33 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}/* seletor de cor FJA (substitui o seletor nativo de todo input[type=color]) */
+.sc-pop{position:fixed;z-index:9000;width:288px;max-width:calc(100vw - 16px);background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:12px;display:flex;flex-direction:column;gap:10px;font-size:12.5px}
+.sc-sv{position:relative;height:150px;border-radius:6px;cursor:crosshair;touch-action:none;background:#f00}
+.sc-sv::before,.sc-sv::after{content:"";position:absolute;inset:0;border-radius:6px}
+.sc-sv::before{background:linear-gradient(90deg,#fff,rgba(255,255,255,0))}
+.sc-sv::after{background:linear-gradient(0deg,#000,rgba(0,0,0,0))}
+.sc-cur{position:absolute;z-index:1;width:14px;height:14px;margin:-7px 0 0 -7px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.5);pointer-events:none}
+.sc-l1{display:flex;align-items:center;gap:8px}
+.sc-hue{position:relative;flex:1;height:14px;border-radius:7px;cursor:pointer;touch-action:none;background:linear-gradient(90deg,#f00,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00)}
+.sc-hcur{position:absolute;top:-2px;width:8px;height:18px;margin-left:-4px;border:2px solid #fff;border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.5);pointer-events:none}
+.sc-gota{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line-strong);border-radius:6px;flex:none}
+.sc-gota:hover{background:color-mix(in srgb,var(--ink) 5%,var(--panel))}
+.sc-gota svg{width:16px;height:16px}
+.sc-vals{display:grid;grid-template-columns:38px 1fr 44px 44px 44px;gap:6px;align-items:end}
+.sc-prev{height:30px;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--line-strong)}
+.sc-prev i{flex:1}
+.sc-vals label{display:flex;flex-direction:column;gap:2px;color:var(--muted);font-size:11px}
+.sc-vals input{width:100%;height:30px;border:1px solid var(--line-strong);border-radius:6px;padding:0 6px;font-family:var(--f-mono);font-size:12px;background:var(--panel);-moz-appearance:textfield}
+.sc-vals input::-webkit-outer-spin-button,.sc-vals input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.sc-ct{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11.5px}
+.sc-ct.fraco{color:var(--warn);background:var(--warn-bg);border-radius:6px;padding:4px 8px}
+.sc-grp{display:flex;flex-direction:column;gap:5px}
+.sc-tit{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.sc-sws{display:flex;flex-wrap:wrap;gap:5px}
+.sc-sw{width:22px;height:22px;border-radius:5px;border:1px solid rgba(0,0,0,.15);position:relative}
+.sc-sw:hover{transform:scale(1.12)}
+.sc-sw.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--accent)}
+.sc-sw.cod{width:auto;min-width:22px;padding:0 5px;font:600 9.5px/20px var(--f-mono);letter-spacing:.02em}
+.sc-acts{display:flex;justify-content:flex-end;gap:6px;border-top:1px solid var(--line);padding-top:10px}
+</style></head><body>
 <title>Sistema FJA</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -8830,6 +8859,128 @@ async function modoPublico(){
   },e=>{setConn('Conexão perdida','err');toast('A conexão com o sistema caiu. Recarregue a página.')});
 })();
 render();
+/* ---------- Seletor de cor FJA ----------
+   Todo input[type=color] do sistema abre este seletor no lugar do nativo. O valor continua no próprio
+   input: durante a escolha ele recebe eventos 'input' e, ao confirmar, 'change' (os tratamentos existentes
+   continuam valendo). Área de cor e matiz, HEX/RGB, conta-gotas, cores do projeto, padrão FJA, recentes
+   (por pessoa, neste navegador) e aviso de contraste com fundo branco. */
+const SelCor=(()=>{
+  const LS='fja.coresRecentes', MAXREC=14;
+  const h2r=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+  const r2h=(r,g,b)=>'#'+[r,g,b].map(x=>Math.max(0,Math.min(255,Math.round(x))).toString(16).padStart(2,'0')).join('');
+  const r2v=(r,g,b)=>{r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;if(d){h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360}return [h,mx?d/mx:0,mx]};
+  const v2r=(h,s,v)=>{const f=n=>{const k=(n+h/60)%6;return (v-v*s*Math.max(0,Math.min(k,4-k,1)))*255};return [f(5),f(3),f(1)]};
+  const lum=h=>{const c=h2r(h).map(x=>{x/=255;return x<=.03928?x/12.92:((x+.055)/1.055)**2.4});return .2126*c[0]+.7152*c[1]+.0722*c[2]};
+  const contraste=h=>1.05/(lum(h)+.05);
+  const txtSobre=h=>lum(h)>.35?'#1d1d1d':'#fff';
+  let pop=null, alvo=null, orig='', hsv=[0,0,0], atual='#000000';
+  const recentes=()=>{try{const a=JSON.parse(localStorage.getItem(LS)||'[]');return Array.isArray(a)?a.filter(HEX).map(x=>x.toLowerCase()):[]}catch{return []}};
+  const guardaRecente=c=>{try{c=c.toLowerCase();localStorage.setItem(LS,JSON.stringify([c,...recentes().filter(x=>x!==c)].slice(0,MAXREC)))}catch{}};
+  function doProjeto(el){
+    let pid=el.dataset.pid||el.closest('[data-pid]')?.dataset.pid;
+    if(!pid){const v=S.view?.id; if(v&&S.itens.get(v)?.secao==='projetos') pid=v}
+    const d=pid&&S.itens.get(pid); if(!d) return [];
+    try{return discsProj(pid).filter(l=>l&&l.cod).map(l=>[l.cod,corDisc(d,l),(CORES_PADRAO.find(x=>x[0]===l.cod)||[])[1]||l.cod])}catch{return []}
+  }
+  const sw=(c,tit,cod)=>`<button type="button" class="sc-sw${cod?' cod':''}" data-sc="${esc(c)}" title="${esc(tit)}" style="background:${esc(c)}${cod?';color:'+txtSobre(c):''}">${cod?esc(cod):''}</button>`;
+  const grp=(t,itens)=>itens.length?`<div class="sc-grp"><div class="sc-tit">${t}</div><div class="sc-sws">${itens.join('')}</div></div>`:'';
+  function montar(){
+    const proj=doProjeto(alvo), padrao=CORES_PADRAO.map(([c,n,h])=>sw(h,c+' · '+n+' ('+h+')',c));
+    const neutras=['#000000','#3c3c3c','#7a7a7a','#bdbdbd','#ffffff','#8e1b1b'].map(h=>sw(h,h));
+    pop=document.createElement('div'); pop.className='sc-pop'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-label','Escolher cor');
+    pop.innerHTML=`<div class="sc-sv"><i class="sc-cur"></i></div>
+      <div class="sc-l1"><div class="sc-hue"><i class="sc-hcur"></i></div>${window.EyeDropper?`<button type="button" class="sc-gota" title="Conta-gotas: pegar uma cor da tela"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg></button>`:''}</div>
+      <div class="sc-vals"><span class="sc-prev" title="Em cima: nova · embaixo: anterior"><i class="sc-novo"></i><i style="background:${esc(orig)}"></i></span>
+        <label>HEX<input class="sc-hex" maxlength="7" spellcheck="false" aria-label="HEX"></label>
+        <label>R<input class="sc-rgb" data-i="0" type="number" min="0" max="255" aria-label="Vermelho"></label>
+        <label>G<input class="sc-rgb" data-i="1" type="number" min="0" max="255" aria-label="Verde"></label>
+        <label>B<input class="sc-rgb" data-i="2" type="number" min="0" max="255" aria-label="Azul"></label></div>
+      <div class="sc-ct"></div>
+      ${grp('Cores do projeto',proj.map(([c,h,n])=>sw(h,c+' · '+n+' ('+h+')',c)))}
+      ${grp('Padrão FJA',padrao)}
+      ${grp('Neutras',neutras)}
+      ${grp('Recentes',recentes().map(h=>sw(h,h)))}
+      <div class="sc-acts"><button type="button" class="btn sm ghost" data-sca="cancelar">Cancelar</button><button type="button" class="btn sm pri" data-sca="ok">OK</button></div>`;
+    document.body.appendChild(pop);
+    arrastar(pop.querySelector('.sc-sv'),(x,y)=>{hsv=[hsv[0],x,1-y];aplicar('sv')});
+    arrastar(pop.querySelector('.sc-hue'),x=>{hsv=[x*360,hsv[1],hsv[2]];aplicar('hue')});
+    pop.addEventListener('click',ev=>{
+      const b=ev.target.closest('button'); if(!b) return;
+      if(b.dataset.sc){definirHex(b.dataset.sc,'sw'); if(ev.detail>1) fechar(true); return}
+      if(b.dataset.sca) {fechar(b.dataset.sca==='ok'); return}
+      if(b.classList.contains('sc-gota')) new window.EyeDropper().open().then(r=>{const v=r?.sRGBHex||''; if(HEX(v)) definirHex(v,'gota'); else {const m=v.match(/\d+/g); if(m&&m.length>=3) definirHex(r2h(+m[0],+m[1],+m[2]),'gota')}}).catch(()=>{});
+    });
+    pop.addEventListener('input',ev=>{
+      const t=ev.target; ev.stopPropagation();
+      if(t.classList.contains('sc-hex')){let v=t.value.trim(); if(!v.startsWith('#')) v='#'+v; if(/^#[0-9a-f]{3}$/i.test(v)) v='#'+[...v.slice(1)].map(c=>c+c).join(''); if(HEX(v)) definirHex(v,'hex')}
+      else if(t.classList.contains('sc-rgb')){const c=[...pop.querySelectorAll('.sc-rgb')].map(i=>Math.max(0,Math.min(255,+i.value||0))); definirHex(r2h(...c),'rgb')}
+    });
+    pop.addEventListener('change',ev=>ev.stopPropagation());
+    pop.addEventListener('keydown',ev=>{if(ev.key==='Escape'){ev.preventDefault();ev.stopPropagation();fechar(false)} else if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();fechar(true)}});
+  }
+  function arrastar(el,fn){
+    el.addEventListener('pointerdown',ev=>{ev.preventDefault(); el.setPointerCapture(ev.pointerId);
+      const mv=e=>{const r=el.getBoundingClientRect(); fn(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height)))};
+      mv(ev); el.onpointermove=mv; el.onpointerup=el.onpointercancel=()=>{el.onpointermove=null}});
+  }
+  function definirHex(h,fonte){hsv=r2v(...h2r(h)); if(hsv[1]===0&&fonte!=='hue'&&pop) hsv[0]=hsvHueAnterior; aplicar(fonte,h.toLowerCase())}
+  let hsvHueAnterior=0;
+  function aplicar(fonte,hexDado){
+    atual=hexDado||r2h(...v2r(...hsv)); hsvHueAnterior=hsv[0];
+    if(!pop) return;
+    const q=c=>pop.querySelector(c);
+    q('.sc-sv').style.background=r2h(...v2r(hsv[0],1,1));
+    Object.assign(q('.sc-cur').style,{left:hsv[1]*100+'%',top:(1-hsv[2])*100+'%',background:atual});
+    q('.sc-hcur').style.left=hsv[0]/360*100+'%';
+    q('.sc-novo').style.background=atual;
+    if(fonte!=='hex') q('.sc-hex').value=atual;
+    if(fonte!=='rgb') h2r(atual).forEach((v,i)=>{pop.querySelectorAll('.sc-rgb')[i].value=v});
+    pop.querySelectorAll('.sc-sw').forEach(b=>b.classList.toggle('on',b.dataset.sc.toLowerCase()===atual));
+    const k=contraste(atual), ct=q('.sc-ct'), fraco=k<3;
+    ct.classList.toggle('fraco',fraco);
+    ct.textContent=(fraco?'⚠ Contraste baixo com o fundo branco ('+k.toFixed(1).replace('.',',')+':1): pode sumir na impressão.':'Contraste com o fundo branco: '+k.toFixed(1).replace('.',',')+':1');
+    if(alvo&&alvo.isConnected&&alvo.value.toLowerCase()!==atual){alvo.value=atual; alvo.dispatchEvent(new Event('input',{bubbles:true}))}
+  }
+  function posicionar(){
+    if(!pop||!alvo) return;
+    const r=(alvo.closest('label')&&alvo.getBoundingClientRect().width<4?alvo.closest('label'):alvo).getBoundingClientRect();
+    const w=pop.offsetWidth, h=pop.offsetHeight, vw=innerWidth, vh=innerHeight;
+    let x=Math.min(Math.max(8,r.left),vw-w-8), y=r.bottom+6;
+    if(y+h>vh-8) y=r.top-h-6>=8?r.top-h-6:Math.max(8,vh-h-8);
+    pop.style.left=x+'px'; pop.style.top=y+'px';
+  }
+  function abrir(el){
+    if(pop){const mesmo=alvo===el; fechar(true); if(mesmo) return}
+    alvo=el; orig=(HEX(el.value)?el.value:'#000000').toLowerCase();
+    hsv=r2v(...h2r(orig)); hsvHueAnterior=hsv[0];
+    montar(); aplicar('init',orig); posicionar();
+    pop.querySelector('.sc-hex').focus({preventScroll:true}); pop.querySelector('.sc-hex').select();
+  }
+  function fechar(ok){
+    if(!pop) return;
+    const el=alvo, v=atual; pop.remove(); pop=null; alvo=null;
+    if(!el||!el.isConnected) return;
+    if(!ok){if(el.value.toLowerCase()!==orig){el.value=orig; el.dispatchEvent(new Event('input',{bubbles:true}))} el.focus({preventScroll:true}); return}
+    if(v!==orig){guardaRecente(v); el.dispatchEvent(new Event('change',{bubbles:true}))}
+    if(el.isConnected) el.focus({preventScroll:true});
+  }
+  document.addEventListener('click',ev=>{
+    const el=ev.target;
+    if(!(el instanceof HTMLInputElement)||el.type!=='color') return;
+    ev.preventDefault();
+    if(el.disabled||el.readOnly) return;
+    abrir(el);
+  },true);
+  document.addEventListener('pointerdown',ev=>{
+    if(!pop||pop.contains(ev.target)) return;
+    const lb=alvo&&alvo.closest('label');
+    if(ev.target===alvo||(lb&&lb.contains(ev.target)&&!ev.target.closest('button'))) return;   // o clique no próprio campo fecha em abrir()
+    fechar(true);
+  },true);
+  addEventListener('resize',posicionar); addEventListener('scroll',posicionar,true);
+  return {abrir,fechar};
+})();
+
 </script>
 
 </body></html>
