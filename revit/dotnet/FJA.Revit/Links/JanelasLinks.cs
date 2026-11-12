@@ -476,6 +476,8 @@ namespace FJA.Revit.Links
         TextBlock txtInfo, txtResumo, txtRodape;
         DataGrid dg;
         Button btAtualizar, btAceitar, btApagar, btNovos, btMostrar, btReconectar;
+        Button btColorir, btLimparCores;
+        CheckBox chkIguais;
 
         public JanelaVerificar(UIDocument uidoc)
         {
@@ -506,6 +508,22 @@ namespace FJA.Revit.Links
             tbBusca = new TextBox { Width = 280, MinHeight = 26, VerticalContentAlignment = VerticalAlignment.Center };
             cbCat = Combo(200); cbEstado = Combo(240);
             foreach (var c in new FrameworkElement[] { tbBusca, cbCat, cbEstado }) { c.Margin = new Thickness(0, 0, 8, 0); DockPanel.SetDock(c, Dock.Left); fil.Children.Add(c); }
+            // cores de diagnóstico na vista ativa
+            btLimparCores = Botao("Limpar cores", "Discreto");
+            btLimparCores.ToolTip = "Devolve a aparência que as cópias tinham antes de colorir (vista ativa)";
+            btLimparCores.Click += (s, a) => LimparCores();
+            btColorir = Botao("Colorir na vista");
+            btColorir.ToolTip = "Pinta temporariamente, na vista ativa, as cópias da lista (ou as selecionadas) na cor da situação";
+            btColorir.Click += (s, a) => Colorir();
+            chkIguais = new CheckBox { Content = "incluir iguais", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), ToolTip = "Pinta também as cópias iguais ao link (verde)" };
+            var leg = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
+            foreach (var e in new[] { new[] { "link", "no link" }, new[] { "projeto", "no projeto" }, new[] { "ambos", "nos dois" }, new[] { "apagado", "apagado" }, new[] { "ok", "igual" } })
+            {
+                var c = CoresDiagnostico.COR[e[0]];
+                leg.Children.Add(new Border { Width = 11, Height = 11, Background = new SolidColorBrush(WColor.FromRgb(c.Red, c.Green, c.Blue)), Margin = new Thickness(6, 0, 3, 0), VerticalAlignment = VerticalAlignment.Center });
+                leg.Children.Add(new TextBlock { Text = e[1], Foreground = Cinza, FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
+            }
+            foreach (var c in new FrameworkElement[] { btLimparCores, btColorir, chkIguais, leg }) { DockPanel.SetDock(c, Dock.Right); fil.Children.Add(c); }
             txtResumo = new TextBlock { Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 0, 0, 0) };
             fil.Children.Add(txtResumo);
             DockPanel.SetDock(fil, Dock.Top); raiz.Children.Add(fil);
@@ -692,6 +710,28 @@ namespace FJA.Revit.Links
                 Aviso("Reconectar", rel.Resumo() + ". Os elementos com pontas soltas ficaram selecionados no modelo.",
                     Detalhe(rel.Soltas.Select(x => "Elemento " + x.Elemento + " — " + x.Motivo)));
             }
+        }
+
+        void Colorir()
+        {
+            var v = doc.ActiveView;
+            if (!CoresDiagnostico.VistaAceita(v)) { Aviso("Verificar alterações", "A vista ativa não aceita cores (abra uma planta, corte ou 3D)."); return; }
+            var s = Sel();
+            var alvo = s.Count > 0 ? s : vista.Select(l => l.It).ToList();
+            int n = 0;
+            if (!Transacao("Verificar alterações: colorir para diagnóstico", () => n = CoresDiagnostico.Colorir(doc, v, alvo, chkIguais.IsChecked == true))) return;
+            try { uidoc.RefreshActiveView(); } catch { }
+            txtRodape.Text = n + " cópia(s) coloridas na vista \"" + v.Name + "\". Ao terminar, use Limpar cores (a aparência anterior volta).";
+        }
+
+        void LimparCores()
+        {
+            var v = doc.ActiveView;
+            if (!CoresDiagnostico.VistaAceita(v)) return;
+            int n = 0;
+            if (!Transacao("Verificar alterações: limpar cores", () => n = CoresDiagnostico.Limpar(doc, v))) return;
+            try { uidoc.RefreshActiveView(); } catch { }
+            txtRodape.Text = n + " cópia(s) voltaram à aparência anterior na vista \"" + v.Name + "\".";
         }
 
         void Mostrar()

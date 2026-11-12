@@ -27,6 +27,10 @@ Em C# desde a 2.16.0 (12/11/2026): `revit/dotnet/FJA.Revit/Links/` (`Base.cs`, `
 - Origem agora × foto (alterado no link: posição/pontas, rotação, tipo, espelhamento, nível, dimensão, sistema, parâmetros, link movido) e cópia agora × última sincronização (alterado no projeto; inclui "ligações do link desfeitas").
 - Ações: Atualizar pelo link (peças soltas: no lugar; redes e peças ligadas a redes: copia de novo junto, apaga as antigas e reconecta como no link), Aceitar como está, Apagar cópias, Copiar novos (com reconexão), Reconectar, Mostrar no modelo.
 
+## Cores de diagnóstico (2.17.0)
+- No Verificar alterações: **Colorir na vista** pinta, na vista ativa, as cópias da lista (ou as selecionadas) na cor da situação — laranja alterado no link, azul alterado no projeto, vermelho nos dois, roxo apagado no link, cinza link ausente; verde para iguais só com "incluir iguais". Sobreposição por elemento (linhas e preenchimento sólido).
+- **Limpar cores** devolve a sobreposição que cada cópia tinha antes (guardada na sessão do Revit); depois de reabrir o Revit, tira só as sobreposições nas cores da ferramenta. `Links/Cores.cs`.
+
 ## Testes (12/11/2026, Revit 2027, modelos temporários em `%LOCALAPPDATA%\fja-teste-redes`)
 - Tubos e cotovelo copiados em duas vezes: Reconectar refez 2 ligações como no link; um tubo do próprio modelo encostado numa ponta foi ligado por ponta coincidente.
 - Link alterado (tubo movido 500 mm, diâmetro 50 → 75 mm — o Revit inseriu uma redução —, duto apagado): Verificar mostrou as diferenças, a redução como nova e o duto como apagado; Atualizar + Copiar novos + Reconectar deixaram tudo "Igual" e ligado.
