@@ -305,9 +305,9 @@ namespace FJA.Revit.Links
             }
             finally { Cursor = null; }
             bool redes = m != null && m.Redes;
-            spSis.Visibility = redes ? Visibility.Visible : Visibility.Collapsed;
-            chkRec.Visibility = chkRede.Visibility = redes ? Visibility.Visible : Visibility.Collapsed;
-            btLimpar.Visibility = Estado.Escolhidos != null ? Visibility.Visible : Visibility.Collapsed;
+            spSis.Visibility = redes ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            chkRec.Visibility = chkRede.Visibility = redes ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            btLimpar.Visibility = Estado.Escolhidos != null ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             // colunas
             dg.Columns.Clear();
             if (redes) Coluna(dg, "Sistema", "Sistema", 2, true);
@@ -371,7 +371,7 @@ namespace FJA.Revit.Links
             string q = (tbBusca.Text ?? "").Trim().ToLowerInvariant();
             string cat = cbCat.SelectedIndex > 0 ? cbCat.SelectedItem as string : null;
             string niv = cbNivel.SelectedIndex > 0 ? cbNivel.SelectedItem as string : null;
-            string sis = cbSis.SelectedIndex > 0 && spSis.Visibility == Visibility.Visible ? cbSis.SelectedItem as string : null;
+            string sis = cbSis.SelectedIndex > 0 && spSis.Visibility == System.Windows.Visibility.Visible ? cbSis.SelectedItem as string : null;
             int ie = cbEstado.SelectedIndex;
             vista = linhas.Where(ln =>
                 (cat == null || ln.Categoria == cat) && (niv == null || ln.Nivel == niv) && (sis == null || ln.Sistema == sis) &&
