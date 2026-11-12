@@ -465,6 +465,25 @@ namespace FJA.Revit.Legendas
                     Geo = a.Geo, GeoInst = a.GeoInst,
                 });
             }
+            // desenho de cada item = os parâmetros de visibilidade da família ligados no item (no tipo ou na instância).
+            // Itens da mesma família com desenhos diferentes (tipos "baixa"/"média", ou a altura mudando o símbolo)
+            // ganham famílias (LEG) diferentes; com o mesmo desenho, dividem a mesma.
+            double td = Tempos.Agora;
+            foreach (var gf in itens.GroupBy(x => x.Sym.Family.Id.ToString()).Where(g => g.Count() > 1).ToList())
+            {
+                var fam = gf.First().Sym.Family;
+                if (!visFam.TryGetValue(gf.Key, out var vis))
+                {
+                    try { vis = Simbolos.ParametrosDeVisibilidade(doc, fam); } catch { vis = null; }
+                    visFam[gf.Key] = vis;
+                }
+                if (vis == null || vis.Count == 0) continue;
+                var sigs = gf.Select(it => SigDesenho(it, vis)).ToList();
+                bool varia = sigs.Distinct().Count() > 1;
+                int n = 0;
+                foreach (var it in gf) { it.VarLeg = varia ? sigs[n] : ""; n++; }
+            }
+            Tempos.Marca("  desenho por família", td);
             if (D.PorAltura)
                 return itens.OrderBy(x => OrdemEle(ordemEle, x), StringComparer.Ordinal).ToList();
             return itens
@@ -473,6 +492,21 @@ namespace FJA.Revit.Legendas
                 .ThenBy(x => x.Variante.Contains("BAIX") ? 0 : x.Variante.Contains("MEDI") || x.Variante.Contains("MÉDI") ? 1 : x.Variante.Contains("ALT") ? 2 : 3)
                 .ThenBy(x => x.Rotulo, StringComparer.Ordinal)
                 .ToList();
+        }
+
+        static string SigDesenho(Item it, HashSet<string> vis)
+        {
+            var on = new List<string>();
+            foreach (var n in vis.OrderBy(x => x, StringComparer.CurrentCultureIgnoreCase))
+            {
+                try
+                {
+                    var p = it.Rep?.LookupParameter(n) ?? it.Sym.LookupParameter(n);
+                    if (p != null && p.StorageType == StorageType.Integer && p.AsInteger() == 1) on.Add(n.Trim().ToUpperInvariant());
+                }
+                catch { }
+            }
+            return on.Count == 0 ? "PADRÃO" : string.Join(" + ", on);
         }
 
         static string OrdemEle(Dictionary<string, string> ordem, Item x)
