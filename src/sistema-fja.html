@@ -664,6 +664,16 @@ tr.rd-sel>td:first-child{box-shadow:inset 3px 0 0 var(--accent,#8e1b1b)}
 .knx-caixa{max-width:520px}.knx-lista{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
 .knx-it{display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line)}.knx-it:last-child{border-bottom:0}.knx-it .mono{min-width:44px;color:var(--muted)}
 .knx-d{flex:1;display:flex;flex-direction:column;line-height:1.3}.knx-d small{color:var(--muted);font-size:12px}.btn.knx-bt{width:34px;padding:0;justify-content:center;margin-left:-4px}
+.imp-caixa{max-width:880px;max-height:calc(100vh - 32px)}
+.imp-res{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}.imp-res .imp-w{color:var(--warn)}
+.imp-corpo{overflow:auto;min-height:80px;max-height:56vh;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+.imp-sec{border-bottom:1px solid var(--line);padding:6px 0}.imp-sec:last-child{border-bottom:0}
+.imp-sec summary{cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13.5px;list-style:none}.imp-sec summary::-webkit-details-marker{display:none}
+.imp-n{font-family:var(--f-mono);background:var(--line);border-radius:10px;padding:0 7px;font-size:12px}
+.imp-l{list-style:none;margin:6px 0 2px;padding:0;display:flex;flex-direction:column;gap:3px;font-size:12.5px}
+.imp-l label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}.imp-l li>span{padding-left:24px;display:block}
+.imp-dif{display:inline-block;margin:2px 10px 0 0;color:var(--muted)}.imp-dif b{color:var(--ink);font-weight:600}
+.imp-del{color:var(--danger)}
 .pc-modal{position:fixed;inset:0;background:rgba(20,20,18,.35);display:grid;place-items:center;z-index:200;padding:16px}
 .pc-caixa{background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;max-width:460px;width:100%;padding:18px 20px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
 .pc-caixa h2{font-size:17px;margin:0}.pc-caixa p,.pc-caixa ol{margin:0;font-size:13.5px}.pc-caixa ol{padding-left:20px;display:flex;flex-direction:column;gap:4px}
@@ -4463,42 +4473,141 @@ function lerTabelaEq(values){
   return {linhas,cabecalho:hi+1,colunas:Object.keys(map).length};
 }
 const estavel=o=>JSON.stringify(Object.keys(o).sort().reduce((a,k)=>(a[k]=o[k],a),{}));
+/* ---------- importar da planilha: ação de manutenção, com relatório de conciliação antes de gravar ----------
+   Lê a planilha, monta um plano (correções, novos, atualizados, possíveis duplicatas, mantidos, só no sistema) e
+   mostra o relatório. Nada é gravado antes do aceite. Valores com apóstrofo no início ('005) são limpos: o apóstrofo
+   é a marca de texto do Excel/Sheets e não faz parte do dado. */
+const SIS_KEYS=['id','atualizadoEm','atualizadoPor','sincronizadoEm','editadoLocal','criadoEm','criadoPor'];
+const tiraApos=v=>typeof v==='string'?v.replace(/^['’‘`]+/,'').trim():v;
+const temApos=e=>Object.entries(e).some(([k,v])=>!SIS_KEYS.includes(k)&&typeof v==='string'&&/^['’‘`]/.test(v));
+const limpaApos=e=>{const r={};for(const [k,v] of Object.entries(e)) r[k]=SIS_KEYS.includes(k)?v:tiraApos(v);return r};
+const chaveN=id=>String(id||'').toUpperCase().replace(/[^A-Z0-9_]/g,'').replace(/(^|_)0+(\d)/g,'$1$2');
+function rotImp(md,e){
+  if(md===MODS.rd) return arquivoRd(e)+(e.descricao?' · '+e.descricao:'');
+  return [e.numero||e.num||e.item,e.nome||e.descricao||e.pendencia||e.comentario].filter(Boolean).map(String).join(' · ')||e.id;
+}
+const semSis=(e,md)=>{const r={...e};for(const k of [...SIS_KEYS,...md.locais]) delete r[k];return r};
+function difImp(a,b){
+  const ks=[...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>k!=='origem'&&k!=='linha'&&k!=='projeto');
+  return ks.filter(k=>JSON.stringify(a[k]??'')!==JSON.stringify(b[k]??'')).map(k=>[k,a[k],b[k]]);
+}
+function planoImport(md,pid,linhas,o){
+  const atuais=md.de(pid), V=new Map(atuais.map(e=>[e.id,{...e}]));
+  // 1) correções: itens já no sistema com apóstrofo no início de algum campo
+  const corr=[];
+  for(const e of atuais){
+    if(!temApos(e)) continue;
+    const limpo=limpaApos(e); delete limpo.id;
+    const nid=md.idDe(limpo,pid);
+    if(nid===e.id){corr.push({tipo:'corrigir',id:e.id,de:e,para:limpo});V.set(e.id,{...limpo,id:e.id})}
+    else if(V.has(nid)&&!temApos(V.get(nid))){corr.push({tipo:'apagar',id:e.id,de:e,dup:V.get(nid)});V.delete(e.id)}
+    else {corr.push({tipo:'mover',id:e.id,nid,de:e,para:limpo});V.delete(e.id);V.set(nid,{...limpo,id:nid})}
+  }
+  // 2) o que vem da planilha
+  const usados=new Set(), alvo=new Map();
+  for(const e0 of linhas){
+    const e=limpaApos(e0);
+    let id=md.idDe(e,pid); if(usados.has(id)) id+='__L'+e.linha; usados.add(id);
+    alvo.set(id,{...e,projeto:pid,origem:{planilha:o.planilha,aba:o.aba,linha:e.linha}});
+  }
+  md.prep?.(alvo,pid);
+  const porChave=new Map(); for(const e of V.values()) porChave.set(chaveN(e.id),e);
+  const novos=[],alt=[],iguais=[],mantidos=[],dups=[];
+  for(const [id,body] of alvo){
+    const cur=V.get(id);
+    if(cur&&cur.editadoLocal){mantidos.push({id,cur,body,dif:difImp(semSis(cur,md),body)});continue}
+    if(cur){const d=difImp(semSis(cur,md),body); if(estavel(semSis(cur,md))===estavel(body)){iguais.push(id);continue} alt.push({id,cur,body,dif:d});continue}
+    const par=porChave.get(chaveN(id));
+    if(par&&par.id!==id) dups.push({id,body,par}); else novos.push({id,body});
+  }
+  const soSistema=[...V.values()].filter(e=>!alvo.has(e.id));
+  return {corr,novos,alt,iguais,mantidos,dups,soSistema,alvo,linhas:linhas.length};
+}
+function relatorioImport(md,P,o){
+  return new Promise(res=>{
+    $('impModal')?.remove();
+    const L=(e,md2=md)=>esc(rotImp(md2,e));
+    const lim=200, mais=n=>n>lim?`<li class="muted">… e mais ${n-lim}</li>`:'';
+    const vv=v=>v==null||v===''?'<i class="muted">vazio</i>':esc(typeof v==='object'?JSON.stringify(v):String(v));
+    const difs=d=>d.length?d.map(([k,a,b])=>`<span class="imp-dif"><b>${esc(k)}</b> ${vv(a)} → ${vv(b)}</span>`).join(''):'<span class="muted">só a linha da planilha mudou</span>';
+    const sec=(id,tit,dica,n,corpo,chk)=>n?`<details class="imp-sec" ${id==='corr'||id==='dups'?'open':''}><summary>${chk!=null?`<input type="checkbox" class="imp-all" data-g="${id}" ${chk?'checked':''} onclick="event.stopPropagation()" aria-label="Marcar todos">`:''}<b>${esc(tit)}</b> <span class="imp-n">${n}</span> <span class="muted">${esc(dica)}</span></summary><ul class="imp-l">${corpo}</ul></details>`:'';
+    const cb=(g,i,on)=>`<input type="checkbox" class="imp-c" data-g="${g}" data-i="${i}" ${on?'checked':''}>`;
+    const corpoCorr=P.corr.slice(0,lim).map((c,i)=>`<li><label>${cb('corr',i,true)}<span>${c.tipo==='apagar'?`<b class="imp-del">Apagar</b> ${L(c.de)} <span class="muted">— duplicado de</span> ${L(c.dup)}`:c.tipo==='mover'?`<b>Corrigir</b> ${L(c.de)} → ${L(c.para)}`:`<b>Corrigir</b> ${L(c.de)} → ${L(c.para)}`}</span></label></li>`).join('')+mais(P.corr.length);
+    const corpoNovos=P.novos.slice(0,lim).map((x,i)=>`<li><label>${cb('novos',i,true)}<span>${L(x.body)} <span class="muted">· linha ${esc(x.body.linha??'')}</span></span></label></li>`).join('')+mais(P.novos.length);
+    const corpoAlt=P.alt.slice(0,lim).map((x,i)=>`<li><label>${cb('alt',i,true)}<span>${L(x.body)}<br>${difs(x.dif)}</span></label></li>`).join('')+mais(P.alt.length);
+    const corpoDups=P.dups.slice(0,lim).map((x,i)=>`<li><label>${cb('dups',i,false)}<span>${L(x.body)} <span class="muted">· linha ${esc(x.body.linha??'')} — parece o mesmo que</span> ${L(x.par)}</span></label></li>`).join('')+mais(P.dups.length);
+    const corpoMant=P.mantidos.slice(0,lim).map(x=>`<li><span>${L(x.cur)}${x.dif.length?'<br>'+difs(x.dif):''}</span></li>`).join('')+mais(P.mantidos.length);
+    const corpoSo=P.soSistema.slice(0,lim).map(e=>`<li><span>${L(e)}</span></li>`).join('')+mais(P.soSistema.length);
+    const d=document.createElement('div'); d.id='impModal'; d.className='pc-modal';
+    d.innerHTML=`<form class="pc-caixa imp-caixa" id="impForm" role="dialog" aria-modal="true" aria-labelledby="impT">
+      <h2 id="impT">Importar da planilha · relatório de conciliação</h2>
+      <p class="muted">Aba <b>${esc(o.aba)}</b> · ${P.linhas} linhas lidas. Nada foi gravado ainda: confira, desmarque o que não deve entrar e confirme. O banco do sistema é a base; nada é apagado, exceto as duplicatas listadas em “Correções”.</p>
+      <div class="imp-res"><span><b>${P.corr.length}</b> correções</span><span><b>${P.novos.length}</b> novos</span><span><b>${P.alt.length}</b> a atualizar</span><span class="${P.dups.length?'imp-w':''}"><b>${P.dups.length}</b> possíveis duplicatas</span><span><b>${P.iguais.length}</b> sem mudança</span><span><b>${P.mantidos.length}</b> editados no sistema (mantidos)</span><span><b>${P.soSistema.length}</b> só no sistema (mantidos)</span></div>
+      <div class="imp-corpo">
+        ${sec('corr','Correções','itens do sistema com apóstrofo antes do código ( \'005 ): corrigir o código ou apagar a cópia duplicada',P.corr.length,corpoCorr,true)}
+        ${sec('dups','Possíveis duplicatas','linhas novas que parecem itens já cadastrados com outro código; não entram, a menos que você marque',P.dups.length,corpoDups,false)}
+        ${sec('novos','Novos','linhas da planilha que ainda não existem no sistema',P.novos.length,corpoNovos,true)}
+        ${sec('alt','A atualizar','itens do sistema que mudam conforme a planilha',P.alt.length,corpoAlt,true)}
+        ${sec('mant','Editados no sistema','não são alterados pela importação',P.mantidos.length,corpoMant,null)}
+        ${sec('so','Só no sistema','não estão na planilha; continuam no sistema',P.soSistema.length,corpoSo,null)}
+        ${!(P.corr.length+P.novos.length+P.alt.length+P.dups.length)?'<p class="note">Nada a importar: o sistema já está igual à planilha.</p>':''}
+      </div>
+      <div class="pc-acts" style="gap:8px"><span class="muted" id="impCont"></span><span class="sp"></span><button type="button" class="btn ghost" id="impNao">Cancelar</button><button type="submit" class="btn pri" id="impSim">Aplicar</button></div></form>`;
+    document.body.appendChild(d);
+    const marcados=g=>[...d.querySelectorAll(`.imp-c[data-g="${g}"]`)].filter(c=>c.checked).map(c=>+c.dataset.i);
+    const conta=()=>{const n=['corr','novos','alt','dups'].reduce((s,g)=>s+marcados(g).length,0);$('impSim').textContent=n?`Aplicar ${n} alteraç${n>1?'ões':'ão'}`:'Nada a aplicar';$('impSim').disabled=!n};
+    d.addEventListener('change',ev=>{const t=ev.target;
+      if(t.classList.contains('imp-all')) d.querySelectorAll(`.imp-c[data-g="${t.dataset.g}"]`).forEach(c=>c.checked=t.checked);
+      conta()});
+    conta();
+    const fim=v=>{d.remove();document.removeEventListener('keydown',tec,true);res(v)};
+    const tec=ev=>{if(ev.key==='Escape'){ev.stopPropagation();fim(null)}};
+    document.addEventListener('keydown',tec,true);
+    $('impNao').onclick=()=>fim(null);
+    $('impForm').onsubmit=ev=>{ev.preventDefault();fim({corr:marcados('corr'),novos:marcados('novos'),alt:marcados('alt'),dups:marcados('dups')})};
+  });
+}
 async function sincronizarEq(pid){
   const md=M(), it=S.itens.get(pid), o=it?.[md.origKey]; const box=$('syncMsg');
-  const status=(t,cls)=>{if(box){box.textContent=t;box.className='sync-msg '+(cls||'')}};
+  const status=(t,cls)=>{if(box){box.textContent=t;box.className='sync-msg '+(cls||'')}else if(cls==='err')toast(t)};
   if(!o?.planilha||!o?.aba){status('Informe o link da planilha e o nome da aba.','err');return}
   if(!mcp){status(msgMcp({code:'not_granted'}),'err');return}
   if(S.syncando) return; S.syncando=true; const btn=$('btnSync'); if(btn){btn.disabled=true;btn.classList.add('girando')}
   try{
+    status('Lendo a planilha…');
     const range=`'${o.aba.replace(/'/g,"''")}'!A1:BZ5000`;
     const r=await mcp.callTool(GS,'get_values',{spreadsheetId:o.planilha,range},{cache:false});
     const vals=r?.payload?.values||r?.structuredContent?.values;
     if(!Array.isArray(vals)) throw {code:'formato',message:'A resposta do Google Sheets veio num formato inesperado.'};
     const {linhas,cabecalho}=md.ler(vals);
-    status(`Lidas ${linhas.length} linhas. Gravando…`);
-    const usados=new Set(), alvo=new Map();
-    for(const e of linhas){
-      let id=md.idDe(e,pid); if(usados.has(id)) id+='__L'+e.linha; usados.add(id);
-      alvo.set(id,{...e,projeto:pid,origem:{planilha:o.planilha,aba:o.aba,linha:e.linha}});
+    const P=planoImport(md,pid,linhas,o);
+    status('Relatório pronto: confira antes de aplicar.');
+    const esc2=await relatorioImport(md,P,o);
+    if(!esc2){status('Importação cancelada: nada foi gravado.');return}
+    // 1) correções
+    const tarefas=[]; let corrigidos=0,apagados=0;
+    for(const i of esc2.corr){const c=P.corr[i];
+      if(c.tipo==='apagar'){tarefas.push(async()=>{await md.coll().doc(c.id).delete();md.mapa().delete(c.id);apagados++})}
+      else if(c.tipo==='corrigir'){tarefas.push(async()=>{const b={...c.para,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};await md.coll().doc(c.id).set(b);md.mapa().set(c.id,{...b,id:c.id});corrigidos++})}
+      else tarefas.push(async()=>{const b={...c.para,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};await md.coll().doc(c.nid).set(b);md.mapa().set(c.nid,{...b,id:c.nid});
+        if(md===MODS.rd) for(const cm of comDe(pid).filter(x=>x.rdoc===c.id)){try{await comColl().doc(cm.id).update({rdoc:c.nid});cm.rdoc=c.nid}catch{}}
+        await md.coll().doc(c.id).delete();md.mapa().delete(c.id);corrigidos++});
     }
-    md.prep?.(alvo,pid);
-    const atuais=md.de(pid); let novos=0,alterados=0,removidos=0,iguais=0,feitos=0,erros=0,mantidos=0;
-    const tarefas=[];
-    for(const [id,body] of alvo){
-      const cur=md.mapa().get(id);
-      if(cur&&cur.editadoLocal){mantidos++;continue}
-      if(cur){const rest={...cur};for(const k of ['id','atualizadoEm','atualizadoPor','sincronizadoEm','editadoLocal','criadoEm','criadoPor',...md.locais]) delete rest[k]; if(estavel(rest)===estavel(body)){iguais++;continue} alterados++}
-      else novos++;
-      const loc=Object.fromEntries(md.locais.filter(k=>cur?.[k]).map(k=>[k,cur[k]])); tarefas.push(()=>md.coll().doc(id).set({...body,...loc,sincronizadoEm:Date.now()}));
-    }
-    for(const e of atuais) if(!alvo.has(e.id)) removidos++;
-    const total=tarefas.length; let k=0;
+    // 2) novos, atualizações e duplicatas marcadas
+    let novos=0,alterados=0;
+    const gravar=(id,body,cur,cnt)=>tarefas.push(async()=>{const loc=Object.fromEntries(md.locais.filter(k=>cur?.[k]).map(k=>[k,cur[k]]));await md.coll().doc(id).set({...body,...loc,sincronizadoEm:Date.now()});cnt()});
+    for(const i of esc2.novos){const x=P.novos[i];gravar(x.id,x.body,null,()=>novos++)}
+    for(const i of esc2.dups){const x=P.dups[i];gravar(x.id,x.body,null,()=>novos++)}
+    for(const i of esc2.alt){const x=P.alt[i];gravar(x.id,x.body,x.cur,()=>alterados++)}
+    const total=tarefas.length; let k=0,feitos=0,erros=0;
     const worker=async()=>{while(k<tarefas.length){const t=tarefas[k++];try{await t()}catch(err){erros++;if(err?.code==='quota_exceeded'||err?.code==='invalid_argument'){k=tarefas.length}}feitos++;if(feitos%20===0||feitos===total)status(`Gravando ${feitos} de ${total}…`)}};
-    await Promise.all(Array.from({length:Math.min(6,total)},worker));
-    const resumo={...o,sincronizadoEm:Date.now(),linhas:linhas.length,cabecalho,novos,alterados,mantidos,erros,...(me?{sincronizadoPor:me}:{})};
+    // as correções vão antes (uma a uma), para as atualizações já encontrarem os códigos limpos
+    const nCorr=esc2.corr.length; for(;k<nCorr;){const t=tarefas[k++];try{await t()}catch{erros++}feitos++}
+    await Promise.all(Array.from({length:Math.min(6,Math.max(1,total-nCorr))},worker));
+    const resumo={...o,sincronizadoEm:Date.now(),linhas:linhas.length,cabecalho,novos,alterados,corrigidos,apagados,mantidos:P.mantidos.length,erros,...(me?{sincronizadoPor:me}:{})};
     await coll().doc(pid).update({[md.origKey]:resumo}); it[md.origKey]=resumo;
-    const extra=(mantidos?` · ${mantidos} editados no sistema foram mantidos`:'')+(removidos?` · ${removidos} itens do sistema não estão na planilha e foram mantidos`:'');
-    status((erros?`Importado com ${erros} erro${erros>1?'s':''}: `:'Importado: ')+`${novos} novos, ${alterados} atualizados, ${iguais} sem mudança${extra}.`,erros?'err':'ok');
+    const partes=[`${novos} novos`,`${alterados} atualizados`]; if(corrigidos) partes.push(`${corrigidos} corrigidos`); if(apagados) partes.push(`${apagados} duplicados apagados`);
+    status((erros?`Importado com ${erros} erro${erros>1?'s':''}: `:'Importado: ')+partes.join(', ')+'.',erros?'err':'ok');
     toast('Importação concluída');
     {const mo=Object.keys(ESP).find(m=>ESP[m].proj&&MODS[m]===md); if(mo) setTimeout(()=>espAssumir(mo,pid),500)}
   }catch(e){status(e?.code==='formato'?e.message:msgMcp(e),'err')}
@@ -4565,7 +4674,7 @@ function blocoSyncEq(it){
       <button class="btn" data-act="sync-abas">Carregar abas</button><button class="btn pri" data-act="sync-salvar">Vincular</button>${o.planilha?`<button class="btn ghost" data-act="sync-cancelar">Cancelar</button>`:''}</div>
       ${ab?.titulo?`<p class="note" style="padding-top:0">Planilha encontrada: <b>${esc(ab.titulo)}</b> · ${ab.abas.length} abas</p>`:''}`;
   }else if(o.planilha){
-    h+=`<div class="sync-row"><div class="sync-src"><span class="mono">${esc(o.aba)}</span><a href="https://docs.google.com/spreadsheets/d/${esc(o.planilha)}/edit" target="_blank" rel="noopener">Abrir planilha</a></div>${S.ro?'':`<button class="btn pri" id="btnSync" data-act="sync-eq" data-id="${esc(it.id)}">Importar da planilha</button>`}</div>
+    h+=`<div class="sync-row"><div class="sync-src"><span class="mono">${esc(o.aba)}</span><a href="https://docs.google.com/spreadsheets/d/${esc(o.planilha)}/edit" target="_blank" rel="noopener">Abrir planilha</a></div>${S.ro?'':`<button class="btn" id="btnSync" data-act="sync-eq" data-id="${esc(it.id)}" title="Ação de manutenção: lê a planilha e mostra um relatório de conciliação; nada é gravado antes do seu aceite">Importar da planilha…</button>`}</div>
     <p class="note" style="padding-top:0">${M().notaSync}</p>`;
   }
   return h+`<p class="sync-msg" id="syncMsg" aria-live="polite"></p></section>`;
@@ -4794,7 +4903,7 @@ function espCaminhos(mod,it){
   const ics=[
     o.planilha?`<a href="https://docs.google.com/spreadsheets/d/${esc(o.planilha)}/edit" target="_blank" rel="noopener" title="Abrir no Google Sheets" aria-label="Abrir no Google Sheets">${IC13.nuvem}</a>`:'',
     ativo&&!S.ro?icB('Atualizar o backup agora',IC13.atualizar,`data-act="esp-sync" data-mod="${mod}" data-id="${id}"`):'',
-    o.planilha&&!S.ro?icB(`Importar da planilha${o.sincronizadoEm?' · última importação em '+fmtQuando(o.sincronizadoEm):' · ainda não importada'}`,IC13.importar,`data-act="sync-eq" data-id="${id}"`):'',
+    o.planilha&&!S.ro?icB(`Importar da planilha (manutenção: mostra um relatório de conciliação antes de gravar)${o.sincronizadoEm?' · última importação em '+fmtQuando(o.sincronizadoEm):' · ainda não importada'}`,IC13.importar,`data-act="sync-eq" data-id="${id}"`):'',
     !S.ro?icB(o.planilha?'Trocar a planilha colando o link':'Vincular uma planilha colando o link',IC13.link,`data-act="sync-editar" data-id="${id}"`):'',
     pc?icB(o.planilha?'Escolher outra planilha no Explorer':'Escolher a planilha no Explorer',IC13.pasta,`data-act="pc-origem" data-mod="${mod}" data-id="${id}"`):'',
     pc?icB('Criar uma nova planilha numa pasta escolhida no Explorer',IC13.pastaMais,`data-act="pc-nova-origem" data-mod="${mod}" data-id="${id}"`):'',
