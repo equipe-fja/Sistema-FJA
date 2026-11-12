@@ -70,3 +70,7 @@ Cada publicação cria o arquivo novo e manda o anterior para a lixeira do Drive
 2. Em `%APPDATA%\pyRevit\pyRevit_config.ini`, seção `[core]`: `userextensions = ["G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\REVIT\\pyRevit"]` (ou pyRevit › Settings › Custom Extension Directories).
 3. Tirar `Ferramentas-FJA.extension` de `%APPDATA%\pyRevit\Extensions` (mover para outra pasta), para a aba não aparecer duas vezes.
 4. Abrir o Revit (ou pyRevit › Reload).
+
+## Ordem dos painéis (desde 2.16.1)
+- `Ferramentas FJA.tab/bundle.yaml` (`layout`) define a ordem: painéis em ordem alfabética e **Suíte sempre no fim**.
+- No pyRevit, painel que não está no `layout` **não aparece**. O `scripts/embutir-revit.py` recalcula a lista a cada publicação e o pacote distribuído (instalador e Suíte › Atualizar) sempre leva todos os painéis, com Suíte no fim; se o arquivo do repositório estiver desatualizado, a compilação avisa — atualizar o arquivo ao criar um painel novo.
