@@ -435,7 +435,7 @@ namespace FJA.Revit.Legendas
             var dcod = new DockPanel();
             DockPanel.SetDock(btCod, Dock.Right);
             dcod.Children.Add(btCod); dcod.Children.Add(txtCod);
-            bdCod = new Border { Background = new SolidColorBrush(WColor.FromRgb(248, 239, 217)), Padding = new Thickness(12, 6, 10, 6), Child = dcod, Visibility = Visibility.Collapsed };
+            bdCod = new Border { Background = new SolidColorBrush(WColor.FromRgb(248, 239, 217)), Padding = new Thickness(12, 6, 10, 6), Child = dcod, Visibility = System.Windows.Visibility.Collapsed };
             DockPanel.SetDock(bdCod, Dock.Top);
             dp.Children.Add(cab); dp.Children.Add(bdCod); dp.Children.Add(sv);
             cIt.Child = dp;
@@ -563,7 +563,7 @@ namespace FJA.Revit.Legendas
                 }
             }
             int tipos = probs.Select(x => x.Item1.It.Sym.Id.ToString()).Distinct().Count();
-            bdCod.Visibility = tipos > 0 ? Visibility.Visible : Visibility.Collapsed;
+            bdCod.Visibility = tipos > 0 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             if (tipos == 0) return;
             txtCod.Text = "⚠ " + tipos + " tipo(s) sem codificação consistente (contorno vermelho na lista). Codifique antes de gravar a legenda.";
             bdCod.ToolTip = string.Join("\n", probs.GroupBy(x => x.Item1.It.Sym.Id.ToString()).Select(g => g.First())
