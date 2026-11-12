@@ -33,3 +33,6 @@
 - Pacote gerado pela página (zip sem compressão); vigia em `%LOCALAPPDATA%\FJA\ConexaoPC`, link `fja-abrir:`. Só aceita caminhos no G:.
 - Janelas abertas por processo oculto aparecem atrás do navegador: v6 usa AttachThreadInput + SetForegroundWindow.
 - A marcação "Já instalei neste computador" é por navegador e por ambiente.
+
+## CSS no `<head>` (12/11/2026)
+- Ao publicar no Claude, o servidor reescreve o primeiro `<style>` do `<head>` (o do invólucro do artifact): o que for acrescentado ali some da página publicada. Foi o que aconteceu com o CSS do seletor de cor (commit a41d0ce) na dev. CSS próprio vai sempre no `<style>` do corpo (logo depois de `</head>`).
