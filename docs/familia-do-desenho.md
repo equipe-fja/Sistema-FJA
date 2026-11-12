@@ -14,8 +14,8 @@ Cria uma família de **item de detalhe** ou de **anotação genérica** com o de
 ## O que entra
 | Elemento | Como vai para a família |
 |---|---|
-| Linhas de detalhe (retas, arcos, splines, elipses) | redesenhadas; cada estilo de linha vira uma **subcategoria** com o mesmo nome, cor, espessura e padrão (o padrão de linha é copiado); `<Linhas invisíveis>` usa o estilo invisível da família |
-| Regiões preenchidas e de mascaramento | redesenhadas; o **tipo é recriado** na família (padrões de frente/fundo copiados como `FillPatternElement`, cores, espessura, mascaramento) — a cópia de tipos entre documentos falha; contorno com o estilo lido das arestas da região |
+| Linhas de detalhe (retas, arcos, splines, elipses) | redesenhadas; cada estilo vira, na família, um **estilo da categoria Linhas com o mesmo nome** do estilo do projeto (2.15.1). Ao carregar, o Revit liga os dois pelo nome: cor, espessura e padrão vêm exatamente do projeto, e a espessura segue a tabela de modelo, como as linhas de detalhe. Em "tudo preto": estilo preto do projeto com a mesma espessura e padrão (ex.: `PENA 2`) ou um novo `PRETO PENA n`. `<Linhas invisíveis>` usa o estilo invisível da família |
+| Regiões preenchidas e de mascaramento | redesenhadas; o **tipo é recriado** na família (padrões de frente/fundo copiados como `FillPatternElement`, cores, espessura, mascaramento) — a cópia de tipos entre documentos falha; contorno com o estilo lido das arestas da região (o contorno só aceita estilos da categoria Linhas) |
 | Textos | item de detalhe: **copiados da vista** (tipo e formatação) e postos no lugar; anotação genérica: a vista da família é uma folha e a cópia falha, então o texto é criado com o **tipo recriado** (parâmetros do tipo copiados; negrito/itálico em parte do texto se perdem) |
 | Componentes de detalhe | só no item de detalhe; copiados da vista (tipo e parâmetros) e postos no lugar |
 | Anotações genéricas aninhadas | item de detalhe: copiadas da vista; anotação genérica: a família é carregada antes e a instância é posta com parâmetros, rotação e espelhamento |
@@ -38,3 +38,9 @@ Fica de fora (listado nos avisos da janela): elementos de modelo, cotas, etiquet
 
 ## Etapa 2 (a fazer)
 Opção de leitura por DWG para símbolos de famílias de ponto/equipamento (o desenho em planta delas é a projeção do 3D; a API não remove linhas ocultas), reaproveitando `Simbolos.ViaDwg`/`Reescalar`. Antes, testar com autorização (cria e apaga uma vista temporária): hachuras, espessuras e tracejados na ida e volta.
+
+## 2.15.1 (12/11/2026) — cores e espessuras
+Primeiro teste da FJA (família "teste", anotação genérica): o contorno das hachuras voltou para `<Thin Lines>` e as espessuras mudaram.
+- Causa 1: os estilos eram criados como subcategorias da categoria da família (Anotações genéricas / Itens de detalhe); o contorno de região só aceita estilos da categoria Linhas, então o Revit usava `<Thin Lines>`.
+- Causa 2: subcategorias da anotação genérica usam a tabela de espessuras de anotação (fixa); as linhas de detalhe do projeto usam a de modelo (varia com a escala) — o mesmo número de pena sai com outra espessura.
+- Correção: estilos da categoria Linhas com o nome do estilo do projeto (testado nos dois modelos .rft: linha, estilo embutido e contorno de região aceitos).

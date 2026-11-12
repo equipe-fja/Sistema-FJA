@@ -214,7 +214,7 @@ namespace FJA.Revit.Detalhes
                 fdoc.LoadFamily(doc, carga);
             }
             finally { fdoc.Close(false); }
-            avisos = ctx.Avisos;
+            avisos = ctx.Avisos.Distinct().ToList();
             return Simbolos.FamiliaPorNome(doc, nome);
         }
 
@@ -229,7 +229,13 @@ namespace FJA.Revit.Detalhes
             }
         }
 
-        // ------------------------------------------------------------ estilos de linha → subcategorias
+        // ------------------------------------------------------------ estilos de linha
+        // Cada estilo vira, na família, um estilo da categoria Linhas com o MESMO NOME do estilo do projeto.
+        // Ao carregar, o Revit liga os dois pelo nome: a família herda cor, espessura e padrão exatos do projeto
+        // (a espessura segue a tabela de modelo, como as linhas de detalhe, e não a de anotação). É também o
+        // único tipo de estilo aceito no contorno das regiões preenchidas.
+        // "Tudo preto": usa um estilo preto do projeto com a mesma espessura e padrão (ex.: PENA 2) ou cria
+        // "PRETO PENA n".
         static GraphicsStyle Estilo(Contexto c, EstiloLinha es)
         {
             if (es == null) return null;
@@ -238,16 +244,55 @@ namespace FJA.Revit.Detalhes
             if (es.Invisivel) gs = c.Invisivel();
             else
             {
-                string nome = NomeValido(es.Nome);
-                if (nome.Length == 0) nome = "Linha";
-                Category sub = c.Cat.SubCategories.Contains(nome) ? c.Cat.SubCategories.get_Item(nome) : c.F.Settings.Categories.NewSubcategory(c.Cat, nome);
-                sub.LineColor = c.O.Preto ? new Color(0, 0, 0) : new Color(es.R, es.G, es.B);
-                try { sub.SetLineWeight(Math.Max(1, Math.Min(16, es.Peso)), GraphicsStyleType.Projection); } catch { }
-                try { sub.SetLinePatternId(Padrao(c, es), GraphicsStyleType.Projection); } catch { }
+                Category linhasF = c.F.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
+                string nome = c.O.Preto && !EhPreto(es) ? NomePreto(c, es) : es.Nome;
+                if (string.IsNullOrWhiteSpace(nome)) nome = "Linha";
+                Category sub;
+                if (linhasF.SubCategories.Contains(nome)) sub = linhasF.SubCategories.get_Item(nome);
+                else
+                {
+                    sub = c.F.Settings.Categories.NewSubcategory(linhasF, nome);
+                    // valem só se o projeto não tiver um estilo com este nome (aí vale o do projeto)
+                    sub.LineColor = c.O.Preto ? new Color(0, 0, 0) : new Color(es.R, es.G, es.B);
+                    try { sub.SetLineWeight(Math.Max(1, Math.Min(16, es.Peso)), GraphicsStyleType.Projection); } catch { }
+                    try { sub.SetLinePatternId(Padrao(c, es), GraphicsStyleType.Projection); } catch { }
+                }
                 gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
             }
             c.Estilos[es.Id] = gs;
             return gs;
+        }
+
+        static bool EhPreto(EstiloLinha es) => es.R == 0 && es.G == 0 && es.B == 0;
+
+        /// <summary>Estilo preto do projeto com a mesma espessura e padrão (prefere "PENA n"); senão "PRETO PENA n".</summary>
+        static string NomePreto(Contexto c, EstiloLinha es)
+        {
+            try
+            {
+                Category linhasP = c.Doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);
+                ElementId pad = es.Tracejado ? es.Padrao : LinePatternElement.GetSolidPatternId();
+                var cands = new List<Category>();
+                foreach (Category s in linhasP.SubCategories)
+                {
+                    try
+                    {
+                        var cor = s.LineColor;
+                        if (cor == null || cor.Red != 0 || cor.Green != 0 || cor.Blue != 0) continue;
+                        if ((s.GetLineWeight(GraphicsStyleType.Projection) ?? 1) != es.Peso) continue;
+                        var p = s.GetLinePatternId(GraphicsStyleType.Projection);
+                        if (p == null || p == ElementId.InvalidElementId) p = LinePatternElement.GetSolidPatternId();
+                        if (p != pad) continue;
+                        cands.Add(s);
+                    }
+                    catch { }
+                }
+                var melhor = cands.OrderBy(s => s.Name == "PENA " + es.Peso ? 0 : s.Name.StartsWith("PENA") ? 1 : s.Name.StartsWith("<") ? 3 : 2)
+                    .ThenBy(s => s.Name.Length).FirstOrDefault();
+                if (melhor != null) return melhor.Name;
+            }
+            catch { }
+            return "PRETO PENA " + es.Peso + (es.Tracejado && !string.IsNullOrEmpty(es.NomePadrao) ? " " + NomeValido(es.NomePadrao) : "");
         }
 
         static ElementId Padrao(Contexto c, EstiloLinha es)
@@ -266,9 +311,15 @@ namespace FJA.Revit.Detalhes
         // ------------------------------------------------------------ peças
         static void Curva(Contexto c, Peca p)
         {
+            GraphicsStyle gs = null;
+            try { gs = Estilo(c, p.Estilo); }
+            catch (Exception ex) { c.Avisos.Add("Estilo \"" + p.Estilo?.Nome + "\" não pôde ser criado (" + ex.Message + "); a linha ficou com o estilo padrão."); }
             var dc = c.F.FamilyCreate.NewDetailCurve(c.VF, p.Curva.CreateTransformed(c.T));
-            var gs = Estilo(c, p.Estilo);
-            if (gs != null) dc.LineStyle = gs;
+            if (gs != null)
+            {
+                try { dc.LineStyle = gs; }
+                catch (Exception ex) { c.Avisos.Add("Estilo \"" + p.Estilo?.Nome + "\" não aceito numa linha (" + ex.Message + ")."); }
+            }
             c.Linhas++;
         }
 
