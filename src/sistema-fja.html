@@ -664,16 +664,18 @@ tr.rd-sel>td:first-child{box-shadow:inset 3px 0 0 var(--accent,#8e1b1b)}
 .knx-caixa{max-width:520px}.knx-lista{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:8px}
 .knx-it{display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line)}.knx-it:last-child{border-bottom:0}.knx-it .mono{min-width:44px;color:var(--muted)}
 .knx-d{flex:1;display:flex;flex-direction:column;line-height:1.3}.knx-d small{color:var(--muted);font-size:12px}.btn.knx-bt{width:34px;padding:0;justify-content:center;margin-left:-4px}
-.imp-caixa{max-width:880px;max-height:calc(100vh - 32px)}
-.imp-res{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}.imp-res .imp-w{color:var(--warn)}
-.imp-corpo{overflow:auto;min-height:80px;max-height:56vh;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
-.imp-sec{border-bottom:1px solid var(--line);padding:6px 0}.imp-sec:last-child{border-bottom:0}
-.imp-sec summary{cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13.5px;list-style:none}.imp-sec summary::-webkit-details-marker{display:none}
-.imp-n{font-family:var(--f-mono);background:var(--line);border-radius:10px;padding:0 7px;font-size:12px}
-.imp-l{list-style:none;margin:6px 0 2px;padding:0;display:flex;flex-direction:column;gap:3px;font-size:12.5px}
-.imp-l label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}.imp-l li>span{padding-left:24px;display:block}
-.imp-dif{display:inline-block;margin:2px 10px 0 0;color:var(--muted)}.imp-dif b{color:var(--ink);font-weight:600}
-.imp-del{color:var(--danger)}
+.imp-rev{outline:3px solid var(--danger);outline-offset:2px;border-radius:6px}
+.imp-barra{position:sticky;left:0;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.imp-b1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}.imp-b1 b{color:var(--danger)}.imp-b1 .muted{font-size:12.5px}
+.imp-b2{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.imp-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line-strong);border-radius:14px;padding:1px 9px 1px 7px;font-size:12.5px;background:var(--panel)}
+.imp-chip.on{box-shadow:0 0 0 2px var(--danger)}.imp-chip button{display:inline-flex;align-items:center;gap:5px}.imp-chip b{font-family:var(--f-mono);font-weight:600}
+.imp-chip i{width:12px;height:12px;border-radius:3px;border:1px solid rgba(0,0,0,.15);display:inline-block}
+.imp-corr i,tr.imp-corr td{background:#ece3f7}.imp-del i,tr.imp-del td{background:#f8d9d6}tr.imp-del td{text-decoration:line-through}
+.imp-dup i,tr.imp-dup td{background:#fde2cc}.imp-novo i,tr.imp-novo td{background:#dff0e2}.imp-alt i,tr.imp-alt td{background:#fcf1cf}
+.imp-mant i,tr.imp-mant td{background:#e1ecfa}.imp-igual i{background:var(--panel)}.imp-so i,tr.imp-so td{background:#efefec;color:var(--muted)}
+tr.imp-alt td.imp-cel{background:#f6dd8a;font-weight:600}
+tr[data-act="imp-tog"]{cursor:pointer}tr.imp-off td{opacity:.45}tr.imp-off.imp-dup td{opacity:.6}
 .pc-modal{position:fixed;inset:0;background:rgba(20,20,18,.35);display:grid;place-items:center;z-index:200;padding:16px}
 .pc-caixa{background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;max-width:460px;width:100%;padding:18px 20px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
 .pc-caixa h2{font-size:17px;margin:0}.pc-caixa p,.pc-caixa ol{margin:0;font-size:13.5px}.pc-caixa ol{padding-left:20px;display:flex;flex-direction:column;gap:4px}
@@ -2189,7 +2191,7 @@ function filtroEqOk(e){
 }
 function eqFiltrados(pid){
   const q=semAc(MS().busca||''), m=M();
-  return ordenarEq(m.de(pid).filter(e=>filtroEqOk(e)&&(!q||semAc(m.busca(e)).includes(q))).sort(m.ord));
+  return ordenarEq(deVis(m,pid).filter(e=>filtroEqOk(e)&&(!q||semAc(m.busca(e)).includes(q))).sort(m.ord));
 }
 const temFiltroEq=()=>!!(MS().busca||Object.entries(MS().filtros).some(([k,v])=>(Array.isArray(v)?v.length:v)&&MS().cols.includes(k)));
 function opcoesFiltroEq(k,pid){
@@ -2251,7 +2253,7 @@ function filtroCelEq(k,pid){
   return `<th class="flt"><input class="th-busca ${v?'on':''}" data-ff="${k}" size="3" value="${esc(v)}" placeholder="" title="Buscar nesta coluna" aria-label="Filtrar coluna" autocomplete="off"></th>`;
 }
 function eqCorpoHTML(pid,cols){
-  const m=M(); let lista=eqFiltrados(pid); const tot=m.de(pid).length;
+  const m=M(); let lista=eqFiltrados(pid); const tot=deVis(m,pid).length, rev=impAtivo(m,pid);
   const cnt=$('eqCount'); if(cnt) cnt.textContent=lista.length===tot?`${lista.length} itens`:`${lista.length} de ${tot} itens`;
   const lim=$('eqLimpar'); if(lim) lim.hidden=!temFiltroEq();
   if(!lista.length) return `<tr class="vazio"><td colspan="${cols.length}">${m.nenhum} <button class="btn sm ghost" data-act="eq-limpar">Limpar filtros</button></td></tr>`;
@@ -2263,12 +2265,18 @@ function eqCorpoHTML(pid,cols){
   const nGrp=new Map(); if(grupos) lista.forEach(e=>{const v=gv(e);nGrp.set(v,(nGrp.get(v)||0)+1)});
   for(const e of lista){
     if(grupos&&gv(e)!==st){st=gv(e);h+=`<tr class="grp"><td colspan="${cols.length}">${rotuloGrupo(gk,st)} <span class="cnt">${nGrp.get(st)}</span></td></tr>`}
+    if(rev){h+=`<tr ${e._g?`data-act="imp-tog" data-g="${e._g}" data-i="${e._i}"`:''} class="imp-${e._imp}${impOn(e)?'':' imp-off'}" title="${esc(IMP_ST[e._imp][0]+(e._g?(impOn(e)?' · incluído (clique para excluir)':' · fora da importação (clique para incluir)'):'')+(e._dica?'\n'+e._dica:''))}">${cols.map(([k,,,f,cls])=>`<td class="c-${k} ${cls||''}${e._difK?.has(k)?' imp-cel':''}">${grupos&&k===gk?'':f(e)}</td>`).join('')}</tr>`;continue}
     h+=`<tr data-act="${m.abrir}" data-id="${esc(pid)}" data-eid="${esc(e.id)}" class="${m.risc?.(e)?'riscado':''}${m.id==='rd'&&RDSEL.ids.has(e.id)?' rd-sel':''}"${m.dica&&!S.ro?` title="${m.dica}"`:''}>${cols.map(([k,,,f,cls])=>`<td class="c-${k} ${cls||''}">${grupos&&k===gk?'':f(e)}</td>`).join('')}</tr>`;
   }
   return h;
 }
 function eqTabelaHTML(pid){
-  const m=M(); if(!m.de(pid).length) return m.vazio(pid);
+  const m=M();
+  if(impAtivo(m,pid)){const t=eqTabelaHTML2(pid,m); return `<div class="imp-rev">${impBarraHTML()}${t}</div>`}
+  return eqTabelaHTML2(pid,m);
+}
+function eqTabelaHTML2(pid,m){
+  if(!deVis(m,pid).length) return impAtivo(m,pid)?'<p class="note">Nenhum item nesta situação.</p>':m.vazio(pid);
   const cols=colsVis(), W=MS().w;
   const fx=temLargEq(), tot=cols.reduce((a,[k])=>a+(W[k]||140),0);
   return `<div class="tablewrap rolagem"><table class="list esp eq ${fx?'fixo':''}" ${fx?`style="table-layout:fixed;width:${tot}px"`:''}>${fx?`<colgroup>${cols.map(([k])=>`<col style="width:${W[k]||140}px">`).join('')}</colgroup>`:''}<thead><tr class="h1" title="Arraste um título para mudar a ordem das colunas. Clique com o botão direito para escolher quais aparecem">${cols.map(([k,lab,,,cls])=>`<th class="c-${k} ${(cls||'').includes('r')?'r':''}" data-k="${k}">${(cls||'').includes('r')?setaOrdHTML(k):''}<span class="th-lab">${esc(lab)}</span>${(cls||'').includes('r')?'':setaOrdHTML(k)}${m.grupos[k]?agruparHTML(k):''}<span class="rsz" data-rsz="${k}" title="Arraste para ajustar a largura. Clique duas vezes para ajustar ao conteúdo."></span></th>`).join('')}</tr><tr class="h2">${cols.map(([k])=>filtroCelEq(k,pid)).join('')}</tr></thead><tbody id="eqCorpo">${eqCorpoHTML(pid,cols)}</tbody></table></div><div class="barra-x" id="barraX" aria-hidden="true"><div class="bx-th"></div></div>`;
@@ -4523,53 +4531,75 @@ function planoImport(md,pid,linhas,o){
   const soSistema=[...V.values()].filter(e=>!alvo.has(e.id));
   return {corr,novos,alt,iguais,mantidos,dups,soSistema,alvo,linhas:linhas.length};
 }
-function relatorioImport(md,P,o){
-  return new Promise(res=>{
-    $('impModal')?.remove();
-    const L=(e,md2=md)=>esc(rotImp(md2,e));
-    const lim=200, mais=n=>n>lim?`<li class="muted">… e mais ${n-lim}</li>`:'';
-    const vv=v=>v==null||v===''?'<i class="muted">vazio</i>':esc(typeof v==='object'?JSON.stringify(v):String(v));
-    const difs=d=>d.length?d.map(([k,a,b])=>`<span class="imp-dif"><b>${esc(k)}</b> ${vv(a)} → ${vv(b)}</span>`).join(''):'<span class="muted">só a linha da planilha mudou</span>';
-    const sec=(id,tit,dica,n,corpo,chk)=>n?`<details class="imp-sec" ${id==='corr'||id==='dups'?'open':''}><summary>${chk!=null?`<input type="checkbox" class="imp-all" data-g="${id}" ${chk?'checked':''} onclick="event.stopPropagation()" aria-label="Marcar todos">`:''}<b>${esc(tit)}</b> <span class="imp-n">${n}</span> <span class="muted">${esc(dica)}</span></summary><ul class="imp-l">${corpo}</ul></details>`:'';
-    const cb=(g,i,on)=>`<input type="checkbox" class="imp-c" data-g="${g}" data-i="${i}" ${on?'checked':''}>`;
-    const corpoCorr=P.corr.slice(0,lim).map((c,i)=>`<li><label>${cb('corr',i,true)}<span>${c.tipo==='apagar'?`<b class="imp-del">Apagar</b> ${L(c.de)} <span class="muted">— duplicado de</span> ${L(c.dup)}`:c.tipo==='mover'?`<b>Corrigir</b> ${L(c.de)} → ${L(c.para)}`:`<b>Corrigir</b> ${L(c.de)} → ${L(c.para)}`}</span></label></li>`).join('')+mais(P.corr.length);
-    const corpoNovos=P.novos.slice(0,lim).map((x,i)=>`<li><label>${cb('novos',i,true)}<span>${L(x.body)} <span class="muted">· linha ${esc(x.body.linha??'')}</span></span></label></li>`).join('')+mais(P.novos.length);
-    const corpoAlt=P.alt.slice(0,lim).map((x,i)=>`<li><label>${cb('alt',i,true)}<span>${L(x.body)}<br>${difs(x.dif)}</span></label></li>`).join('')+mais(P.alt.length);
-    const corpoDups=P.dups.slice(0,lim).map((x,i)=>`<li><label>${cb('dups',i,false)}<span>${L(x.body)} <span class="muted">· linha ${esc(x.body.linha??'')} — parece o mesmo que</span> ${L(x.par)}</span></label></li>`).join('')+mais(P.dups.length);
-    const corpoMant=P.mantidos.slice(0,lim).map(x=>`<li><span>${L(x.cur)}${x.dif.length?'<br>'+difs(x.dif):''}</span></li>`).join('')+mais(P.mantidos.length);
-    const corpoSo=P.soSistema.slice(0,lim).map(e=>`<li><span>${L(e)}</span></li>`).join('')+mais(P.soSistema.length);
-    const d=document.createElement('div'); d.id='impModal'; d.className='pc-modal';
-    d.innerHTML=`<form class="pc-caixa imp-caixa" id="impForm" role="dialog" aria-modal="true" aria-labelledby="impT">
-      <h2 id="impT">Importar da planilha · relatório de conciliação</h2>
-      <p class="muted">Aba <b>${esc(o.aba)}</b> · ${P.linhas} linhas lidas. Nada foi gravado ainda: confira, desmarque o que não deve entrar e confirme. O banco do sistema é a base; nada é apagado, exceto as duplicatas listadas em “Correções”.</p>
-      <div class="imp-res"><span><b>${P.corr.length}</b> correções</span><span><b>${P.novos.length}</b> novos</span><span><b>${P.alt.length}</b> a atualizar</span><span class="${P.dups.length?'imp-w':''}"><b>${P.dups.length}</b> possíveis duplicatas</span><span><b>${P.iguais.length}</b> sem mudança</span><span><b>${P.mantidos.length}</b> editados no sistema (mantidos)</span><span><b>${P.soSistema.length}</b> só no sistema (mantidos)</span></div>
-      <div class="imp-corpo">
-        ${sec('corr','Correções','itens do sistema com apóstrofo antes do código ( \'005 ): corrigir o código ou apagar a cópia duplicada',P.corr.length,corpoCorr,true)}
-        ${sec('dups','Possíveis duplicatas','linhas novas que parecem itens já cadastrados com outro código; não entram, a menos que você marque',P.dups.length,corpoDups,false)}
-        ${sec('novos','Novos','linhas da planilha que ainda não existem no sistema',P.novos.length,corpoNovos,true)}
-        ${sec('alt','A atualizar','itens do sistema que mudam conforme a planilha',P.alt.length,corpoAlt,true)}
-        ${sec('mant','Editados no sistema','não são alterados pela importação',P.mantidos.length,corpoMant,null)}
-        ${sec('so','Só no sistema','não estão na planilha; continuam no sistema',P.soSistema.length,corpoSo,null)}
-        ${!(P.corr.length+P.novos.length+P.alt.length+P.dups.length)?'<p class="note">Nada a importar: o sistema já está igual à planilha.</p>':''}
-      </div>
-      <div class="pc-acts" style="gap:8px"><span class="muted" id="impCont"></span><span class="sp"></span><button type="button" class="btn ghost" id="impNao">Cancelar</button><button type="submit" class="btn pri" id="impSim">Aplicar</button></div></form>`;
-    document.body.appendChild(d);
-    const marcados=g=>[...d.querySelectorAll(`.imp-c[data-g="${g}"]`)].filter(c=>c.checked).map(c=>+c.dataset.i);
-    const conta=()=>{const n=['corr','novos','alt','dups'].reduce((s,g)=>s+marcados(g).length,0);$('impSim').textContent=n?`Aplicar ${n} alteraç${n>1?'ões':'ão'}`:'Nada a aplicar';$('impSim').disabled=!n};
-    d.addEventListener('change',ev=>{const t=ev.target;
-      if(t.classList.contains('imp-all')) d.querySelectorAll(`.imp-c[data-g="${t.dataset.g}"]`).forEach(c=>c.checked=t.checked);
-      conta()});
-    conta();
-    const fim=v=>{d.remove();document.removeEventListener('keydown',tec,true);res(v)};
-    const tec=ev=>{if(ev.key==='Escape'){ev.stopPropagation();fim(null)}};
-    document.addEventListener('keydown',tec,true);
-    $('impNao').onclick=()=>fim(null);
-    $('impForm').onsubmit=ev=>{ev.preventDefault();fim({corr:marcados('corr'),novos:marcados('novos'),alt:marcados('alt'),dups:marcados('dups')})};
-  });
+/* revisão da importação na própria tabela: moldura vermelha, faixa de informações acima do cabeçalho, linhas
+   coloridas pela situação; clicar numa linha marca/desmarca; nada é gravado antes de "Aceitar". */
+const IMP_ST={
+  corr:['Correção','código com apóstrofo corrigido','corr'],del:['Apagar','cópia com apóstrofo de um item que já existe','corr'],
+  dup:['Possível duplicata','parece um item já cadastrado com outro código; só entra se marcada','dups'],
+  novo:['Novo','linha da planilha que ainda não existe no sistema','novos'],alt:['A atualizar','item do sistema que muda conforme a planilha (células alteradas em destaque)','alt'],
+  mant:['Editado no sistema','não é alterado pela importação',null],igual:['Sem mudança','igual à planilha',null],so:['Só no sistema','não está na planilha; continua no sistema',null]};
+function impMontar(md,pid,P,o){
+  const L=[], sel={corr:new Set(P.corr.map((_,i)=>i)),novos:new Set(P.novos.map((_,i)=>i)),alt:new Set(P.alt.map((_,i)=>i)),dups:new Set()};
+  const tira=new Set(); // ids do sistema substituídos por uma linha da revisão
+  P.corr.forEach((c,i)=>{tira.add(c.id); L.push(c.tipo==='apagar'?{...c.de,_imp:'del',_g:'corr',_i:i,_dica:'Duplica '+rotImp(md,c.dup)}:{...c.de,...c.para,id:c.nid||c.id,_imp:'corr',_g:'corr',_i:i,_dica:'Antes: '+rotImp(md,c.de)})});
+  const V=new Map(md.de(pid).filter(e=>!tira.has(e.id)).map(e=>[e.id,e]));
+  for(const c of P.corr) if(c.tipo!=='apagar') V.delete(c.nid||c.id);
+  const difTxt=d=>d.map(([k,a,b])=>`${k}: ${a??''} → ${b??''}`).join('\n');
+  P.alt.forEach((x,i)=>{V.delete(x.id); L.push({...x.cur,...x.body,id:x.id,_imp:'alt',_g:'alt',_i:i,_difK:new Set(x.dif.map(d=>d[0])),_dica:difTxt(x.dif)||'só a linha da planilha mudou'})});
+  P.mantidos.forEach(x=>{V.delete(x.id); L.push({...x.cur,_imp:'mant',_dica:x.dif.length?'A planilha traz: \n'+difTxt(x.dif):''})});
+  for(const id of P.iguais){const e=V.get(id); if(e){V.delete(id); L.push({...e,_imp:'igual'})}}
+  P.novos.forEach((x,i)=>L.push({...x.body,id:x.id,_imp:'novo',_g:'novos',_i:i}));
+  P.dups.forEach((x,i)=>L.push({...x.body,id:x.id,_imp:'dup',_g:'dups',_i:i,_dica:'Parece o mesmo que '+rotImp(md,x.par)}));
+  for(const e of V.values()) L.push({...e,_imp:'so'});
+  S.imp={pid,md,P,o,sel,lista:L,filtro:null};
+}
+const impAtivo=(m,pid)=>S.imp&&S.imp.pid===pid&&S.imp.md===m;
+const deVis=(m,pid)=>impAtivo(m,pid)?S.imp.lista.filter(e=>!S.imp.filtro||e._imp===S.imp.filtro):m.de(pid);
+const impOn=e=>!e._g||S.imp.sel[e._g].has(e._i);
+function impBarraHTML(){
+  const I=S.imp, n=k=>I.lista.filter(e=>e._imp===k).length, nSel=Object.values(I.sel).reduce((s,x)=>s+x.size,0);
+  const chip=k=>{const t=n(k); if(!t) return ''; const [rot,dica,g]=IMP_ST[k];
+    const ns=g?I.lista.filter(e=>e._imp===k&&impOn(e)).length:null;
+    return `<span class="imp-chip imp-${k}${I.filtro===k?' on':''}" data-tipj="${esc(dica+(g?'\nClique na caixa para marcar ou desmarcar todos; clique no nome para ver só estes.':'\nClique no nome para ver só estes.'))}">${g?`<input type="checkbox" data-act-change="imp-grupo" data-k="${k}" ${ns===t?'checked':''} aria-label="Marcar todos: ${esc(rot)}">`:''}<button type="button" data-act="imp-filtro" data-k="${k}"><i></i>${esc(rot)} <b>${g?ns+'/'+t:t}</b></button></span>`};
+  return `<div class="imp-barra"><div class="imp-b1"><b>Importação da planilha em revisão</b><span class="muted">Aba ${esc(I.o.aba)} · ${I.P.linhas} linhas lidas · nada foi gravado ainda. Clique numa linha colorida para incluir ou excluir; as apagadas e as desmarcadas ficam esmaecidas.</span><span class="sp"></span>
+    <button class="btn" data-act="imp-cancelar">Cancelar</button><button class="btn pri" data-act="imp-aceitar" ${nSel?'':'disabled'}>Aceitar${nSel?` (${nSel})`:''}</button></div>
+    <div class="imp-b2">${['corr','del','dup','novo','alt','mant','igual','so'].map(chip).join('')}${I.filtro?`<button class="btn sm ghost" data-act="imp-filtro" data-k="">Ver todos</button>`:''}</div></div>`;
+}
+function impRender(){const I=S.imp; const t=$('eqTabela'); if(t) t.innerHTML=eqTabelaHTML(I?I.pid:S.view.id)}
+async function impAceitar(){
+  const I=S.imp; if(!I) return; const {md,pid,P,o}=I, it=S.itens.get(pid);
+  const ok=await confirmar(`Aceitar a importação?\n\n${I.sel.corr.size} correções, ${I.sel.novos.size+I.sel.dups.size} novos e ${I.sel.alt.size} atualizações serão gravados no sistema.`,{ok:'Aceitar e gravar'}); if(!ok) return;
+  const box=$('syncMsg'); const status=(t,cls)=>{if(box){box.textContent=t;box.className='sync-msg '+(cls||'')}else if(cls==='err')toast(t)};
+  const tarefas=[]; let corrigidos=0,apagados=0,novos=0,alterados=0;
+  for(const i of I.sel.corr){const c=P.corr[i];
+    if(c.tipo==='apagar') tarefas.push(async()=>{await md.coll().doc(c.id).delete();md.mapa().delete(c.id);apagados++});
+    else if(c.tipo==='corrigir') tarefas.push(async()=>{const b={...c.para,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};await md.coll().doc(c.id).set(b);md.mapa().set(c.id,{...b,id:c.id});corrigidos++});
+    else tarefas.push(async()=>{const b={...c.para,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};await md.coll().doc(c.nid).set(b);md.mapa().set(c.nid,{...b,id:c.nid});
+      if(md===MODS.rd) for(const cm of comDe(pid).filter(x=>x.rdoc===c.id)){try{await comColl().doc(cm.id).update({rdoc:c.nid});cm.rdoc=c.nid}catch{}}
+      await md.coll().doc(c.id).delete();md.mapa().delete(c.id);corrigidos++});
+  }
+  const nCorr=tarefas.length;
+  const gravar=(id,body,cur,cnt)=>tarefas.push(async()=>{const loc=Object.fromEntries(md.locais.filter(k=>cur?.[k]).map(k=>[k,cur[k]]));const b={...body,...loc,sincronizadoEm:Date.now()};await md.coll().doc(id).set(b);md.mapa().set(id,{...b,id});cnt()});
+  for(const i of I.sel.novos){const x=P.novos[i];gravar(x.id,x.body,null,()=>novos++)}
+  for(const i of I.sel.dups){const x=P.dups[i];gravar(x.id,x.body,null,()=>novos++)}
+  for(const i of I.sel.alt){const x=P.alt[i];gravar(x.id,x.body,x.cur,()=>alterados++)}
+  S.imp=null; impRender();
+  const total=tarefas.length; let k=0,feitos=0,erros=0;
+  for(;k<nCorr;){const t=tarefas[k++];try{await t()}catch{erros++}feitos++}
+  const worker=async()=>{while(k<tarefas.length){const t=tarefas[k++];try{await t()}catch(err){erros++;if(err?.code==='quota_exceeded'||err?.code==='invalid_argument'){k=tarefas.length}}feitos++;if(feitos%20===0||feitos===total)status(`Gravando ${feitos} de ${total}…`)}};
+  await Promise.all(Array.from({length:Math.min(6,Math.max(1,total-nCorr))},worker));
+  const resumo={...o,sincronizadoEm:Date.now(),linhas:P.linhas,novos,alterados,corrigidos,apagados,mantidos:P.mantidos.length,erros,...(me?{sincronizadoPor:me}:{})};
+  try{await coll().doc(pid).update({[md.origKey]:resumo}); if(it) it[md.origKey]=resumo}catch{}
+  const partes=[`${novos} novos`,`${alterados} atualizados`]; if(corrigidos) partes.push(`${corrigidos} corrigidos`); if(apagados) partes.push(`${apagados} duplicados apagados`);
+  status((erros?`Importado com ${erros} erro${erros>1?'s':''}: `:'Importado: ')+partes.join(', ')+'.',erros?'err':'ok');
+  toast(erros?'Importação concluída com erros':'Importação concluída');
+  {const mo=Object.keys(ESP).find(m=>ESP[m].proj&&MODS[m]===md); if(mo) setTimeout(()=>espAssumir(mo,pid),500)}
+  renderMain();
 }
 async function sincronizarEq(pid){
   const md=M(), it=S.itens.get(pid), o=it?.[md.origKey]; const box=$('syncMsg');
   const status=(t,cls)=>{if(box){box.textContent=t;box.className='sync-msg '+(cls||'')}else if(cls==='err')toast(t)};
+  if(S.imp){toast('Termine (aceite ou cancele) a revisão da importação em andamento');return}
   if(!o?.planilha||!o?.aba){status('Informe o link da planilha e o nome da aba.','err');return}
   if(!mcp){status(msgMcp({code:'not_granted'}),'err');return}
   if(S.syncando) return; S.syncando=true; const btn=$('btnSync'); if(btn){btn.disabled=true;btn.classList.add('girando')}
@@ -4579,39 +4609,11 @@ async function sincronizarEq(pid){
     const r=await mcp.callTool(GS,'get_values',{spreadsheetId:o.planilha,range},{cache:false});
     const vals=r?.payload?.values||r?.structuredContent?.values;
     if(!Array.isArray(vals)) throw {code:'formato',message:'A resposta do Google Sheets veio num formato inesperado.'};
-    const {linhas,cabecalho}=md.ler(vals);
-    const P=planoImport(md,pid,linhas,o);
-    status('Relatório pronto: confira antes de aplicar.');
-    const esc2=await relatorioImport(md,P,o);
-    if(!esc2){status('Importação cancelada: nada foi gravado.');return}
-    // 1) correções
-    const tarefas=[]; let corrigidos=0,apagados=0;
-    for(const i of esc2.corr){const c=P.corr[i];
-      if(c.tipo==='apagar'){tarefas.push(async()=>{await md.coll().doc(c.id).delete();md.mapa().delete(c.id);apagados++})}
-      else if(c.tipo==='corrigir'){tarefas.push(async()=>{const b={...c.para,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};await md.coll().doc(c.id).set(b);md.mapa().set(c.id,{...b,id:c.id});corrigidos++})}
-      else tarefas.push(async()=>{const b={...c.para,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};await md.coll().doc(c.nid).set(b);md.mapa().set(c.nid,{...b,id:c.nid});
-        if(md===MODS.rd) for(const cm of comDe(pid).filter(x=>x.rdoc===c.id)){try{await comColl().doc(cm.id).update({rdoc:c.nid});cm.rdoc=c.nid}catch{}}
-        await md.coll().doc(c.id).delete();md.mapa().delete(c.id);corrigidos++});
-    }
-    // 2) novos, atualizações e duplicatas marcadas
-    let novos=0,alterados=0;
-    const gravar=(id,body,cur,cnt)=>tarefas.push(async()=>{const loc=Object.fromEntries(md.locais.filter(k=>cur?.[k]).map(k=>[k,cur[k]]));await md.coll().doc(id).set({...body,...loc,sincronizadoEm:Date.now()});cnt()});
-    for(const i of esc2.novos){const x=P.novos[i];gravar(x.id,x.body,null,()=>novos++)}
-    for(const i of esc2.dups){const x=P.dups[i];gravar(x.id,x.body,null,()=>novos++)}
-    for(const i of esc2.alt){const x=P.alt[i];gravar(x.id,x.body,x.cur,()=>alterados++)}
-    const total=tarefas.length; let k=0,feitos=0,erros=0;
-    const worker=async()=>{while(k<tarefas.length){const t=tarefas[k++];try{await t()}catch(err){erros++;if(err?.code==='quota_exceeded'||err?.code==='invalid_argument'){k=tarefas.length}}feitos++;if(feitos%20===0||feitos===total)status(`Gravando ${feitos} de ${total}…`)}};
-    // as correções vão antes (uma a uma), para as atualizações já encontrarem os códigos limpos
-    const nCorr=esc2.corr.length; for(;k<nCorr;){const t=tarefas[k++];try{await t()}catch{erros++}feitos++}
-    await Promise.all(Array.from({length:Math.min(6,Math.max(1,total-nCorr))},worker));
-    const resumo={...o,sincronizadoEm:Date.now(),linhas:linhas.length,cabecalho,novos,alterados,corrigidos,apagados,mantidos:P.mantidos.length,erros,...(me?{sincronizadoPor:me}:{})};
-    await coll().doc(pid).update({[md.origKey]:resumo}); it[md.origKey]=resumo;
-    const partes=[`${novos} novos`,`${alterados} atualizados`]; if(corrigidos) partes.push(`${corrigidos} corrigidos`); if(apagados) partes.push(`${apagados} duplicados apagados`);
-    status((erros?`Importado com ${erros} erro${erros>1?'s':''}: `:'Importado: ')+partes.join(', ')+'.',erros?'err':'ok');
-    toast('Importação concluída');
-    {const mo=Object.keys(ESP).find(m=>ESP[m].proj&&MODS[m]===md); if(mo) setTimeout(()=>espAssumir(mo,pid),500)}
+    const {linhas}=md.ler(vals);
+    impMontar(md,pid,planoImport(md,pid,linhas,o),o);
+    status('Revise a importação na tabela e clique em Aceitar.');
   }catch(e){status(e?.code==='formato'?e.message:msgMcp(e),'err')}
-  finally{S.syncando=false; const b=$('btnSync'); if(b){b.disabled=false;b.classList.remove('girando')}; const t=$('eqTabela'); if(t) t.innerHTML=eqTabelaHTML(pid)}
+  finally{S.syncando=false; const b=$('btnSync'); if(b){b.disabled=false;b.classList.remove('girando')}; impRender(); $('eqTabela')?.scrollIntoView({block:'start',behavior:'smooth'})}
 }
 async function carregarAbas(){
   const u=$('syncUrl')?.value, id=idPlanilha(u); const box=$('syncMsg');
@@ -6923,6 +6925,10 @@ document.addEventListener('click',async ev=>{
   else if(a==='eq-larg-reset'){MS().w={};salvarLargEq();atualizaColsEq();toast('Larguras restauradas')}
   else if(a==='eq-cols-padrao'||a==='eq-cols-todas'){const T=M().T;if(a==='eq-cols-padrao'){MS().ordem=[];lsSet(M().lk+'ordem',[])}MS().cols=a==='eq-cols-todas'?(MS().cols.length===T.length?T.filter(c=>c[2]===2).map(c=>c[0]):T.map(c=>c[0])):M().padrao.slice();salvarColsEq();atualizaSeletorCols();atualizaColsEq()}
   else if(a==='sync-eq'){sincronizarEq(b.dataset.id)}
+  else if(a==='imp-tog'&&S.imp){const g=S.imp.sel[b.dataset.g], i=+b.dataset.i; if(g.has(i)) g.delete(i); else g.add(i); impRender()}
+  else if(a==='imp-filtro'&&S.imp){S.imp.filtro=b.dataset.k&&S.imp.filtro!==b.dataset.k?b.dataset.k:null; impRender()}
+  else if(a==='imp-cancelar'&&S.imp){S.imp=null; impRender(); const bx=$('syncMsg'); if(bx){bx.textContent='Importação cancelada: nada foi gravado.';bx.className='sync-msg'}}
+  else if(a==='imp-aceitar'&&S.imp){impAceitar()}
   else if(a==='exp-drive'){exportarEq(b.dataset.id,'drive')}
   else if(a==='esp-ativar'){espCriar(b.dataset.mod,b.dataset.id)}
   else if(a==='esp-sync'){fecharMenuLinha();espSync(b.dataset.mod,b.dataset.id,{manual:true})}
@@ -7043,6 +7049,7 @@ document.addEventListener('change',ev=>{
   if(el.id==='fileArq'&&el.files?.length){enviarArquivos([...el.files],S.upCtx);el.value=''}
   if(el.id==='pdTagIn'&&el.value&&S.qdraft){pdGarantirArrays(); if(!S.qdraft.disciplinas.includes(el.value)) S.qdraft.disciplinas.push(el.value); marcaSujo(); renderMain(); return}
   if(el.dataset.actChange==='cdisc-add'&&el.value&&S.draft){const k=el.dataset.k,cur=S.draft.campos?.[k],n=Array.isArray(cur)?cur.slice():[]; if(!n.includes(el.value)) n.push(el.value); S.draft.campos={...(S.draft.campos||{}),[k]:n}; marcaSujo(); renderMain()}
+  if(el.dataset.actChange==='imp-grupo'&&S.imp){const k=el.dataset.k, I=S.imp; for(const e of I.lista) if(e._imp===k&&e._g){if(el.checked) I.sel[e._g].add(e._i); else I.sel[e._g].delete(e._i)} impRender(); return}
   if(el.dataset.dccor!=null){const i=+el.dataset.dccor,v=el.value; gravarDiscProj(el.dataset.pid,arr=>{if(arr[i]) arr[i].cor=v}); return}
   if(el.dataset.dc!=null&&S.view.t==='disc'){const i=+el.dataset.dc,k=el.dataset.dk,v=el.value,hoje=new Date().toLocaleDateString('pt-BR');
     gravarDiscProj(S.view.id,arr=>{const l=arr[i]; if(!l) return;
