@@ -65,7 +65,7 @@ namespace FJA.Revit.Comandos
                 return Result.Cancelled;
             }
 
-            var o = Opcoes.Carregar();
+            var o = OpcoesFamilia.Carregar();
             o.Tipo = v.ViewType == ViewType.Legend ? TipoFamilia.Anotacao : TipoFamilia.Detalhe;
             o.Nome = d.NomeSugerido();
             o.Origem = o.Origem == OrigemFamilia.Escolhida ? OrigemFamilia.Centro : o.Origem;
@@ -158,7 +158,7 @@ namespace FJA.Revit.Comandos
         }
 
         /// <summary>Só aparece se houver avisos ou se o .rfa foi salvo fora (para dizer onde).</summary>
-        static void Relatorio(Opcoes o, string arquivo, List<string> avisos, bool substituiu)
+        static void Relatorio(OpcoesFamilia o, string arquivo, List<string> avisos, bool substituiu)
         {
             if (avisos.Count == 0 && !o.SalvarFora) return;
             var txt = new List<string>();

@@ -29,7 +29,7 @@ namespace FJA.Revit.Detalhes
     public sealed class JanelaDesenho : Window
     {
         readonly Desenho d;
-        readonly Opcoes o;
+        readonly OpcoesFamilia o;
         public Saida Resultado { get; private set; } = Saida.Cancelar;
 
         Canvas tela;
@@ -41,7 +41,7 @@ namespace FJA.Revit.Detalhes
         Button btCriar;
         bool montando = true;
 
-        public JanelaDesenho(Desenho d, Opcoes o)
+        public JanelaDesenho(Desenho d, OpcoesFamilia o)
         {
             this.d = d; this.o = o;
             Title = "Família do desenho";

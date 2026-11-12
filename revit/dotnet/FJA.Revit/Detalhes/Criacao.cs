@@ -13,7 +13,7 @@ namespace FJA.Revit.Detalhes
     public enum OrigemFamilia { Centro, InferiorEsquerdo, Escolhida }
 
     /// <summary>Opções da ferramenta; as de uso pessoal ficam em %APPDATA%\FJA\familia-desenho.json.</summary>
-    public sealed class Opcoes
+    public sealed class OpcoesFamilia
     {
         public TipoFamilia Tipo = TipoFamilia.Detalhe;
         public string Nome = "";
@@ -26,9 +26,9 @@ namespace FJA.Revit.Detalhes
 
         static string Arquivo => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FJA", "familia-desenho.json");
 
-        public static Opcoes Carregar()
+        public static OpcoesFamilia Carregar()
         {
-            var o = new Opcoes();
+            var o = new OpcoesFamilia();
             try
             {
                 if (!File.Exists(Arquivo)) return o;
@@ -126,7 +126,7 @@ namespace FJA.Revit.Detalhes
             public Document Doc, F;
             public View VF;
             public Desenho D;
-            public Opcoes O;
+            public OpcoesFamilia O;
             public Transform T;
             public Category Cat;
             public CopyPasteOptions Copia;
@@ -150,7 +150,7 @@ namespace FJA.Revit.Detalhes
 
         /// <summary>Cria a família, salva o .rfa e carrega no projeto. Fora de transação.
         /// sobrescrever: substitui uma família com o mesmo nome já carregada.</summary>
-        public static Family Criar(Desenho d, Opcoes o, bool sobrescrever, out List<string> avisos, out string arquivo)
+        public static Family Criar(Desenho d, OpcoesFamilia o, bool sobrescrever, out List<string> avisos, out string arquivo)
         {
             Document doc = d.Doc;
             var app = doc.Application;
@@ -502,7 +502,7 @@ namespace FJA.Revit.Detalhes
         // ------------------------------------------------------------ no projeto
         /// <summary>Põe uma instância da família no ponto de origem do desenho e apaga os elementos originais.
         /// Uma transação só (Ctrl+Z desfaz tudo). Devolve a instância.</summary>
-        public static Element Substituir(Desenho d, Opcoes o, FamilySymbol sym, List<string> avisos)
+        public static Element Substituir(Desenho d, OpcoesFamilia o, FamilySymbol sym, List<string> avisos)
         {
             Document doc = d.Doc;
             Element inst;
