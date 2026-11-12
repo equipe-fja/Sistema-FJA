@@ -539,7 +539,7 @@ namespace FJA.Revit.Links
                 foreach (var kv in usados)
                 {
                     var lk = lks[kv.Key];
-                    foreach (var mid in itens.Where(i => i.Link == lk).Select(i => i.Reg.Modulo).Distinct())
+                    foreach (var mid in itens.Where(i => i.Link == lk && i.Reg != null).Select(i => i.Reg.Modulo).Distinct().ToList())
                     {
                         if (!mods.TryGetValue(mid ?? "", out var mod)) continue;
                         foreach (var o in Elementos(doc, lk, mod))
