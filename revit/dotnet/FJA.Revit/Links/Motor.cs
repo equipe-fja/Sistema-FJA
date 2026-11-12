@@ -411,7 +411,7 @@ namespace FJA.Revit.Links
                 var lote = alvo.Skip(i).Take(LOTE).ToList();
                 var pares = new List<KeyValuePair<Origem, Element>>();
                 var sem = new List<Origem>();
-                CopiarLote(doc, link, lote, opc, mod.Redes, pares, sem, res);
+                CopiarLote(doc, link, lote, opc, false, pares, sem, res); // o isolamento vem sozinho com o tubo/duto (testado no Revit 2027)
                 foreach (var o in sem) res.Falhas.Add(new KeyValuePair<Origem, string>(o, "a cópia não foi encontrada depois de copiar"));
                 foreach (var kv in pares)
                 {
