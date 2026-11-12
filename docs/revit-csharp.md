@@ -89,7 +89,7 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 - **Codificação**: LUM entra (LUM.01…; códigos antigos como ARA.01 aparecem como "fora do padrão" até renumerar). ELE fica fora até a FJA decidir os códigos.
 
 ## Seletor de cor (2.11.0, 12/11/2026)
-- `Nucleo/SeletorCor.cs`: o mesmo seletor do Sistema FJA, para qualquer ferramenta (`SeletorCor.Escolher(dono, corInicial, títuloDoGrupo, amostras)`). Área de cor e matiz, HEX/RGB, conta-gotas (pega a cor de qualquer ponto da tela; Esc ou botão direito cancela), amostras do chamador, padrão FJA, neutras, recentes (`%APPDATA%\FJA\cores-recentes.txt`) e aviso de contraste com fundo branco.
+- `Nucleo/SeletorCor.cs`: o mesmo seletor do Sistema FJA, para qualquer ferramenta (`SeletorCor.Escolher(dono, corInicial, títuloDoGrupo, amostras)`). Área de cor e matiz, HEX/RGB, conta-gotas (foto da tela mostrada por cima de tudo numa janela própria; o clique lê a cor da foto; Esc ou botão direito cancela; o seletor nunca é escondido — esconder e mostrar a janela modal derrubava o Revit), amostras do chamador, padrão FJA, neutras, recentes (`%APPDATA%\FJA\cores-recentes.txt`) e aviso de contraste com fundo branco.
 - Legendas: substitui a caixa de cores do Windows; o grupo "Desta legenda" traz a cor do modelo, a da disciplina no Sistema FJA e a última escolhida.
 
 ## Variações pelo que o símbolo mostra (2.12.0, 12/11/2026) — LOG, AUT, SON, LUM

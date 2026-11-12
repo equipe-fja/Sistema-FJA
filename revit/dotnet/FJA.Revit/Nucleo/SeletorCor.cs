@@ -9,6 +9,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using WColor = System.Windows.Media.Color;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
+using Image = System.Windows.Controls.Image;
+using Point = System.Windows.Point;
 
 namespace FJA.Revit.Nucleo
 {
@@ -87,10 +90,9 @@ namespace FJA.Revit.Nucleo
 
             // matiz + conta-gotas
             var l1 = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
-            var btGota = new Button { Content = "⌖", Width = 30, Height = 26, Margin = new Thickness(8, 0, 0, 0), ToolTip = "Conta-gotas: depois de clicar aqui, clique em qualquer ponto da tela para pegar a cor (Esc ou botão direito cancela)", FontSize = 16, Padding = new Thickness(0) };
+            var btGota = new Button { Content = "⌖", Width = 30, Height = 26, Margin = new Thickness(8, 0, 0, 0), ToolTip = "Conta-gotas: pegar uma cor de qualquer ponto da tela (Esc ou botão direito cancela)", FontSize = 16, Padding = new Thickness(0) };
             DockPanel.SetDock(btGota, Dock.Right);
             btGota.Click += (o, a) => ContaGotas();
-            Closed += (o, a) => PararGota();
             l1.Children.Add(btGota);
             gHue = new Grid { Height = 14, Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center };
             var arco = new GradientStopCollection();
@@ -264,66 +266,83 @@ namespace FJA.Revit.Nucleo
         }
 
         // ------------------------------------------------------------------ conta-gotas
-        // Sem janela por cima e sem esconder o seletor (esconder e mostrar de novo uma janela modal derrubava o
-        // Revit): enquanto o conta-gotas está ligado, um temporizador olha o botão do mouse e o Esc; no clique,
-        // lê a cor do pixel sob o cursor direto da tela.
-        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern short GetAsyncKeyState(int vKey);
-        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool GetCursorPos(out PONTO p);
-        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr hWnd);
-        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
-        [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern uint GetPixel(IntPtr hdc, int x, int y);
-        struct PONTO { public int X, Y; }
-        const int VK_LBUTTON = 0x01, VK_RBUTTON = 0x02, VK_ESCAPE = 0x1B;
-
-        System.Windows.Threading.DispatcherTimer gota;
-
-        static bool Apertado(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
+        // Conta-gotas: tira uma foto da tela inteira e mostra por cima de tudo, numa janela própria (o seletor não é
+        // escondido: esconder e mostrar de novo uma janela modal derrubava o Revit). O clique lê a cor da foto, no
+        // ponto correspondente, o que funciona com qualquer escala de tela e com a vista do Revit (DirectX).
+        // Uma amostra acompanha o cursor; Esc ou botão direito cancelam.
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr o);
 
         void ContaGotas()
         {
+            System.Drawing.Bitmap foto = null;
+            IntPtr hbmp = IntPtr.Zero;
             try
             {
-                if (gota != null) { PararGota(); return; }
-                bool soltou = false;   // espera soltar o clique do próprio botão
-                tbContraste.Text = "Conta-gotas: clique em qualquer ponto da tela para pegar a cor (Esc ou botão direito cancela).";
-                bdContraste.Background = new SolidColorBrush(WColor.FromRgb(232, 239, 246));
-                bdContraste.Padding = new Thickness(8, 4, 8, 4);
-                Mouse.OverrideCursor = Cursors.Cross;
-                gota = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
-                gota.Tick += (o, e) =>
+                var vs = System.Windows.Forms.SystemInformation.VirtualScreen;   // pixels físicos
+                foto = new System.Drawing.Bitmap(vs.Width, vs.Height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+                using (var g = System.Drawing.Graphics.FromImage(foto))
+                    g.CopyFromScreen(vs.Left, vs.Top, 0, 0, vs.Size, System.Drawing.CopyPixelOperation.SourceCopy);
+                hbmp = foto.GetHbitmap();
+                var src = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(hbmp, IntPtr.Zero, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+
+                var img = new Image { Source = src, Stretch = Stretch.Fill };
+                var amostra = new Border { Width = 34, Height = 34, CornerRadius = new CornerRadius(17), BorderBrush = Brushes.White, BorderThickness = new Thickness(3), IsHitTestVisible = false };
+                amostra.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 6, ShadowDepth = 0, Opacity = .7 };
+                var dica = new Border
+                {
+                    Background = new SolidColorBrush(WColor.FromArgb(230, 29, 29, 29)), CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 5, 10, 5),
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 24, 0, 0), IsHitTestVisible = false,
+                    Child = new TextBlock { Text = "Clique para pegar a cor · Esc ou botão direito cancela", Foreground = Brushes.White },
+                };
+                var cv = new Canvas { IsHitTestVisible = false };
+                cv.Children.Add(amostra);
+                var raiz = new Grid { Cursor = Cursors.Cross };
+                raiz.Children.Add(img); raiz.Children.Add(cv); raiz.Children.Add(dica);
+
+                var ov = new Window
+                {
+                    Owner = this, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Topmost = true,
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = SystemParameters.VirtualScreenLeft, Top = SystemParameters.VirtualScreenTop,
+                    Width = SystemParameters.VirtualScreenWidth, Height = SystemParameters.VirtualScreenHeight,
+                    Content = raiz, Background = Brushes.Black,
+                };
+                var bmp = foto;
+                Func<Point, byte[]> cor = p =>
+                {
+                    double fx = raiz.ActualWidth > 0 ? p.X / raiz.ActualWidth : 0, fy = raiz.ActualHeight > 0 ? p.Y / raiz.ActualHeight : 0;
+                    int x = Math.Max(0, Math.Min(bmp.Width - 1, (int)(fx * bmp.Width))), y = Math.Max(0, Math.Min(bmp.Height - 1, (int)(fy * bmp.Height)));
+                    var c = bmp.GetPixel(x, y);
+                    return new[] { c.R, c.G, c.B };
+                };
+                byte[] pego = null;
+                raiz.MouseMove += (o, e) =>
                 {
                     try
                     {
-                        bool esq = Apertado(VK_LBUTTON);
-                        if (!soltou) { soltou = !esq; return; }
-                        if (Apertado(VK_ESCAPE) || Apertado(VK_RBUTTON)) { PararGota(); Aplicar("pos", atual); return; }
-                        if (!esq) return;
-                        byte[] pego = null;
-                        if (GetCursorPos(out PONTO pt))
-                        {
-                            IntPtr dc = GetDC(IntPtr.Zero);
-                            try
-                            {
-                                uint c = GetPixel(dc, pt.X, pt.Y);
-                                if (c != 0xFFFFFFFF) pego = new[] { (byte)(c & 0xFF), (byte)((c >> 8) & 0xFF), (byte)((c >> 16) & 0xFF) };
-                            }
-                            finally { ReleaseDC(IntPtr.Zero, dc); }
-                        }
-                        PararGota();
-                        if (pego != null) Definir(pego, "gota"); else Aplicar("pos", atual);
+                        var p = e.GetPosition(raiz);
+                        amostra.Background = Pincel(cor(p));
+                        Canvas.SetLeft(amostra, p.X + 14); Canvas.SetTop(amostra, p.Y + 14);
                     }
-                    catch { PararGota(); }
+                    catch { }
                 };
-                gota.Start();
+                raiz.MouseLeftButtonDown += (o, e) => { try { pego = cor(e.GetPosition(raiz)); } catch { } ov.Close(); };
+                raiz.MouseRightButtonDown += (o, e) => ov.Close();
+                ov.KeyDown += (o, e) => { if (e.Key == Key.Escape) ov.Close(); };
+                ov.Loaded += (o, e) => { try { ov.Activate(); ov.Focus(); } catch { } };
+                ov.ShowDialog();
+                if (pego != null) Definir(pego, "gota");
             }
-            catch { PararGota(); }
-        }
-
-        void PararGota()
-        {
-            try { gota?.Stop(); } catch { }
-            gota = null;
-            try { Mouse.OverrideCursor = null; } catch { }
+            catch (Exception e)
+            {
+                try { TaskDialog.Show("Conta-gotas", "Não foi possível pegar a cor da tela: " + e.Message); } catch { }
+            }
+            finally
+            {
+                if (hbmp != IntPtr.Zero) DeleteObject(hbmp);
+                foto?.Dispose();
+                try { Activate(); } catch { }
+            }
         }
 
         // ------------------------------------------------------------------ recentes (%APPDATA%\FJA)
