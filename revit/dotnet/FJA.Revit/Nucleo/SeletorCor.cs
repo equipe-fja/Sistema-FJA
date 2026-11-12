@@ -87,9 +87,10 @@ namespace FJA.Revit.Nucleo
 
             // matiz + conta-gotas
             var l1 = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
-            var btGota = new Button { Content = "⌖", Width = 30, Height = 26, Margin = new Thickness(8, 0, 0, 0), ToolTip = "Conta-gotas: clique em qualquer ponto da tela para pegar a cor (Esc cancela)", FontSize = 16, Padding = new Thickness(0) };
+            var btGota = new Button { Content = "⌖", Width = 30, Height = 26, Margin = new Thickness(8, 0, 0, 0), ToolTip = "Conta-gotas: depois de clicar aqui, clique em qualquer ponto da tela para pegar a cor (Esc ou botão direito cancela)", FontSize = 16, Padding = new Thickness(0) };
             DockPanel.SetDock(btGota, Dock.Right);
             btGota.Click += (o, a) => ContaGotas();
+            Closed += (o, a) => PararGota();
             l1.Children.Add(btGota);
             gHue = new Grid { Height = 14, Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center };
             var arco = new GradientStopCollection();
@@ -263,38 +264,66 @@ namespace FJA.Revit.Nucleo
         }
 
         // ------------------------------------------------------------------ conta-gotas
+        // Sem janela por cima e sem esconder o seletor (esconder e mostrar de novo uma janela modal derrubava o
+        // Revit): enquanto o conta-gotas está ligado, um temporizador olha o botão do mouse e o Esc; no clique,
+        // lê a cor do pixel sob o cursor direto da tela.
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern short GetAsyncKeyState(int vKey);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool GetCursorPos(out PONTO p);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr hWnd);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")] static extern uint GetPixel(IntPtr hdc, int x, int y);
+        struct PONTO { public int X, Y; }
+        const int VK_LBUTTON = 0x01, VK_RBUTTON = 0x02, VK_ESCAPE = 0x1B;
+
+        System.Windows.Threading.DispatcherTimer gota;
+
+        static bool Apertado(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
+
         void ContaGotas()
         {
-            var vl = SystemParameters.VirtualScreenLeft; var vt = SystemParameters.VirtualScreenTop;
-            var ov = new Window
+            try
             {
-                WindowStyle = WindowStyle.None, AllowsTransparency = true, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Topmost = true,
-                Background = new SolidColorBrush(WColor.FromArgb(1, 0, 0, 0)), Cursor = Cursors.Cross,
-                Left = vl, Top = vt, Width = SystemParameters.VirtualScreenWidth, Height = SystemParameters.VirtualScreenHeight,
-            };
-            byte[] pego = null;
-            ov.MouseLeftButtonDown += (o, e) =>
-            {
-                try
+                if (gota != null) { PararGota(); return; }
+                bool soltou = false;   // espera soltar o clique do próprio botão
+                tbContraste.Text = "Conta-gotas: clique em qualquer ponto da tela para pegar a cor (Esc ou botão direito cancela).";
+                bdContraste.Background = new SolidColorBrush(WColor.FromRgb(232, 239, 246));
+                bdContraste.Padding = new Thickness(8, 4, 8, 4);
+                Mouse.OverrideCursor = Cursors.Cross;
+                gota = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
+                gota.Tick += (o, e) =>
                 {
-                    var p = System.Windows.Forms.Cursor.Position;
-                    using (var bmp = new System.Drawing.Bitmap(1, 1))
+                    try
                     {
-                        using (var g = System.Drawing.Graphics.FromImage(bmp))
-                            g.CopyFromScreen(p.X, p.Y, 0, 0, new System.Drawing.Size(1, 1));
-                        var c = bmp.GetPixel(0, 0);
-                        pego = new[] { c.R, c.G, c.B };
+                        bool esq = Apertado(VK_LBUTTON);
+                        if (!soltou) { soltou = !esq; return; }
+                        if (Apertado(VK_ESCAPE) || Apertado(VK_RBUTTON)) { PararGota(); Aplicar("pos", atual); return; }
+                        if (!esq) return;
+                        byte[] pego = null;
+                        if (GetCursorPos(out PONTO pt))
+                        {
+                            IntPtr dc = GetDC(IntPtr.Zero);
+                            try
+                            {
+                                uint c = GetPixel(dc, pt.X, pt.Y);
+                                if (c != 0xFFFFFFFF) pego = new[] { (byte)(c & 0xFF), (byte)((c >> 8) & 0xFF), (byte)((c >> 16) & 0xFF) };
+                            }
+                            finally { ReleaseDC(IntPtr.Zero, dc); }
+                        }
+                        PararGota();
+                        if (pego != null) Definir(pego, "gota"); else Aplicar("pos", atual);
                     }
-                }
-                catch { }
-                ov.Close();
-            };
-            ov.MouseRightButtonDown += (o, e) => ov.Close();
-            ov.KeyDown += (o, e) => { if (e.Key == Key.Escape) ov.Close(); };
-            Hide();
-            try { ov.ShowDialog(); }
-            finally { Show(); Activate(); }
-            if (pego != null) Definir(pego, "gota");
+                    catch { PararGota(); }
+                };
+                gota.Start();
+            }
+            catch { PararGota(); }
+        }
+
+        void PararGota()
+        {
+            try { gota?.Stop(); } catch { }
+            gota = null;
+            try { Mouse.OverrideCursor = null; } catch { }
         }
 
         // ------------------------------------------------------------------ recentes (%APPDATA%\FJA)

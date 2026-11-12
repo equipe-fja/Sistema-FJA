@@ -768,7 +768,9 @@ namespace FJA.Revit.Legendas
             }
             if (corSistema?.Item1 != null) amostras.Add(new SeletorCor.Amostra(D.Codigo, "Cor de " + corSistema.Item2 + " (" + SeletorCor.Hex(corSistema.Item1) + ")", corSistema.Item1));
             if (corEscolhida != null) amostras.Add(new SeletorCor.Amostra("", "Última cor escolhida nesta legenda (" + SeletorCor.Hex(corEscolhida) + ")", corEscolhida));
-            var r = SeletorCor.Escolher(this, c, "Desta legenda", amostras);
+            byte[] r;
+            try { r = SeletorCor.Escolher(this, c, "Desta legenda", amostras); }
+            catch (Exception e) { TaskDialog.Show(Title, "O seletor de cor falhou: " + e.Message); return false; }
             if (r == null) return false;
             corEscolhida = r;
             if (aplicar)
