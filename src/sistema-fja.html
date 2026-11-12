@@ -2340,6 +2340,7 @@ function telaEq(h,v){
 }
 function eqCampoHTML([k,label,type,extra],v){
   const id='q_'+k, dis=S.ro||S.eqLock?'disabled':'', val=v??'';
+  if(type==='auto') return `<div class="fl">${esc(label)}<div class="st-auto">${val?`<span class="st-cm st-${TOM_PD[val]||'off'}">${esc(capCm(val))}</span>`:'<span class="muted">—</span>'}<span class="muted">definido pelas datas</span></div></div>`;
   if(type==='checkbox') return `<label class="fl chk" for="${id}"><input type="checkbox" id="${id}" data-q="${k}" ${val?'checked':''} ${dis}>${esc(label)}</label>`;
   if(type==='longtext') return `<label class="fl wide" for="${id}">${esc(label)}<textarea class="fld" id="${id}" data-q="${k}" rows="3" ${dis}>${esc(val)}</textarea></label>`;
   if(type==='select') return `<label class="fl" for="${id}">${esc(label)}<select class="fld" id="${id}" data-q="${k}" ${dis}><option value="">—</option>${(val&&!extra.includes(val)?[...extra,val]:extra).map(o=>`<option value="${o}" ${o===val?'selected':''}>${esc(k==='tipo'?o+' · '+TIPO_EQ[o]:o)}</option>`).join('')}</select></label>`;
@@ -2505,6 +2506,7 @@ function abrirCelPop(alvo){
 }
 async function salvarCelCm(eid,k,v){
   fecharCelPop(); const md=M(), e=md.mapa().get(eid); if(!e||S.ro) return;
+  if(md===MODS.pd&&k==='status'){toast('O status das pendências é definido pelas datas');return}
   const novo={...e,[k]:v}, DF=md.dataFim, SF=md.stFim;
   if(k===DF){if(v){if(md.antesFim.has(novo.status||'')) novo.status=SF} else if(e.status===SF) novo.status=md.stVolta}
   if(k==='status'&&v===SF&&!e[DF]) novo[DF]=new Date().toLocaleDateString('pt-BR');
@@ -2767,6 +2769,8 @@ const stAutoPd=e=>{
   if(semDataPd(e.previsao)||(!String(e.previsao||'').trim()&&e.status==='INFORMATIVO')) return 'INFORMATIVO';
   const p=dataNum(e.previsao); if(p&&p<hojeNum()) return 'PENDENTE';
   return 'EM ANDAMENTO'};
+setInterval(()=>{let mudou=false; for(const e of S.pends.values()){const a=e.status; regraPd(e); if(e.status!==a) mudou=true}
+  if(mudou&&S.carregado&&!S.dirty) render()},600000);
 const regraPd=e=>{if(semDataPd(e.previsao)) e.previsao=SEM_DATA; e.status=stAutoPd(e); if(e.status==='INFORMATIVO'&&!e.previsao) e.previsao=SEM_DATA; return e};
 const statusPd=e=>e.status?`<span class="st-cm st-${TOM_PD[e.status]||'off'}">${esc(capCm(e.status))}</span>`:'';
 const hojeNum=()=>{const d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()};
@@ -2793,7 +2797,7 @@ const DISC_BASE=['ARQ','COO','EST','FUN','GEO','INF','ELE','SPDA','LUM','HID','E
 const discsConhecidas=()=>[...new Set([...DISC_BASE,...[...S.coment.values()].map(c=>c.disciplina),...[...S.pends.values()].flatMap(discsPd)].filter(Boolean))].sort();
 const txtEventos=e=>evOrdem(evPd(e)).map(([x])=>(x.data?x.data+' — ':'')+x.texto).join('\n\n');
 const PDF_=[
-  ['Pendência',[['pendencia','Pendência','text','wide'],['descricao','Descrição','longtext'],['status','Status','select',STATUS_PD],['responsavel','Responsável (ação)','text']]],
+  ['Pendência',[['pendencia','Pendência','text','wide'],['descricao','Descrição','longtext'],['status','Status','auto',STATUS_PD],['responsavel','Responsável (ação)','text']]],
   ['Prazos',[['inclusao','Data de inclusão','date'],['previsao','Previsão de término','date'],['finalizacao','Data de finalização','date']]],
   ['Disciplinas envolvidas',[['disciplinas','Disciplinas','tags']]],
   ['Histórico',[['eventos','Eventos','eventos']]]
@@ -8969,7 +8973,7 @@ async function modoPublico(){
     if(S.carregado){if(S.dirty) renderTree(); else render()}
   },()=>{});
   pendColl().onSnapshot(snap=>{
-    const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.projeto) m.set(d.id,{...structuredClone(v),id:d.id})}
+    const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.projeto) m.set(d.id,regraPd({...structuredClone(v),id:d.id}))}
     S.pends=m;
     if(S.qdraft&&!S.dirty&&S.view.t==='peni'){const n=m.get(S.qdraft.id); if(n) S.qdraft=structuredClone(n)}
     if(S.carregado){if(S.dirty) renderTree(); else render()}
