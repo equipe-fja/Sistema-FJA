@@ -196,9 +196,10 @@ namespace FJA.Revit.Detalhes
 
             pn.Children.Add(Rotulo("Cores"));
             cbCores = new ComboBox();
-            cbCores.Items.Add("Como aparecem na vista");
+            cbCores.Items.Add("Como aparecem na vista (com sobreposições)");
+            cbCores.Items.Add("Estilos originais (sem sobreposições)");
             cbCores.Items.Add("Tudo preto (mantém espessuras)");
-            cbCores.SelectedIndex = o.Preto ? 1 : 0;
+            cbCores.SelectedIndex = o.Preto ? 2 : o.SemSobreposicao ? 1 : 0;
             cbCores.SelectionChanged += (s, a) => Atualizar();
             pn.Children.Add(cbCores);
 
@@ -268,7 +269,8 @@ namespace FJA.Revit.Detalhes
             o.Nome = txNome.Text ?? "";
             o.Origem = (OrigemFamilia)Math.Max(0, cbOrigem.SelectedIndex);
             if (o.Origem == OrigemFamilia.Escolhida && o.PontoEscolhido == null) o.Origem = OrigemFamilia.Centro;
-            o.Preto = cbCores.SelectedIndex == 1;
+            o.Preto = cbCores.SelectedIndex == 2;
+            o.SemSobreposicao = cbCores.SelectedIndex == 1;
             o.AjustePena = Math.Max(0, cbAjuste.SelectedIndex);
             o.Substituir = ckSubst.IsChecked == true;
             o.SalvarFora = ckFora.IsChecked == true;
@@ -318,7 +320,7 @@ namespace FJA.Revit.Detalhes
             pnAvisos.Children.Clear();
             var avisos = new List<string>(d.Avisos);
             if (o.Preto && d.Conta(TipoPeca.Componente) > 0) avisos.Add("Componentes aninhados mantêm as cores das próprias famílias.");
-            if (!o.Preto && d.Sobrepostos > 0)
+            if (!o.Preto && !o.SemSobreposicao && d.Sobrepostos > 0)
                 avisos.Add("Há cor, espessura ou padrão vindos de sobreposição ou filtro da vista: a família leva o que aparece, com estilos no formato \"PENA 2 VERDE 140-195-25 SOLID\".");
             if (avisos.Count > 0)
             {
@@ -357,16 +359,16 @@ namespace FJA.Revit.Detalhes
                     fig.Segments.Add(new PolyLineSegment(t.Skip(1).Select(P), true));
                     geo.Figures.Add(fig);
                 }
-                byte[] c = p.CorRegiao ?? new byte[] { 0, 0, 0 };
+                byte[] c = (o.SemSobreposicao ? p.CorOriginal : p.CorRegiao) ?? new byte[] { 0, 0, 0 };
                 var path = new WPath { Data = geo };
                 if (p.Mascara) { path.Fill = Brushes.White; path.Stroke = new SolidColorBrush(WColor.FromRgb(200, 200, 200)); path.StrokeDashArray = new DoubleCollection { 3, 3 }; path.StrokeThickness = 0.8; }
                 else path.Fill = Cor(c[0], c[1], c[2], (byte)(p.Solida ? 255 : 70));
                 tela.Children.Add(path);
             }
-            foreach (var p in d.Pecas.Where(x => x.Tipo == TipoPeca.Regiao && x.Estilo != null && !x.Estilo.Invisivel))
-                foreach (var t in p.Tracos) Linha(t.Concat(t.Take(1)).ToList(), p.Estilo, P, esc);
+            foreach (var p in d.Pecas.Where(x => x.Tipo == TipoPeca.Regiao && Est(x) != null && !Est(x).Invisivel))
+                foreach (var t in p.Tracos) Linha(t.Concat(t.Take(1)).ToList(), Est(p), P, esc);
             foreach (var p in d.Pecas.Where(x => x.Tipo == TipoPeca.Curva))
-                foreach (var t in p.Tracos) Linha(t, p.Estilo, P, esc);
+                foreach (var t in p.Tracos) Linha(t, Est(p), P, esc);
             foreach (var p in d.Pecas.Where(x => x.Tipo == TipoPeca.Componente))
                 foreach (var t in p.Tracos)
                 {
@@ -392,6 +394,8 @@ namespace FJA.Revit.Detalhes
             Canvas.SetLeft(circ, po.X - 4); Canvas.SetTop(circ, po.Y - 4);
             tela.Children.Add(circ);
         }
+
+        EstiloLinha Est(Peca p) => o.SemSobreposicao ? (p.EstiloOriginal ?? p.Estilo) : p.Estilo;
 
         void Linha(List<XYZ> t, EstiloLinha es, Func<XYZ, WPoint> P, double esc)
         {

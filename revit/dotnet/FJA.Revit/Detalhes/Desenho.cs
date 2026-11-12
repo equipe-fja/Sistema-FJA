@@ -29,12 +29,14 @@ namespace FJA.Revit.Detalhes
         public ElementId Origem;
         // curva
         public Curve Curva;
-        public EstiloLinha Estilo;
+        public EstiloLinha Estilo;          // como aparece na vista (com sobreposições)
+        public EstiloLinha EstiloOriginal;  // o estilo de linha, sem sobreposições
         // região
         public List<CurveLoop> Loops;
         public ElementId TipoRegiao;
         public byte[] CorRegiao;        // cor do padrão de frente (ou de fundo), já com a sobreposição da vista
         public bool CorSobreposta;      // a cor do preenchimento vem de sobreposição/filtro da vista
+        public byte[] CorOriginal;      // cor do tipo da região, sem sobreposições
         public bool Solida, Mascara;
         // texto / componente
         public XYZ Ponto;
@@ -276,6 +278,7 @@ namespace FJA.Revit.Detalhes
             }
             catch { es.Padrao = ElementId.InvalidElementId; }
             try { es.Invisivel = cat.BuiltInCategory == BuiltInCategory.OST_InvisibleLines; } catch { }
+            es.Chave = gsId + "|original";
             estilosBase[gsId] = es;
             return es;
         }
@@ -339,7 +342,7 @@ namespace FJA.Revit.Detalhes
             if (e is CurveElement ce)
             {
                 var c = Local(ce.GeometryCurve);
-                var p = new Peca { Tipo = TipoPeca.Curva, Origem = e.Id, Curva = c, Estilo = Estilo(ce.LineStyle?.Id, e) };
+                var p = new Peca { Tipo = TipoPeca.Curva, Origem = e.Id, Curva = c, Estilo = Estilo(ce.LineStyle?.Id, e), EstiloOriginal = EstiloBase(ce.LineStyle?.Id) };
                 p.Tracos.Add(Pontos(c));
                 Juntar(p);
             }
@@ -360,7 +363,7 @@ namespace FJA.Revit.Detalhes
                     p.Mascara = tipo.IsMasking;
                     bool frente = tipo.ForegroundPatternId != ElementId.InvalidElementId;
                     var cor = frente ? tipo.ForegroundPatternColor : tipo.BackgroundPatternColor;
-                    if (cor != null && cor.IsValid) p.CorRegiao = new[] { cor.Red, cor.Green, cor.Blue };
+                    if (cor != null && cor.IsValid) p.CorRegiao = p.CorOriginal = new[] { cor.Red, cor.Green, cor.Blue };
                     var fpId = frente ? tipo.ForegroundPatternId : tipo.BackgroundPatternId;
                     try { p.Solida = (Doc.GetElement(fpId) as FillPatternElement)?.GetFillPattern()?.IsSolidFill ?? false; } catch { }
                 }
@@ -376,6 +379,7 @@ namespace FJA.Revit.Detalhes
                     }
                 }
                 p.Estilo = EstiloDoContorno(fr);
+                if (p.Estilo != null) p.EstiloOriginal = EstiloBase(p.Estilo.Id);
                 Juntar(p);
             }
             else if (e is TextNote tn)

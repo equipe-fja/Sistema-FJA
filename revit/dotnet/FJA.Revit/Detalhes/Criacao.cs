@@ -20,6 +20,7 @@ namespace FJA.Revit.Detalhes
         public OrigemFamilia Origem = OrigemFamilia.Centro;
         public XYZ PontoEscolhido;          // coordenadas da vista
         public bool Preto;
+        public bool SemSobreposicao;        // usar os estilos originais, sem as sobreposições/filtros da vista
         public bool Substituir;
         public bool SalvarFora;
         public string Pasta = "";
@@ -36,6 +37,7 @@ namespace FJA.Revit.Detalhes
                 var d = Json.LerObjeto(File.ReadAllText(Arquivo));
                 if (d == null) return o;
                 o.Preto = d.TryGetValue("preto", out var a) && a is bool b1 && b1;
+                o.SemSobreposicao = d.TryGetValue("semSobreposicao", out var ss) && ss is bool b4 && b4;
                 o.Substituir = d.TryGetValue("substituir", out var b) && b is bool b2 && b2;
                 o.SalvarFora = d.TryGetValue("salvarFora", out var c) && c is bool b3 && b3;
                 o.Pasta = d.Txt("pasta") ?? "";
@@ -53,7 +55,7 @@ namespace FJA.Revit.Detalhes
                 Directory.CreateDirectory(Path.GetDirectoryName(Arquivo));
                 var d = new Dictionary<string, object>
                 {
-                    ["preto"] = Preto, ["substituir"] = Substituir, ["salvarFora"] = SalvarFora, ["pasta"] = Pasta ?? "",
+                    ["preto"] = Preto, ["semSobreposicao"] = SemSobreposicao, ["substituir"] = Substituir, ["salvarFora"] = SalvarFora, ["pasta"] = Pasta ?? "",
                     ["origem"] = Origem == OrigemFamilia.InferiorEsquerdo ? "inferior" : "centro",
                     ["ajustePena"] = AjustePena,
                 };
@@ -304,6 +306,8 @@ namespace FJA.Revit.Detalhes
             return "ROSA";
         }
 
+        static EstiloLinha EstiloDe(Contexto c, Peca p) => c.O.SemSobreposicao ? (p.EstiloOriginal ?? p.Estilo) : p.Estilo;
+
         static bool EhPreto(EstiloLinha es) => es.R == 0 && es.G == 0 && es.B == 0;
 
         /// <summary>Estilo preto do projeto com a mesma espessura e padrão (prefere "PENA n"); senão "PRETO PENA n".</summary>
@@ -353,30 +357,32 @@ namespace FJA.Revit.Detalhes
         static void Curva(Contexto c, Peca p)
         {
             GraphicsStyle gs = null;
-            try { gs = Estilo(c, p.Estilo); }
-            catch (Exception ex) { c.Avisos.Add("Estilo \"" + p.Estilo?.Nome + "\" não pôde ser criado (" + ex.Message + "); a linha ficou com o estilo padrão."); }
+            var est = EstiloDe(c, p);
+            try { gs = Estilo(c, est); }
+            catch (Exception ex) { c.Avisos.Add("Estilo \"" + est?.Nome + "\" não pôde ser criado (" + ex.Message + "); a linha ficou com o estilo padrão."); }
             var dc = c.F.FamilyCreate.NewDetailCurve(c.VF, p.Curva.CreateTransformed(c.T));
             if (gs != null)
             {
                 try { dc.LineStyle = gs; }
-                catch (Exception ex) { c.Avisos.Add("Estilo \"" + p.Estilo?.Nome + "\" não aceito numa linha (" + ex.Message + ")."); }
+                catch (Exception ex) { c.Avisos.Add("Estilo \"" + est?.Nome + "\" não aceito numa linha (" + ex.Message + ")."); }
             }
             c.Linhas++;
         }
 
         static void Regiao(Contexto c, Peca p)
         {
-            string chave = p.TipoRegiao + "|" + (p.CorSobreposta ? string.Join(",", p.CorRegiao) : "");
+            bool sobre = p.CorSobreposta && !c.O.SemSobreposicao;
+            string chave = p.TipoRegiao + "|" + (sobre ? string.Join(",", p.CorRegiao) : "");
             if (!c.TiposRegiao.TryGetValue(chave, out var tipo))
             {
-                tipo = TipoRegiao(c, c.Doc.GetElement(p.TipoRegiao) as FilledRegionType, p.CorSobreposta ? p.CorRegiao : null);
+                tipo = TipoRegiao(c, c.Doc.GetElement(p.TipoRegiao) as FilledRegionType, sobre ? p.CorRegiao : null);
                 c.TiposRegiao[chave] = tipo;
             }
             var loops = p.Loops.Select(l => CurveLoop.CreateViaTransform(l, c.T)).ToList();
             var fr = FilledRegion.Create(c.F, tipo, c.VF.Id, loops);
-            if (p.Estilo != null)
+            if (EstiloDe(c, p) != null)
             {
-                var gs = Estilo(c, p.Estilo);
+                var gs = Estilo(c, EstiloDe(c, p));
                 if (gs != null)
                 {
                     try

@@ -54,3 +54,8 @@ Segundo teste da FJA: símbolo da legenda SNZ (9 linhas `PENA 2 VERMELHA (HID.Q)
   - Quando o resultado difere do estilo original, a família usa um estilo da categoria Linhas com o nome **"PENA 2 VERDE 140-195-25 SOLID"** (pena, nome da cor pelo matiz, RGB, tipo de linha: SOLID ou o nome do padrão). Sem diferença, continua o estilo original (ligado ao do projeto pelo nome).
   - **Espessura na anotação**: campo na janela, +0 a +6 penas, só para anotação genérica; guardado por pessoa (`ajustePena`).
   - "Tudo preto": estilo preto do projeto com a pena final e o mesmo padrão; senão "PENA n PRETO 0-0-0 SOLID".
+
+## 2.15.3 (12/11/2026) — opção de desconsiderar as sobreposições
+- Pedido da FJA: considerar por padrão as sobreposições (by element, filtros, categoria), nomeando a pena pelo que é visível (já era assim na 2.15.2), e ter a opção de desconsiderá-las.
+- Campo "Cores": **Como aparecem na vista (com sobreposições)** (padrão) · **Estilos originais (sem sobreposições)** · **Tudo preto**. Guardado por pessoa (`semSobreposicao`). A prévia acompanha a escolha.
+- Cada peça guarda o estilo efetivo (`Estilo`) e o original (`EstiloOriginal`); regiões, a cor efetiva (`CorRegiao`) e a do tipo (`CorOriginal`).
