@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 12/11, ~17h10 — commit 7c4ba15
+- Extensão do Revit 2.16.1 (antes 2.15.3): Links › Copiar do link e Verificar alterações em C#; módulo **Encaminhamentos** (tubos, dutos, eletrocalhas, eletrodutos, flexíveis, conexões e acessórios — copia mesmo sem conexão) e botão **Reconectar** (como no link e pontas coincidentes). Mesmo registro FJA_CopiaLink: cópias antigas continuam reconhecidas. Painel Suíte sempre no fim da aba.
+- Importar da planilha (Relação de documentos) vira ação de manutenção com relatório de conciliação antes de gravar (nada é gravado sem o aceite).
+
 ## oficial Firebase — 12/11, ~16h30 — commit 7337872
 - Extensão do Revit 2.15.3 (antes 2.3.0 na oficial): ferramentas em C# — Pontos › Legendas e Codificação, Símbolos e Detalhes › Família do desenho, Suíte › Sobre. A página publica também a biblioteca C# (pasta bin/) no banco, em partes (revitPub/extensao-bin-<i>), e o instalador .zip passa a levá-la; o Suíte › Atualizar baixa a biblioteca quando ela muda. Painéis novos exigem fechar e abrir o Revit.
 - Publicação para o Revit (biblioteca.json): cores das disciplinas por projeto (coresProjetos), usadas pelas Legendas.
