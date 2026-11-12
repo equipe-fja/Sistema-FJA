@@ -625,6 +625,8 @@ tr.rd-sel>td:first-child{box-shadow:inset 3px 0 0 var(--accent,#8e1b1b)}
 .rd-pop textarea,.rd-pop input.fld,.rd-pop select{width:100%}
 .grp-cor{display:inline-block;width:4px;height:1.05em;border-radius:2px;vertical-align:-2px;margin-right:8px}
 .h1-pdf{width:28px;height:28px;display:inline-grid;place-items:center;border:1px solid transparent;border-radius:7px;background:none;color:var(--faint);cursor:pointer;transition:color .12s,border-color .12s,background .12s;margin-top:3px}
+.st-auto{display:flex;align-items:center;gap:8px;min-height:34px}.st-auto .muted{font-size:12px}
+.fl-sd{display:flex;flex-direction:column}.chk-sd{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);margin-top:4px;cursor:pointer}
 .h1-btns{display:inline-flex;align-items:center;gap:0}.h1-btns .h1-pdf{width:22px}.h1-btns .h1-pdf+.h1-pdf{margin-left:-2px}
 .h1-pdf:hover{color:var(--accent);border-color:var(--line-strong);background:var(--panel)}
 .pdfl-pop{position:fixed;z-index:120;background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:14px 16px;width:280px;display:flex;flex-direction:column;gap:10px;font-size:13px}
@@ -2494,7 +2496,7 @@ function abrirCelPop(alvo){
   const p=document.createElement('div'); p.id='celPop'; p.className='cel-pop'; p.dataset.eid=e.id; p.dataset.k=k; p.dataset.t=Date.now();
   if(k==='prioridade') p.innerHTML=PRIOR_CM.map(o=>`<button class="ml-b${o===e.prioridade?' sel':''}" data-act="cm-cel-set" data-v="${o}"><span class="st-cm st-${TOM_PR[o]||'off'}">${esc(capCm(o))}</span></button>`).join('')+`<button class="ml-b" data-act="cm-cel-set" data-v=""><span class="muted">Sem prioridade</span></button>`;
   else if(k==='status') p.innerHTML=SL.map(o=>`<button class="ml-b${o===e.status?' sel':''}" data-act="cm-cel-set" data-v="${o}"><span class="st-cm st-${TM[o]||'off'}">${esc(capCm(o))}</span></button>`).join('')+`<button class="ml-b" data-act="cm-cel-set" data-v=""><span class="muted">Sem status</span></button>`;
-  else p.innerHTML=`<input type="date" class="fld" id="celData" value="${dIso(e[k])}"><div class="cel-pop-b"><button class="btn sm" data-act="cm-cel-set" data-v="">Limpar</button><button class="btn sm" data-act="cm-cel-hoje">Hoje</button></div>`;
+  else p.innerHTML=`<input type="date" class="fld" id="celData" value="${dIso(e[k])}"><div class="cel-pop-b"><button class="btn sm" data-act="cm-cel-set" data-v="">Limpar</button><button class="btn sm" data-act="cm-cel-hoje">Hoje</button>${md===MODS.pd&&k==='previsao'?`<button class="btn sm${semDataPd(e.previsao)?' pri':''}" data-act="cm-cel-set" data-v="${SEM_DATA}" title="Sem previsão: a pendência fica como informativo">Sem data</button>`:''}</div>`;
   document.body.appendChild(p);
   const r=alvo.getBoundingClientRect(), w=p.offsetWidth, hgt=p.offsetHeight;
   p.style.left=Math.max(8,Math.min(r.left,innerWidth-w-8))+'px';
@@ -2506,7 +2508,8 @@ async function salvarCelCm(eid,k,v){
   const novo={...e,[k]:v}, DF=md.dataFim, SF=md.stFim;
   if(k===DF){if(v){if(md.antesFim.has(novo.status||'')) novo.status=SF} else if(e.status===SF) novo.status=md.stVolta}
   if(k==='status'&&v===SF&&!e[DF]) novo[DF]=new Date().toLocaleDateString('pt-BR');
-  const upd={[k]:v,status:novo.status||'',[DF]:novo[DF]||'',atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{}),...(e.origem?{editadoLocal:true}:{})};
+  if(md===MODS.pd){if(['inclusao','previsao','finalizacao'].includes(k)) novo.status=''; regraPd(novo)}
+  const upd={[k]:novo[k]??v,status:novo.status||'',[DF]:novo[DF]||'',atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{}),...(e.origem?{editadoLocal:true}:{})};
   const ant={...e}; Object.assign(e,upd); render();
   try{await md.coll().doc(eid).update(upd);toast(k==='prioridade'?'Prioridade: '+(capCm(v)||'sem prioridade'):k==='status'?'Status: '+(capCm(novo.status)||'sem status'):'Data salva'+(novo.status!==ant.status?' · status '+capCm(novo.status):''))}
   catch(err){Object.assign(e,ant);render();toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
@@ -2752,7 +2755,19 @@ const COR_PD={'PENDENTE':'#c0504a','EM ANDAMENTO':'#eda100','CONCLUÍDO':'#1baf7
 const normStPd=v=>{const u=semAc(String(v||'').trim()).toUpperCase().replace(/[()]/g,'');if(!u||u==='-')return '';
   if(/^P(ENDEN|$)/.test(u))return 'PENDENTE'; if(/^A(NDAM|$)|^EM ANDAM/.test(u))return 'EM ANDAMENTO'; if(/^C(ONCLU|$)/.test(u))return 'CONCLUÍDO'; if(/^I(NFORM|$)/.test(u))return 'INFORMATIVO'; return String(v).toUpperCase().trim()};
 const ANTES_PD=new Set(['','PENDENTE','EM ANDAMENTO','-']);
-const regraPd=e=>{if(e.finalizacao&&ANTES_PD.has(e.status||'')) e.status='CONCLUÍDO'; return e};
+/* status das pendências definido pelas datas (12/11/2026):
+   finalização preenchida = CONCLUÍDO · previsão "SEM DATA" = INFORMATIVO · previsão vencida = PENDENTE · senão EM ANDAMENTO.
+   Pendências anteriores à regra: CONCLUÍDO sem data de finalização e INFORMATIVO sem previsão continuam como estavam
+   (até alguém mexer nas datas). */
+const SEM_DATA='SEM DATA';
+const semDataPd=v=>/^\s*SEM\s+DATA\s*$/i.test(String(v||''));
+const stAutoPd=e=>{
+  if(String(e.finalizacao||'').trim()) return 'CONCLUÍDO';
+  if(e.status==='CONCLUÍDO') return 'CONCLUÍDO';
+  if(semDataPd(e.previsao)||(!String(e.previsao||'').trim()&&e.status==='INFORMATIVO')) return 'INFORMATIVO';
+  const p=dataNum(e.previsao); if(p&&p<hojeNum()) return 'PENDENTE';
+  return 'EM ANDAMENTO'};
+const regraPd=e=>{if(semDataPd(e.previsao)) e.previsao=SEM_DATA; e.status=stAutoPd(e); if(e.status==='INFORMATIVO'&&!e.previsao) e.previsao=SEM_DATA; return e};
 const statusPd=e=>e.status?`<span class="st-cm st-${TOM_PD[e.status]||'off'}">${esc(capCm(e.status))}</span>`:'';
 const hojeNum=()=>{const d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()};
 const atrasadaPd=e=>{const p=dataNum(e.previsao);return !!p&&!e.finalizacao&&(e.status==='PENDENTE'||e.status==='EM ANDAMENTO'||!e.status)&&p<hojeNum()};
@@ -2785,7 +2800,7 @@ const PDF_=[
 ];
 const PD_TCOLS=[
   ['num','Nº',2,e=>e.num!=null?`<span class="mono">${esc(e.num)}</span>`:'','num r'],
-  ['status','Status',1,e=>celEdCm(e,'status',statusPd(e)),''],
+  ['status','Status',1,e=>`<span title="Definido pelas datas: finalização = concluído; previsão sem data = informativo; previsão vencida = pendente; senão em andamento">${statusPd(e)}</span>`,''],
   ['pendencia','Pendência',2,e=>`<span class="cm-txt"><b>${esc(e.pendencia||'Sem título')}</b></span>`,'mid'],
   ['descricao','Descrição',1,e=>`<span class="cm-txt">${esc(e.descricao||'')}</span>`,'wide'],
   ['responsavel','Responsável',1,e=>esc(e.responsavel||''),''],
@@ -3370,7 +3385,7 @@ function telaPdItem(h,v){
   for(const [tit,fs] of PDF_){
     if(fs[0][2]==='tags'){h+=blocoDiscPd(e);continue}
     if(fs[0][2]==='eventos'){h+=blocoEvPd(e);continue}
-    h+=`<section class="sheet"><div class="sheet-h"><h2>${esc(tit)}</h2></div><div class="grid">${fs.map(f=>f[0]==='responsavel'?eqCampoHTML(f,e[f[0]]).replace('data-q="responsavel"','data-q="responsavel" list="dlEnv" autocomplete="off"')+`<datalist id="dlEnv">${envolvidos(e.projeto).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`:eqCampoHTML(f,e[f[0]])).join('')}</div></section>`;
+    h+=`<section class="sheet"><div class="sheet-h"><h2>${esc(tit)}</h2></div><div class="grid">${fs.map(f=>f[0]==='status'?campoStPd(e):f[0]==='previsao'?campoPrevPd(e,f):f[0]==='responsavel'?eqCampoHTML(f,e[f[0]]).replace('data-q="responsavel"','data-q="responsavel" list="dlEnv" autocomplete="off"')+`<datalist id="dlEnv">${envolvidos(e.projeto).map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`:eqCampoHTML(f,e[f[0]])).join('')}</div></section>`;
   }
   if(e.origem) h+=`<div class="banner pub eq-origem"><span class="sp">Importado da linha <b>${esc(e.origem.linha)}</b> da aba <b>${esc(e.origem.aba)}</b>.${e.editadoLocal?' Editado no sistema: uma nova importação não sobrescreve este item.':''}</span><a class="btn sm" href="https://docs.google.com/spreadsheets/d/${esc(e.origem.planilha)}/edit" target="_blank" rel="noopener">Abrir planilha</a></div>`;
   h+=`<div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
@@ -3403,10 +3418,19 @@ async function salvarPd(){
   try{await pendColl().doc(e.id).set(body);S.pends.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;S.qnovo=null;toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
 }
+const campoStPd=e=>`<div class="fl">Status<div class="st-auto" id="q_st_auto">${statusPd(e)||'<span class="muted">—</span>'}<span class="muted">definido pelas datas</span></div></div>`;
+function campoPrevPd(e,f){
+  const sd=semDataPd(e.previsao), dis=S.ro||S.eqLock;
+  return `<div class="fl-sd">${eqCampoHTML(f,sd?'':e.previsao).replace('data-dt="1"',`data-dt="1"${sd?' disabled':''}`)}<label class="chk-sd" for="q_semdata"><input type="checkbox" id="q_semdata" data-act-change="pd-semdata" ${sd?'checked':''} ${dis?'disabled':''}>Sem data (informativo)</label></div>`;
+}
+function pdRecalcStatus(limpar){
+  const d=S.qdraft; if(!d||S.view?.t!=='peni') return; if(limpar) d.status=''; regraPd(d);
+  const x=$('q_st_auto'); if(x) x.innerHTML=(statusPd(d)||'<span class="muted">—</span>')+'<span class="muted">definido pelas datas</span>';
+}
 async function novoPd(pid){
   if(S.dirty){toast('Salve ou descarte as alterações antes');return}
   const ref=pendColl().doc(), hoje=new Date().toLocaleDateString('pt-BR');
-  const body={projeto:pid,num:proxNumPd(pid),pendencia:'',status:'PENDENTE',inclusao:hoje,disciplinas:[],eventos:[],criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
+  const body={projeto:pid,num:proxNumPd(pid),pendencia:'',status:'EM ANDAMENTO',inclusao:hoje,disciplinas:[],eventos:[],criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
   rascunhoNovo({t:'peni',id:pid,eid:ref.id},body);
 }
 async function duplicarPd(eid){
@@ -7014,6 +7038,7 @@ document.addEventListener('input',ev=>{
     const mdF=M(); if(mdF.dataFim&&k===mdF.dataFim&&(S.view.t==='comi'||S.view.t==='peni'||S.view.t==='rfii'||S.view.t==='reli')){const st=$('q_status'), d=S.qdraft, SF=mdF.stFim;
       if(v&&mdF.antesFim.has(d.status||'')){d._stAntes=d.status||'';d.status=SF} else if(!v&&d.status===SF){d.status=d._stAntes??mdF.stVolta}
       if(st) st.value=d.status}
+    if(S.view.t==='peni'&&['inclusao','previsao','finalizacao'].includes(k)) pdRecalcStatus(true);
     marcaSujo();return}
   if(el.id==='espBusca'){S.espBusca=el.value;const t=$('espTabela');if(t){t.innerHTML=espTabelaHTML(S.view.id)}return}
   if(el.dataset.e && S.edraft){const k=el.dataset.e;S.edraft[k]=k==='familia'?(el.value||null):el.value;
@@ -7052,6 +7077,7 @@ document.addEventListener('change',ev=>{
   if(el.id==='fileArq'&&el.files?.length){enviarArquivos([...el.files],S.upCtx);el.value=''}
   if(el.id==='pdTagIn'&&el.value&&S.qdraft){pdGarantirArrays(); if(!S.qdraft.disciplinas.includes(el.value)) S.qdraft.disciplinas.push(el.value); marcaSujo(); renderMain(); return}
   if(el.dataset.actChange==='cdisc-add'&&el.value&&S.draft){const k=el.dataset.k,cur=S.draft.campos?.[k],n=Array.isArray(cur)?cur.slice():[]; if(!n.includes(el.value)) n.push(el.value); S.draft.campos={...(S.draft.campos||{}),[k]:n}; marcaSujo(); renderMain()}
+  if(el.dataset.actChange==='pd-semdata'&&S.qdraft){S.qdraft.previsao=el.checked?SEM_DATA:''; const dt=$('q_previsao'); if(dt){dt.disabled=el.checked; if(el.checked) dt.value=''} pdRecalcStatus(true); marcaSujo(); return}
   if(el.dataset.actChange==='imp-grupo'&&S.imp){const k=el.dataset.k, I=S.imp; for(const e of I.lista) if(e._imp===k&&e._g){if(el.checked) I.sel[e._g].add(e._i); else I.sel[e._g].delete(e._i)} impRender(); return}
   if(el.dataset.dccor!=null){const i=+el.dataset.dccor,v=el.value; gravarDiscProj(el.dataset.pid,arr=>{if(arr[i]) arr[i].cor=v}); return}
   if(el.dataset.dc!=null&&S.view.t==='disc'){const i=+el.dataset.dc,k=el.dataset.dk,v=el.value,hoje=new Date().toLocaleDateString('pt-BR');
@@ -8866,7 +8892,7 @@ async function modoPublico(){
     S.etsig=new Map(Object.entries(snap.etsig||{}).map(([id,v])=>[id,{...v,id}]));
     S.equip=new Map(Object.entries(snap.equip||{}).map(([id,v])=>[id,{...v,id}]));
     S.coment=new Map(Object.entries(snap.coment||{}).map(([id,v])=>[id,{...v,id}]));
-    S.pends=new Map(Object.entries(snap.pend||{}).map(([id,v])=>[id,{...v,id}]));
+    S.pends=new Map(Object.entries(snap.pend||{}).map(([id,v])=>[id,regraPd({...v,id})]));
     S.rdocs=new Map(Object.entries(snap.rdoc||{}).map(([id,v])=>[id,{...v,id}]));
     S.atas=new Map(Object.entries(snap.ata||{}).map(([id,v])=>[id,{...v,id}]));
     S.croqs=new Map(Object.entries(snap.croq||{}).map(([id,v])=>[id,{...v,id}]));
