@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 12/11, ~18h30 — commit 937e28e
+- Pendências: status definido pelas datas — finalização preenchida = concluído; previsão "sem data" = informativo; previsão vencida = pendente; senão em andamento (nova pendência começa em andamento, com início hoje). O status deixa de ser escolhido à mão; a previsão ganha a opção "Sem data". Recalculado ao carregar, ao editar datas e ao importar (o banco só muda quando a pendência é salva). Concluídas sem data de finalização e informativas sem previsão, de antes da regra, continuam como estavam.
+
 ## oficial Firebase — 12/11, ~18h10 — commit 1d9115a
 - Listas (Equipamentos, Comentários, Pendências/Histórico, Relação de documentos): ícone de exportar planilha (.xlsx) ao lado do de PDF, no mesmo estilo.
 - Extensão do Revit 2.17.1: janelas de Links com filtros que quebram linha (sem esticar), resumo e rodapé numa linha, coluna Nível mais larga; sistema das conexões pelos conectores.
