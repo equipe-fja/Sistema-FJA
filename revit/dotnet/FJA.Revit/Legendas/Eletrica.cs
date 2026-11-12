@@ -73,8 +73,33 @@ namespace FJA.Revit.Legendas
             catch { return null; }
         }
 
-        public static string TextoAltura(int mm) =>
-            "A " + (mm / 1000.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).Replace(".", ",") + "M DO PISO";
+        /// <summary>Altura de qualquer instância: "Elevação do ponto" ou a elevação em relação ao nível.</summary>
+        public static int? AlturaGeral(FamilyInstance i)
+        {
+            var h = Altura(i);
+            if (h != null) return h;
+            try
+            {
+                var p = i.get_Parameter(BuiltInParameter.INSTANCE_ELEVATION_PARAM);
+                if (p == null || p.StorageType != StorageType.Double) return null;
+                return (int)Math.Round(p.AsDouble() * 304.8 / 10.0) * 10;
+            }
+            catch { return null; }
+        }
+
+        public static string TextoAltura(int mm) => "A " + Metros(mm) + "M DO PISO";
+
+        public static string Metros(int mm) =>
+            (mm / 1000.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).Replace(".", ",");
+
+        /// <summary>"A 0,30M DO PISO", "A 0,90M E 1,10M DO PISO", "A 0,30M, 0,60M E 0,90M DO PISO", "DE 0,90M A 1,40M DO PISO".</summary>
+        public static string TextoAlturas(IEnumerable<int> mms)
+        {
+            var l = mms.Distinct().OrderBy(x => x).ToList();
+            if (l.Count == 1) return TextoAltura(l[0]);
+            if (l.Count <= 3) return "A " + string.Join(", ", l.Take(l.Count - 1).Select(x => Metros(x) + "M")) + " E " + Metros(l.Last()) + "M DO PISO";
+            return "DE " + Metros(l.First()) + "M A " + Metros(l.Last()) + "M DO PISO";
+        }
 
         static int Grupo(string n)
         {

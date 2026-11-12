@@ -118,6 +118,32 @@ namespace FJA.Revit.Legendas
 
         /// <summary>Lê as anotações aninhadas da família (sem alterar nada nela) e carrega no projeto as famílias
         /// de símbolo que faltam. Fora de transação.</summary>
+        /// <summary>Nomes dos parâmetros da família que controlam a visibilidade de algum elemento dela (anotações
+        /// aninhadas, linhas simbólicas, regiões…): são eles que mudam o símbolo na vista. null se não der para abrir.</summary>
+        public static HashSet<string> ParametrosDeVisibilidade(Document doc, Family family)
+        {
+            if (family == null || !family.IsEditable || AbertaNoEditor(doc, family.Name)) return null;
+            var r = new HashSet<string>(StringComparer.Ordinal);
+            Document fdoc = doc.EditFamily(family);
+            try
+            {
+                var fm = fdoc.FamilyManager;
+                foreach (Element e in new FilteredElementCollector(fdoc).WhereElementIsNotElementType())
+                {
+                    try
+                    {
+                        var pv = e.get_Parameter(BuiltInParameter.IS_VISIBLE_PARAM);
+                        if (pv == null) continue;
+                        var a = fm.GetAssociatedFamilyParameter(pv);
+                        if (a != null) r.Add(a.Definition.Name);
+                    }
+                    catch { }
+                }
+            }
+            finally { fdoc.Close(false); }
+            return r;
+        }
+
         public static List<Aninhada> LerAninhadas(Document doc, Family family, int bitDetalhe, HashSet<string> carregadas)
         {
             var specs = new List<Aninhada>();

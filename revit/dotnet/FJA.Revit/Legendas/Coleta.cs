@@ -103,13 +103,30 @@ namespace FJA.Revit.Legendas
             catch { return false; }
         }
 
-        /// <summary>Parâmetros Sim/Não de instância (da família, não do Revit) que mudam entre as instâncias do tipo
-        /// e são calculados por fórmula (só leitura) ou se chamam Baixa/Média/Alta. São eles que ligam e desligam
-        /// as versões do símbolo aninhado; cada combinação de valores vira uma variação do item.</summary>
-        static List<Definition> ParametrosDeVariacao(List<FamilyInstance> insts)
+        /// <summary>Parâmetros Sim/Não de instância que mudam entre as instâncias do tipo e que, na família, ligam ou
+        /// desligam a visibilidade de algo (anotação aninhada, linha simbólica…): cada combinação é um desenho diferente
+        /// na vista, e vira uma linha da legenda. 'vis' = ParametrosDeVisibilidade da família; null (família que não
+        /// abre) usa a regra antiga: só leitura (fórmula) ou nome Baixa/Média/Alta, com pelo menos duas opções.</summary>
+        static List<Definition> ParametrosDeVariacao(List<FamilyInstance> insts, HashSet<string> vis)
         {
             var r = new List<Definition>();
             if (insts.Count < 2) return r;
+            if (vis != null)
+            {
+                foreach (Parameter p in insts[0].Parameters)
+                {
+                    try
+                    {
+                        if (!SimNao(p) || !vis.Contains(p.Definition.Name)) continue;
+                        if (p.Definition is InternalDefinition idf && idf.BuiltInParameter != BuiltInParameter.INVALID) continue;
+                        var d = p.Definition;
+                        int vals = insts.Select(i => { try { var q = i.get_Parameter(d); return q != null ? q.AsInteger() : -1; } catch { return -1; } }).Distinct().Count();
+                        if (vals > 1) r.Add(d);
+                    }
+                    catch { }
+                }
+                return r.OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+            }
             var cand = new List<Parameter>();
             foreach (Parameter p in insts[0].Parameters)
             {
@@ -136,6 +153,24 @@ namespace FJA.Revit.Legendas
                 catch { }
             }
             return r.OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        /// <summary>Há algum parâmetro Sim/Não de instância (da família) com valores diferentes entre as instâncias?</summary>
+        static bool AlgumSimNaoMuda(List<FamilyInstance> insts)
+        {
+            if (insts.Count < 2) return false;
+            foreach (Parameter p in insts[0].Parameters)
+            {
+                try
+                {
+                    if (!SimNao(p)) continue;
+                    if (p.Definition is InternalDefinition idf && idf.BuiltInParameter != BuiltInParameter.INVALID) continue;
+                    var d = p.Definition;
+                    if (insts.Select(i => { try { var q = i.get_Parameter(d); return q != null ? q.AsInteger() : -1; } catch { return -1; } }).Distinct().Count() > 1) return true;
+                }
+                catch { }
+            }
+            return false;
         }
 
         static string Assinatura(FamilyInstance i, List<Definition> defs)
@@ -188,6 +223,7 @@ namespace FJA.Revit.Legendas
 
         sealed class Acum
         {
+            public string Sufixo;   // texto da variação (", A 0,30M DO PISO" ou " – MÉDIA")
             public string Var = "";
             public FamilySymbol Sym;
             public FamilyInstance Rep; public View RepVis;
@@ -234,9 +270,7 @@ namespace FJA.Revit.Legendas
                 }
                 insts = ok;
             }
-            else if (D.AlturaPontos)
-                foreach (var i in insts) alturas[i.Id.ToString()] = Eletrica.AlturaPonto(i);
-            bool porAltura = D.PorAltura || (D.AlturaPontos && alturas.Values.Any(x => x != null));
+            bool porAltura = D.PorAltura;
             Tempos.Marca($"  instâncias no modelo: {insts.Count}", t1);
             if (insts.Count == 0) return new List<Item>();
 
@@ -284,29 +318,39 @@ namespace FJA.Revit.Legendas
             double tv = Tempos.Agora;
             var assin = new Dictionary<string, string>();
             var defsTipo = new Dictionary<string, List<Definition>>();
+            var visFam = new Dictionary<string, HashSet<string>>();
             int comVariacao = 0;
             if (porAltura)
             {
-                // ELE (e pontos de parede de LOG/AUT/SON): o item é tipo + altura; a variação do desenho (Baixa/Média/Alta) acompanha a altura
+                // ELE: o item é tipo + altura; a variação do desenho (Baixa/Média/Alta) acompanha a altura
                 foreach (var i in insts)
                 {
                     var h = alturas[i.Id.ToString()];
                     if (h != null) assin[i.Id.ToString()] = "h" + h.Value;
                 }
                 foreach (var g in insts.GroupBy(x => x.GetTypeId().ToString()))
-                    defsTipo[g.Key] = ParametrosDeVariacao(g.ToList());
+                    defsTipo[g.Key] = ParametrosDeVariacao(g.ToList(), null);
             }
             else foreach (var g in insts.GroupBy(x => x.GetTypeId().ToString()))
             {
+                // o que muda o símbolo na vista: parâmetros que ligam a visibilidade de algo dentro da família
                 var lista = g.ToList();
-                var defs = ParametrosDeVariacao(lista);
+                if (!AlgumSimNaoMuda(lista)) continue;
+                var fam = lista[0].Symbol?.Family;
+                string fk = fam?.Id.ToString() ?? "";
+                if (!visFam.TryGetValue(fk, out var vis))
+                {
+                    try { vis = Simbolos.ParametrosDeVisibilidade(doc, fam); } catch { vis = null; }
+                    visFam[fk] = vis;
+                }
+                var defs = ParametrosDeVariacao(lista, vis);
                 if (defs.Count == 0) continue;
                 var sigs = lista.ToDictionary(x => x.Id.ToString(), x => Assinatura(x, defs));
                 if (sigs.Values.Distinct().Count() < 2) continue;
                 comVariacao++;
                 foreach (var kv in sigs) assin[kv.Key] = kv.Value;
             }
-            Tempos.Marca($"  variações (baixa/média/alta…): {comVariacao} tipo(s)", tv);
+            Tempos.Marca($"  variações do símbolo: {comVariacao} tipo(s), {visFam.Count} família(s) aberta(s)", tv);
 
             double t4 = Tempos.Agora;
             var tipos = new Dictionary<string, Acum>();
@@ -342,33 +386,27 @@ namespace FJA.Revit.Legendas
             }
             Tempos.Marca("  cores e representantes", t4);
 
-            // variação "tudo desligado": se o desenho for igual ao de outra variação do mesmo tipo, junta as duas;
-            // se sobrar uma variação só, o item fica sem sufixo
+            // texto de cada variação: as alturas, quando separam as variações do tipo; senão os parâmetros ligados
             if (comVariacao > 0)
             {
-                double tj = Tempos.Agora;
-                int juntados = 0;
-                foreach (var gr in tipos.Where(kv => kv.Value.Var != "").GroupBy(kv => kv.Value.Sym.Id.ToString()).ToList())
+                var porId = insts.ToDictionary(x => x.Id.ToString());
+                foreach (var gr in tipos.Values.Where(x => x.Var != "").GroupBy(x => x.Sym.Id.ToString()))
                 {
                     var grupos = gr.ToList();
-                    var nada = grupos.FirstOrDefault(kv => kv.Value.Var == "-");
-                    if (nada.Value == null) continue;
-                    string sn = AssinaturaDesenho(nada.Value);
-                    if (sn == null) continue;
-                    var igual = grupos.FirstOrDefault(kv => kv.Value.Var != "-" && AssinaturaDesenho(kv.Value) == sn);
-                    if (igual.Value == null) continue;
-                    Juntar(igual.Value, nada.Value);
-                    tipos.Remove(nada.Key);
-                    juntados++;
-                    if (grupos.Count == 2)
+                    var hs = grupos.Select(a => a.Inst.Select(id => porId.TryGetValue(id, out var fi) ? Eletrica.AlturaGeral(fi) : null).ToList()).ToList();
+                    bool porAlt = hs.All(l => l.All(x => x != null));
+                    if (porAlt)
                     {
-                        // só restou uma variação: vira o item normal do tipo
-                        tipos.Remove(igual.Key);
-                        igual.Value.Var = "";
-                        tipos[igual.Value.Sym.Id.ToString()] = igual.Value;
+                        var sets = hs.Select(l => new HashSet<int>(l.Select(x => x.Value))).ToList();
+                        for (int a1 = 0; a1 < sets.Count && porAlt; a1++)
+                            for (int b1 = a1 + 1; b1 < sets.Count && porAlt; b1++)
+                                if (sets[a1].Overlaps(sets[b1])) porAlt = false;
+                        if (porAlt)
+                            for (int k = 0; k < grupos.Count; k++) grupos[k].Sufixo = ", " + Eletrica.TextoAlturas(sets[k]);
                     }
+                    if (!porAlt)
+                        foreach (var a in grupos) a.Sufixo = " – " + (a.Var == "-" ? "PADRÃO" : a.Var);
                 }
-                Tempos.Marca($"  variações juntadas por desenho igual: {juntados}", tj);
             }
 
             var famTipos = new Dictionary<string, int>();
@@ -387,7 +425,7 @@ namespace FJA.Revit.Legendas
                 string desc = "";
                 try { desc = (a.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "").Trim(); } catch { }
                 string rot = desc != "" ? desc.ToUpperInvariant() : RotuloItem(a.Sym, famTipos[a.Sym.Family.Id.ToString()] > 1);
-                string varTxt = a.Var == "-" ? "SEM VARIAÇÃO" : a.Var;
+                string varTxt = a.Sufixo != null ? a.Sufixo.TrimStart(',', ' ', '–') : a.Var == "-" ? "PADRÃO" : a.Var;
                 string varLeg = null, ordem = null;
                 int? alt = null;
                 if (porAltura)
@@ -402,7 +440,11 @@ namespace FJA.Revit.Legendas
                     if (varLeg == "-") varLeg = "PADRÃO";
                     varTxt = "";
                 }
-                else if (a.Var != "") rot = rot + " – " + varTxt;
+                else if (a.Var != "")
+                {
+                    rot = rot + (a.Sufixo ?? " – " + varTxt);
+                    varLeg = a.Var == "-" ? "PADRÃO" : a.Var;   // o desenho (família (LEG)) segue a variação, não o texto
+                }
                 if (ordem != null) ordemEle[kv.Key] = ordem;
                 itens.Add(new Item
                 {
