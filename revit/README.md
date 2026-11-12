@@ -4,11 +4,12 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.14.0)
+## Conteúdo atual (extensão 2.15.0)
 - Painel **Pontos** (2.14.0; antes "Legendas"): ferramentas Legendas e Codificação.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
 - Pontos › **Legendas** (C#; ferramenta única desde 2.7.0, ELE e LUM desde 2.10.0) — legendas de LOG, AUT, SON, ELE e LUM numa janela com prévia: itens e textos, ordem arrastando, escala por símbolo (DWG), símbolos acrescentados, linhas, margens, largura, Type Mark e cor (do modelo, do Sistema FJA, escolhida no seletor FJA ou preto). Os ajustes ficam gravados em cada vista. Os botões antigos em Python (Legenda LOG/AUT/SON/ELE/LUM) foram retirados em 2.13.0.
+- Símbolos e Detalhes › **Família do desenho** (C#, desde 2.15.0) — cria uma família de item de detalhe ou de anotação genérica com o desenho 2D selecionado (linhas, regiões, textos, componentes), com prévia, estilos e cores mantidos ou tudo preto, e substitui os originais ou posiciona (ver `docs/familia-do-desenho.md`). Painel novo: exige fechar e abrir o Revit.
 - Pontos › **Codificação** (C#, desde 2.8.0) — códigos SIGLA.NN no Type Mark, nomes de família e tipo (ver `docs/codificacao-pontos.md`).
 - Ícones do painel Legendas em preto (2.5.4), como os demais, com versão para tema escuro.
 - Suíte › **Sobre** (desde 2.5.0) — versão da extensão e da biblioteca C# (`FJA.Revit.dll`); primeiro botão em C#.

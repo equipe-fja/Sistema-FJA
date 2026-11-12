@@ -1,0 +1,6 @@
+title:
+  pt_br: "Família do desenho"
+  en_us: "Família do desenho"
+tooltip:
+  pt_br: "Cria uma família de item de detalhe ou de anotação genérica com o desenho 2D selecionado na vista (linhas de detalhe, regiões, textos, componentes de detalhe e anotações), sem abrir o editor de famílias. Mostra a prévia, mantém estilos, padrões e cores (ou passa tudo para preto), e substitui os originais pela família ou deixa posicionar em seguida."
+  en_us: "Cria uma família de item de detalhe ou de anotação genérica com o desenho 2D selecionado na vista (linhas de detalhe, regiões, textos, componentes de detalhe e anotações), sem abrir o editor de famílias. Mostra a prévia, mantém estilos, padrões e cores (ou passa tudo para preto), e substitui os originais pela família ou deixa posicionar em seguida."
