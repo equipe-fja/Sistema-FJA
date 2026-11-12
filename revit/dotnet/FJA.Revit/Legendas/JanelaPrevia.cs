@@ -1093,6 +1093,8 @@ namespace FJA.Revit.Legendas
             try
             {
                 ApagarCaixas();
+                // a cor trocada depois da prévia só repinta os símbolos: grava os ajustes atuais (cor incluída)
+                try { montagem.GravarAjustes(salva, ConfigJson()); } catch { }
                 tg.Assimilate();
                 tg.Dispose();
                 tg = null;

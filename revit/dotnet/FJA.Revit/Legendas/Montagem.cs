@@ -111,6 +111,17 @@ namespace FJA.Revit.Legendas
             catch { return new Dictionary<string, object>(); }
         }
 
+        /// <summary>Grava os ajustes (JSON) na vista, numa transação própria.</summary>
+        public void GravarAjustes(View v, string json)
+        {
+            using (var t = new Transaction(doc, "Legenda: ajustes"))
+            {
+                t.Start();
+                GravarConfig(v, json);
+                t.Commit();
+            }
+        }
+
         void GravarConfig(View v, string json)
         {
             var g = GuidCfg();
