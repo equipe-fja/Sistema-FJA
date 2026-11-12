@@ -234,6 +234,9 @@ namespace FJA.Revit.Legendas
                 }
                 insts = ok;
             }
+            else if (D.AlturaPontos)
+                foreach (var i in insts) alturas[i.Id.ToString()] = Eletrica.AlturaPonto(i);
+            bool porAltura = D.PorAltura || (D.AlturaPontos && alturas.Values.Any(x => x != null));
             Tempos.Marca($"  instâncias no modelo: {insts.Count}", t1);
             if (insts.Count == 0) return new List<Item>();
 
@@ -282,9 +285,9 @@ namespace FJA.Revit.Legendas
             var assin = new Dictionary<string, string>();
             var defsTipo = new Dictionary<string, List<Definition>>();
             int comVariacao = 0;
-            if (D.PorAltura)
+            if (porAltura)
             {
-                // ELE: o item é tipo + altura; a variação do desenho (Baixa/Média/Alta) acompanha a altura
+                // ELE (e pontos de parede de LOG/AUT/SON): o item é tipo + altura; a variação do desenho (Baixa/Média/Alta) acompanha a altura
                 foreach (var i in insts)
                 {
                     var h = alturas[i.Id.ToString()];
@@ -387,13 +390,13 @@ namespace FJA.Revit.Legendas
                 string varTxt = a.Var == "-" ? "SEM VARIAÇÃO" : a.Var;
                 string varLeg = null, ordem = null;
                 int? alt = null;
-                if (D.PorAltura)
+                if (porAltura)
                 {
                     string rk = a.Rep.Id.ToString();
                     int bl = bloco.TryGetValue(rk, out int b0) ? b0 : 0;
                     alt = alturas.TryGetValue(rk, out var h0) ? h0 : null;
-                    rot = Eletrica.Rotulo(a.Sym, bl, alt);
-                    ordem = Eletrica.Ordem(a.Sym, bl, alt);
+                    if (D.PorAltura) { rot = Eletrica.Rotulo(a.Sym, bl, alt); ordem = Eletrica.Ordem(a.Sym, bl, alt); }
+                    else if (alt != null) rot = rot + ", " + Eletrica.TextoAltura(alt.Value);
                     var defs = defsTipo.TryGetValue(a.Sym.Id.ToString(), out var dl) ? dl : new List<Definition>();
                     varLeg = defs.Count > 0 ? Assinatura(a.Rep, defs) : "";
                     if (varLeg == "-") varLeg = "PADRÃO";

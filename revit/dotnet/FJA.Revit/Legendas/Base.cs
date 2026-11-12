@@ -24,6 +24,7 @@ namespace FJA.Revit.Legendas
         public string Codigo;         // disciplina no Sistema FJA (cor do projeto)
         public string PrefixoLeg;     // "(LOG)" em "(LOG) (LEG) NOME"
         public BuiltInCategory[] Categorias; // tipos destas categorias entram mesmo sem a sigla (se não tiverem a de outra disciplina)
+        public bool AlturaPontos = true; // LOG/AUT/SON: tomadas e pontos de parede viram um item por altura
         public bool PorAltura;        // ELE: um item por tipo + altura do ponto ("Elevação do ponto"), quadros e pontos de piso
         public Fixo[] Fixos;          // símbolos fixos que já vêm em toda legenda nova (como os acrescentados à mão)
         public bool NaCodificacao = true; // aparece na ferramenta Codificação
@@ -104,6 +105,7 @@ namespace FJA.Revit.Legendas
             Cor = new byte[] { 65, 100, 215 },
             Codigo = "ELE",
             PorAltura = true,
+            AlturaPontos = false,
             NaCodificacao = false,
             Fixos = new[]
             {
@@ -130,6 +132,7 @@ namespace FJA.Revit.Legendas
             Cor = new byte[] { 255, 0, 128 },
             Codigo = "LUM",
             LegadoLum = true,
+            AlturaPontos = false,
         };
 
         /// <summary>Disciplinas da ferramenta Legendas.</summary>

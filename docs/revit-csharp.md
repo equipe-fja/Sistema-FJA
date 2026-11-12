@@ -92,3 +92,6 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 - `Nucleo/SeletorCor.cs`: o mesmo seletor do Sistema FJA, para qualquer ferramenta (`SeletorCor.Escolher(dono, corInicial, títuloDoGrupo, amostras)`). Área de cor e matiz, HEX/RGB, conta-gotas (pega a cor de qualquer ponto da tela; Esc ou botão direito cancela), amostras do chamador, padrão FJA, neutras, recentes (`%APPDATA%\FJA\cores-recentes.txt`) e aviso de contraste com fundo branco.
 - Legendas: substitui a caixa de cores do Windows; o grupo "Desta legenda" traz a cor do modelo, a da disciplina no Sistema FJA e a última escolhida.
 
+## Altura dos pontos em LOG, AUT e SON (2.11.1)
+- `Disciplina.AlturaPontos`: tomadas e pontos de parede viram um item por tipo + altura ("…, A 0,30M DO PISO"), como em ELE. A altura é o "Elevação do ponto" ou, nas famílias com TOMADA/PONTO no nome (fora as de piso), a elevação da instância em relação ao nível, até 2,20 m (acima disso, como câmeras e access points no teto, fica sem altura). A variação Baixa/Média/Alta passa a decidir só o desenho (`VarLeg`).
+

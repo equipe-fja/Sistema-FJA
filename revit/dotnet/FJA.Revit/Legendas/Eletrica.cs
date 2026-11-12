@@ -55,6 +55,27 @@ namespace FJA.Revit.Legendas
             return null;
         }
 
+        /// <summary>Altura de um ponto de parede de LOG/AUT/SON: "Elevação do ponto" ou, nas famílias de tomada ou
+        /// ponto (não de piso), a elevação da instância em relação ao nível (até 2,20 m). null se não for ponto de parede.</summary>
+        public static int? AlturaPonto(FamilyInstance i)
+        {
+            var h = Altura(i);
+            if (h != null) return h;
+            string fam = Texto.Norm(i.Symbol?.FamilyName ?? "");
+            if (fam.Contains(PalavraPiso) || !(fam.Contains("TOMADA") || fam.Contains("PONTO"))) return null;
+            try
+            {
+                var p = i.get_Parameter(BuiltInParameter.INSTANCE_ELEVATION_PARAM);
+                if (p == null || p.StorageType != StorageType.Double) return null;
+                int mm = (int)Math.Round(p.AsDouble() * 304.8 / 10.0) * 10;
+                return mm > 0 && mm <= 2200 ? mm : (int?)null;
+            }
+            catch { return null; }
+        }
+
+        public static string TextoAltura(int mm) =>
+            "A " + (mm / 1000.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).Replace(".", ",") + "M DO PISO";
+
         static int Grupo(string n)
         {
             bool t = n.Contains("TOMADA"), it = n.Contains("INTERRUPTOR");
@@ -114,7 +135,7 @@ namespace FJA.Revit.Legendas
                 b = b.Substring(0, m.Index).Trim();
             }
             var partes = new List<string> { b };
-            if (altura != null) partes.Add("A " + (altura.Value / 1000.0).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).Replace(".", ",") + "M DO PISO");
+            if (altura != null) partes.Add(TextoAltura(altura.Value));
             if (caixa != null) partes.Add("EM CAIXA " + caixa + "\"");
             return string.Join(", ", partes);
         }
