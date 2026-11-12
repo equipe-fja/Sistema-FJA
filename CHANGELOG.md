@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 12/11, ~17h30 — commit 9b13a4d
+- Importar da planilha (Relação de documentos e demais listas): a revisão passa a ser feita na própria tabela, no lugar da janela de relatório — moldura vermelha temporária, faixa acima do cabeçalho com as situações (contagem, marcar todos, ver só uma situação) e botões Cancelar e Aceitar; linhas coloridas pela situação (correção, apagar, possível duplicata, novo, a atualizar com as células alteradas em destaque, só mudou de linha, editado no sistema, sem mudança, só no sistema); clicar numa linha inclui ou exclui. Nada é gravado antes de Aceitar.
+- Manutenção feita no banco: removidas as 206 cópias com apóstrofo ('005) da Relação de documentos do SESC Hotel Angra, todas com o documento equivalente sem apóstrofo (registro em logs/manutencao.txt, branch firebase-log).
+
 ## oficial Firebase — 12/11, ~17h10 — commit 7c4ba15
 - Extensão do Revit 2.16.1 (antes 2.15.3): Links › Copiar do link e Verificar alterações em C#; módulo **Encaminhamentos** (tubos, dutos, eletrocalhas, eletrodutos, flexíveis, conexões e acessórios — copia mesmo sem conexão) e botão **Reconectar** (como no link e pontas coincidentes). Mesmo registro FJA_CopiaLink: cópias antigas continuam reconhecidas. Painel Suíte sempre no fim da aba.
 - Importar da planilha (Relação de documentos) vira ação de manutenção com relatório de conciliação antes de gravar (nada é gravado sem o aceite).
