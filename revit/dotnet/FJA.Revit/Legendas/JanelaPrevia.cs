@@ -757,13 +757,20 @@ namespace FJA.Revit.Legendas
 
         bool EscolherCor(bool aplicar)
         {
-            using (var dlg = new System.Windows.Forms.ColorDialog { FullOpen = true })
+            var c = CorAtual() ?? corEscolhida ?? CorModelo();
+            // amostras desta legenda: a cor dos símbolos no modelo e a da disciplina no Sistema FJA
+            var amostras = new List<SeletorCor.Amostra>();
+            try { var cm = CorModelo(); if (cm != null) amostras.Add(new SeletorCor.Amostra("MOD", "Cor dos símbolos no modelo (" + SeletorCor.Hex(cm) + ")", cm)); } catch { }
+            if (corSistema == null)
             {
-                var c = CorAtual() ?? corEscolhida ?? CorModelo();
-                if (c != null) dlg.Color = System.Drawing.Color.FromArgb(c[0], c[1], c[2]);
-                if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK) return false;
-                corEscolhida = new[] { dlg.Color.R, dlg.Color.G, dlg.Color.B };
+                try { corSistema = CorSistema.Ler(doc, D.Codigo); }
+                catch (Exception e) { corSistema = Tuple.Create<byte[], string>(null, "não foi possível ler o sistema: " + e.Message); }
             }
+            if (corSistema?.Item1 != null) amostras.Add(new SeletorCor.Amostra(D.Codigo, "Cor de " + corSistema.Item2 + " (" + SeletorCor.Hex(corSistema.Item1) + ")", corSistema.Item1));
+            if (corEscolhida != null) amostras.Add(new SeletorCor.Amostra("", "Última cor escolhida nesta legenda (" + SeletorCor.Hex(corEscolhida) + ")", corEscolhida));
+            var r = SeletorCor.Escolher(this, c, "Desta legenda", amostras);
+            if (r == null) return false;
+            corEscolhida = r;
             if (aplicar)
             {
                 VoltarModo(ModoCor.Escolhida);

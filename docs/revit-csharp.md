@@ -87,3 +87,8 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 - **Símbolos fixos ELE** (`Disciplina.Fixos`): eletroduto que sobe e que desce (família "Eletroduto que sobe, desce ou passa" do projeto, se houver), pelo teto, pelo piso e eletrocalha. O que não existe vira a anotação `(ELE) (FIX) RÓTULO`, criada ao abrir a disciplina. Entram em toda legenda que ainda não gravou a lista de acrescentados e, daí em diante, funcionam como os acrescentados à mão (tirar, reordenar, escala, texto). Nas `(FIX)` a pintura muda só as linhas (o preenchimento da eletrocalha fica azul-claro).
 - **Marca ELE** = a do botão em Python (`FJA_LegendaELE`): a ferramenta substitui a legenda feita por ele. **LUM**: na primeira gravação numa vista feita pelo botão antigo (sem ajustes gravados), apaga os textos "SIGLA.NN - …", as linhas magenta e o título antigo com o sublinhado.
 - **Codificação**: LUM entra (LUM.01…; códigos antigos como ARA.01 aparecem como "fora do padrão" até renumerar). ELE fica fora até a FJA decidir os códigos.
+
+## Seletor de cor (2.11.0, 12/11/2026)
+- `Nucleo/SeletorCor.cs`: o mesmo seletor do Sistema FJA, para qualquer ferramenta (`SeletorCor.Escolher(dono, corInicial, títuloDoGrupo, amostras)`). Área de cor e matiz, HEX/RGB, conta-gotas (pega a cor de qualquer ponto da tela; Esc ou botão direito cancela), amostras do chamador, padrão FJA, neutras, recentes (`%APPDATA%\FJA\cores-recentes.txt`) e aviso de contraste com fundo branco.
+- Legendas: substitui a caixa de cores do Windows; o grupo "Desta legenda" traz a cor do modelo, a da disciplina no Sistema FJA e a última escolhida.
+
