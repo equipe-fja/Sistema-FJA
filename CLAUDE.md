@@ -5,6 +5,7 @@ Responder ao usuário em português. O usuário é a equipe da FJA (a FJA decide
 ## Regras de ouro
 - A fonte é `src/sistema-fja.html`, sempre com `const AMB='oficial'` e `<title>Sistema FJA</title>`. Nunca editar `dist/`.
 - Toda mudança vai primeiro para a **dev**. A **oficial** só é publicada quando a FJA pede ("pode atualizar a oficial", ou a sigla "PAO").
+- **Exceção (pedido da FJA em 12/11/2026): atualizações da suíte do Revit (`revit/`, extensão Ferramentas FJA) vão sempre para a oficial**, sem pedir autorização: depois de testadas e na `main`, promover (`git push origin main:oficial` + CHANGELOG), para chegarem à equipe pelo Suíte › Atualizar. Se a `main` tiver mudanças de outras áreas ainda não publicadas (sistema web, Firebase), listar e pedir autorização antes, como de costume.
 - Nas respostas, não repetir nem brincar com a sigla: escrever, em tom sóbrio, "quando quiser levar à oficial, é só autorizar" (a conta é usada por outras pessoas).
 - Antes de promover: listar o que entra (`git log origin/oficial..main`) e avisar antes de qualquer migração que altere dados existentes.
 - Depois de publicar na oficial: entrada no `CHANGELOG.md` (versão vNN + commit), commit, e `git push origin main:oficial` (a branch `oficial` sempre aponta para o que está publicado). Tags não passam pelo proxy (push de tag é recusado).

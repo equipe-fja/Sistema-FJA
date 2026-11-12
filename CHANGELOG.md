@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 12/11, ~17h55 — commit eec4121
+- Extensão do Revit 2.17.0 (antes 2.16.1): Verificar alterações colore temporariamente as cópias na vista ativa (cor por situação; Limpar cores devolve a aparência anterior). 2.16.2: painel Suíte sempre no fim da aba, também depois de Reload (startup.py).
+
 ## oficial Firebase — 12/11, ~17h30 — commit 9b13a4d
 - Importar da planilha (Relação de documentos e demais listas): a revisão passa a ser feita na própria tabela, no lugar da janela de relatório — moldura vermelha temporária, faixa acima do cabeçalho com as situações (contagem, marcar todos, ver só uma situação) e botões Cancelar e Aceitar; linhas coloridas pela situação (correção, apagar, possível duplicata, novo, a atualizar com as células alteradas em destaque, só mudou de linha, editado no sistema, sem mudança, só no sistema); clicar numa linha inclui ou exclui. Nada é gravado antes de Aceitar.
 - Manutenção feita no banco: removidas as 206 cópias com apóstrofo ('005) da Relação de documentos do SESC Hotel Angra, todas com o documento equivalente sem apóstrofo (registro em logs/manutencao.txt, branch firebase-log).
