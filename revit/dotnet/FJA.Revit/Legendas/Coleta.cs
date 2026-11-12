@@ -423,7 +423,14 @@ namespace FJA.Revit.Legendas
                 var melhor = a.Cores.OrderByDescending(x => x.Value[0]).ThenByDescending(x => x.Value[1]).First().Key;
                 // texto = Description (que a Codificação mantém igual ao nome do tipo); sem ela, o nome da família
                 string desc = "";
-                try { desc = (a.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "").Trim(); } catch { }
+                try
+                {
+                    // Description calculada por fórmula na família ("-", "4x2"…) não é texto de legenda
+                    var pd = a.Sym.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION);
+                    if (pd != null && !pd.IsReadOnly) desc = (pd.AsString() ?? "").Trim();
+                    if (!Regex.IsMatch(desc, "[A-Za-zÀ-ÿ]{3}")) desc = "";
+                }
+                catch { }
                 string rot = desc != "" ? desc.ToUpperInvariant() : RotuloItem(a.Sym, famTipos[a.Sym.Family.Id.ToString()] > 1);
                 string varTxt = a.Sufixo != null ? a.Sufixo.TrimStart(',', ' ', '–') : a.Var == "-" ? "PADRÃO" : a.Var;
                 string varLeg = null, ordem = null;
