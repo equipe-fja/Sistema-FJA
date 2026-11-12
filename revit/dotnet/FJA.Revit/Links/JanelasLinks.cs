@@ -227,20 +227,22 @@ namespace FJA.Revit.Links
             cbMod.SelectionChanged += (s, a) => { if (pronto) Carregar(); };
 
             // filtros
-            var fil = new DockPanel { Margin = new Thickness(18, 12, 18, 0), LastChildFill = true };
-            tbBusca = new TextBox { Width = 240, MinHeight = 26, VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Sistema, categoria, família, tipo ou nível" };
-            cbCat = Combo(190); cbNivel = Combo(160); cbSis = Combo(220); cbEstado = Combo(210);
+            // filtros: os controles quebram linha quando a janela estreita; o resumo fica numa linha só, embaixo
+            var fil = new StackPanel { Margin = new Thickness(18, 12, 18, 0) };
+            var ctr = new WrapPanel { Orientation = Orientation.Horizontal };
+            tbBusca = new TextBox { Width = 240, Height = 28, VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Sistema, categoria, família, tipo ou nível" };
+            cbCat = Combo(190); cbNivel = Combo(190); cbSis = Combo(220); cbEstado = Combo(210);
             spSis = new StackPanel { Orientation = Orientation.Horizontal };
             spSis.Children.Add(cbSis);
-            foreach (var c in new FrameworkElement[] { tbBusca, spSis, cbCat, cbNivel, cbEstado })
-            {
-                c.Margin = new Thickness(0, 0, 8, 0);
-                DockPanel.SetDock(c, Dock.Left); fil.Children.Add(c);
-            }
             btLimpar = Botao("Limpar escolha no modelo", "Discreto");
             btLimpar.Click += (s, a) => { Estado.Escolhidos = null; Carregar(); };
-            DockPanel.SetDock(btLimpar, Dock.Right); fil.Children.Add(btLimpar);
-            txtResumo = new TextBlock { Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 0, 8, 0) };
+            foreach (var c in new FrameworkElement[] { tbBusca, spSis, cbCat, cbNivel, cbEstado, btLimpar })
+            {
+                c.Margin = new Thickness(0, 0, 8, 6); c.VerticalAlignment = VerticalAlignment.Top;
+                ctr.Children.Add(c);
+            }
+            fil.Children.Add(ctr);
+            txtResumo = new TextBlock { Foreground = Cinza, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2, 0, 0, 0) };
             fil.Children.Add(txtResumo);
             DockPanel.SetDock(fil, Dock.Top); raiz.Children.Add(fil);
             tbBusca.TextChanged += (s, a) => Filtrar();
@@ -268,7 +270,7 @@ namespace FJA.Revit.Links
             var btEsc = Botao("Escolher no modelo…"); btEsc.ToolTip = "Selecionar elementos do link na vista (a janela fecha e volta)";
             btEsc.Click += (s, a) => { GuardarEstado(); Acao = "escolher"; Close(); };
             foreach (var b in new[] { btFechar, btCopiar, btEsc }) { DockPanel.SetDock(b, Dock.Right); rod.Children.Add(b); }
-            txtRodape = new TextBlock { Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(14, 0, 8, 0) };
+            txtRodape = new TextBlock { Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(14, 0, 8, 0) };
             rod.Children.Add(txtRodape);
             var bRod = new Border { Background = Brushes.White, BorderBrush = new SolidColorBrush(WColor.FromRgb(226, 226, 223)), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(18, 10, 18, 10), Child = rod };
             DockPanel.SetDock(bRod, Dock.Bottom); raiz.Children.Add(bRod);
@@ -314,7 +316,7 @@ namespace FJA.Revit.Links
             Coluna(dg, "Categoria", "Categoria", 170);
             Coluna(dg, "Família : tipo", "Tipo", 3, true);
             if (redes) Coluna(dg, "Dimensão", "Dim", 110);
-            Coluna(dg, "Nível", "Nivel", 120);
+            Coluna(dg, "Nível", "Nivel", 1.3, true);
             Coluna(dg, "Qtde", "Qtde", 56);
             ColunaSituacao(dg, "Situação", 250);
             // linhas
@@ -504,10 +506,10 @@ namespace FJA.Revit.Links
             txtInfo.Text = "Modelo: " + doc.Title + " · compara as cópias do Copiar do link com a versão do link carregada agora (recarregue o link antes de verificar)";
             DockPanel.SetDock(cab, Dock.Top); raiz.Children.Add(cab);
 
-            var fil = new DockPanel { Margin = new Thickness(18, 12, 18, 0) };
-            tbBusca = new TextBox { Width = 280, MinHeight = 26, VerticalContentAlignment = VerticalAlignment.Center };
+            var fil = new StackPanel { Margin = new Thickness(18, 12, 18, 0) };
+            var ctr = new WrapPanel { Orientation = Orientation.Horizontal };
+            tbBusca = new TextBox { Width = 280, Height = 28, VerticalContentAlignment = VerticalAlignment.Center };
             cbCat = Combo(200); cbEstado = Combo(240);
-            foreach (var c in new FrameworkElement[] { tbBusca, cbCat, cbEstado }) { c.Margin = new Thickness(0, 0, 8, 0); DockPanel.SetDock(c, Dock.Left); fil.Children.Add(c); }
             // cores de diagnóstico na vista ativa
             btLimparCores = Botao("Limpar cores", "Discreto");
             btLimparCores.ToolTip = "Devolve a aparência que as cópias tinham antes de colorir (vista ativa)";
@@ -523,8 +525,13 @@ namespace FJA.Revit.Links
                 leg.Children.Add(new Border { Width = 11, Height = 11, Background = new SolidColorBrush(WColor.FromRgb(c.Red, c.Green, c.Blue)), Margin = new Thickness(6, 0, 3, 0), VerticalAlignment = VerticalAlignment.Center });
                 leg.Children.Add(new TextBlock { Text = e[1], Foreground = Cinza, FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
             }
-            foreach (var c in new FrameworkElement[] { btLimparCores, btColorir, chkIguais, leg }) { DockPanel.SetDock(c, Dock.Right); fil.Children.Add(c); }
-            txtResumo = new TextBlock { Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4, 0, 0, 0) };
+            foreach (var c in new FrameworkElement[] { tbBusca, cbCat, cbEstado, leg, chkIguais, btColorir, btLimparCores })
+            {
+                c.Margin = new Thickness(0, 0, 8, 6); if (c != leg && c != chkIguais) c.VerticalAlignment = VerticalAlignment.Top;
+                ctr.Children.Add(c);
+            }
+            fil.Children.Add(ctr);
+            txtResumo = new TextBlock { Foreground = Cinza, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(2, 0, 0, 0) };
             fil.Children.Add(txtResumo);
             DockPanel.SetDock(fil, Dock.Top); raiz.Children.Add(fil);
             tbBusca.TextChanged += (s, a) => Filtrar();
@@ -540,7 +547,7 @@ namespace FJA.Revit.Links
             btReconectar = Botao("Reconectar"); btReconectar.ToolTip = "Refaz as ligações do link entre as cópias e liga pontas coincidentes (sem seleção: todas as cópias)"; btReconectar.Click += (s, a) => Reconectar();
             btMostrar = Botao("Mostrar no modelo", "Discreto"); btMostrar.Click += (s, a) => Mostrar();
             foreach (var b in new[] { btFechar, btAtualizar, btNovos, btApagar, btAceitar, btReconectar, btMostrar }) { DockPanel.SetDock(b, Dock.Right); rod.Children.Add(b); }
-            txtRodape = new TextBlock { Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+            txtRodape = new TextBlock { Foreground = Cinza, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
             rod.Children.Add(txtRodape);
             var bRod = new Border { Background = Brushes.White, BorderBrush = new SolidColorBrush(WColor.FromRgb(226, 226, 223)), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(18, 10, 18, 10), Child = rod };
             DockPanel.SetDock(bRod, Dock.Bottom); raiz.Children.Add(bRod);
@@ -549,7 +556,7 @@ namespace FJA.Revit.Links
             Coluna(dg, "Categoria", "Categoria", 150);
             Coluna(dg, "Sistema", "Sistema", 150);
             Coluna(dg, "Família : tipo", "Tipo", 3, true);
-            Coluna(dg, "Nível", "Nivel", 110);
+            Coluna(dg, "Nível", "Nivel", 1.2, true);
             ColunaSituacao(dg, "Situação", 150);
             Coluna(dg, "O que mudou", "Difs", 4, true);
             dg.SelectionChanged += (s, a) => Botoes();
