@@ -1,7 +1,7 @@
 tarefa: publicar-oficial
 status: success
-commit: a76ea9a73a90e33a1c958267ab81288ae2ef65f0
-quando: 2026-11-12T21:10:02Z
+commit: a60e641eec9fcdcf1fe615464737104f7476effc
+quando: 2026-11-12T21:29:47Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja'...[22m
@@ -36,13 +36,13 @@ banco em: southamerica-east1 · funções em: southamerica-east1
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudfunctions.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudbuild.googleapis.com[22m is enabled...
 [36m[1mi  artifactregistry:[22m[39m ensuring required API [1martifactregistry.googleapis.com[22m is enabled...
+[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mcloudfunctions.googleapis.com[22m is enabled
 [32m[1m✔  artifactregistry:[22m[39m required API [1martifactregistry.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mpackage.json indicates an outdated version of firebase-functions. Please upgrade using [1mnpm install --save firebase-functions@latest[22m in your functions directory.
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mPlease note that there will be breaking changes when you upgrade.
 [36m[1mi  functions:[22m[39m Loading and analyzing source code for codebase default to determine what to deploy
-Serving at port 8965
+Serving at port 8206
 
 [36m[1mi  extensions:[22m[39m ensuring required API [1mfirebaseextensions.googleapis.com[22m is enabled...
 [32m[1m✔  extensions:[22m[39m required API [1mfirebaseextensions.googleapis.com[22m is enabled
@@ -55,8 +55,8 @@ Serving at port 8965
 [36m[1mi  functions:[22m[39m ensuring required API [1mpubsub.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mstorage.googleapis.com[22m is enabled...
 [32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
-[32m[1m✔  functions:[22m[39m required API [1mpubsub.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1meventarc.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mpubsub.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m generating the service identity for [1mpubsub.googleapis.com[22m...
 [36m[1mi  functions:[22m[39m generating the service identity for [1meventarc.googleapis.com[22m...
