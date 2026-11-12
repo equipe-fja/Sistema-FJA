@@ -14,8 +14,7 @@ Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sis
 - Ícones do painel Legendas em preto (2.5.4), como os demais, com versão para tema escuro.
 - Suíte › **Sobre** (desde 2.5.0) — versão da extensão e da biblioteca C# (`FJA.Revit.dll`); primeiro botão em C#.
 - Suíte › **Atualizar** — baixa a versão mais recente publicada pelo sistema (banco: `revitPub/extensao-versao` e `revitPub/extensao`, gravados por `extDbPublicar` na página Firebase), grava na pasta da extensão em uso (espelhando, menos `.pyc`) e recarrega o pyRevit (lógica em `lib/fja_suite.py`).
-- Links › **Verificar alterações** — compara cada cópia registrada com a origem no link (versão carregada): alterado no link (posição, rotação, tipo, espelhamento, nível, parâmetros do módulo, link movido), alterado no projeto (cópia mexida desde a última sincronização), apagado no link, novo no link, link ausente. Ações em lote: atualizar pelo link (move/gira/troca o tipo no lugar; espelhamento, nível, orientação de face ou tipo ausente → copia de novo), aceitar como está, apagar cópias órfãs, copiar novos.
-- Links › **Copiar do link** — copia em massa elementos de um link para o modelo, na mesma posição, por módulo (lógica em `lib/fja_links.py`, módulos em `lib/fja_links_modulos.json`). Ver abaixo.
+- Links › **Copiar do link**, **Verificar alterações** e **Reconectar** — em C# desde a 2.16.0 (`revit/dotnet/FJA.Revit/Links/`; módulos em `lib/fja_links_modulos.json`; `lib/fja_links.py` é a versão Python antiga, sem uso). Módulos Equipamentos (peças) e Encaminhamentos (redes). Ver `docs/revit-links.md`.
 
 Origem: cópia de `%APPDATA%\pyRevit\Extensions\Ferramentas-FJA.extension` de um computador do escritório (03/11/2026).
 

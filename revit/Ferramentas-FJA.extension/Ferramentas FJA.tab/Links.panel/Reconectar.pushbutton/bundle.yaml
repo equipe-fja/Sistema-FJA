@@ -1,0 +1,7 @@
+title:
+  pt_br: "Reconectar"
+  en_us: "Reconectar"
+tooltip:
+  pt_br: "Reconecta as cópias das redes (Copiar do link › Encaminhamentos): refaz entre as cópias as ligações que existem no link, mesmo copiadas em dias diferentes, e liga pontas livres coincidentes (mesmo ponto, direções opostas, mesma forma e dimensão), inclusive com peças do próprio modelo. Não cria nem move nada. Com elementos selecionados, só neles; sem seleção, em todas as cópias. As pontas que continuam soltas ficam selecionadas."
+  en_us: "Reconecta as cópias das redes copiadas dos links."
+author: "Ferramentas FJA"

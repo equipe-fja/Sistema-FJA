@@ -60,6 +60,7 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 | Pontos › Codificação | `CodificacaoPontos` (`Legendas/Codificacao.cs`, `JanelaCodificacao.cs`) | 2.8.0 (10/11/2026) |
 | Pontos › Legendas (antes "Prévia LOG") | `FerramentaLegendas` (`Legendas/*.cs`; `PreviaLegendaLOG` = mesmo comando) | 2.6.0; ferramenta única desde 2.7.0 (10/11/2026) |
 | Símbolos e Detalhes › Família do desenho | `FamiliaDoDesenho` (`Detalhes/*.cs`; ver `docs/familia-do-desenho.md`) | 2.15.0 (12/11/2026) |
+| Links › Copiar do link, Verificar alterações, Reconectar | `CopiarDoLink`, `VerificarAlteracoes`, `Reconectar` (`Links/*.cs`; ver `docs/revit-links.md`) | 2.16.0 (12/11/2026; migrados do Python a pedido da FJA, com o módulo Encaminhamentos) |
 
 ### Prévia LOG (2.6.0)
 - Migrada em 10/11/2026 a pedido da FJA (janela elaborada e lógica em crescimento).
