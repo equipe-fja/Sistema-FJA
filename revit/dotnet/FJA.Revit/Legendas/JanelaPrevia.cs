@@ -1080,8 +1080,58 @@ namespace FJA.Revit.Legendas
             return txt;
         }
 
+        /// <summary>Antes de gravar: os tipos da legenda têm código válido (SIGLA.NN, sem repetição)? Se não, oferece abrir
+        /// a Codificação. Devolve false quando a gravação não deve seguir agora.</summary>
+        bool ConferirCodificacao()
+        {
+            if (!D.NaCodificacao) return true;
+            var cod = new Codificacao(doc, D);
+            var rx = cod.Padrao;
+            var tipos = linhas.Where(l => l.Chk.IsChecked == true && !l.It.Extra).Select(l => l.It)
+                .GroupBy(i => i.Sym.Id.ToString()).Select(g => g.First()).ToList();
+            var repetidos = new HashSet<string>(tipos.Where(i => !string.IsNullOrEmpty(i.Codigo)).GroupBy(i => i.Codigo)
+                .Where(g => g.Count() > 1).Select(g => g.Key));
+            var ruins = tipos.Where(i => string.IsNullOrEmpty(i.Codigo) || !rx.IsMatch(i.Codigo) || repetidos.Contains(i.Codigo)).ToList();
+            if (ruins.Count == 0) return true;
+            Func<Item, string> motivo = i => string.IsNullOrEmpty(i.Codigo) ? "sem código" : repetidos.Contains(i.Codigo) ? i.Codigo + " repetido" : i.Codigo + " fora do padrão " + D.Codigo + ".NN";
+            string lista = string.Join("\n", ruins.Take(12).Select(i => "• " + i.Sym.FamilyName + " : " + i.Sym.Name + " (" + motivo(i) + ")"))
+                + (ruins.Count > 12 ? "\n• … e mais " + (ruins.Count - 12) : "");
+            var td = new TaskDialog(Title)
+            {
+                MainInstruction = ruins.Count + " tipo(s) da legenda ainda não estão codificados",
+                MainContent = "A legenda deve ser gerada depois da codificação, para que os códigos (Type Mark) e os nomes estejam certos.\n\n" + lista,
+                CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel,
+                DefaultButton = Autodesk.Revit.UI.TaskDialogResult.CommandLink1,
+            };
+            td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1, "Abrir a Codificação", "Codificar " + D.Codigo + " agora. Os ajustes desta legenda que ainda não foram gravados são descartados; depois ela é recarregada com os códigos e nomes novos.");
+            td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2, "Gravar assim mesmo");
+            var r = td.Show();
+            if (r == Autodesk.Revit.UI.TaskDialogResult.CommandLink2) return true;
+            if (r != Autodesk.Revit.UI.TaskDialogResult.CommandLink1) return false;
+            // a prévia é desfeita antes (senão cancelar a legenda desfaria também a codificação)
+            var leg = legenda;
+            Desfazer();
+            try
+            {
+                var j = new JanelaCodificacao(doc, D) { Owner = this };
+                j.ShowDialog();
+            }
+            catch (Exception e) { TaskDialog.Show(Title, "Não foi possível abrir a Codificação: " + e.Message); }
+            // recarrega os itens (códigos e nomes novos) e volta para a mesma legenda
+            cacheItens.Remove(D.Codigo);
+            CarregarDisciplina(D);
+            if (leg != null)
+            {
+                var li = lbLegendas.Items.Cast<ListBoxItem>().FirstOrDefault(x => x.Tag is RView v && v.Id == leg.Id);
+                if (li != null) lbLegendas.SelectedItem = li;
+            }
+            txtStatus.Text = "Codificação feita: confira a prévia e grave a legenda.";
+            return false;
+        }
+
         void Gerar()
         {
+            if (!ConferirCodificacao()) return;
             if (res == null || tg == null || HaMudanca())
             {
                 Atualizar();
