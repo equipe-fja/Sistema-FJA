@@ -81,7 +81,7 @@ namespace FJA.Revit.Legendas
         // controles
         Slider slPasso; TextBlock txtPasso; TextBox txtLargura; CheckBox chkH, chkV, chkM; ComboBox cbTexto;
         ComboBox cbCor; Border swCor; Button btAtualizar, btGerar, btCancelar, btTodos100, btAcrescentar;
-        StackPanel lista; TextBlock txtItens, txtStatus, txtPrevVazia; WGrid hostPrev;
+        StackPanel lista; TextBlock txtItens, txtStatus, txtPrevVazia, txtCod; WGrid hostPrev; Border bdCod;
         Linha arrastando;
 
         static readonly byte[] COR_CAIXA = { 200, 30, 30 };
@@ -427,7 +427,17 @@ namespace FJA.Revit.Legendas
             cab.Child = dc;
             lista = new StackPanel { Margin = new Thickness(6, 4, 6, 4) };
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = lista };
-            dp.Children.Add(cab); dp.Children.Add(sv);
+            // aviso de codificação (aparece quando há tipos sem código consistente)
+            txtCod = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(WColor.FromRgb(138, 93, 5)) };
+            var btCod = Botao("Abrir a Codificação", "Discreto");
+            btCod.Margin = new Thickness(10, 0, 0, 0);
+            btCod.Click += (s, a) => AbrirCodificacao();
+            var dcod = new DockPanel();
+            DockPanel.SetDock(btCod, Dock.Right);
+            dcod.Children.Add(btCod); dcod.Children.Add(txtCod);
+            bdCod = new Border { Background = new SolidColorBrush(WColor.FromRgb(248, 239, 217)), Padding = new Thickness(12, 6, 10, 6), Child = dcod, Visibility = Visibility.Collapsed };
+            DockPanel.SetDock(bdCod, Dock.Top);
+            dp.Children.Add(cab); dp.Children.Add(bdCod); dp.Children.Add(sv);
             cIt.Child = dp;
             g.Children.Add(cIt);
 
@@ -509,6 +519,79 @@ namespace FJA.Revit.Legendas
             if (extra > 0) partes.Add(extra + " acrescentado(s)");
             if (fora > 0) partes.Add(fora + " fora das pranchas, em laranja");
             txtItens.Text = "Itens (" + linhas.Count + (partes.Count > 0 ? " · " + string.Join(" · ", partes) : "") + ")";
+            AvisoCodificacao();
+        }
+
+        // ------------------------------------------------------------ codificação
+        /// <summary>Tipos da lista (não acrescentados) sem código, com código fora de SIGLA.NN ou repetido.</summary>
+        List<Tuple<Linha, string>> ProblemasCodificacao(bool soMarcados)
+        {
+            var r = new List<Tuple<Linha, string>>();
+            if (!D.NaCodificacao) return r;
+            var rx = new System.Text.RegularExpressions.Regex("^" + System.Text.RegularExpressions.Regex.Escape(D.Codigo) + @"\.(\d{2,3})$");
+            var ls = linhas.Where(l => !l.It.Extra && (!soMarcados || l.Chk.IsChecked == true)).ToList();
+            // um código repetido = o mesmo código em tipos diferentes
+            var rep = new HashSet<string>(ls.Where(l => !string.IsNullOrEmpty(l.It.Codigo)).GroupBy(l => l.It.Codigo)
+                .Where(g => g.Select(l => l.It.Sym.Id.ToString()).Distinct().Count() > 1).Select(g => g.Key));
+            foreach (var l in ls)
+            {
+                string c = l.It.Codigo;
+                string m = string.IsNullOrEmpty(c) ? "sem código" : rep.Contains(c) ? c + " repetido em outro tipo" : !rx.IsMatch(c) ? c + " fora do padrão " + D.Codigo + ".NN" : null;
+                if (m != null) r.Add(Tuple.Create(l, m));
+            }
+            return r;
+        }
+
+        void AvisoCodificacao()
+        {
+            if (bdCod == null) return;
+            var probs = ProblemasCodificacao(false);
+            var porLinha = probs.ToDictionary(x => x.Item1, x => x.Item2);
+            var vermelho = new SolidColorBrush(WColor.FromRgb(179, 38, 30));
+            foreach (var l in linhas)
+            {
+                if (porLinha.TryGetValue(l, out string m))
+                {
+                    l.Txt.BorderBrush = vermelho; l.Txt.BorderThickness = new Thickness(1.5);
+                    string dica = l.Txt.ToolTip as string ?? "";
+                    if (!dica.StartsWith("⚠")) l.Txt.ToolTip = "⚠ Codificação: " + m + "\n" + dica;
+                }
+                else
+                {
+                    l.Txt.ClearValue(TextBox.BorderBrushProperty); l.Txt.ClearValue(TextBox.BorderThicknessProperty);
+                    if (l.Txt.ToolTip is string d && d.StartsWith("⚠")) l.Txt.ToolTip = d.Substring(d.IndexOf('\n') + 1);
+                }
+            }
+            int tipos = probs.Select(x => x.Item1.It.Sym.Id.ToString()).Distinct().Count();
+            bdCod.Visibility = tipos > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (tipos == 0) return;
+            txtCod.Text = "⚠ " + tipos + " tipo(s) sem codificação consistente (contorno vermelho na lista). Codifique antes de gravar a legenda.";
+            bdCod.ToolTip = string.Join("\n", probs.GroupBy(x => x.Item1.It.Sym.Id.ToString()).Select(g => g.First())
+                .Select(x => "• " + x.Item1.It.Sym.FamilyName + " : " + x.Item1.It.Sym.Name + " — " + x.Item2));
+        }
+
+        /// <summary>Desfaz a prévia (senão cancelar a legenda desfaria também a codificação), abre a Codificação da
+        /// disciplina e recarrega a legenda com os códigos e nomes novos.</summary>
+        void AbrirCodificacao()
+        {
+            if (alterado && tg != null && !Confirmar("Os ajustes desta legenda que ainda não foram gravados serão descartados. Abrir a Codificação?")) return;
+            var leg = legenda;
+            Desfazer();
+            try
+            {
+                var j = new JanelaCodificacao(doc, D) { Owner = this };
+                j.ShowDialog();
+            }
+            catch (Exception e) { TaskDialog.Show(Title, "Não foi possível abrir a Codificação: " + e.Message); }
+            cacheItens.Remove(D.Codigo);
+            alterado = false;
+            CarregarDisciplina(D);
+            if (leg != null)
+            {
+                var li = lbLegendas.Items.Cast<ListBoxItem>().FirstOrDefault(x => x.Tag is RView v && v.Id == leg.Id);
+                if (li != null) lbLegendas.SelectedItem = li;
+            }
+            txtStatus.Text = "Itens recarregados depois da Codificação: confira a prévia e grave a legenda.";
         }
 
         Linha CriarLinha(Item it, bool desmarcado)
@@ -1080,52 +1163,27 @@ namespace FJA.Revit.Legendas
             return txt;
         }
 
-        /// <summary>Antes de gravar: os tipos da legenda têm código válido (SIGLA.NN, sem repetição)? Se não, oferece abrir
-        /// a Codificação. Devolve false quando a gravação não deve seguir agora.</summary>
+        /// <summary>Antes de gravar: tipos marcados sem codificação consistente? Oferece abrir a Codificação.
+        /// Devolve false quando a gravação não deve seguir agora.</summary>
         bool ConferirCodificacao()
         {
-            if (!D.NaCodificacao) return true;
-            var cod = new Codificacao(doc, D);
-            var rx = cod.Padrao;
-            var tipos = linhas.Where(l => l.Chk.IsChecked == true && !l.It.Extra).Select(l => l.It)
-                .GroupBy(i => i.Sym.Id.ToString()).Select(g => g.First()).ToList();
-            var repetidos = new HashSet<string>(tipos.Where(i => !string.IsNullOrEmpty(i.Codigo)).GroupBy(i => i.Codigo)
-                .Where(g => g.Count() > 1).Select(g => g.Key));
-            var ruins = tipos.Where(i => string.IsNullOrEmpty(i.Codigo) || !rx.IsMatch(i.Codigo) || repetidos.Contains(i.Codigo)).ToList();
-            if (ruins.Count == 0) return true;
-            Func<Item, string> motivo = i => string.IsNullOrEmpty(i.Codigo) ? "sem código" : repetidos.Contains(i.Codigo) ? i.Codigo + " repetido" : i.Codigo + " fora do padrão " + D.Codigo + ".NN";
-            string lista = string.Join("\n", ruins.Take(12).Select(i => "• " + i.Sym.FamilyName + " : " + i.Sym.Name + " (" + motivo(i) + ")"))
-                + (ruins.Count > 12 ? "\n• … e mais " + (ruins.Count - 12) : "");
+            var probs = ProblemasCodificacao(true);
+            if (probs.Count == 0) return true;
+            var unicos = probs.GroupBy(x => x.Item1.It.Sym.Id.ToString()).Select(g => g.First()).ToList();
+            string lista = string.Join("\n", unicos.Take(12).Select(x => "• " + x.Item1.It.Sym.FamilyName + " : " + x.Item1.It.Sym.Name + " (" + x.Item2 + ")"))
+                + (unicos.Count > 12 ? "\n• … e mais " + (unicos.Count - 12) : "");
             var td = new TaskDialog(Title)
             {
-                MainInstruction = ruins.Count + " tipo(s) da legenda ainda não estão codificados",
+                MainInstruction = unicos.Count + " tipo(s) da legenda sem codificação consistente",
                 MainContent = "A legenda deve ser gerada depois da codificação, para que os códigos (Type Mark) e os nomes estejam certos.\n\n" + lista,
                 CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel,
-                DefaultButton = Autodesk.Revit.UI.TaskDialogResult.CommandLink1,
             };
-            td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1, "Abrir a Codificação", "Codificar " + D.Codigo + " agora. Os ajustes desta legenda que ainda não foram gravados são descartados; depois ela é recarregada com os códigos e nomes novos.");
+            td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1, "Abrir a Codificação", "Os ajustes desta legenda que ainda não foram gravados são descartados; depois ela é recarregada com os códigos e nomes novos.");
             td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2, "Gravar assim mesmo");
+            td.DefaultButton = Autodesk.Revit.UI.TaskDialogResult.CommandLink1;
             var r = td.Show();
             if (r == Autodesk.Revit.UI.TaskDialogResult.CommandLink2) return true;
-            if (r != Autodesk.Revit.UI.TaskDialogResult.CommandLink1) return false;
-            // a prévia é desfeita antes (senão cancelar a legenda desfaria também a codificação)
-            var leg = legenda;
-            Desfazer();
-            try
-            {
-                var j = new JanelaCodificacao(doc, D) { Owner = this };
-                j.ShowDialog();
-            }
-            catch (Exception e) { TaskDialog.Show(Title, "Não foi possível abrir a Codificação: " + e.Message); }
-            // recarrega os itens (códigos e nomes novos) e volta para a mesma legenda
-            cacheItens.Remove(D.Codigo);
-            CarregarDisciplina(D);
-            if (leg != null)
-            {
-                var li = lbLegendas.Items.Cast<ListBoxItem>().FirstOrDefault(x => x.Tag is RView v && v.Id == leg.Id);
-                if (li != null) lbLegendas.SelectedItem = li;
-            }
-            txtStatus.Text = "Codificação feita: confira a prévia e grave a legenda.";
+            if (r == Autodesk.Revit.UI.TaskDialogResult.CommandLink1) { alterado = false; AbrirCodificacao(); }
             return false;
         }
 
