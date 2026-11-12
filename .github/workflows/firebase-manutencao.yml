@@ -1,0 +1,32 @@
+name: Firebase · manutenção pontual
+# Editar firebase/manutencao.json e dar push. Resultado em logs/manutencao.txt (branch firebase-log).
+on:
+  push:
+    branches: [main]
+    paths: ['firebase/manutencao.json']
+  workflow_dispatch:
+concurrency: firebase-manutencao
+permissions: {contents: write}
+jobs:
+  manutencao:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - name: Executar
+        env:
+          CHAVE_OFICIAL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CHAVE_HOMOLOG: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HOMOLOG }}
+        run: |
+          PROJ=$(node -p "require('./firebase/manutencao.json').projeto||'homolog'")
+          if [ "$PROJ" = oficial ]; then CHAVE="$CHAVE_OFICIAL"; else CHAVE="$CHAVE_HOMOLOG"; fi
+          printf '%s' "$CHAVE" > "$RUNNER_TEMP/chave.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/chave.json"
+          cd firebase/importador && npm install --silent --no-audit --no-fund
+          set -o pipefail
+          node manutencao.js ../manutencao.json 2>&1 | tee "$RUNNER_TEMP/log.txt"
+      - name: Registrar resultado (branch firebase-log)
+        if: always()
+        env: {GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
+        run: ./scripts/firebase-log.sh "manutencao" "${{ job.status }}"
