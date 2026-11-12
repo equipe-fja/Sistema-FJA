@@ -102,6 +102,13 @@ namespace FJA.Revit.Links
                 }
                 var sv = e.get_Parameter(BuiltInParameter.RBS_CTC_SERVICE_TYPE)?.AsString();
                 if (!string.IsNullOrWhiteSpace(sv)) return sv;
+                // conexões e acessórios: o sistema de um dos conectores (o parâmetro costuma vir vazio)
+                var cm = Conectores(e);
+                if (cm != null)
+                    foreach (Connector c in cm.Connectors)
+                    {
+                        try { var ms = c.MEPSystem; if (ms != null && !string.IsNullOrWhiteSpace(ms.Name)) return ms.Name; } catch { }
+                    }
             }
             catch { }
             return "";
