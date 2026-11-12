@@ -625,6 +625,7 @@ tr.rd-sel>td:first-child{box-shadow:inset 3px 0 0 var(--accent,#8e1b1b)}
 .rd-pop textarea,.rd-pop input.fld,.rd-pop select{width:100%}
 .grp-cor{display:inline-block;width:4px;height:1.05em;border-radius:2px;vertical-align:-2px;margin-right:8px}
 .h1-pdf{width:28px;height:28px;display:inline-grid;place-items:center;border:1px solid transparent;border-radius:7px;background:none;color:var(--faint);cursor:pointer;transition:color .12s,border-color .12s,background .12s;margin-top:3px}
+.h1-btns{display:inline-flex;align-items:center;gap:0}
 .h1-pdf:hover{color:var(--accent);border-color:var(--line-strong);background:var(--panel)}
 .pdfl-pop{position:fixed;z-index:120;background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:14px 16px;width:280px;display:flex;flex-direction:column;gap:10px;font-size:13px}
 .pdfl-t{font-weight:600;font-size:14px}
@@ -5490,7 +5491,7 @@ const pdflPref=()=>{try{return {papel:'A4',orient:'paisagem',graficos:true,...(J
 const IC_PDFL='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6m0 0-2.5-2.5M12 17l2.5-2.5"/></svg>';
 const IC_XLSL='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h7M9 9v12"/><path d="M16.5 11.5v6m0 0-2.3-2.3m2.3 2.3 2.3-2.3"/></svg>';
 const temXlsx=()=>{const m=M(), t=S.view?.t; return ['eq','com','pen','rel'].includes(t)&&!!m.xcols&&!!m.xNome};
-const btnPdfLista=()=>S.publico?'':`<button class="h1-pdf" data-act="pdfl-abrir" title="Exportar esta lista em PDF" aria-label="Exportar esta lista em PDF">${IC_PDFL}</button>`+(temXlsx()&&S.view?.id?`<button class="h1-pdf" data-act="exp-baixar" data-id="${esc(S.view.id)}" title="Exportar esta lista em planilha (.xlsx)" aria-label="Exportar esta lista em planilha">${IC_XLSL}</button>`:'');
+const btnPdfLista=()=>S.publico?'':`<span class="h1-btns"><button class="h1-pdf" data-act="pdfl-abrir" title="Exportar esta lista em PDF" aria-label="Exportar esta lista em PDF">${IC_PDFL}</button>`+(temXlsx()&&S.view?.id?`<button class="h1-pdf" data-act="exp-baixar" data-id="${esc(S.view.id)}" title="Exportar esta lista em planilha (.xlsx)" aria-label="Exportar esta lista em planilha">${IC_XLSL}</button>`:'')+'</span>';
 function fecharPdflPop(){$('pdflPop')?.remove()}
 function abrirPdflPop(btn){
   if($('pdflPop')){fecharPdflPop();return}
