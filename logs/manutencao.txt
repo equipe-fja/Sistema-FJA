@@ -1,9 +1,9 @@
 tarefa: manutencao
 status: success
-commit: f4c4ab586f9438e91bd47473ba071bc20771d2ee
-quando: 2026-11-12T19:49:10Z
+commit: 264442dd2b5bd087e9afd93e8d9dbfefca0c9767
+quando: 2026-11-12T19:50:43Z
 ----
-projeto Firebase: oficial · tarefa: apostrofo · aplicar: false
+projeto Firebase: oficial · tarefa: apostrofo · aplicar: true
 itens com "ANGRA": prj-129 = SESC Hotel Angra (XX2601) (projetos)
 
 == prj-129 · SESC Hotel Angra (XX2601): 438 documentos, 206 com apóstrofo
@@ -213,4 +213,4 @@ APAGAR  SNZ_PB_TE_'001_R00  [prj-129__rSNZ_PB_TE_-001_R00]  ->  equivale a SNZ_P
 APAGAR  SON_AP_-_'001_R00  [prj-129__rSON_AP_-_-001_R00]  ->  equivale a SON_AP_-_001_R00 [prj-129__rSON_AP_-_001_R00]  · RELATÓRIO
 APAGAR  SON_AP_-_'002_R00  [prj-129__rSON_AP_-_-002_R00]  ->  equivale a SON_AP_-_002_R00 [prj-129__rSON_AP_-_002_R00]  · LOCAÇÃO DE PONTOS
 APAGAR  VIA_PB_GE_'001_R00  [prj-129__rVIA_PB_GE_-001_R00]  ->  equivale a VIA_PB_GE_001_R00 [prj-129__rVIA_PB_GE_001_R00]  · PROJETO DE ACESSO DE VEÍCULOS
-resumo: 206 com apóstrofo · 206 com equivalente sem apóstrofo · 0 sem equivalente · nada foi alterado
+resumo: 206 com apóstrofo · 206 com equivalente sem apóstrofo · 0 sem equivalente · APAGADOS: 206
