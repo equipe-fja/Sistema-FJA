@@ -1,1 +1,1 @@
-{"projeto": "oficial", "tarefa": "apostrofo", "busca": "ANGRA", "aplicar": false, "pedidoEm": "2026-11-12T16:50-03:00", "obs": "levantamento: documentos com apostrofo no Hotel SESC Angra (nada é alterado)"}
+{"projeto": "oficial", "tarefa": "apostrofo", "busca": "ANGRA", "pid": "prj-129", "aplicar": true, "pedidoEm": "2026-11-12T16:55-03:00", "obs": "remover as 206 cópias com apóstrofo do SESC Hotel Angra (todas têm o equivalente sem apóstrofo), pedido da FJA"}
