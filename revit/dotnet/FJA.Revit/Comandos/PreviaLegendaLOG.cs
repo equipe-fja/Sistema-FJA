@@ -10,7 +10,7 @@ namespace FJA.Revit.Comandos
     /// Legendas (ferramenta única): escolhe a disciplina (LOG, AUT, SON), vê as legendas já criadas e cria novas;
     /// para a legenda escolhida, a lista de itens (texto, ordem arrastando, escala, símbolos acrescentados),
     /// opções da tabela e cor, e a prévia desenhada pelo Revit, criada ou atualizada ali mesmo.
-    /// Os ajustes ficam gravados em cada vista de legenda (valem também para os botões Legenda LOG/AUT/SON).
+    /// Os ajustes ficam gravados em cada vista de legenda (os antigos botões Legenda LOG/AUT/SON/ELE/LUM, em Python, foram retirados em 2.13.0).
     /// </summary>
     public class FerramentaLegendas : ComandoFJA
     {
