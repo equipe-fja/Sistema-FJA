@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 12/11, ~18h40 — commit a3f97c5
+- Pendências: o status pelas datas passa a valer também na carga em tempo real da oficial (previsão vencida sem finalização vira pendente) e é recalculado a cada 10 minutos com a página aberta; o status fica só leitura em qualquer formulário e a edição pela tabela é recusada.
+
 ## oficial Firebase — 12/11, ~18h30 — commit 937e28e
 - Pendências: status definido pelas datas — finalização preenchida = concluído; previsão "sem data" = informativo; previsão vencida = pendente; senão em andamento (nova pendência começa em andamento, com início hoje). O status deixa de ser escolhido à mão; a previsão ganha a opção "Sem data". Recalculado ao carregar, ao editar datas e ao importar (o banco só muda quando a pendência é salva). Concluídas sem data de finalização e informativas sem previsão, de antes da regra, continuam como estavam.
 
