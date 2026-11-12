@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 12/11, ~18h10 — commit 1d9115a
+- Listas (Equipamentos, Comentários, Pendências/Histórico, Relação de documentos): ícone de exportar planilha (.xlsx) ao lado do de PDF, no mesmo estilo.
+- Extensão do Revit 2.17.1: janelas de Links com filtros que quebram linha (sem esticar), resumo e rodapé numa linha, coluna Nível mais larga; sistema das conexões pelos conectores.
+
 ## oficial Firebase — 12/11, ~17h55 — commit eec4121
 - Extensão do Revit 2.17.0 (antes 2.16.1): Verificar alterações colore temporariamente as cópias na vista ativa (cor por situação; Limpar cores devolve a aparência anterior). 2.16.2: painel Suíte sempre no fim da aba, também depois de Reload (startup.py).
 
