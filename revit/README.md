@@ -73,4 +73,5 @@ Cada publicação cria o arquivo novo e manda o anterior para a lixeira do Drive
 
 ## Ordem dos painéis (desde 2.16.1)
 - `Ferramentas FJA.tab/bundle.yaml` (`layout`) define a ordem: painéis em ordem alfabética e **Suíte sempre no fim**.
+- `startup.py` da extensão (2.16.2): no primeiro momento ocioso depois de carregar (abertura do Revit e Reload), move o painel Suíte para o fim da aba — num Reload o pyRevit não reordena os painéis que já existem.
 - No pyRevit, painel que não está no `layout` **não aparece**. O `scripts/embutir-revit.py` recalcula a lista a cada publicação e o pacote distribuído (instalador e Suíte › Atualizar) sempre leva todos os painéis, com Suíte no fim; se o arquivo do repositório estiver desatualizado, a compilação avisa — atualizar o arquivo ao criar um painel novo.
