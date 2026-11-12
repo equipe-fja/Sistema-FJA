@@ -674,7 +674,7 @@ tr.rd-sel>td:first-child{box-shadow:inset 3px 0 0 var(--accent,#8e1b1b)}
 .imp-corr i,tr.imp-corr td{background:#ece3f7}.imp-del i,tr.imp-del td{background:#f8d9d6}tr.imp-del td{text-decoration:line-through}
 .imp-dup i,tr.imp-dup td{background:#fde2cc}.imp-novo i,tr.imp-novo td{background:#dff0e2}.imp-alt i,tr.imp-alt td{background:#fcf1cf}
 .imp-mant i,tr.imp-mant td{background:#e1ecfa}.imp-igual i{background:var(--panel)}.imp-so i,tr.imp-so td{background:#efefec;color:var(--muted)}
-tr.imp-alt td.imp-cel{background:#f6dd8a;font-weight:600}
+tr.imp-pos td,.imp-pos i{background:#f6f4ec}tr.imp-alt td.imp-cel{background:#f6dd8a;font-weight:600}
 tr[data-act="imp-tog"]{cursor:pointer}tr.imp-off td{opacity:.45}tr.imp-off.imp-dup td{opacity:.6}
 .pc-modal{position:fixed;inset:0;background:rgba(20,20,18,.35);display:grid;place-items:center;z-index:200;padding:16px}
 .pc-caixa{background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;max-width:460px;width:100%;padding:18px 20px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
@@ -4536,7 +4536,7 @@ function planoImport(md,pid,linhas,o){
 const IMP_ST={
   corr:['Correção','código com apóstrofo corrigido','corr'],del:['Apagar','cópia com apóstrofo de um item que já existe','corr'],
   dup:['Possível duplicata','parece um item já cadastrado com outro código; só entra se marcada','dups'],
-  novo:['Novo','linha da planilha que ainda não existe no sistema','novos'],alt:['A atualizar','item do sistema que muda conforme a planilha (células alteradas em destaque)','alt'],
+  novo:['Novo','linha da planilha que ainda não existe no sistema','novos'],alt:['A atualizar','item do sistema que muda conforme a planilha (células alteradas em destaque)','alt'],pos:['Só mudou de linha','o conteúdo é igual; muda só a posição na planilha (ordem da lista)','alt'],
   mant:['Editado no sistema','não é alterado pela importação',null],igual:['Sem mudança','igual à planilha',null],so:['Só no sistema','não está na planilha; continua no sistema',null]};
 function impMontar(md,pid,P,o){
   const L=[], sel={corr:new Set(P.corr.map((_,i)=>i)),novos:new Set(P.novos.map((_,i)=>i)),alt:new Set(P.alt.map((_,i)=>i)),dups:new Set()};
@@ -4545,7 +4545,7 @@ function impMontar(md,pid,P,o){
   const V=new Map(md.de(pid).filter(e=>!tira.has(e.id)).map(e=>[e.id,e]));
   for(const c of P.corr) if(c.tipo!=='apagar') V.delete(c.nid||c.id);
   const difTxt=d=>d.map(([k,a,b])=>`${k}: ${a??''} → ${b??''}`).join('\n');
-  P.alt.forEach((x,i)=>{V.delete(x.id); L.push({...x.cur,...x.body,id:x.id,_imp:'alt',_g:'alt',_i:i,_difK:new Set(x.dif.map(d=>d[0])),_dica:difTxt(x.dif)||'só a linha da planilha mudou'})});
+  P.alt.forEach((x,i)=>{V.delete(x.id); L.push({...x.cur,...x.body,id:x.id,_imp:x.dif.length?'alt':'pos',_g:'alt',_i:i,_difK:new Set(x.dif.map(d=>d[0])),_dica:difTxt(x.dif)||'só a linha da planilha mudou'})});
   P.mantidos.forEach(x=>{V.delete(x.id); L.push({...x.cur,_imp:'mant',_dica:x.dif.length?'A planilha traz: \n'+difTxt(x.dif):''})});
   for(const id of P.iguais){const e=V.get(id); if(e){V.delete(id); L.push({...e,_imp:'igual'})}}
   P.novos.forEach((x,i)=>L.push({...x.body,id:x.id,_imp:'novo',_g:'novos',_i:i}));
@@ -4563,7 +4563,7 @@ function impBarraHTML(){
     return `<span class="imp-chip imp-${k}${I.filtro===k?' on':''}" data-tipj="${esc(dica+(g?'\nClique na caixa para marcar ou desmarcar todos; clique no nome para ver só estes.':'\nClique no nome para ver só estes.'))}">${g?`<input type="checkbox" data-act-change="imp-grupo" data-k="${k}" ${ns===t?'checked':''} aria-label="Marcar todos: ${esc(rot)}">`:''}<button type="button" data-act="imp-filtro" data-k="${k}"><i></i>${esc(rot)} <b>${g?ns+'/'+t:t}</b></button></span>`};
   return `<div class="imp-barra"><div class="imp-b1"><b>Importação da planilha em revisão</b><span class="muted">Aba ${esc(I.o.aba)} · ${I.P.linhas} linhas lidas · nada foi gravado ainda. Clique numa linha colorida para incluir ou excluir; as apagadas e as desmarcadas ficam esmaecidas.</span><span class="sp"></span>
     <button class="btn" data-act="imp-cancelar">Cancelar</button><button class="btn pri" data-act="imp-aceitar" ${nSel?'':'disabled'}>Aceitar${nSel?` (${nSel})`:''}</button></div>
-    <div class="imp-b2">${['corr','del','dup','novo','alt','mant','igual','so'].map(chip).join('')}${I.filtro?`<button class="btn sm ghost" data-act="imp-filtro" data-k="">Ver todos</button>`:''}</div></div>`;
+    <div class="imp-b2">${['corr','del','dup','novo','alt','pos','mant','igual','so'].map(chip).join('')}${I.filtro?`<button class="btn sm ghost" data-act="imp-filtro" data-k="">Ver todos</button>`:''}</div></div>`;
 }
 function impRender(){const I=S.imp; const t=$('eqTabela'); if(t) t.innerHTML=eqTabelaHTML(I?I.pid:S.view.id)}
 async function impAceitar(){
