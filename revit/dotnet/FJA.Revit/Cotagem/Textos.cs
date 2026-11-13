@@ -9,9 +9,10 @@ namespace FJA.Revit.Cotagem
     /// Número das cotas criadas desviado de outros elementos da vista (2.26.0, pedido da FJA em 13/11/2026), sem
     /// perder a legibilidade. Para cada trecho, o retângulo do texto (altura pelo tipo de cota × escala, largura pelo
     /// número de caracteres) é testado contra os obstáculos: textos das outras cotas (existentes e novas), etiquetas,
-    /// textos, símbolos de anotação, portas, janelas e pilares. Posições tentadas, nesta ordem: a do Revit; o outro
+    /// textos, símbolos de anotação, portas, janelas, pilares, paredes, escadas, mobiliário e louças, e as linhas das
+    /// outras cotas e dos eixos — cada um com um peso (2.26.4). Posições tentadas: a do Revit; o outro
     /// lado da linha; deslocado ao longo do trecho (sem sair dele), dos dois lados; e, em trecho curto, além das
-    /// pontas. A primeira livre é usada; sem nenhuma, fica a do Revit (contada no relatório).
+    /// pontas. Fica a de menor nota (área sobreposta × peso); sem nenhuma livre, a que atrapalha menos (contada no relatório).
     /// </summary>
     static class Textos
     {
@@ -19,8 +20,22 @@ namespace FJA.Revit.Cotagem
         {
             public double X0, X1, Y0, Y1;
             public object Dono;
+            public double Peso = P_FORTE;   // quanto incomoda sobrepor (ver os pesos abaixo)
             public bool Cruza(Caixa o) => X0 < o.X1 && o.X0 < X1 && Y0 < o.Y1 && o.Y0 < Y1;
+            /// <summary>Fração da área desta caixa coberta por o.</summary>
+            public double Fracao(Caixa o)
+            {
+                double w = Math.Min(X1, o.X1) - Math.Max(X0, o.X0), h = Math.Min(Y1, o.Y1) - Math.Max(Y0, o.Y0);
+                if (w <= 0 || h <= 0) return 0;
+                return w * h / Math.Max((X1 - X0) * (Y1 - Y0), 1e-12);
+            }
         }
+
+        // pesos (pedido da FJA, 13/11/2026: evitar ao máximo números sobre outros desenhos)
+        const double P_FORTE = 10;   // textos, etiquetas, paredes, escadas, pilares, portas
+        const double P_MEDIO = 4;    // mobiliário, louças, equipamentos
+        const double P_LINHA = 2;    // linha de outra cota
+        const double P_EIXO = 1;     // linha de eixo
 
         /// <summary>Um texto de cota: o trecho (ou a cota de um trecho só), com o que é preciso para movê-lo.</summary>
         sealed class Texto
@@ -44,23 +59,55 @@ namespace FJA.Revit.Cotagem
             var todos = new List<Texto>();
             foreach (Dimension d in new FilteredElementCollector(doc, v.Id).OfClass(typeof(Dimension)))
                 todos.AddRange(TextosDa(d, v, R, U));
-            foreach (var t in todos) obst.Add(t.Caixa);
+            foreach (var t in todos)
+            {
+                obst.Add(t.Caixa);
+                obst.Add(LinhaDa(t, R, U));   // a linha da cota (a do próprio texto é ignorada abaixo)
+            }
 
             foreach (var t in todos.Where(x => novas.Contains(x.Dim.Id)))
             {
-                if (!obst.Any(o => !ReferenceEquals(o, t.Caixa) && o.Cruza(t.Caixa))) continue;
-                bool movido = false;
+                double atual = Nota(t, t.Caixa, obst);
+                if (atual <= 0) continue;
+                // a posição de menor nota (sobreposição × peso); empate: a primeira da lista (mais perto da original)
+                XYZ melhor = null; Caixa cm = null; double nm = atual;
                 foreach (var p in Candidatos(t))
                 {
                     var c = CaixaEm(t, p, R, U);
-                    if (obst.Any(o => !ReferenceEquals(o, t.Caixa) && o.Cruza(c))) continue;
-                    if (!Mover(t, p)) break;
-                    t.Caixa.X0 = c.X0; t.Caixa.X1 = c.X1; t.Caixa.Y0 = c.Y0; t.Caixa.Y1 = c.Y1;
-                    t.Pos = p; movido = true;
-                    break;
+                    double n = Nota(t, c, obst);
+                    if (n < nm - 1e-6) { nm = n; melhor = p; cm = c; if (n <= 0) break; }
                 }
-                if (movido) res.TextosMovidos++; else res.TextosSemLugar++;
+                if (melhor != null && Mover(t, melhor))
+                {
+                    t.Caixa.X0 = cm.X0; t.Caixa.X1 = cm.X1; t.Caixa.Y0 = cm.Y0; t.Caixa.Y1 = cm.Y1;
+                    t.Pos = melhor;
+                    res.TextosMovidos++;
+                    if (nm > 0) res.TextosSemLugar++;
+                }
+                else res.TextosSemLugar++;
             }
+        }
+
+        /// <summary>Soma de (fração sobreposta × peso) com tudo, menos o próprio texto e a linha da própria cota.</summary>
+        static double Nota(Texto t, Caixa c, List<Caixa> obst)
+        {
+            double n = 0;
+            foreach (var o in obst)
+            {
+                if (ReferenceEquals(o, t.Caixa) || (o.Peso == P_LINHA && ReferenceEquals(o.Dono, t.Dim))) continue;
+                if (!c.Cruza(o)) continue;
+                n += c.Fracao(o) * o.Peso + 0.05 * o.Peso;   // qualquer toque conta um pouco
+            }
+            return n;
+        }
+
+        /// <summary>A linha de cota de um trecho, como faixa fina (espessura de 30 % da altura do texto).</summary>
+        static Caixa LinhaDa(Texto t, XYZ R, XYZ U)
+        {
+            double e = t.Alt * 0.15;
+            return t.Hor
+                ? new Caixa { X0 = t.A, X1 = t.B, Y0 = t.Linha - e, Y1 = t.Linha + e, Dono = t.Dim, Peso = P_LINHA }
+                : new Caixa { X0 = t.Linha - e, X1 = t.Linha + e, Y0 = t.A, Y1 = t.B, Dono = t.Dim, Peso = P_LINHA };
         }
 
         // ------------------------------------------------------------ textos e caixas
@@ -145,7 +192,7 @@ namespace FJA.Revit.Cotagem
 
             // ao longo do trecho, sem sair dele
             double meio = (t.A + t.B) / 2, folga = (t.B - t.A - t.Larg) / 2;
-            double passo = Math.Max(t.Larg * 0.5, t.Alt);
+            double passo = Math.Max(t.Larg * 0.25, t.Alt * 0.5);
             if (folga > 0)
                 for (double dd = passo; dd <= folga + 1e-9; dd += passo)
                     foreach (double sg in new[] { 1.0, -1.0 })
@@ -183,18 +230,47 @@ namespace FJA.Revit.Cotagem
 
         // ------------------------------------------------------------ obstáculos
 
-        static readonly BuiltInCategory[] Categorias =
+        static readonly BuiltInCategory[] Fortes =
         {
             BuiltInCategory.OST_RoomTags, BuiltInCategory.OST_AreaTags, BuiltInCategory.OST_DoorTags, BuiltInCategory.OST_WindowTags,
             BuiltInCategory.OST_GenericAnnotation, BuiltInCategory.OST_TextNotes, BuiltInCategory.OST_KeynoteTags,
             BuiltInCategory.OST_MultiCategoryTags, BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows,
             BuiltInCategory.OST_Columns, BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_SpotElevations,
+            BuiltInCategory.OST_Walls, BuiltInCategory.OST_Stairs, BuiltInCategory.OST_StairsRailing,
+        };
+        static readonly BuiltInCategory[] Medios =
+        {
+            BuiltInCategory.OST_Furniture, BuiltInCategory.OST_FurnitureSystems, BuiltInCategory.OST_Casework,
+            BuiltInCategory.OST_PlumbingFixtures, BuiltInCategory.OST_SpecialityEquipment, BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_ElectricalEquipment, BuiltInCategory.OST_GenericModel,
         };
 
         static List<Caixa> Obstaculos(Document doc, View v, XYZ R, XYZ U)
         {
             var r = new List<Caixa>();
-            var filtro = new ElementMulticategoryFilter(Categorias.ToList());
+            Coletar(doc, v, R, U, Fortes, P_FORTE, r);
+            Coletar(doc, v, R, U, Medios, P_MEDIO, r);
+            // linhas de eixo (faixas finas): passar sobre elas incomoda pouco, mas conta
+            double e = 0.6 / 304.8 * Math.Max(1, v.Scale);
+            foreach (Grid g in new FilteredElementCollector(doc, v.Id).OfClass(typeof(Grid)))
+            {
+                try
+                {
+                    var c = g.GetCurvesInView(DatumExtentType.ViewSpecific, v)?.OfType<Line>().FirstOrDefault();
+                    if (c == null) continue;
+                    XYZ a = c.GetEndPoint(0), b = c.GetEndPoint(1);
+                    double x0 = Math.Min(a.DotProduct(R), b.DotProduct(R)), x1 = Math.Max(a.DotProduct(R), b.DotProduct(R));
+                    double y0 = Math.Min(a.DotProduct(U), b.DotProduct(U)), y1 = Math.Max(a.DotProduct(U), b.DotProduct(U));
+                    r.Add(new Caixa { X0 = x0 - e, X1 = x1 + e, Y0 = y0 - e, Y1 = y1 + e, Dono = g, Peso = P_EIXO });
+                }
+                catch { }
+            }
+            return r;
+        }
+
+        static void Coletar(Document doc, View v, XYZ R, XYZ U, BuiltInCategory[] cats, double peso, List<Caixa> r)
+        {
+            var filtro = new ElementMulticategoryFilter(cats.ToList());
             foreach (var e in new FilteredElementCollector(doc, v.Id).WherePasses(filtro).WhereElementIsNotElementType())
             {
                 try
@@ -207,11 +283,10 @@ namespace FJA.Revit.Cotagem
                         double x = p.DotProduct(R), y = p.DotProduct(U);
                         x0 = Math.Min(x0, x); x1 = Math.Max(x1, x); y0 = Math.Min(y0, y); y1 = Math.Max(y1, y);
                     }
-                    r.Add(new Caixa { X0 = x0, X1 = x1, Y0 = y0, Y1 = y1, Dono = e });
+                    r.Add(new Caixa { X0 = x0, X1 = x1, Y0 = y0, Y1 = y1, Dono = e, Peso = peso });
                 }
                 catch { }
             }
-            return r;
         }
     }
 }
