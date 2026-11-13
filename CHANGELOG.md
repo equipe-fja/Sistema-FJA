@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~17h53 — commit 1c5052e
+- Extensão do Revit 2.27.0 (antes 2.26.10): **Cotar vistas** na planta 1:75 cota também os **elementos notáveis** para levantamentos por nuvem de pontos: o comprimento de cada trecho de espessura nas paredes que mudam de espessura, as pontas livres de parede até a primeira parede perpendicular e os pilares isolados até as paredes mais próximas, nas duas direções. Testado pelo conector na PMA.NÍVEL 1 (101 cotas, nenhuma recusada). Ver docs/cotagem.md.
+
 ## oficial Firebase — 13/11, ~17h24 — commit e4cd951
 - Extensão do Revit 2.26.10 (antes 2.26.9): **Estender/Alinhar** — quando a referência é outro eixo ou nível paralelo, o clicado fica com a mesma extensão dele (as duas pontas); vale também para os já selecionados. O código entrou no commit da 2.26.9, mas a compilação daquela versão saiu sem ele; esta recompila.
 
