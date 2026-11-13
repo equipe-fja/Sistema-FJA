@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~15h53 — commit b3bc9ed
+- Extensão do Revit 2.25.0 (antes 2.24.1): painel novo **Grids, Níveis e Cortes**. O **Trocar lado** sai da Cotagem e vai para ele. Ferramenta nova **Estender/Alinhar**, como o Aparar/Estender do Revit: clica-se na linha de referência (linha, eixo, nível, plano de referência ou corte) e depois em cada eixo, nível ou corte, do lado que fica; os já selecionados ao abrir são alinhados de uma vez. Muda a extensão no modo em que cada ponta já está (3D ou 2D); no corte, muda a largura. Painel novo: fechar e abrir o Revit depois de atualizar. Ver docs/grids-niveis-cortes.md.
+
 ## oficial Firebase — 13/11, ~15h50 — commit 9677524
 - Extensão do Revit 2.24.1 (antes 2.24.0): no primeiro teste das **cadeias internas**, a FJA achou cotas demais. Por padrão, elas passam a medir só os vãos dos ambientes, face acabada a face acabada. A opção **"Incluir a espessura das paredes"**, na janela do Cotar vistas, volta à cadeia contínua de vão + espessura.
 
