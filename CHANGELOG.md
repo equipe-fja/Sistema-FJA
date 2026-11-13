@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~16h58 — commit 7839bca
+- Extensão do Revit 2.26.6 (antes 2.26.5): **Cotar vistas** move os números das cotas o mínimo possível. Entre as posições livres, fica a mais perto da original, e o número só se move se a sobreposição cair pelo menos 20 %. A cota com número deslocado fica sem leader (parâmetro "Leader" desligado).
+
 ## oficial Firebase — 13/11, ~16h52 — commit 42b2168
 - Extensão do Revit 2.26.5 (antes 2.26.4): **Estender/Alinhar** redesenha a vista depois de cada mudança e avisa quando o elemento já está na linha de referência. No teste da FJA o corte foi aparado no modelo, mas a tela não mostrava.
 
