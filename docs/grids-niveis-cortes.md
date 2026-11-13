@@ -37,5 +37,5 @@ No teste seguinte da FJA (cortes 4, 5 e 6 até uma linha de detalhe tracejada), 
 - O botão continua no painel Grids, Níveis e Cortes, agora para eixos e níveis.
 - Os testes tinham mudado o alcance (recorte) dos cortes 4, 5 e 6 do modelo 131; com autorização da FJA, foram restaurados pelo conector aos valores lidos antes dos testes (uma transação, "FJA: restaurar largura dos cortes 4, 5 e 6").
 
-## 2.26.9 (13/11/2026) — referência paralela
+## 2.26.10 (13/11/2026) — referência paralela (o commit é "2.26.9", mas a compilação dele ficou sem o código; publicado como 2.26.10)
 Pedido da FJA: quando a referência é **outro eixo (ou nível) paralelo**, o eixo/nível clicado fica com a **mesma extensão** dele — as duas pontas vão até as pontas da referência, projetadas sobre o clicado (`AlinharParalelo`). Vale também para os já selecionados ao abrir (alinhar vários de uma vez a um eixo de referência). Cada ponta muda no tipo de extensão em que já está (3D ou 2D). Com referência paralela que não é eixo nem nível (linha, plano de referência, corte), continua o aviso de paralelo.
