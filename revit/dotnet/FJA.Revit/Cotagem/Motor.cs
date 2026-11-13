@@ -61,13 +61,15 @@ namespace FJA.Revit.Cotagem
 
             // plantas: fachada (1:75: panos e vãos + total; 1:200: contorno) e ambientes (1:200)
             var fora = new double?[4];
-            if ((regra.Fachada || regra.Contorno || regra.Ambientes) && v is ViewPlan vp)
+            if ((regra.Fachada || regra.Contorno || regra.Ambientes || regra.Internas) && v is ViewPlan vp)
             {
                 var lt = Fachada.Ler(doc, vp, R, U);
                 if (regra.Fachada || regra.Contorno)
                     fora = Fachada.Cotar(doc, vp, lt, dt, regra.Contorno, R, U, O, esp, existentes, res);
                 if (regra.Ambientes)
                     Ambientes.Cotar(doc, vp, lt, dt, R, U, O, existentes, res);
+                if (regra.Internas)
+                    Internas.Cotar(doc, vp, lt, dt, R, U, O, existentes, res);
             }
 
             var datums = Datums(doc, v, R, U, regra);

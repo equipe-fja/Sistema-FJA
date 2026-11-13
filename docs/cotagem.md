@@ -14,7 +14,7 @@ Comando C# `CotarVistas` (`revit/dotnet/FJA.Revit/Cotagem/*.cs`), desde a extens
 - **O que esta versão cota:**
   | Tipo | 1:500 | 1:200 | 1:75 / 1:50 | 1:25 |
   |---|---|---|---|---|
-  | Planta baixa | — | ambientes (2 dimensões) + contorno; eixos + total | panos e vãos de fachada (vão livre) + total; eixos + total | — (faces de parede, próxima versão) |
+  | Planta baixa | — | ambientes (2 dimensões) + contorno; eixos + total | panos e vãos de fachada (vão livre) + total; cadeias internas (vão + espessura); eixos + total | — (faces de parede, próxima versão) |
   | Corte, fachada | eixos + total; níveis + total | idem | idem | níveis + total |
   | Vista/corte interno | níveis + total | idem | idem | idem |
   | Teto, pontos, paginação, implantação | — | — | — | — |
@@ -68,7 +68,7 @@ Comando `TrocarLadoIndicacao` (`Comandos/TrocarLadoIndicacao.cs`, janela `Cotage
 - Preferências por pessoa: `%APPDATA%\FJA\trocar-lado.json` (escolha dos eixos e dos níveis).
 
 ## Próximas versões (regras completas na doc do projeto `claude/revit-cotagem-regras.md`)
-- Planta baixa 1:75: cadeias internas atravessando ambientes pela face acabada (com espessura de parede), bonecas ≠ 15 cm, totais por bloco; 1:200/1:500: contorno amarrado aos limites do terreno; 1:25 por faces (acabado).
+- Planta baixa 1:75: bonecas ≠ 15 cm, totais por bloco; 1:200/1:500: contorno amarrado aos limites do terreno; 1:25 por faces (acabado).
 - Teto refletido (luminárias, a partir do acabado), pontos (osso), paginação (início e módulo).
 - Ambientes ampliados: reconhecer os callouts e reduzir a cotagem interna na 1:75.
 - Conflitos (cota existente medindo outra referência) no relatório, com seleção no modelo.
@@ -81,3 +81,12 @@ Comando `TrocarLadoIndicacao` (`Comandos/TrocarLadoIndicacao.cs`, janela `Cotage
 - **Metade do edifício:** a parede de fachada de um lado precisa estar na metade do edifício voltada para esse lado (um toco de mureta embaixo à direita era tomado como fachada de cima).
 - Os eixos dessa vista estão ocultos pelo filtro da vista "GRID - NOT Projeto": a ferramenta não os enxerga e não cota eixos ali (as cotas de eixo criadas antes ficam ocultas junto).
 - **Quinas em vez de faces (2.23.5):** mesmo com referências estáveis, o Revit recusava as cotas — as paredes do modelo estão um pouco fora de esquadro entre si (normais com desvios de 0,1° a 0,3°) e uma cota linear só mede entre faces paralelas. Agora cada ponto da cadeia é a **aresta vertical** da face na quina com a face externa (na planta, um ponto), como a FJA faz à mão com Tab; nos ambientes da 1:200, a aresta da face mais próxima da linha da cota. As referências Esquerda/Direita das portas e janelas continuam planos: se o Revit recusar um trecho com elas, o trecho é refeito pelas ombreiras da parede (avisado no relatório).
+
+## Planta baixa 1:75 — cadeias internas (2.24.0, 13/11/2026)
+`Cotagem/Internas.cs`. Decisões da FJA (13/11): o **mínimo de cadeias que meça todas as paredes**, em cada direção; **vão + espessura** (face acabada a face acabada, cada ambiente e cada parede um trecho), de fachada a fachada.
+- **Paredes:** as do edifício principal (mesmo grupo da fachada). Cadeias horizontais medem as paredes verticais pelas faces laterais; verticais, o contrário.
+- **Linhas candidatas:** o meio de cada faixa sem nenhuma ponta de face ou de parede (a linha fica a ≥ 10 cm de qualquer ponta e nunca corre dentro de uma parede paralela). Descartadas as que passam por um vão de parede (parede atravessada sem face lateral na linha).
+- **Escolha:** a candidata que mede mais paredes ainda sem cadeia (desempate: mais paredes no total), repetindo até cobrir todas (no máximo 8 por direção). Paredes que sobram são avisadas no relatório.
+- **Cadeia:** as faces laterais atravessadas pela linha, na posição em que a linha as cruza; trechos já cotados (em qualquer lugar) não se repetem — com o mínimo de cadeias, uma parede medida numa linha não é medida de novo noutra.
+- **Paredes fora de esquadro:** faces não paralelas entre si não cabem numa cota só. A cadeia é dividida em grupos de faces paralelas (uma cota por grupo, na mesma linha) e a ligação entre grupos vira um trecho pelas quinas (arestas verticais) mais próximas da linha. Se o Revit recusar um grupo, ele é refeito trecho a trecho pelas quinas.
+- **Marca:** `interna`. Ainda não: bonecas ≠ 15 cm, totais por bloco, redução nos ambientes ampliados.

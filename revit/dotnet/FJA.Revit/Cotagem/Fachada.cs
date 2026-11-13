@@ -241,7 +241,7 @@ namespace FJA.Revit.Cotagem
         /// Edifício principal: o maior grupo de paredes que se encostam (retângulos que se tocam, com folga de 2 cm),
         /// pelo comprimento somado. Paredes soltas (floreiras, muros, outros edifícios na mesma vista) ficam de fora.
         /// </summary>
-        static List<Parede> Edificio(List<Parede> ps)
+        internal static List<Parede> Edificio(List<Parede> ps)
         {
             int n = ps.Count;
             var pai = Enumerable.Range(0, n).ToArray();
