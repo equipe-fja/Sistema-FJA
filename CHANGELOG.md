@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~15h57 — commit 3cd2c4d
+- Extensão do Revit 2.25.1 (antes 2.25.0): **Cotar vistas**, nas cadeias internas, deixa de repetir a mesma medida em várias linhas. Cada par de paredes vizinhas é cotado uma vez só, na linha mais perto da origem (cadeias horizontais a partir da de cima, verticais a partir da da esquerda). Com paredes tortas, a medida muda ao longo da parede.
+
 ## oficial Firebase — 13/11, ~15h53 — commit b3bc9ed
 - Extensão do Revit 2.25.0 (antes 2.24.1): painel novo **Grids, Níveis e Cortes**. O **Trocar lado** sai da Cotagem e vai para ele. Ferramenta nova **Estender/Alinhar**, como o Aparar/Estender do Revit: clica-se na linha de referência (linha, eixo, nível, plano de referência ou corte) e depois em cada eixo, nível ou corte, do lado que fica; os já selecionados ao abrir são alinhados de uma vez. Muda a extensão no modo em que cada ponta já está (3D ou 2D); no corte, muda a largura. Painel novo: fechar e abrir o Revit depois de atualizar. Ver docs/grids-niveis-cortes.md.
 
