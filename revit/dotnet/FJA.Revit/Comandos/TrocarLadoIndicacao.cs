@@ -90,20 +90,27 @@ namespace FJA.Revit.Comandos
                             a = !d.A; b = !d.B; break;
                     }
                     if (a == d.A && b == d.B) { iguais++; continue; }
-                    try
+                    using (var st = new SubTransaction(doc))
                     {
-                        // 2D nas duas pontas: a mudança vale só nesta vista
-                        foreach (var ponta in new[] { DatumEnds.End0, DatumEnds.End1 })
-                            if (d.D.GetDatumExtentTypeInView(ponta, v) != DatumExtentType.ViewSpecific)
-                                d.D.SetDatumExtentType(ponta, v, DatumExtentType.ViewSpecific);
-                        // liga antes de desligar (o Revit pode recusar ficar sem nenhuma indicação no meio do caminho)
-                        if (a && !d.A) d.D.ShowBubbleInView(d.PontaA, v);
-                        if (b && !d.B) d.D.ShowBubbleInView(d.PontaB, v);
-                        if (!a && d.A) d.D.HideBubbleInView(d.PontaA, v);
-                        if (!b && d.B) d.D.HideBubbleInView(d.PontaB, v);
-                        mudados++;
+                        try
+                        {
+                            st.Start();
+                            // 2D nas duas pontas (só nesta vista), mantendo a extensão que aparece hoje
+                            Extensao2D.Para2D(d.D, v);
+                            // liga antes de desligar (o Revit pode recusar ficar sem nenhuma indicação no meio do caminho)
+                            if (a && !d.A) d.D.ShowBubbleInView(d.PontaA, v);
+                            if (b && !d.B) d.D.ShowBubbleInView(d.PontaB, v);
+                            if (!a && d.A) d.D.HideBubbleInView(d.PontaA, v);
+                            if (!b && d.B) d.D.HideBubbleInView(d.PontaB, v);
+                            st.Commit();
+                            mudados++;
+                        }
+                        catch (Exception ex)
+                        {
+                            if (st.HasStarted()) st.RollBack();
+                            erros.Add(d.D.Name + ": " + ex.Message);
+                        }
                     }
-                    catch (Exception ex) { erros.Add(d.D.Name + ": " + ex.Message); }
                 }
                 if (mudados > 0) t.Commit(); else t.RollBack();
             }
@@ -127,10 +134,7 @@ namespace FJA.Revit.Comandos
             {
                 if (!dp.CanBeVisibleInView(v)) return null;
                 if (dp is Grid g && g.IsCurved) return null;
-                IList<Curve> cs;
-                try { cs = dp.GetCurvesInView(DatumExtentType.ViewSpecific, v); }
-                catch { cs = dp.GetCurvesInView(DatumExtentType.Model, v); }
-                var c = cs?.FirstOrDefault();
+                var c = Extensao2D.Visivel(dp, v);   // como aparece (a curva 2D guardada pode ser outra)
                 if (c == null) return null;
                 XYZ p0 = c.GetEndPoint(0), p1 = c.GetEndPoint(1), dir = (p1 - p0);
                 if (dir.GetLength() < 1e-9) return null;

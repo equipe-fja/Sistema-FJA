@@ -98,10 +98,7 @@ namespace FJA.Revit.Cotagem
                 var dp = e as DatumPlane;
                 if (dp == null) continue;
                 if (e is Grid g && g.IsCurved) continue;
-                IList<Curve> cs;
-                try { cs = dp.GetCurvesInView(DatumExtentType.ViewSpecific, v); }
-                catch { continue; }
-                var ln = cs?.OfType<Line>().FirstOrDefault();
+                var ln = Extensao2D.Visivel(dp, v);   // como aparece (a curva 2D guardada pode ser outra)
                 if (ln == null) continue;
                 XYZ p0 = ln.GetEndPoint(0), p1 = ln.GetEndPoint(1), dir = ln.Direction;
                 bool b0 = false, b1 = false;
@@ -250,8 +247,7 @@ namespace FJA.Revit.Cotagem
                 double cos = dirEixo.DotProduct(ao);
                 XYZ np = p + dirEixo * ((alvo - p.DotProduct(ao)) / cos);
                 XYZ a = moveP1 ? d.P0 : np, b = moveP1 ? np : d.P1;
-                dp.SetDatumExtentType(DatumEnds.End0, v, DatumExtentType.ViewSpecific);
-                dp.SetDatumExtentType(DatumEnds.End1, v, DatumExtentType.ViewSpecific);
+                Extensao2D.Para2D(dp, v);
                 dp.SetCurveInView(DatumExtentType.ViewSpecific, v, Line.CreateBound(a, b));
                 if (moveP1) d.P1 = np; else d.P0 = np;
                 if (fim) d.Fim = alvo; else d.Ini = alvo;
