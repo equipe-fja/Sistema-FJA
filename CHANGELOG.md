@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~16h43 — commit 534b32b
+- Extensão do Revit 2.26.4 (antes 2.26.3): **Cotar vistas** desvia os números das cotas também de paredes, escadas, mobiliário, louças e das linhas de outras cotas e de eixos, cada tipo de obstáculo com um peso. Fica a posição que menos atrapalha, mesmo sem nenhuma posição totalmente livre, com passos menores ao longo do trecho.
+
 ## oficial Firebase — 13/11, ~16h22 — commit 0f5e7d8
 - Extensão do Revit 2.26.3 (antes 2.26.2): **Cotar vistas** volta a cotar as paredes internas fora de esquadro, que a 2.26.1 deixava sem cota. Entre faces não paralelas, mede de uma face até a quina da outra parede, e a cota sai praticamente paralela ao eixo. Se o Revit recusar, usa um par de quinas na mesma altura (até 3 cm), perto da origem. Só sem nenhuma dessas opções o trecho fica sem cota.
 
