@@ -60,8 +60,10 @@ namespace FJA.Revit.Cotagem
         {
             var fora = new double?[4];
             if (lt.Paredes.Count == 0) { res.Avisos.Add("nenhuma parede reta cortada na vista (fachada)"); return fora; }
+            // só o edifício principal: floreiras, muros e edifícios vizinhos não são fachada nem a "escondem"
+            var edif = new Leitura { Paredes = Edificio(lt.Paredes), Planos = lt.Planos, VaosSemReferencia = lt.VaosSemReferencia };
             for (int i = 0; i < 4; i++)
-                fora[i] = Lado(doc, v, dt, lt, Lados[i].k, Lados[i].s, Lados[i].nome, soTotal, R, U, O, esp, ex, res);
+                fora[i] = Lado(doc, v, dt, edif, Lados[i].k, Lados[i].s, Lados[i].nome, soTotal, R, U, O, esp, ex, res);
             if (!soTotal && lt.VaosSemReferencia > 0)
                 res.Avisos.Add(lt.VaosSemReferencia + " porta(s)/janela(s) sem referências de largura: cotadas pelas ombreiras da parede");
             return fora;
@@ -144,6 +146,28 @@ namespace FJA.Revit.Cotagem
                 ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos });
             }
             return linha2;
+        }
+
+        /// <summary>
+        /// Edifício principal: o maior grupo de paredes que se encostam (retângulos que se tocam, com folga de 2 cm),
+        /// pelo comprimento somado. Paredes soltas (floreiras, muros, outros edifícios na mesma vista) ficam de fora.
+        /// </summary>
+        static List<Parede> Edificio(List<Parede> ps)
+        {
+            int n = ps.Count;
+            var pai = Enumerable.Range(0, n).ToArray();
+            int Raiz(int x) { while (pai[x] != x) { pai[x] = pai[pai[x]]; x = pai[x]; } return x; }
+            const double F = 20 / 304.8;
+            for (int i = 0; i < n; i++)
+                for (int j = i + 1; j < n; j++)
+                {
+                    Parede a = ps[i], b = ps[j];
+                    if (a.Lo[0] <= b.Hi[0] + F && b.Lo[0] <= a.Hi[0] + F && a.Lo[1] <= b.Hi[1] + F && b.Lo[1] <= a.Hi[1] + F)
+                        pai[Raiz(i)] = Raiz(j);
+                }
+            var grupos = Enumerable.Range(0, n).GroupBy(Raiz)
+                .OrderByDescending(g => g.Sum(i => Math.Max(ps[i].Hi[0] - ps[i].Lo[0], ps[i].Hi[1] - ps[i].Lo[1])));
+            return grupos.First().Select(i => ps[i]).ToList();
         }
 
         /// <summary>A parede está na fachada se, em pelo menos um ponto ao longo dela, não há outra parede mais para fora.</summary>

@@ -244,7 +244,11 @@ namespace FJA.Revit.Cotagem
                 XYZ ao = d.Vertical ? U : R;
                 bool moveP1 = fim == d.FimEhP1;
                 XYZ p = moveP1 ? d.P1 : d.P0;
-                XYZ np = p + ao * (alvo - p.DotProduct(ao));
+                // anda pela direção do próprio eixo (vista girada: o eixo nunca é exatamente paralelo a R/U, e o
+                // Revit recusa uma linha que não coincide com a do eixo)
+                XYZ dirEixo = (d.P1 - d.P0).Normalize();
+                double cos = dirEixo.DotProduct(ao);
+                XYZ np = p + dirEixo * ((alvo - p.DotProduct(ao)) / cos);
                 XYZ a = moveP1 ? d.P0 : np, b = moveP1 ? np : d.P1;
                 dp.SetDatumExtentType(DatumEnds.End0, v, DatumExtentType.ViewSpecific);
                 dp.SetDatumExtentType(DatumEnds.End1, v, DatumExtentType.ViewSpecific);
