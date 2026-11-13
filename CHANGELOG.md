@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~13h26 — commit dac7ea4
+- Extensão do Revit 2.23.2 (antes 2.23.1): correção do **Trocar lado** — ao passar eixos e níveis para 2D, a extensão que aparece na vista é mantida. Antes, com a ponta em 3D, o Revit assumia uma extensão 2D antiga e bem mais longa (linhas esticadas, cabeças longe). A mesma correção vale para a leitura e a extensão dos eixos no **Cotar vistas**.
+
 ## oficial Firebase — 13/11, ~13h17 — commit 52b62da
 - Extensão do Revit 2.23.1 (antes 2.23.0): **Cotar vistas** corrigido no primeiro teste da FJA (PMA.NÍVEL 1, 1:100). A fachada passa a considerar só o edifício principal, o maior grupo de paredes que se encostam: um muro mais ao norte fazia a cadeia de eixos sair a 10 m do edifício e, à esquerda, a fachada não era encontrada. Os eixos voltam a ser estendidos em vista girada (antes: "The curve is unbound or not coincident").
 
