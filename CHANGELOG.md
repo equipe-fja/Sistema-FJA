@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~13h30 — commit 732b721
+- Extensão do Revit 2.23.3 (antes 2.23.2): **Cotar vistas**, correções das cotas de fachada no teste da FJA (PMA.NÍVEL 1, vista girada). Antes, as cotas saíam sem valor (−0,30) e invisíveis. Agora usam referências estáveis das paredes, a face real de cada parede (que desvia um pouco da vista), os cantos, e descartam faces escondidas atrás de outra parede e tocos do outro lado do edifício. Cota que o Revit criar sem valor é apagada e avisada. Para limpar as cotas antigas, rodar com "Refazer as minhas".
+
 ## oficial Firebase — 13/11, ~13h26 — commit dac7ea4
 - Extensão do Revit 2.23.2 (antes 2.23.1): correção do **Trocar lado** — ao passar eixos e níveis para 2D, a extensão que aparece na vista é mantida. Antes, com a ponta em 3D, o Revit assumia uma extensão 2D antiga e bem mais longa (linhas esticadas, cabeças longe). A mesma correção vale para a leitura e a extensão dos eixos no **Cotar vistas**.
 
