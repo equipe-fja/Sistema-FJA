@@ -69,15 +69,16 @@ namespace FJA.Revit.Cotagem
             {
                 double atual = Nota(t, t.Caixa, obst);
                 if (atual <= 0) continue;
-                // o menor movimento que resolve (pedido da FJA, 13/11/2026): nota = sobreposição × peso + distância
-                // percorrida (em larguras do texto); só move se a sobreposição cair pelo menos 20 %
+                // o menor movimento que resolve (pedidos da FJA, 13/11/2026): nota = sobreposição × peso + distância ao
+                // centro do trecho (em larguras do texto); só move se a sobreposição cair pelo menos 20 %
                 XYZ melhor = null; Caixa cm = null; double nm = atual, total = double.MaxValue;
-                foreach (var p in Candidatos(t))
+                XYZ centro = Centro(t, R, U);
+                foreach (var p in Candidatos(t, centro))
                 {
                     var c = CaixaEm(t, p, R, U);
                     double n = Nota(t, c, obst);
                     if (n > atual * 0.8) continue;
-                    double dist = p.DistanceTo(t.Pos) / Math.Max(t.Larg, 1e-6);
+                    double dist = p.DistanceTo(centro) / Math.Max(t.Larg, 1e-6);   // o mais perto do centro do trecho
                     double tot = n + PESO_DISTANCIA * dist;
                     if (tot < total - 1e-9) { total = tot; nm = n; melhor = p; cm = c; }
                 }
@@ -197,9 +198,17 @@ namespace FJA.Revit.Cotagem
 
         // ------------------------------------------------------------ posições
 
-        static IEnumerable<XYZ> Candidatos(Texto t)
+        /// <summary>O texto no centro do trecho, do mesmo lado da linha em que o Revit o pôs (pedido da FJA, 13/11/2026).</summary>
+        static XYZ Centro(Texto t, XYZ R, XYZ U)
         {
-            XYZ p0 = t.Pos;
+            XYZ eixo = t.Hor ? R : U;
+            return t.Pos + eixo * ((t.A + t.B) / 2 - t.Pos.DotProduct(eixo));
+        }
+
+        static IEnumerable<XYZ> Candidatos(Texto t, XYZ centro)
+        {
+            XYZ p0 = centro;
+            yield return p0;   // o próprio centro (o Revit pode ter posto o texto fora dele)
             XYZ ao = t.Dim.Curve is Line ln ? ln.Direction : XYZ.BasisX;     // ao longo da linha da cota
             XYZ nrm = XYZ.BasisZ.CrossProduct(ao).Normalize();              // perpendicular, no plano da vista
             double lado = (p0 - t.Dim.Origin).DotProduct(nrm);              // de que lado da linha o texto está
