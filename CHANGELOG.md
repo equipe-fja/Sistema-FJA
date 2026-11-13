@@ -5,6 +5,12 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~13h05 — commit 0666362
+- Extensão do Revit 2.22.0 (antes 2.21.0): **Cotar vistas** segue as decisões da FJA de 13/11.
+  - Planta 1:75: vãos de fachada pelo **vão livre** das portas e janelas. A cadeia de eixos fica sempre em cima e à esquerda, **por fora** das cotas de fachada; os eixos cujas bolhas não cabem são estendidos nessa vista (em 2D).
+  - Planta 1:200: **dimensões gerais de cada ambiente** (duas cotas perpendiculares, pelas faces acabadas) e o total do **contorno** do edifício.
+- **Legendas:** só os pontos de parede ("Elevação do ponto") mostram altura no texto das variações. Os pontos de teto, como access points, ficam sem altura.
+
 ## oficial Firebase — 13/11, ~12h58 — commit f32e827
 - Extensão do Revit 2.21.0 (antes 2.20.0): **Cotagem › Trocar lado** abre uma janela. Escolhe os eixos e níveis selecionados ou todos os da vista e, separando as linhas verticais (em cima/embaixo) das horizontais (esquerda/direita), liga a indicação toda de um lado, toda do outro, dos dois lados, troca de lado ou não mexe. Só na vista ativa (pontas em 2D).
 
