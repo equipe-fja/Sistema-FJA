@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~17h13 — commit 89612d3
+- Extensão do Revit 2.26.8 (antes 2.26.7): **Estender/Alinhar** passa a ser só para eixos e níveis. Nos cortes, a API do Revit só muda a largura do recorte, que não move as cabeças na planta (a linha do corte é independente). Clicar num corte mostra o aviso, e o corte continua aceito como linha de referência. Os recortes dos cortes 4, 5 e 6 do modelo 131, mudados nos testes, foram restaurados com autorização da FJA.
+
 ## oficial Firebase — 13/11, ~17h05 — commit 30488d8
 - Extensão do Revit 2.26.7 (antes 2.26.6): **Cotar vistas** coloca os números deslocados o mais perto possível do centro do trecho. As posições testadas partem do centro, começando por ele mesmo.
 
