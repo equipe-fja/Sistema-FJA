@@ -152,6 +152,8 @@ namespace FJA.Revit.Comandos
                 if (r.JaExistiam > 0) partes.Add(r.JaExistiam + " trecho(s) já cotado(s)");
                 if (r.Removidas > 0) partes.Add(r.Removidas + " refeita(s)");
                 if (r.EixosEstendidos > 0) partes.Add(r.EixosEstendidos + " eixo(s) estendido(s) nesta vista para as bolhas ficarem por fora das cotas");
+                if (r.TextosMovidos > 0) partes.Add(r.TextosMovidos + " número(s) de cota deslocado(s) para não encostar em outros elementos");
+                if (r.TextosSemLugar > 0) partes.Add(r.TextosSemLugar + " número(s) de cota sem lugar livre por perto (conferir à mão)");
                 partes.AddRange(r.Avisos);
                 txt.Add("• " + r.Vista + ": " + (partes.Count == 0 ? "nada a cotar" : string.Join("; ", partes)));
             }

@@ -471,6 +471,7 @@ namespace FJA.Revit.Cotagem
                     return false;
                 }
                 Marca.MarcarCota(dim, regra);
+                res.Novas.Add(dim);
                 res.Criadas++;
                 return true;
             }

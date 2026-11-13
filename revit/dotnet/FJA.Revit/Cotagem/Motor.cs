@@ -9,7 +9,8 @@ namespace FJA.Revit.Cotagem
     public sealed class ResultadoVista
     {
         public string Vista;
-        public int Criadas, Segmentos, JaExistiam, Removidas, EixosEstendidos;
+        public int Criadas, Segmentos, JaExistiam, Removidas, EixosEstendidos, TextosMovidos, TextosSemLugar;
+        internal List<Dimension> Novas = new List<Dimension>();   // cotas criadas nesta vista (para desviar os textos)
         public List<string> Avisos = new List<string>();
     }
 
@@ -83,6 +84,9 @@ namespace FJA.Revit.Cotagem
 
             if ((regra.Eixos || regra.Niveis) && datums.Count == 0)
                 res.Avisos.Add(regra.Eixos && regra.Niveis ? "nenhum eixo ou nível visível na vista" : regra.Eixos ? "nenhum eixo visível na vista" : "nenhum nível visível na vista");
+
+            // números das cotas criadas desviados de outros elementos (pedido da FJA, 13/11/2026)
+            if (res.Novas.Count > 0) Textos.Ajustar(doc, v, res, R, U);
             return res;
         }
 
@@ -282,6 +286,7 @@ namespace FJA.Revit.Cotagem
                 Dimension dim = dt != null ? doc.Create.NewDimension(v, ln, ra, dt) : doc.Create.NewDimension(v, ln, ra);
                 if (dim == null) { res.Avisos.Add("o Revit não criou uma cota de " + regra); return false; }
                 Marca.MarcarCota(dim, regra);
+                res.Novas.Add(dim);
                 res.Criadas++;
                 return true;
             }
