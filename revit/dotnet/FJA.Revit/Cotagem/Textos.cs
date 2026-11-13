@@ -69,23 +69,41 @@ namespace FJA.Revit.Cotagem
             {
                 double atual = Nota(t, t.Caixa, obst);
                 if (atual <= 0) continue;
-                // a posição de menor nota (sobreposição × peso); empate: a primeira da lista (mais perto da original)
-                XYZ melhor = null; Caixa cm = null; double nm = atual;
+                // o menor movimento que resolve (pedido da FJA, 13/11/2026): nota = sobreposição × peso + distância
+                // percorrida (em larguras do texto); só move se a sobreposição cair pelo menos 20 %
+                XYZ melhor = null; Caixa cm = null; double nm = atual, total = double.MaxValue;
                 foreach (var p in Candidatos(t))
                 {
                     var c = CaixaEm(t, p, R, U);
                     double n = Nota(t, c, obst);
-                    if (n < nm - 1e-6) { nm = n; melhor = p; cm = c; if (n <= 0) break; }
+                    if (n > atual * 0.8) continue;
+                    double dist = p.DistanceTo(t.Pos) / Math.Max(t.Larg, 1e-6);
+                    double tot = n + PESO_DISTANCIA * dist;
+                    if (tot < total - 1e-9) { total = tot; nm = n; melhor = p; cm = c; }
                 }
                 if (melhor != null && Mover(t, melhor))
                 {
                     t.Caixa.X0 = cm.X0; t.Caixa.X1 = cm.X1; t.Caixa.Y0 = cm.Y0; t.Caixa.Y1 = cm.Y1;
                     t.Pos = melhor;
+                    SemLeader(t.Dim);
                     res.TextosMovidos++;
                     if (nm > 0) res.TextosSemLugar++;
                 }
                 else res.TextosSemLugar++;
             }
+        }
+
+        const double PESO_DISTANCIA = 3;   // cada largura de texto percorrida vale ~ 30 % de sobreposição com algo forte
+
+        /// <summary>Sem o traço de chamada (leader) entre o número deslocado e a cota: parâmetro "Leader" da cota.</summary>
+        static void SemLeader(Dimension d)
+        {
+            try
+            {
+                var p = d.get_Parameter(BuiltInParameter.DIM_LEADER);
+                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Integer && p.AsInteger() != 0) p.Set(0);
+            }
+            catch { }
         }
 
         /// <summary>Soma de (fração sobreposta × peso) com tudo, menos o próprio texto e a linha da própria cota.</summary>
