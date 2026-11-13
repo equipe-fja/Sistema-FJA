@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~12h10 — commit 7f7afa8
+- Extensão do Revit 2.19.0 (antes 2.18.0): **Cotagem › Trocar lado** — nos eixos e níveis selecionados, passa as pontas para 2D e troca a indicação (bolha/cabeça) para o lado oposto, só na vista ativa.
+
 ## oficial Firebase — 13/11, ~11h30 — commit 2a5ec1b
 - Extensão do Revit 2.18.0 (antes 2.17.1): painel novo **Cotagem › Cotar vistas** (C#). Tipo da vista pelo template (ou escolhido numa lista), regra por tipo × escala, cadeias de eixos e de níveis com total, só acrescenta o que ainda não está cotado (modo Refazer as minhas para as cotas da própria ferramenta). Painel novo: fechar e abrir o Revit depois de atualizar. Ver docs/cotagem.md.
 
