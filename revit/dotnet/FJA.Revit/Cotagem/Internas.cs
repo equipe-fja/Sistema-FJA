@@ -94,7 +94,8 @@ namespace FJA.Revit.Cotagem
                     if (Feito(a, b)) continue;
                     pares.Add((a.Dono, b.Dono));
                     if (Motor.Medido(ex, hor, a.Pos, b.Pos)) { res.JaExistiam++; continue; }
-                    if (Paralelo(a, b) && Fachada.Criar(doc, v, dt, new List<Plano> { a, b }, hor, y, R, U, O, "interna", res, true))
+                    if (Paralelo(a, b) && Inclinacao(a) * Math.Abs(b.Pos - a.Pos) <= DERIVA
+                        && Fachada.Criar(doc, v, dt, new List<Plano> { a, b }, hor, y, R, U, O, "interna", res, true))
                     {
                         res.Segmentos++;
                         ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos, Linha = y });
@@ -139,7 +140,7 @@ namespace FJA.Revit.Cotagem
                           XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
         {
             if (g.Count < 2) return;
-            if (Fachada.Criar(doc, v, dt, g, hor, y, R, U, O, "interna", res, true))
+            if (Inclinacao(g[0]) * Math.Abs(g[g.Count - 1].Pos - g[0].Pos) <= DERIVA && Fachada.Criar(doc, v, dt, g, hor, y, R, U, O, "interna", res, true))
             {
                 res.Segmentos += g.Count - 1;
                 for (int m = 0; m < g.Count - 1; m++) ex.Add(new Intervalo { Horizontal = hor, A = g[m].Pos, B = g[m + 1].Pos, Linha = y });
@@ -167,12 +168,18 @@ namespace FJA.Revit.Cotagem
         internal static double? CriarPonte(Document doc, View v, DimensionType dt, Plano a, Plano b, int k, double y, bool hor,
                                            XYZ R, XYZ U, XYZ O, string regra, ResultadoVista res)
         {
-            var qb = b.ArestaPerto(y);
-            if (qb != null && Fachada.Criar(doc, v, dt, new List<Plano> { a, new Plano { Ref = qb.Ref, Eixo = k, Pos = qb.K } }, hor, y, R, U, O, regra, res, true))
-                return y;
-            var qa = a.ArestaPerto(y);
-            if (qa != null && Fachada.Criar(doc, v, dt, new List<Plano> { new Plano { Ref = qa.Ref, Eixo = k, Pos = qa.K }, b }, hor, y, R, U, O, regra, res, true))
-                return y;
+            // face + quina: a cota fica perpendicular à face; só vale se a face estiver quase no esquadro da vista —
+            // deriva (inclinação × comprimento do vão) de até 3 cm (teste pelo conector, PMA.NÍVEL 1: 24,94 e 8,75 tortos)
+            double vao = Math.Abs(b.Pos - a.Pos);
+            foreach (var (face, outra, primeiro) in new[] { (a, b, true), (b, a, false) }.OrderBy(t => Inclinacao(t.Item1)))
+            {
+                if (Inclinacao(face) * vao > DERIVA) continue;
+                var q = outra.ArestaPerto(y);
+                if (q == null) continue;
+                var pq = new Plano { Ref = q.Ref, Eixo = k, Pos = q.K };
+                var refs = primeiro ? new List<Plano> { face, pq } : new List<Plano> { pq, face };
+                if (Fachada.Criar(doc, v, dt, refs, hor, y, R, U, O, regra, res, true)) return y;
+            }
             var par = ParDeQuinas(a, b, k, y);
             if (par == null) return null;
             var (ea, eb, linha) = par.Value;
@@ -181,6 +188,10 @@ namespace FJA.Revit.Cotagem
         }
 
         const double MESMA_ALTURA = 30 / 304.8;   // quinas a até 3 cm uma da outra no eixo perpendicular
+        const double DERIVA = 30 / 304.8;         // face + quina: desvio da linha da cota ao longo do vão, até 3 cm
+
+        /// <summary>Inclinação da face em relação ao eixo da vista (tangente do ângulo).</summary>
+        static double Inclinacao(Plano p) => Math.Abs(p.NC) / Math.Max(Math.Abs(p.NK), 1e-9);
         const double RECUO_LINHA = 400 / 304.8;   // linha da cota a até 40 cm das quinas, para dentro do ambiente
 
         /// <summary>

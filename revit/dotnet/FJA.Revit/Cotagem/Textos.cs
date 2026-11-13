@@ -45,6 +45,8 @@ namespace FJA.Revit.Cotagem
             public XYZ Pos;                // posição atual do texto
             public double Larg, Alt;       // tamanho do texto no modelo
             public bool Hor;               // linha da cota horizontal na tela
+            public XYZ Up;                 // "para cima" do texto: o Revit põe o número com a base na linha (TextPosition) e o corpo para este lado
+            public XYZ NaLinha;            // um ponto da linha da cota
             public double A, B, Linha;     // extensão do trecho ao longo da linha e posição da linha
             public Caixa Caixa;
         }
@@ -141,18 +143,19 @@ namespace FJA.Revit.Cotagem
                 bool hor = Math.Abs(dir.DotProduct(R)) >= Math.Abs(dir.DotProduct(U));
                 double alt = AlturaTexto(d, v);
                 XYZ eixo = hor ? R : U, outro = hor ? U : R;
-                double linha = d.Origin.DotProduct(outro);
+                double linha = ln.Origin.DotProduct(outro);   // Dimension.Origin dá erro em cota com vários trechos
+                XYZ up = hor ? U : -R;                         // texto horizontal para cima; vertical lido de baixo para cima (para a esquerda)
                 if (d.NumberOfSegments == 0)
                 {
                     if (d.Value == null) return r;
-                    var t = Novo(d, null, d.TextPosition, d.ValueString, d.Origin.DotProduct(eixo), d.Value.Value, alt, hor, linha, R, U);
+                    var t = Novo(d, null, d.TextPosition, d.ValueString, d.Origin.DotProduct(eixo), d.Value.Value, alt, hor, linha, up, ln.Origin, R, U);
                     if (t != null) r.Add(t);
                 }
                 else
                     foreach (DimensionSegment s in d.Segments)
                     {
                         if (s.Value == null) continue;
-                        var t = Novo(d, s, s.TextPosition, s.ValueString, s.Origin.DotProduct(eixo), s.Value.Value, alt, hor, linha, R, U);
+                        var t = Novo(d, s, s.TextPosition, s.ValueString, s.Origin.DotProduct(eixo), s.Value.Value, alt, hor, linha, up, ln.Origin, R, U);
                         if (t != null) r.Add(t);
                     }
             }
@@ -161,12 +164,12 @@ namespace FJA.Revit.Cotagem
         }
 
         static Texto Novo(Dimension d, DimensionSegment s, XYZ pos, string txt, double centro, double valor, double alt,
-                          bool hor, double linha, XYZ R, XYZ U)
+                          bool hor, double linha, XYZ up, XYZ naLinha, XYZ R, XYZ U)
         {
             if (pos == null) return null;
             var t = new Texto
             {
-                Dim = d, Seg = s, Pos = pos, Alt = alt * 1.15, Hor = hor, Linha = linha,
+                Dim = d, Seg = s, Pos = pos, Alt = alt * 1.15, Hor = hor, Linha = linha, Up = up, NaLinha = naLinha,
                 Larg = Math.Max(1, (txt ?? "").Length) * alt * 0.62 + alt * 0.3,
                 A = centro - valor / 2, B = centro + valor / 2,
             };
@@ -175,10 +178,12 @@ namespace FJA.Revit.Cotagem
             return t;
         }
 
-        /// <summary>Retângulo do texto centrado em p (texto ao longo da linha da cota).</summary>
+        /// <summary>Retângulo do texto com a base (meio da base) em p e o corpo para o lado Up (medido no Revit: o
+        /// TextPosition fica sobre a linha da cota quando o número está na posição padrão).</summary>
         static Caixa CaixaEm(Texto t, XYZ p, XYZ R, XYZ U)
         {
-            double x = p.DotProduct(R), y = p.DotProduct(U);
+            XYZ c = p + t.Up * (t.Alt / 2);
+            double x = c.DotProduct(R), y = c.DotProduct(U);
             double hx = (t.Hor ? t.Larg : t.Alt) / 2, hy = (t.Hor ? t.Alt : t.Larg) / 2;
             return new Caixa { X0 = x - hx, X1 = x + hx, Y0 = y - hy, Y1 = y + hy };
         }
@@ -207,14 +212,13 @@ namespace FJA.Revit.Cotagem
 
         static IEnumerable<XYZ> Candidatos(Texto t, XYZ centro)
         {
-            XYZ p0 = centro;
-            yield return p0;   // o próprio centro (o Revit pode ter posto o texto fora dele)
             XYZ ao = t.Dim.Curve is Line ln ? ln.Direction : XYZ.BasisX;     // ao longo da linha da cota
-            XYZ nrm = XYZ.BasisZ.CrossProduct(ao).Normalize();              // perpendicular, no plano da vista
-            double lado = (p0 - t.Dim.Origin).DotProduct(nrm);              // de que lado da linha o texto está
-            double off = Math.Max(Math.Abs(lado), t.Alt * 0.6);
-            double s = lado >= 0 ? 1 : -1;
-            XYZ outroLado = p0 - nrm * (s * 2 * off);
+            // as duas posições junto da linha: base na linha (corpo do lado Up, a do Revit) ou topo na linha (corpo do
+            // outro lado) — nunca riscado pela própria linha
+            double lado = (centro - t.NaLinha).DotProduct(t.Up);
+            XYZ p0 = centro - t.Up * lado;                                   // base sobre a linha
+            XYZ outroLado = p0 - t.Up * (t.Alt * 1.05);                      // topo logo abaixo da linha
+            yield return p0;
             yield return outroLado;
 
             // ao longo do trecho, sem sair dele
