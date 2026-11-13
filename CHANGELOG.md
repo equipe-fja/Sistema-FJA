@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~16h16 — commit 95e2476
+- Extensão do Revit 2.26.2 (antes 2.26.1): **Estender/Alinhar** com cortes. No teste da FJA o clique no corte era ignorado sem aviso; agora os cliques aceitam qualquer elemento, o corte é reconhecido também como vista de corte ou pela categoria Cortes, e o que não serve abre uma mensagem dizendo o que foi clicado. Vistas selecionadas no navegador não entram no alinhamento automático.
+
 ## oficial Firebase — 13/11, ~16h15 — commit 2562f2f
 - Extensão do Revit 2.26.1 (antes 2.26.0): **Cotar vistas** não cria mais cotas tortas entre paredes fora de esquadro. Entre faces não paralelas, usa o par de quinas na mesma altura mais perto da origem (em cima ou à esquerda), com a linha junto delas. Sem um par assim, o trecho fica sem cota e o relatório avisa. Vale para as cadeias internas e para os ambientes da 1:200.
 
