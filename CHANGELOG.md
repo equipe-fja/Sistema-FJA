@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~16h15 — commit 2562f2f
+- Extensão do Revit 2.26.1 (antes 2.26.0): **Cotar vistas** não cria mais cotas tortas entre paredes fora de esquadro. Entre faces não paralelas, usa o par de quinas na mesma altura mais perto da origem (em cima ou à esquerda), com a linha junto delas. Sem um par assim, o trecho fica sem cota e o relatório avisa. Vale para as cadeias internas e para os ambientes da 1:200.
+
 ## oficial Firebase — 13/11, ~16h05 — commit aa6d66b
 - Extensão do Revit 2.26.0 (antes 2.25.1): **Cotar vistas** desvia o número das cotas que cria quando ele encosta em outro elemento: textos de outras cotas, etiquetas, textos, anotações, portas, janelas e pilares. Tenta, nesta ordem, o outro lado da linha, um deslocamento ao longo do trecho e, em trechos curtos, uma posição além das pontas. O relatório diz quantos números foram deslocados e quantos ficaram sem lugar livre. As cotas feitas à mão não são movidas.
 
