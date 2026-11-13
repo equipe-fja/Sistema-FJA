@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~12h58 — commit f32e827
+- Extensão do Revit 2.21.0 (antes 2.20.0): **Cotagem › Trocar lado** abre uma janela. Escolhe os eixos e níveis selecionados ou todos os da vista e, separando as linhas verticais (em cima/embaixo) das horizontais (esquerda/direita), liga a indicação toda de um lado, toda do outro, dos dois lados, troca de lado ou não mexe. Só na vista ativa (pontas em 2D).
+
 ## oficial Firebase — 13/11, ~12h35 — commit a306e1a
 - Extensão do Revit 2.20.0 (antes 2.19.0): **Cotar vistas** na planta baixa 1:75 (1:50 a 1:149) passa a cotar também os **panos e vãos de fachada** nos quatro lados (ombreiras, pontas de parede e cantos externos, em osso) e o total de cada fachada, além dos eixos. Ver docs/cotagem.md.
 
