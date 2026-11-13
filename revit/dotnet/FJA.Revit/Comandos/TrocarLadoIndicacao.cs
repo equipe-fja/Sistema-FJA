@@ -3,25 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using Autodesk.Revit.UI.Selection;
+using FJA.Revit.Cotagem;
 using FJA.Revit.Nucleo;
 
 namespace FJA.Revit.Comandos
 {
     /// <summary>
-    /// Cotagem › Trocar lado: nos eixos e níveis selecionados, desliga a indicação (bolha/cabeça) do lado em que
-    /// está e liga do lado oposto, só na vista ativa. As duas pontas passam para 2D (extensão da vista) antes,
-    /// para a troca não se espalhar para outras vistas. Ver docs/cotagem.md.
+    /// Cotagem › Trocar lado (2.21.0: com janela). Nos eixos e níveis selecionados, ou em todos os visíveis na
+    /// vista ativa, liga a indicação (bolha/cabeça) toda de um lado, toda do outro, dos dois lados, ou troca de
+    /// lado — separado para as linhas verticais e as horizontais na tela. Só na vista ativa: as pontas passam
+    /// para 2D (extensão da vista) antes. Ver docs/cotagem.md.
     /// </summary>
     public class TrocarLadoIndicacao : ComandoFJA
     {
         const string Titulo = "Trocar lado da indicação";
-
-        sealed class FiltroDatum : ISelectionFilter
-        {
-            public bool AllowElement(Element e) => e is Grid || e is Level;
-            public bool AllowReference(Reference r, XYZ p) => false;
-        }
 
         public override Result Executar(UIApplication app, ref string mensagem)
         {
@@ -35,64 +30,112 @@ namespace FJA.Revit.Comandos
                 return Result.Cancelled;
             }
 
-            var ids = uidoc.Selection.GetElementIds().Where(i => { var e = doc.GetElement(i); return e is Grid || e is Level; }).ToList();
-            if (ids.Count == 0)
+            var sel = new HashSet<ElementId>(uidoc.Selection.GetElementIds());
+            var todos = new List<DatumNaVista>();
+            var col = new List<Element>();
+            col.AddRange(new FilteredElementCollector(doc, v.Id).OfClass(typeof(Grid)).ToElements());
+            col.AddRange(new FilteredElementCollector(doc, v.Id).OfClass(typeof(Level)).ToElements());
+            foreach (var e in col)
             {
-                try
-                {
-                    var refs = uidoc.Selection.PickObjects(ObjectType.Element, new FiltroDatum(),
-                        "Selecione os eixos e níveis; depois clique em Concluir");
-                    ids = refs.Select(r => r.ElementId).ToList();
-                }
-                catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
-                if (ids.Count == 0) return Result.Cancelled;
+                var d = Ler(e as DatumPlane, v);
+                if (d == null) continue;
+                d.Selecionado = sel.Contains(e.Id);
+                todos.Add(d);
+            }
+            if (todos.Count == 0)
+            {
+                TaskDialog.Show(Titulo, "Nenhum eixo ou nível visível nesta vista.");
+                return Result.Cancelled;
             }
 
-            int trocados = 0;
-            var ambos = new List<string>();
-            var nenhum = new List<string>();
+            var o = OpcoesTrocarLado.Carregar();
+            var j = new JanelaTrocarLado(todos, v.Name, o);
+            new System.Windows.Interop.WindowInteropHelper(j) { Owner = app.MainWindowHandle };
+            j.ShowDialog();
+            if (!j.Confirmado) return Result.Cancelled;
+            o.Gravar();
+
+            int mudados = 0, iguais = 0;
+            var ficaram = new List<string>();
             var erros = new List<string>();
             using (var t = new Transaction(doc, "Trocar lado da indicação"))
             {
                 t.Start();
-                foreach (var id in ids)
+                foreach (var d in j.Alvo)
                 {
-                    var dp = doc.GetElement(id) as DatumPlane;
-                    if (dp == null) continue;
-                    string nome = dp.Name;
+                    var acao = d.Vertical ? j.Verticais : j.Horizontais;
+                    if (acao == AcaoLado.NaoMexer) continue;
+                    bool a, b;
+                    switch (acao)
+                    {
+                        case AcaoLado.LadoA: a = true; b = false; break;
+                        case AcaoLado.LadoB: a = false; b = true; break;
+                        case AcaoLado.DoisLados: a = b = true; break;
+                        default:   // trocar: só com indicação de um lado
+                            if (d.A == d.B) { ficaram.Add(d.D.Name); continue; }
+                            a = !d.A; b = !d.B; break;
+                    }
+                    if (a == d.A && b == d.B) { iguais++; continue; }
                     try
                     {
-                        if (!dp.CanBeVisibleInView(v)) { erros.Add(nome + ": não aparece nesta vista"); continue; }
-                        bool b0 = dp.IsBubbleVisibleInView(DatumEnds.End0, v);
-                        bool b1 = dp.IsBubbleVisibleInView(DatumEnds.End1, v);
-                        if (b0 && b1) { ambos.Add(nome); continue; }
-                        if (!b0 && !b1) { nenhum.Add(nome); continue; }
-
-                        // 2D nas duas pontas: a troca vale só nesta vista
+                        // 2D nas duas pontas: a mudança vale só nesta vista
                         foreach (var ponta in new[] { DatumEnds.End0, DatumEnds.End1 })
-                            if (dp.GetDatumExtentTypeInView(ponta, v) != DatumExtentType.ViewSpecific)
-                                dp.SetDatumExtentType(ponta, v, DatumExtentType.ViewSpecific);
-
-                        var de = b0 ? DatumEnds.End0 : DatumEnds.End1;
-                        var para = b0 ? DatumEnds.End1 : DatumEnds.End0;
-                        dp.ShowBubbleInView(para, v);
-                        dp.HideBubbleInView(de, v);
-                        trocados++;
+                            if (d.D.GetDatumExtentTypeInView(ponta, v) != DatumExtentType.ViewSpecific)
+                                d.D.SetDatumExtentType(ponta, v, DatumExtentType.ViewSpecific);
+                        // liga antes de desligar (o Revit pode recusar ficar sem nenhuma indicação no meio do caminho)
+                        if (a && !d.A) d.D.ShowBubbleInView(d.PontaA, v);
+                        if (b && !d.B) d.D.ShowBubbleInView(d.PontaB, v);
+                        if (!a && d.A) d.D.HideBubbleInView(d.PontaA, v);
+                        if (!b && d.B) d.D.HideBubbleInView(d.PontaB, v);
+                        mudados++;
                     }
-                    catch (Exception ex) { erros.Add(nome + ": " + ex.Message); }
+                    catch (Exception ex) { erros.Add(d.D.Name + ": " + ex.Message); }
                 }
-                if (trocados > 0) t.Commit(); else t.RollBack();
+                if (mudados > 0) t.Commit(); else t.RollBack();
             }
 
-            if (ambos.Count + nenhum.Count + erros.Count > 0)
+            if (ficaram.Count + erros.Count > 0 || mudados == 0)
             {
                 var txt = new List<string>();
-                if (ambos.Count > 0) txt.Add("Com indicação dos dois lados (ficaram como estavam): " + string.Join(", ", ambos));
-                if (nenhum.Count > 0) txt.Add("Sem indicação nesta vista (ficaram como estavam): " + string.Join(", ", nenhum));
+                if (iguais > 0) txt.Add(iguais + " já estava(m) como pedido.");
+                if (ficaram.Count > 0) txt.Add("Trocar de lado não vale para linhas com indicação nos dois lados ou sem nenhuma (ficaram como estavam): " + string.Join(", ", ficaram));
                 txt.AddRange(erros);
-                TaskDialog.Show(Titulo, (trocados == 0 ? "Nada foi trocado." : trocados + " trocado(s).") + "\n\n" + string.Join("\n\n", txt));
+                TaskDialog.Show(Titulo, (mudados == 0 ? "Nada foi alterado." : mudados + " alterado(s).") + (txt.Count > 0 ? "\n\n" + string.Join("\n\n", txt) : ""));
             }
             return Result.Succeeded;
+        }
+
+        /// <summary>Orientação na tela e qual ponta fica em cima/à esquerda (A) e embaixo/à direita (B).</summary>
+        static DatumNaVista Ler(DatumPlane dp, View v)
+        {
+            if (dp == null) return null;
+            try
+            {
+                if (!dp.CanBeVisibleInView(v)) return null;
+                if (dp is Grid g && g.IsCurved) return null;
+                IList<Curve> cs;
+                try { cs = dp.GetCurvesInView(DatumExtentType.ViewSpecific, v); }
+                catch { cs = dp.GetCurvesInView(DatumExtentType.Model, v); }
+                var c = cs?.FirstOrDefault();
+                if (c == null) return null;
+                XYZ p0 = c.GetEndPoint(0), p1 = c.GetEndPoint(1), dir = (p1 - p0);
+                if (dir.GetLength() < 1e-9) return null;
+                XYZ R = v.RightDirection, U = v.UpDirection;
+                bool vertical = Math.Abs(dir.DotProduct(U)) >= Math.Abs(dir.DotProduct(R));
+                // A = em cima (vertical) ou à esquerda (horizontal)
+                bool zeroEhA = vertical ? p0.DotProduct(U) > p1.DotProduct(U) : p0.DotProduct(R) < p1.DotProduct(R);
+                var d = new DatumNaVista
+                {
+                    D = dp,
+                    Vertical = vertical,
+                    PontaA = zeroEhA ? DatumEnds.End0 : DatumEnds.End1,
+                    PontaB = zeroEhA ? DatumEnds.End1 : DatumEnds.End0,
+                };
+                d.A = dp.IsBubbleVisibleInView(d.PontaA, v);
+                d.B = dp.IsBubbleVisibleInView(d.PontaB, v);
+                return d;
+            }
+            catch { return null; }
         }
     }
 }

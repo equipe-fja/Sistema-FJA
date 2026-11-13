@@ -2,5 +2,5 @@ title:
   pt_br: "Trocar lado"
   en_us: "Trocar lado"
 tooltip:
-  pt_br: "Nos eixos e níveis selecionados (ou escolhidos em seguida), desliga a indicação do lado em que está e liga do lado oposto, só na vista ativa. As pontas passam para 2D antes, para a troca não mudar as outras vistas. Eixos e níveis com indicação dos dois lados, ou sem nenhuma, ficam como estão."
-  en_us: "Nos eixos e níveis selecionados (ou escolhidos em seguida), desliga a indicação do lado em que está e liga do lado oposto, só na vista ativa. As pontas passam para 2D antes, para a troca não mudar as outras vistas. Eixos e níveis com indicação dos dois lados, ou sem nenhuma, ficam como estão."
+  pt_br: "Abre uma janela para os eixos e níveis selecionados (ou todos os da vista ativa): ligar a indicação toda de um lado, toda do outro, dos dois lados, ou trocar de lado, separando as linhas verticais (em cima/embaixo) e as horizontais (esquerda/direita). Só na vista ativa: as pontas passam para 2D antes."
+  en_us: "Abre uma janela para os eixos e níveis selecionados (ou todos os da vista ativa): ligar a indicação toda de um lado, toda do outro, dos dois lados, ou trocar de lado, separando as linhas verticais (em cima/embaixo) e as horizontais (esquerda/direita). Só na vista ativa: as pontas passam para 2D antes."
