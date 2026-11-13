@@ -4,8 +4,9 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.22.0)
-- Painel **Cotagem** (C#, desde 2.18.0): **Cotar vistas** (eixos e níveis com total; planta 1:75: panos e vãos de fachada com vão livre; planta 1:200: ambientes e contorno) e **Trocar lado** (bolha/cabeça de eixos e níveis, em 2D). Ver `docs/cotagem.md`.
+## Conteúdo atual (extensão 2.25.0)
+- Painel **Cotagem** (C#, desde 2.18.0): **Cotar vistas** (eixos e níveis com total; planta 1:75: panos e vãos de fachada com vão livre; planta 1:200: ambientes e contorno). Ver `docs/cotagem.md`.
+- Painel **Grids, Níveis e Cortes** (C#, desde 2.25.0): **Trocar lado** (bolha/cabeça de eixos e níveis, na vista ativa; estava em Cotagem) e **Estender/Alinhar** (pontas de eixos, níveis e cortes até uma linha de referência, como o Aparar/Estender do Revit). Ver `docs/grids-niveis-cortes.md`.
 - Painel **Pontos** (2.14.0; antes "Legendas"): ferramentas Legendas e Codificação.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).

@@ -10,7 +10,7 @@ using FJA.Revit.Nucleo;
 namespace FJA.Revit.Comandos
 {
     /// <summary>
-    /// Cotagem › Trocar lado (janela desde 2.21.0; eixos × níveis desde 2.23.0). Nos eixos e níveis selecionados
+    /// Grids, Níveis e Cortes › Trocar lado (em Cotagem até 2.24; janela desde 2.21.0; eixos × níveis desde 2.23.0). Nos eixos e níveis selecionados
     /// (sem seleção, pede para escolher), liga a indicação (bolha/cabeça) toda de um lado, toda do outro, dos dois
     /// lados, ou troca de lado — uma escolha para os eixos e outra para os níveis. Só na vista ativa: as pontas
     /// e a extensão do eixo/nível não são alteradas (desde 2.23.4). Ver docs/cotagem.md.

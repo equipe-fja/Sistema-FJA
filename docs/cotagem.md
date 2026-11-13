@@ -58,7 +58,7 @@ Comando C# `CotarVistas` (`revit/dotnet/FJA.Revit/Cotagem/*.cs`), desde a extens
 - **Planta com fachada cotada nesse lado:** a cadeia de eixos fica a 1 espaçamento da última linha da fachada, o total a 2; os eixos cuja ponta não chega a 1 espaçamento além do total são **estendidos nesta vista** (pontas passam para 2D, `SetCurveInView`; a ponta anda pela direção do próprio eixo — em vista girada o eixo não é exatamente paralelo à vista, 2.23.1), para as bolhas ficarem por fora. O relatório conta os eixos estendidos. A bolha não troca de lado (para isso, Trocar lado).
 - **Sem fachada nesse lado** (cortes, fachadas, plantas sem paredes): logo para dentro das pontas — total a 1 espaçamento delas, cadeia a 2.
 
-## Trocar lado (2.19.0; janela desde 2.21.0; eixos × níveis desde 2.23.0, 13/11/2026)
+## Trocar lado (2.19.0; janela desde 2.21.0; eixos × níveis desde 2.23.0; painel Grids, Níveis e Cortes desde 2.25.0, 13/11/2026)
 Comando `TrocarLadoIndicacao` (`Comandos/TrocarLadoIndicacao.cs`, janela `Cotagem/JanelaTrocarLado.cs`), na vista ativa:
 - **Sempre os selecionados:** eixos e níveis selecionados; sem seleção, pede para escolher no modelo (Concluir).
 - **Dois cartões:** **Eixos** (em cima / embaixo) e **Níveis** (à esquerda / à direita), cada um com a quantidade selecionada; o cartão só aparece se houver itens do tipo. Num eixo horizontal na tela, "em cima" vale como a ponta da esquerda.
