@@ -110,6 +110,12 @@ namespace FJA.Revit.Cotagem
             }
         }
 
+        const double FOLGA_JA = 5 / 304.8;   // paredes tortas: o mesmo trecho medido por outra regra difere alguns mm
+
+        /// <summary>Trecho já cotado (por qualquer regra), com folga de 5 mm nas pontas.</summary>
+        static bool Ja(List<Intervalo> ex, bool hor, double a, double b) =>
+            ex.Any(i => i.Horizontal == hor && Math.Abs(i.A - a) < FOLGA_JA && Math.Abs(i.B - b) < FOLGA_JA);
+
         /// <summary>Cria os trechos que ainda não estão cotados, em sequências contínuas.</summary>
         static void Cadeia(Document doc, View v, DimensionType dt, List<Plano> ds, bool hor, double linha, string regra,
                            XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
@@ -117,9 +123,9 @@ namespace FJA.Revit.Cotagem
             int i = 0;
             while (i < ds.Count - 1)
             {
-                if (Motor.Medido(ex, hor, ds[i].Pos, ds[i + 1].Pos)) { res.JaExistiam++; i++; continue; }
+                if (Ja(ex, hor, ds[i].Pos, ds[i + 1].Pos)) { res.JaExistiam++; i++; continue; }
                 int j = i;
-                while (j < ds.Count - 1 && !Motor.Medido(ex, hor, ds[j].Pos, ds[j + 1].Pos)) j++;
+                while (j < ds.Count - 1 && !Ja(ex, hor, ds[j].Pos, ds[j + 1].Pos)) j++;
                 var trecho = ds.GetRange(i, j - i + 1);
                 if (Fachada.Criar(doc, v, dt, trecho, hor, linha, R, U, O, regra, res))
                 {
