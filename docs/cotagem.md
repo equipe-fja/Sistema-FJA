@@ -72,3 +72,11 @@ Comando `TrocarLadoIndicacao` (`Comandos/TrocarLadoIndicacao.cs`, janela `Cotage
 - Teto refletido (luminárias, a partir do acabado), pontos (osso), paginação (início e módulo).
 - Ambientes ampliados: reconhecer os callouts e reduzir a cotagem interna na 1:75.
 - Conflitos (cota existente medindo outra referência) no relatório, com seleção no modelo.
+
+## Correções do teste da FJA na PMA.NÍVEL 1 (1:100, vista girada) — 2.23.3, 13/11/2026
+- **Cotas de fachada sem valor (−0,30):** a geometria das paredes era lida com `Options.View`, que dá referências provisórias (`…:-9999:SURFACE`); o Revit criava a cota, mas não conseguia medir. Agora a leitura é sem a vista (`DetailLevel` da vista), com referências estáveis. Toda cota criada é conferida depois de regenerar: sem valor válido, é apagada e o relatório avisa.
+- **Paredes quase alinhadas** (a vista é girada e as paredes desviam ~0,27°): a face externa de cada parede é a reta da maior face lateral (`Parede.FaceEm`), e a posição de cada face é medida no encontro com essa reta (`Plano.PosEm`) — antes, a caixa da parede ficava até 16 cm mais larga que a parede e as ombreiras não "chegavam" à face externa.
+- **Cantos:** faces até 50 cm além das pontas da parede de fachada (face externa da parede perpendicular).
+- **Faces escondidas:** a face só entra se o ponto logo à frente dela, junto à face externa, não estiver ocupado por outra parede do edifício (ex.: face interna de uma parede que passa por trás da parede de fachada no canto).
+- **Metade do edifício:** a parede de fachada de um lado precisa estar na metade do edifício voltada para esse lado (um toco de mureta embaixo à direita era tomado como fachada de cima).
+- Os eixos dessa vista estão ocultos pelo filtro da vista "GRID - NOT Projeto": a ferramenta não os enxerga e não cota eixos ali (as cotas de eixo criadas antes ficam ocultas junto).

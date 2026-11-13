@@ -13,6 +13,14 @@ namespace FJA.Revit.Cotagem
         public double Pos;        // posição ao longo do eixo
         public double A, B;       // extensão no outro eixo
         public double Z0, Z1;
+        public Parede Dono;       // parede da face (null nas referências de porta/janela)
+        // a face como reta na vista (origem e normal nos eixos próprio/outro): em vista girada a face é um pouco
+        // inclinada, e a posição depende de onde é medida (até 14 cm em 34 m no teste da FJA)
+        public double OK, OC, NK = 1, NC;
+        public int Sinal => NK >= 0 ? 1 : -1;   // para que lado do eixo a face olha
+
+        /// <summary>Posição ao longo do eixo no ponto em que a face está na coordenada c do outro eixo.</summary>
+        public double PosEm(double c) => Math.Abs(NK) < 1e-9 ? Pos : OK - NC * (c - OC) / NK;
     }
 
     /// <summary>Porta ou janela numa parede: vão livre (referências Esquerda/Direita da família).</summary>
@@ -28,6 +36,18 @@ namespace FJA.Revit.Cotagem
         public int Dir;           // 0: paralela a R (horizontal na tela); 1: paralela a U
         public double[] Lo = new double[2], Hi = new double[2];
         public List<Vao> Vaos = new List<Vao>();
+        // faces laterais (a maior de cada lado), como reta na vista: [0] lado de menor coordenada, [1] de maior.
+        // Parede quase alinhada (vista girada): a face real é inclinada e a caixa Lo/Hi não serve como face externa.
+        public bool[] TemFace = new bool[2];
+        public double[] FOk = new double[2], FOc = new double[2], FNk = new double[2], FNc = new double[2], FArea = new double[2];
+
+        /// <summary>Coordenada (no eixo perpendicular) da face lateral do lado s (+1/-1), na posição x ao longo da parede.</summary>
+        public double FaceEm(int s, double x)
+        {
+            int i = s > 0 ? 1 : 0, c = 1 - Dir;
+            if (!TemFace[i] || Math.Abs(FNc[i]) < 1e-6) return s > 0 ? Hi[c] : Lo[c];
+            return FOc[i] - FNk[i] * (x - FOk[i]) / FNc[i];
+        }
     }
 
     /// <summary>Paredes e faces lidas de uma planta (cortadas pelo plano de corte).</summary>
@@ -47,6 +67,8 @@ namespace FJA.Revit.Cotagem
         const double TOL = Motor.TOL;
         const double PAR = 0.999;
         const double FOLGA_BATENTE = 120 / 304.8;   // ombreira da parede até 12 cm do vão livre = mesmo vão
+        const double FOLGA_FACE = 15 / 304.8;       // face perpendicular "chega" à face externa a até 15 mm
+        const double MARGEM_CANTO = 500 / 304.8;    // faces até 50 cm além das pontas da parede de fachada (cantos)
 
         /// <summary>Lados: (eixo ao longo da cadeia, sentido para fora). 0: em cima, 1: embaixo, 2: esquerda, 3: direita.</summary>
         internal static readonly (int k, int s, string nome)[] Lados =
@@ -72,7 +94,18 @@ namespace FJA.Revit.Cotagem
         static List<Parede> Externas(List<Parede> paredes, int k, int s)
         {
             int c = 1 - k;
-            return paredes.Where(w => w.Dir == k && Livre(w, paredes, k, c, s, s > 0 ? w.Hi[c] : w.Lo[c])).ToList();
+            double cmin = paredes.Min(p => p.Lo[c]), cmax = paredes.Max(p => p.Hi[c]), tam = Math.Max(cmax - cmin, TOL);
+            // só a metade do edifício voltada para este lado (um toco de parede embaixo não é fachada de cima)
+            Func<Parede, bool> metade = w => s > 0 ? (w.Hi[c] - cmin) / tam >= 0.5 : (cmax - w.Lo[c]) / tam >= 0.5;
+            return paredes.Where(w => w.Dir == k && metade(w) && Livre(w, paredes, k, c, s, s > 0 ? w.Hi[c] : w.Lo[c])).ToList();
+        }
+
+        /// <summary>Outra parede do edifício ocupa o ponto (x, y)? (face escondida atrás de uma parede encostada)</summary>
+        static bool Ocupado(List<Parede> paredes, Parede dono, double x, double y)
+        {
+            foreach (var p in paredes)
+                if (!ReferenceEquals(p, dono) && p.Lo[0] < x && x < p.Hi[0] && p.Lo[1] < y && y < p.Hi[1]) return true;
+            return false;
         }
 
         static double? Lado(Document doc, View v, DimensionType dt, Leitura lt, int k, int s, string nome, bool soTotal,
@@ -88,9 +121,24 @@ namespace FJA.Revit.Cotagem
             var refs = new List<Plano>();
             foreach (var w in externas)
             {
-                double f = fora(w);
-                var daParede = lt.Planos.Where(p => p.Eixo == k && p.Pos >= w.Lo[k] - TOL && p.Pos <= w.Hi[k] + TOL
-                                                    && p.A <= f + TOL && p.B >= f - TOL).ToList();
+                // a face precisa atravessar a face externa real da parede (plano lateral), com folga de 15 mm;
+                // paredes internas encostadas param na face interna e ficam de fora. Até 50 cm além das pontas,
+                // para pegar o canto (face externa da parede perpendicular). A posição é a do encontro com a face
+                // externa, e a face não pode estar escondida por outra parede do edifício logo à frente dela.
+                var daParede = new List<Plano>();
+                foreach (var p in lt.Planos)
+                {
+                    if (p.Eixo != k || p.Pos < w.Lo[k] - MARGEM_CANTO || p.Pos > w.Hi[k] + MARGEM_CANTO) continue;
+                    if (p.Dono != null && !lt.Paredes.Contains(p.Dono)) continue;
+                    double fl = w.FaceEm(s, p.Pos);
+                    double x = p.PosEm(fl);
+                    fl = w.FaceEm(s, x); x = p.PosEm(fl);
+                    if (x < w.Lo[k] - MARGEM_CANTO || x > w.Hi[k] + MARGEM_CANTO) continue;
+                    if (p.A > fl + FOLGA_FACE || p.B < fl - FOLGA_FACE) continue;
+                    double tk = x + p.Sinal * 5 / 304.8, tc = fl - s * 5 / 304.8;
+                    if (k == 0 ? Ocupado(lt.Paredes, p.Dono, tk, tc) : Ocupado(lt.Paredes, p.Dono, tc, tk)) continue;
+                    daParede.Add(new Plano { Ref = p.Ref, Eixo = k, Pos = x, A = p.A, B = p.B, Dono = p.Dono });
+                }
                 foreach (var vao in w.Vaos)
                 {
                     daParede.RemoveAll(p => p.Pos > vao.Esq - FOLGA_BATENTE && p.Pos < vao.Dir + FOLGA_BATENTE);
@@ -203,7 +251,9 @@ namespace FJA.Revit.Cotagem
         {
             var lt = new Leitura();
             double cz = CorteZ(doc, v);
-            var opt = new Options { ComputeReferences = true, View = v };
+            // sem Options.View: a geometria da vista (cortada) dá referências provisórias (…:-9999:SURFACE) que o
+            // Revit aceita na criação, mas a cota fica sem valor (teste da FJA, 13/11/2026)
+            var opt = new Options { ComputeReferences = true, DetailLevel = v.DetailLevel };
             foreach (Wall w in new FilteredElementCollector(doc, v.Id).OfClass(typeof(Wall)))
             {
                 try
@@ -240,9 +290,24 @@ namespace FJA.Revit.Cotagem
                             if (Math.Abs(n.DotProduct(R)) > PAR) eixo = 0;
                             else if (Math.Abs(n.DotProduct(U)) > PAR) eixo = 1;
                             else continue;
+                            if (eixo == 1 - dir)
+                            {
+                                // face lateral da parede: guarda a maior de cada lado, como reta na vista
+                                XYZ kv = dir == 0 ? R : U, cv = dir == 0 ? U : R;
+                                int i = n.DotProduct(cv) > 0 ? 1 : 0;
+                                if (pf.Area > par.FArea[i])
+                                {
+                                    par.TemFace[i] = true; par.FArea[i] = pf.Area;
+                                    par.FOk[i] = pf.Origin.DotProduct(kv); par.FOc[i] = pf.Origin.DotProduct(cv);
+                                    par.FNk[i] = n.DotProduct(kv); par.FNc[i] = n.DotProduct(cv);
+                                }
+                            }
                             var pl = new Plano { Ref = pf.Reference, Eixo = eixo, A = double.MaxValue, B = double.MinValue, Z0 = double.MaxValue, Z1 = double.MinValue };
                             pl.Pos = pf.Origin.DotProduct(eixo == 0 ? R : U);
                             XYZ outro = eixo == 0 ? U : R;
+                            pl.Dono = par;
+                            pl.OK = pl.Pos; pl.OC = pf.Origin.DotProduct(outro);
+                            pl.NK = n.DotProduct(eixo == 0 ? R : U); pl.NC = n.DotProduct(outro);
                             foreach (EdgeArray loop in pf.EdgeLoops)
                                 foreach (Edge e in loop)
                                     foreach (var p in e.Tessellate())
@@ -347,6 +412,14 @@ namespace FJA.Revit.Cotagem
             {
                 Dimension dim = dt != null ? doc.Create.NewDimension(v, ln, ra, dt) : doc.Create.NewDimension(v, ln, ra);
                 if (dim == null) { res.Avisos.Add("o Revit não criou uma cota de " + regra); return false; }
+                // cota sem valor válido (referência que o Revit aceita mas não consegue medir): apaga e avisa
+                doc.Regenerate();
+                if (!Valida(dim))
+                {
+                    doc.Delete(dim.Id);
+                    res.Avisos.Add("cota de " + regra + " descartada: o Revit não conseguiu medir entre as referências");
+                    return false;
+                }
                 Marca.MarcarCota(dim, regra);
                 res.Criadas++;
                 return true;
@@ -356,6 +429,18 @@ namespace FJA.Revit.Cotagem
                 res.Avisos.Add("cota de " + regra + " não criada: " + e.Message);
                 return false;
             }
+        }
+
+        static bool Valida(Dimension dim)
+        {
+            try
+            {
+                if (dim.NumberOfSegments == 0) return dim.Value != null && dim.Value.Value > Motor.TOL;
+                foreach (DimensionSegment s in dim.Segments)
+                    if (s.Value == null || s.Value.Value <= Motor.TOL) return false;
+                return true;
+            }
+            catch { return false; }
         }
     }
 }
