@@ -3,7 +3,10 @@
 Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact oficial; devNN = versão correspondente da desenvolvimento). Datas em 2026.
 
 ## Em desenvolvimento (ainda não publicado na oficial)
-- Extensão do Revit 2.18.0: painel novo **Cotagem › Cotar vistas** (C#). Tipo da vista pelo template (ou lista), regra por tipo × escala, cadeias de eixos e níveis com total, só acrescenta o que falta (modo Refazer as minhas para as cotas da ferramenta). Ver docs/cotagem.md.
+- (nada)
+
+## oficial Firebase — 13/11, ~11h30 — commit 2a5ec1b
+- Extensão do Revit 2.18.0 (antes 2.17.1): painel novo **Cotagem › Cotar vistas** (C#). Tipo da vista pelo template (ou escolhido numa lista), regra por tipo × escala, cadeias de eixos e de níveis com total, só acrescenta o que ainda não está cotado (modo Refazer as minhas para as cotas da própria ferramenta). Painel novo: fechar e abrir o Revit depois de atualizar. Ver docs/cotagem.md.
 
 ## oficial Firebase — 12/11, ~18h40 — commit a3f97c5
 - Pendências: o status pelas datas passa a valer também na carga em tempo real da oficial (previsão vencida sem finalização vira pendente) e é recalculado a cada 10 minutos com a página aberta; o status fica só leitura em qualquer formulário e a edição pela tabela é recusada.
