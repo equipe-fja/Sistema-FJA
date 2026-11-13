@@ -18,9 +18,12 @@ namespace FJA.Revit.Cotagem
     /// bolhas. Antes de criar, lê as cotas lineares da vista e só cria os trechos que ainda não estão medidos
     /// (mesmos pontos de início e fim, na mesma direção, tolerância de 1 mm), em qualquer posição da vista.
     /// </summary>
+    /// <summary>Trecho já medido por uma cota (coordenadas da vista).</summary>
+    sealed class Intervalo { public bool Horizontal; public double A, B; }
+
     public static class Motor
     {
-        const double TOL = 1.0 / 304.8;   // 1 mm, em pés
+        internal const double TOL = 1.0 / 304.8;   // 1 mm, em pés
         const double PARALELO = 0.999;
 
         /// <summary>Eixo ou nível como aparece na vista (coordenadas da vista: X = RightDirection, Y = UpDirection).</summary>
@@ -32,8 +35,6 @@ namespace FJA.Revit.Cotagem
             public double Ini, Fim;        // extensão ao longo da linha (Ini < Fim)
             public bool BolhaIni, BolhaFim;
         }
-
-        sealed class Intervalo { public bool Horizontal; public double A, B; }
 
         public static ResultadoVista Cotar(Document doc, View v, TipoVista tipo, DimensionType dt, double espacamentoMm, bool refazer)
         {
@@ -60,7 +61,11 @@ namespace FJA.Revit.Cotagem
             CotarGrupo(doc, v, dt, emX, true, R, U, O, esp, existentes, res, NomeGrupo(emX));
             CotarGrupo(doc, v, dt, emY, false, R, U, O, esp, existentes, res, NomeGrupo(emY));
 
-            if (datums.Count == 0)
+            // planta baixa 1:75: panos e vãos de fachada + total (2.20.0)
+            if (regra.Fachada && v is ViewPlan vp)
+                Fachada.Cotar(doc, vp, dt, R, U, O, esp, existentes, res);
+
+            if ((regra.Eixos || regra.Niveis) && datums.Count == 0)
                 res.Avisos.Add(regra.Eixos && regra.Niveis ? "nenhum eixo ou nível visível na vista" : regra.Eixos ? "nenhum eixo visível na vista" : "nenhum nível visível na vista");
             return res;
         }
@@ -148,7 +153,7 @@ namespace FJA.Revit.Cotagem
             r.Add(new Intervalo { Horizontal = hor, A = centro - m, B = centro + m });
         }
 
-        static bool Medido(List<Intervalo> ex, bool hor, double a, double b)
+        internal static bool Medido(List<Intervalo> ex, bool hor, double a, double b)
         {
             return ex.Any(i => i.Horizontal == hor && Math.Abs(i.A - a) < TOL && Math.Abs(i.B - b) < TOL);
         }
@@ -209,7 +214,7 @@ namespace FJA.Revit.Cotagem
             }
         }
 
-        static XYZ Ponto(XYZ R, XYZ U, XYZ O, double x, double y)
+        internal static XYZ Ponto(XYZ R, XYZ U, XYZ O, double x, double y)
         {
             return O + R * (x - O.DotProduct(R)) + U * (y - O.DotProduct(U));
         }

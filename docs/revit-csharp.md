@@ -61,7 +61,7 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 | Pontos › Legendas (antes "Prévia LOG") | `FerramentaLegendas` (`Legendas/*.cs`; `PreviaLegendaLOG` = mesmo comando) | 2.6.0; ferramenta única desde 2.7.0 (10/11/2026) |
 | Símbolos e Detalhes › Família do desenho | `FamiliaDoDesenho` (`Detalhes/*.cs`; ver `docs/familia-do-desenho.md`) | 2.15.0 (12/11/2026) |
 | Links › Copiar do link, Verificar alterações, Reconectar | `CopiarDoLink`, `VerificarAlteracoes`, `Reconectar` (`Links/*.cs`; ver `docs/revit-links.md`) | 2.16.0 (12/11/2026; migrados do Python a pedido da FJA, com o módulo Encaminhamentos) |
-| Cotagem › Cotar vistas | `CotarVistas` (`Cotagem/*.cs`; ver `docs/cotagem.md`) | 2.18.0 (13/11/2026) |
+| Cotagem › Cotar vistas | `CotarVistas` (`Cotagem/*.cs`; ver `docs/cotagem.md`) | 2.18.0 (13/11/2026); fachada 2.20.0 |
 | Cotagem › Trocar lado | `TrocarLadoIndicacao` (ver `docs/cotagem.md`) | 2.19.0 (13/11/2026) |
 
 ### Prévia LOG (2.6.0)

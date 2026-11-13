@@ -18,9 +18,9 @@ namespace FJA.Revit.Cotagem
     /// <summary>O que a ferramenta cota numa vista (tipo × escala).</summary>
     public sealed class Regra
     {
-        public bool Eixos, EixosTotal, Niveis, NiveisTotal;
+        public bool Eixos, EixosTotal, Niveis, NiveisTotal, Fachada;
         public string Descricao = "";
-        public bool Vazia => !Eixos && !Niveis;
+        public bool Vazia => !Eixos && !Niveis && !Fachada;
     }
 
     public static class Regras
@@ -67,7 +67,7 @@ namespace FJA.Revit.Cotagem
         }
 
         /// <summary>
-        /// Regras da 1ª versão: cadeias de eixos e de níveis (com total). Paredes, vãos, ambientes, luminárias,
+        /// Regras: cadeias de eixos e de níveis (com total); na planta 1:75, panos e vãos de fachada. Cadeias internas, ambientes, luminárias,
         /// pontos e paginação ficam para as próximas versões (as regras completas estão em docs/cotagem.md).
         /// </summary>
         public static Regra Para(TipoVista t, int escala)
@@ -80,6 +80,7 @@ namespace FJA.Revit.Cotagem
                     if (f == Faixa.F25) { r.Descricao = "1:25: cota faces de parede, não eixos (próxima versão)"; break; }
                     if (f == Faixa.F500) { r.Descricao = "1:500: lote e afastamentos (próxima versão)"; break; }
                     r.Eixos = r.EixosTotal = true;
+                    if (f == Faixa.F75) { r.Fachada = true; r.Descricao = "eixo a eixo + total; panos e vãos de fachada + total"; break; }
                     r.Descricao = "eixo a eixo + total";
                     break;
                 case TipoVista.Corte:
