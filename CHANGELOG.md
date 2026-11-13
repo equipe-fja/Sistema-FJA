@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~13h40 — commit 108181e
+- Extensão do Revit 2.23.5 (antes 2.23.4): **Cotar vistas** passa a cotar a fachada e os ambientes pelas **quinas** das paredes (arestas verticais), como a FJA faz à mão com Tab. As paredes do modelo estão levemente fora de esquadro entre si, e o Revit recusava as cotas entre faces não paralelas. Se o vão livre de uma porta ou janela for recusado, o trecho é cotado pelas ombreiras. O texto da janela foi atualizado.
+
 ## oficial Firebase — 13/11, ~13h37 — commit f37724f
 - Extensão do Revit 2.23.4 (antes 2.23.3): **Trocar lado** não mexe mais na extensão de eixos e níveis — só liga e desliga as indicações na vista ativa. A 2.23.2 ainda esticava os níveis no teste da FJA. Para os que já ficaram esticados: selecionar e usar Redefinir para extensões 3D (ou Ctrl+Z).
 
