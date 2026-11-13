@@ -5,7 +5,7 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
-## oficial Firebase — 13/11, ~13h — commit a306e1a
+## oficial Firebase — 13/11, ~12h35 — commit a306e1a
 - Extensão do Revit 2.20.0 (antes 2.19.0): **Cotar vistas** na planta baixa 1:75 (1:50 a 1:149) passa a cotar também os **panos e vãos de fachada** nos quatro lados (ombreiras, pontas de parede e cantos externos, em osso) e o total de cada fachada, além dos eixos. Ver docs/cotagem.md.
 
 ## oficial Firebase — 13/11, ~12h10 — commit 7f7afa8
