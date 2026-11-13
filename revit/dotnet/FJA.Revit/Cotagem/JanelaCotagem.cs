@@ -217,7 +217,7 @@ namespace FJA.Revit.Cotagem
             sp.Children.Add(rbRefazer);
             sp.Children.Add(Nota("Apaga e refaz só as cotas criadas por esta ferramenta. Cotas feitas à mão nunca são apagadas."));
 
-            sp.Children.Add(Nota("\nVersão inicial: eixos e níveis (cadeia + total). Paredes, vãos, ambientes e as plantas de teto, pontos e paginação vêm nas próximas versões."));
+            sp.Children.Add(Nota("\nCota hoje: eixos e níveis (cadeia + total); planta 1:50 a 1:149: panos e vãos de fachada (pelas quinas das paredes e o vão livre); planta 1:200: ambientes e contorno. Cadeias internas, terreno e as plantas de teto, pontos e paginação vêm nas próximas versões."));
             cOp.Child = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
             WGrid.SetColumn(cOp, 2);
             raiz.Children.Add(cOp);

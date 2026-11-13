@@ -53,6 +53,10 @@ namespace FJA.Revit.Cotagem
                 .OrderBy(p => Math.Abs(p.Pos - pos)).FirstOrDefault();
             var fa = FaceEm(a0); var fb = FaceEm(a1);
             if (fa == null || fb == null) return false;
+            // pelas quinas (arestas verticais) das faces, a mais próxima da linha da cota: paredes um pouco fora de
+            // esquadro não são paralelas, e a cota entre faces não paralelas fica sem valor
+            fa = fa.PelaAresta(k, linha, double.MaxValue, fa.Pos);
+            fb = fb.PelaAresta(k, linha, double.MaxValue, fb.Pos);
             bool hor = k == 0;
             // já cotado por uma cota dentro deste ambiente (ambientes iguais lado a lado têm cada um a sua)
             if (Motor.MedidoEm(ex, hor, fa.Pos, fb.Pos, c0, c1)) { res.JaExistiam++; return true; }

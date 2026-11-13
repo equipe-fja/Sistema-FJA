@@ -21,6 +21,29 @@ namespace FJA.Revit.Cotagem
 
         /// <summary>Posição ao longo do eixo no ponto em que a face está na coordenada c do outro eixo.</summary>
         public double PosEm(double c) => Math.Abs(NK) < 1e-9 ? Pos : OK - NC * (c - OC) / NK;
+
+        public List<Aresta> Arestas = new List<Aresta>();
+
+        /// <summary>A aresta vertical da face mais próxima da coordenada c do outro eixo (null se a face não tem).</summary>
+        public Aresta ArestaPerto(double c) => Arestas.OrderBy(a => Math.Abs(a.C - c)).FirstOrDefault();
+
+        /// <summary>Cópia que mede pela aresta vertical mais próxima de c (a quina), se houver uma a até "folga".</summary>
+        public Plano PelaAresta(int eixo, double c, double folga, double posSemAresta)
+        {
+            var a = ArestaPerto(c);
+            if (a != null && Math.Abs(a.C - c) <= folga)
+                return new Plano { Ref = a.Ref, Eixo = eixo, Pos = a.K, A = A, B = B, Dono = Dono, FaceRef = Ref };
+            return new Plano { Ref = Ref, Eixo = eixo, Pos = posSemAresta, A = A, B = B, Dono = Dono, FaceRef = Ref };
+        }
+        public Reference FaceRef;   // a face de origem, quando Ref é uma aresta
+        public bool Porta;          // referência Esquerda/Direita de porta ou janela (plano da família)
+    }
+
+    /// <summary>Aresta vertical de uma face (na planta, um ponto): K ao longo do eixo da face, C no outro eixo.</summary>
+    sealed class Aresta
+    {
+        public Reference Ref;
+        public double K, C;
     }
 
     /// <summary>Porta ou janela numa parede: vão livre (referências Esquerda/Direita da família).</summary>
@@ -119,6 +142,7 @@ namespace FJA.Revit.Cotagem
             // faces perpendiculares à cadeia que chegam à face externa de alguma parede de fachada; nos vãos com
             // porta/janela, as ombreiras da parede dão lugar ao vão livre (referências da família)
             var refs = new List<Plano>();
+            var semPortas = new List<Plano>();   // as ombreiras da parede, para refazer um trecho sem o vão livre
             foreach (var w in externas)
             {
                 // a face precisa atravessar a face externa real da parede (plano lateral), com folga de 15 mm;
@@ -137,13 +161,14 @@ namespace FJA.Revit.Cotagem
                     if (p.A > fl + FOLGA_FACE || p.B < fl - FOLGA_FACE) continue;
                     double tk = x + p.Sinal * 5 / 304.8, tc = fl - s * 5 / 304.8;
                     if (k == 0 ? Ocupado(lt.Paredes, p.Dono, tk, tc) : Ocupado(lt.Paredes, p.Dono, tc, tk)) continue;
-                    daParede.Add(new Plano { Ref = p.Ref, Eixo = k, Pos = x, A = p.A, B = p.B, Dono = p.Dono });
+                    daParede.Add(p.PelaAresta(k, fl, 3 * FOLGA_FACE, x));
                 }
+                semPortas.AddRange(daParede);
                 foreach (var vao in w.Vaos)
                 {
                     daParede.RemoveAll(p => p.Pos > vao.Esq - FOLGA_BATENTE && p.Pos < vao.Dir + FOLGA_BATENTE);
-                    refs.Add(new Plano { Ref = vao.RefEsq, Eixo = k, Pos = vao.Esq });
-                    refs.Add(new Plano { Ref = vao.RefDir, Eixo = k, Pos = vao.Dir });
+                    refs.Add(new Plano { Ref = vao.RefEsq, Eixo = k, Pos = vao.Esq, Porta = true });
+                    refs.Add(new Plano { Ref = vao.RefDir, Eixo = k, Pos = vao.Dir, Porta = true });
                 }
                 refs.AddRange(daParede);
             }
@@ -176,7 +201,23 @@ namespace FJA.Revit.Cotagem
                 int j = i;
                 while (j < ds.Count - 1 && !Motor.Medido(ex, hor, ds[j].Pos, ds[j + 1].Pos)) j++;
                 var trecho = ds.GetRange(i, j - i + 1);
-                if (Criar(doc, v, dt, trecho, hor, linha1, R, U, O, nome, res))
+                bool comPorta = trecho.Any(t => t.Porta);
+                bool ok = Criar(doc, v, dt, trecho, hor, linha1, R, U, O, nome, res, comPorta);
+                if (!ok && comPorta)
+                {
+                    // plano da porta não paralelo às quinas: refaz o trecho pelas ombreiras da parede
+                    double ta = trecho[0].Pos - FOLGA_BATENTE, tb = trecho[trecho.Count - 1].Pos + FOLGA_BATENTE;
+                    var alt = new List<Plano>();
+                    foreach (var p in semPortas.Where(t => t.Pos >= ta && t.Pos <= tb).OrderBy(t => t.Pos))
+                        if (alt.Count == 0 || p.Pos - alt[alt.Count - 1].Pos > TOL) alt.Add(p);
+                    if (alt.Count >= 2 && Criar(doc, v, dt, alt, hor, linha1, R, U, O, nome, res))
+                    {
+                        trecho = alt; ok = true;
+                        res.Avisos.Add("em " + nome + ", o Revit não aceitou o vão livre das portas/janelas: cotado pelas ombreiras");
+                    }
+                    else res.Avisos.Add("cota de " + nome + " descartada: o Revit não conseguiu medir entre as referências");
+                }
+                if (ok)
                 {
                     res.Segmentos += trecho.Count - 1;
                     for (int m = 0; m < trecho.Count - 1; m++)
@@ -310,12 +351,21 @@ namespace FJA.Revit.Cotagem
                             pl.NK = n.DotProduct(eixo == 0 ? R : U); pl.NC = n.DotProduct(outro);
                             foreach (EdgeArray loop in pf.EdgeLoops)
                                 foreach (Edge e in loop)
+                                {
                                     foreach (var p in e.Tessellate())
                                     {
                                         double q = p.DotProduct(outro);
                                         pl.A = Math.Min(pl.A, q); pl.B = Math.Max(pl.B, q);
                                         pl.Z0 = Math.Min(pl.Z0, p.Z); pl.Z1 = Math.Max(pl.Z1, p.Z);
                                     }
+                                    // arestas verticais (quinas): na planta são pontos, e a cota entre pontos não
+                                    // exige faces paralelas — como a FJA faz à mão, com Tab
+                                    if (e.Reference != null && e.AsCurve() is Line el && Math.Abs(el.Direction.Z) > 0.999)
+                                    {
+                                        XYZ q0 = el.GetEndPoint(0);
+                                        pl.Arestas.Add(new Aresta { Ref = e.Reference, K = q0.DotProduct(eixo == 0 ? R : U), C = q0.DotProduct(outro) });
+                                    }
+                                }
                             // só as faces cortadas pelo plano de corte (vão acima do corte não aparece na planta)
                             if (pl.Z0 <= cz + TOL && pl.Z1 >= cz - TOL) meus.Add(pl);
                         }
@@ -400,7 +450,7 @@ namespace FJA.Revit.Cotagem
         // ------------------------------------------------------------ criação
 
         internal static bool Criar(Document doc, View v, DimensionType dt, List<Plano> ps, bool hor, double linha,
-                                   XYZ R, XYZ U, XYZ O, string regra, ResultadoVista res)
+                                   XYZ R, XYZ U, XYZ O, string regra, ResultadoVista res, bool silencioso = false)
         {
             var ra = new ReferenceArray();
             foreach (var p in ps) ra.Append(p.Ref);
@@ -417,7 +467,7 @@ namespace FJA.Revit.Cotagem
                 if (!Valida(dim))
                 {
                     doc.Delete(dim.Id);
-                    res.Avisos.Add("cota de " + regra + " descartada: o Revit não conseguiu medir entre as referências");
+                    if (!silencioso) res.Avisos.Add("cota de " + regra + " descartada: o Revit não conseguiu medir entre as referências");
                     return false;
                 }
                 Marca.MarcarCota(dim, regra);
