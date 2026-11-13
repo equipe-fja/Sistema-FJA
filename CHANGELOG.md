@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~15h50 — commit 9677524
+- Extensão do Revit 2.24.1 (antes 2.24.0): no primeiro teste das **cadeias internas**, a FJA achou cotas demais. Por padrão, elas passam a medir só os vãos dos ambientes, face acabada a face acabada. A opção **"Incluir a espessura das paredes"**, na janela do Cotar vistas, volta à cadeia contínua de vão + espessura.
+
 ## oficial Firebase — 13/11, ~15h40 — commit 4e105ee
 - Extensão do Revit 2.24.0 (antes 2.23.5): **Cotar vistas** na planta 1:75 (1:50 a 1:149) passa a criar as **cadeias internas**. Usa o mínimo de linhas, em cada direção, que meça todas as paredes, de fachada a fachada, face acabada a face acabada (vão + espessura). Linhas que passariam por um vão são evitadas. Em paredes fora de esquadro, a cadeia é dividida em cotas de faces paralelas, ligadas pelas quinas. Ver docs/cotagem.md.
 
