@@ -62,11 +62,15 @@ namespace FJA.Revit.Cotagem
             if (faltam.Count > 0)
                 res.Avisos.Add(faltam.Count + " parede(s) " + (k == 0 ? "verticais" : "horizontais") + " sem cadeia interna (só atravessáveis por porta, ou mais de " + MAX_LINHAS + " linhas)");
 
-            foreach (var y in linhas.OrderBy(x => x)) Cadeia(doc, v, dt, laterais, k, y, espessuras, R, U, O, ex, res);
+            // cada par de paredes vizinhas uma vez só, na linha mais perto da origem (canto dos eixos: em cima e à
+            // esquerda) — paredes tortas dão medidas um pouco diferentes em cada linha (pedido da FJA, 13/11/2026)
+            var pares = new HashSet<(Parede, Parede)>();
+            var ordem = k == 0 ? linhas.OrderByDescending(x => x) : linhas.OrderBy(x => x);
+            foreach (var y in ordem) Cadeia(doc, v, dt, laterais, k, y, espessuras, pares, R, U, O, ex, res);
         }
 
         static void Cadeia(Document doc, View v, DimensionType dt, List<Plano> laterais, int k, double y, bool espessuras,
-                           XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
+                           HashSet<(Parede, Parede)> pares, XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
         {
             bool hor = k == 0;
             var pts = new List<Plano>();
@@ -77,6 +81,8 @@ namespace FJA.Revit.Cotagem
                                         OK = t.f.OK, OC = t.f.OC, NK = t.f.NK, NC = t.f.NC, Arestas = t.f.Arestas });
             if (pts.Count < 2) return;
 
+            bool Feito(Plano a, Plano b) => pares.Contains((a.Dono, b.Dono)) || pares.Contains((b.Dono, a.Dono));
+
             if (!espessuras)
             {
                 // padrão (pedido da FJA, 13/11/2026): só os vãos — face a face entre paredes diferentes, uma cota por
@@ -85,6 +91,8 @@ namespace FJA.Revit.Cotagem
                 {
                     Plano a = pts[m], b = pts[m + 1];
                     if (ReferenceEquals(a.Dono, b.Dono)) continue;
+                    if (Feito(a, b)) continue;
+                    pares.Add((a.Dono, b.Dono));
                     if (Motor.Medido(ex, hor, a.Pos, b.Pos)) { res.JaExistiam++; continue; }
                     if (Paralelo(a, b) && Fachada.Criar(doc, v, dt, new List<Plano> { a, b }, hor, y, R, U, O, "interna", res, true))
                     {
@@ -100,9 +108,11 @@ namespace FJA.Revit.Cotagem
             int i = 0;
             while (i < pts.Count - 1)
             {
-                if (Motor.Medido(ex, hor, pts[i].Pos, pts[i + 1].Pos)) { res.JaExistiam++; i++; continue; }
+                if (Feito(pts[i], pts[i + 1])) { i++; continue; }
+                if (Motor.Medido(ex, hor, pts[i].Pos, pts[i + 1].Pos)) { res.JaExistiam++; pares.Add((pts[i].Dono, pts[i + 1].Dono)); i++; continue; }
                 int j = i;
-                while (j < pts.Count - 1 && !Motor.Medido(ex, hor, pts[j].Pos, pts[j + 1].Pos)) j++;
+                while (j < pts.Count - 1 && !Feito(pts[j], pts[j + 1]) && !Motor.Medido(ex, hor, pts[j].Pos, pts[j + 1].Pos)) j++;
+                for (int m = i; m < j; m++) pares.Add((pts[m].Dono, pts[m + 1].Dono));
                 Sequencia(doc, v, dt, pts.GetRange(i, j - i + 1), k, y, hor, R, U, O, ex, res);
                 i = j;
             }
