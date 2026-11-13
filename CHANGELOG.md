@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~17h05 — commit 30488d8
+- Extensão do Revit 2.26.7 (antes 2.26.6): **Cotar vistas** coloca os números deslocados o mais perto possível do centro do trecho. As posições testadas partem do centro, começando por ele mesmo.
+
 ## oficial Firebase — 13/11, ~16h58 — commit 7839bca
 - Extensão do Revit 2.26.6 (antes 2.26.5): **Cotar vistas** move os números das cotas o mínimo possível. Entre as posições livres, fica a mais perto da original, e o número só se move se a sobreposição cair pelo menos 20 %. A cota com número deslocado fica sem leader (parâmetro "Leader" desligado).
 
