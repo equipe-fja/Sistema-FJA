@@ -27,3 +27,6 @@ Teste da FJA (131, PMA.NÍVEL 1): eixos e níveis funcionaram; nos cortes, o cli
 - Os cliques passam a aceitar **qualquer elemento**; o que não serve abre uma mensagem com o nome, a classe e a categoria do elemento clicado (também serve de diagnóstico, se o corte ainda não for reconhecido).
 - O corte é reconhecido pelo marcador (`OST_Viewers`), pela categoria Cortes (`OST_Sections`) ou pela própria vista de corte (`ViewSection`).
 - Vistas selecionadas no navegador de projeto não entram no alinhamento automático dos já selecionados.
+
+## 2.26.5 (13/11/2026) — retorno na tela
+Com a 2.26.2 o corte foi aparado no modelo (o `PMA-LE-CORTE 6` passou de −78,7 a −6,0, no eixo P.5), mas a FJA viu "nada acontecer": a vista não era redesenhada e um novo clique num corte que já estava na linha não dava aviso. Agora a vista ativa é redesenhada depois de cada mudança (`RefreshActiveView`), e o elemento que já está na linha de referência abre o aviso "já está na linha de referência".

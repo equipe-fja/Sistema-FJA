@@ -22,6 +22,7 @@ namespace FJA.Revit.Comandos
     {
         const string Titulo = "Estender/Alinhar";
         const double TOL = 1.0 / 304.8;   // 1 mm
+        const string JaNaLinha = "já está na linha de referência";
 
         /// <summary>Reta na vista (coordenadas da tela: X = RightDirection, Y = UpDirection).</summary>
         struct Reta { public double Ax, Ay, Dx, Dy; }
@@ -110,7 +111,7 @@ namespace FJA.Revit.Comandos
                             string erro = Aplicar(doc, v, e, lim, null, R, U);
                             if (erro == null) { st.Commit(); feitos++; } else { st.RollBack(); erros.Add(e.Name + ": " + erro); }
                         }
-                    if (feitos > 0) t.Commit(); else t.RollBack();
+                    if (feitos > 0) { t.Commit(); uidoc.RefreshActiveView(); } else t.RollBack();
                 }
                 if (erros.Count > 0) TaskDialog.Show(Titulo, string.Join("\n", erros));
             }
@@ -132,7 +133,7 @@ namespace FJA.Revit.Comandos
                     string erro;
                     try { erro = Aplicar(doc, v, e, lim, r.GlobalPoint, R, U); }
                     catch (Exception ex) { erro = ex.Message; }
-                    if (erro == null) t.Commit();
+                    if (erro == null) { t.Commit(); uidoc.RefreshActiveView(); }
                     else { t.RollBack(); TaskDialog.Show(Titulo, e.Name + ": " + erro); }
                 }
             }
@@ -232,7 +233,7 @@ namespace FJA.Revit.Comandos
             var t = Cruzamento(v0, v1, lim, R, U);
             if (t == null) return "é paralelo à linha de referência";
             var qual = Ponta(t.Value, clique != null ? Param(v0, v1, clique, R, U) : (double?)null, vis.Length);
-            if (qual == null) return null;   // já está na linha
+            if (qual == null) return JaNaLinha;
             var ponta = qual == 0 ? DatumEnds.End0 : DatumEnds.End1;
 
             var tipo = dp.GetDatumExtentTypeInView(ponta, v);
@@ -260,7 +261,7 @@ namespace FJA.Revit.Comandos
             if (t == null) return "é paralelo à linha de referência";
             double w = cb.Max.X - cb.Min.X;
             var qual = Ponta(t.Value, clique != null ? Param(p0, p1, clique, R, U) : (double?)null, w);
-            if (qual == null) return null;
+            if (qual == null) return JaNaLinha;
             double nx = cb.Min.X + t.Value * w;
             if (qual == 0)
             {
