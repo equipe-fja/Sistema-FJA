@@ -57,14 +57,14 @@ Comando C# `CotarVistas` (`revit/dotnet/FJA.Revit/Cotagem/*.cs`), desde a extens
 - **Planta com fachada cotada nesse lado:** a cadeia de eixos fica a 1 espaçamento da última linha da fachada, o total a 2; os eixos cuja ponta não chega a 1 espaçamento além do total são **estendidos nesta vista** (pontas passam para 2D, `SetCurveInView`), para as bolhas ficarem por fora. O relatório conta os eixos estendidos. A bolha não troca de lado (para isso, Trocar lado).
 - **Sem fachada nesse lado** (cortes, fachadas, plantas sem paredes): logo para dentro das pontas — total a 1 espaçamento delas, cadeia a 2.
 
-## Trocar lado (2.19.0; janela desde 2.21.0, 13/11/2026)
+## Trocar lado (2.19.0; janela desde 2.21.0; eixos × níveis desde 2.23.0, 13/11/2026)
 Comando `TrocarLadoIndicacao` (`Comandos/TrocarLadoIndicacao.cs`, janela `Cotagem/JanelaTrocarLado.cs`), na vista ativa:
-- **Alcance:** os eixos e níveis selecionados ou todos os visíveis na vista (sem seleção, só a segunda opção).
-- **Dois grupos**, pela orientação na tela: linhas **verticais** (indicação em cima/embaixo) e **horizontais** (à esquerda/à direita; níveis em cortes e fachadas, eixos horizontais nas plantas). Linha inclinada entra no grupo da direção predominante. Cada grupo mostra quantos eixos e níveis tem e onde está a indicação hoje.
-- **Ações por grupo:** ligar tudo de um lado (e desligar do outro), ligar tudo do outro, ligar dos dois lados, trocar de lado (só nas linhas com indicação de um lado só) ou não mexer.
+- **Sempre os selecionados:** eixos e níveis selecionados; sem seleção, pede para escolher no modelo (Concluir).
+- **Dois cartões:** **Eixos** (em cima / embaixo) e **Níveis** (à esquerda / à direita), cada um com a quantidade selecionada; o cartão só aparece se houver itens do tipo. Num eixo horizontal na tela, "em cima" vale como a ponta da esquerda.
+- **Opções em blocos desenhados** (estética do Sistema FJA, `lib/fja_estilo.xaml`; escolhido em vermelho FJ): um lado, o outro, nos dois, trocar (só nas linhas com indicação de um lado só) e não mexer. Sem textos explicativos.
 - Antes de mudar, passa as duas pontas para 2D (`SetDatumExtentType(..., ViewSpecific)`), para não afetar outras vistas; liga antes de desligar. Uma transação (Ctrl+Z desfaz).
 - Relatório só quando nada mudou, ou quando alguma linha ficou como estava ou deu erro.
-- Preferências por pessoa: `%APPDATA%\FJA\trocar-lado.json` (ação de cada grupo e alcance).
+- Preferências por pessoa: `%APPDATA%\FJA\trocar-lado.json` (escolha dos eixos e dos níveis).
 
 ## Próximas versões (regras completas na doc do projeto `claude/revit-cotagem-regras.md`)
 - Planta baixa 1:75: cadeias internas atravessando ambientes pela face acabada (com espessura de parede), bonecas ≠ 15 cm, totais por bloco; 1:200/1:500: contorno amarrado aos limites do terreno; 1:25 por faces (acabado).

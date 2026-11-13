@@ -4,19 +4,26 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using FJA.Revit.Cotagem;
+using Autodesk.Revit.UI.Selection;
 using FJA.Revit.Nucleo;
 
 namespace FJA.Revit.Comandos
 {
     /// <summary>
-    /// Cotagem › Trocar lado (2.21.0: com janela). Nos eixos e níveis selecionados, ou em todos os visíveis na
-    /// vista ativa, liga a indicação (bolha/cabeça) toda de um lado, toda do outro, dos dois lados, ou troca de
-    /// lado — separado para as linhas verticais e as horizontais na tela. Só na vista ativa: as pontas passam
-    /// para 2D (extensão da vista) antes. Ver docs/cotagem.md.
+    /// Cotagem › Trocar lado (janela desde 2.21.0; eixos × níveis desde 2.23.0). Nos eixos e níveis selecionados
+    /// (sem seleção, pede para escolher), liga a indicação (bolha/cabeça) toda de um lado, toda do outro, dos dois
+    /// lados, ou troca de lado — uma escolha para os eixos e outra para os níveis. Só na vista ativa: as pontas
+    /// passam para 2D (extensão da vista) antes. Ver docs/cotagem.md.
     /// </summary>
     public class TrocarLadoIndicacao : ComandoFJA
     {
         const string Titulo = "Trocar lado da indicação";
+
+        sealed class FiltroDatum : ISelectionFilter
+        {
+            public bool AllowElement(Element e) => e is Grid || e is Level;
+            public bool AllowReference(Reference r, XYZ p) => false;
+        }
 
         public override Result Executar(UIApplication app, ref string mensagem)
         {
@@ -30,26 +37,33 @@ namespace FJA.Revit.Comandos
                 return Result.Cancelled;
             }
 
-            var sel = new HashSet<ElementId>(uidoc.Selection.GetElementIds());
-            var todos = new List<DatumNaVista>();
-            var col = new List<Element>();
-            col.AddRange(new FilteredElementCollector(doc, v.Id).OfClass(typeof(Grid)).ToElements());
-            col.AddRange(new FilteredElementCollector(doc, v.Id).OfClass(typeof(Level)).ToElements());
-            foreach (var e in col)
+            // sempre os selecionados; sem seleção, pede para escolher
+            var ids = uidoc.Selection.GetElementIds().Where(i => { var e = doc.GetElement(i); return e is Grid || e is Level; }).ToList();
+            if (ids.Count == 0)
             {
-                var d = Ler(e as DatumPlane, v);
-                if (d == null) continue;
-                d.Selecionado = sel.Contains(e.Id);
-                todos.Add(d);
+                try
+                {
+                    var refs = uidoc.Selection.PickObjects(ObjectType.Element, new FiltroDatum(),
+                        "Selecione os eixos e níveis; depois clique em Concluir");
+                    ids = refs.Select(r => r.ElementId).ToList();
+                }
+                catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
+                if (ids.Count == 0) return Result.Cancelled;
             }
-            if (todos.Count == 0)
+            var sel = new List<DatumNaVista>();
+            foreach (var id in ids)
             {
-                TaskDialog.Show(Titulo, "Nenhum eixo ou nível visível nesta vista.");
+                var d = Ler(doc.GetElement(id) as DatumPlane, v);
+                if (d != null) sel.Add(d);
+            }
+            if (sel.Count == 0)
+            {
+                TaskDialog.Show(Titulo, "Os eixos e níveis selecionados não aparecem nesta vista.");
                 return Result.Cancelled;
             }
 
             var o = OpcoesTrocarLado.Carregar();
-            var j = new JanelaTrocarLado(todos, v.Name, o);
+            var j = new JanelaTrocarLado(sel, v.Name, o);
             new System.Windows.Interop.WindowInteropHelper(j) { Owner = app.MainWindowHandle };
             j.ShowDialog();
             if (!j.Confirmado) return Result.Cancelled;
@@ -61,9 +75,9 @@ namespace FJA.Revit.Comandos
             using (var t = new Transaction(doc, "Trocar lado da indicação"))
             {
                 t.Start();
-                foreach (var d in j.Alvo)
+                foreach (var d in sel)
                 {
-                    var acao = d.Vertical ? j.Verticais : j.Horizontais;
+                    var acao = d.Eixo ? j.Eixos : j.Niveis;
                     if (acao == AcaoLado.NaoMexer) continue;
                     bool a, b;
                     switch (acao)
@@ -127,7 +141,7 @@ namespace FJA.Revit.Comandos
                 var d = new DatumNaVista
                 {
                     D = dp,
-                    Vertical = vertical,
+                    Eixo = dp is Grid,
                     PontaA = zeroEhA ? DatumEnds.End0 : DatumEnds.End1,
                     PontaB = zeroEhA ? DatumEnds.End1 : DatumEnds.End0,
                 };

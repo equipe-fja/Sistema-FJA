@@ -8,33 +8,33 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Markup;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using Autodesk.Revit.DB;
 using FJA.Revit.Nucleo;
 using WColor = System.Windows.Media.Color;
+using WLine = System.Windows.Shapes.Line;
 
 namespace FJA.Revit.Cotagem
 {
-    /// <summary>O que fazer com as indicações (bolhas/cabeças) de um grupo de linhas.</summary>
+    /// <summary>O que fazer com as indicações (bolhas/cabeças) de um grupo.</summary>
     public enum AcaoLado { NaoMexer, LadoA, LadoB, DoisLados, Trocar }
 
-    /// <summary>Eixo ou nível como aparece na vista ativa.</summary>
+    /// <summary>Eixo ou nível selecionado, como aparece na vista ativa.</summary>
     public sealed class DatumNaVista
     {
         public DatumPlane D;
-        public bool Vertical;        // linha vertical na tela (indicações em cima/embaixo); senão horizontal (esquerda/direita)
-        public DatumEnds PontaA;     // ponta de cima (vertical) ou da esquerda (horizontal)
+        public bool Eixo;            // Grid (senão Level)
+        public DatumEnds PontaA;     // ponta de cima (linha vertical na tela) ou da esquerda (horizontal)
         public DatumEnds PontaB;     // ponta de baixo ou da direita
         public bool A, B;            // indicação ligada em cada ponta
-        public bool Selecionado;
     }
 
     /// <summary>Preferências da pessoa: %APPDATA%\FJA\trocar-lado.json.</summary>
     public sealed class OpcoesTrocarLado
     {
-        public AcaoLado Verticais = AcaoLado.Trocar, Horizontais = AcaoLado.Trocar;
-        public bool TodosDaVista;
+        public AcaoLado Eixos = AcaoLado.Trocar, Niveis = AcaoLado.Trocar;
 
-        static string Arquivo => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FJA", "trocar-lado.json");
+        static string Arquivo => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FJA", "trocar-lado.json");
 
         public static OpcoesTrocarLado Carregar()
         {
@@ -43,9 +43,8 @@ namespace FJA.Revit.Cotagem
             {
                 if (!File.Exists(Arquivo)) return o;
                 var d = Json.LerObjeto(File.ReadAllText(Arquivo, Encoding.UTF8));
-                if (Enum.TryParse(d.Txt("verticais") ?? "", out AcaoLado v)) o.Verticais = v;
-                if (Enum.TryParse(d.Txt("horizontais") ?? "", out AcaoLado h)) o.Horizontais = h;
-                o.TodosDaVista = d.Txt("todosDaVista") == "True" || d.Txt("todosDaVista") == "true";
+                if (Enum.TryParse(d.Txt("eixos") ?? "", out AcaoLado e)) o.Eixos = e;
+                if (Enum.TryParse(d.Txt("niveis") ?? "", out AcaoLado n)) o.Niveis = n;
             }
             catch { }
             return o;
@@ -55,12 +54,11 @@ namespace FJA.Revit.Cotagem
         {
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(Arquivo));
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Arquivo));
                 File.WriteAllText(Arquivo, Json.Gravar(new Dictionary<string, object>
                 {
-                    ["verticais"] = Verticais.ToString(),
-                    ["horizontais"] = Horizontais.ToString(),
-                    ["todosDaVista"] = TodosDaVista ? "true" : "false",
+                    ["eixos"] = Eixos.ToString(),
+                    ["niveis"] = Niveis.ToString(),
                 }), Encoding.UTF8);
             }
             catch { }
@@ -68,32 +66,38 @@ namespace FJA.Revit.Cotagem
     }
 
     /// <summary>
-    /// Janela do Trocar lado: alcance (selecionados ou todos da vista) e, para as linhas verticais e as horizontais
-    /// na tela, ligar tudo de um lado, tudo do outro, dos dois lados, trocar ou não mexer. Montada em código,
-    /// estilo de lib/fja_estilo.xaml (como a JanelaCotagem).
+    /// Janela do Trocar lado (2.23.0): para os eixos e os níveis selecionados, um cartão com as opções em
+    /// blocos desenhados (um lado, o outro, os dois, trocar, não mexer). Estética do Sistema FJA
+    /// (lib/fja_estilo.xaml): fundo claro, cartões brancos, vermelho FJ na escolha.
     /// </summary>
     public sealed class JanelaTrocarLado : Window
     {
-        readonly List<DatumNaVista> todos;
         readonly OpcoesTrocarLado o;
         public bool Confirmado { get; private set; }
+        public AcaoLado Eixos { get; private set; }
+        public AcaoLado Niveis { get; private set; }
 
-        RadioButton rbSel, rbTodos;
-        readonly RadioButton[] rbVert = new RadioButton[5], rbHor = new RadioButton[5];
-        TextBlock txVert, txHor, txErro;
-        StackPanel spVert, spHor;
+        readonly int nEixos, nNiveis;
         Button btAplicar;
 
-        public JanelaTrocarLado(List<DatumNaVista> todos, string nomeVista, OpcoesTrocarLado o)
+        sealed class Bloco { public Border B; public AcaoLado A; public List<System.Windows.Shapes.Shape> Formas = new List<System.Windows.Shapes.Shape>(); public TextBlock T; }
+        readonly List<Bloco> blocosE = new List<Bloco>(), blocosN = new List<Bloco>();
+
+        public JanelaTrocarLado(List<DatumNaVista> sel, string nomeVista, OpcoesTrocarLado o)
         {
-            this.todos = todos; this.o = o;
-            Title = "Trocar lado da indicação";
-            Width = 460; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
+            this.o = o;
+            nEixos = sel.Count(d => d.Eixo);
+            nNiveis = sel.Count - nEixos;
+            Eixos = nEixos > 0 ? o.Eixos : AcaoLado.NaoMexer;
+            Niveis = nNiveis > 0 ? o.Niveis : AcaoLado.NaoMexer;
+
+            Title = "Trocar lado";
+            Width = 520; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ShowInTaskbar = false;
             AplicarEstilo();
             Montar(nomeVista);
-            Atualizar();
+            Pintar();
             PreviewKeyDown += (s, a) =>
             {
                 if (a.Key == Key.Escape) Close();
@@ -101,170 +105,171 @@ namespace FJA.Revit.Cotagem
             };
         }
 
-        /// <summary>As linhas que entram, conforme o alcance escolhido.</summary>
-        public List<DatumNaVista> Alvo => rbTodos.IsChecked == true ? todos : todos.Where(d => d.Selecionado).ToList();
+        // ------------------------------------------------------------ estilo
 
         void AplicarEstilo()
         {
             try
             {
                 string ext = AppDomain.CurrentDomain.GetData("FJA.Extensao") as string;
-                string arq = ext != null ? Path.Combine(ext, "lib", "fja_estilo.xaml") : null;
+                string arq = ext != null ? System.IO.Path.Combine(ext, "lib", "fja_estilo.xaml") : null;
                 if (arq != null && File.Exists(arq))
                     Resources.MergedDictionaries.Add((ResourceDictionary)XamlReader.Parse(File.ReadAllText(arq, Encoding.UTF8)));
             }
             catch { }
             if (!Resources.Contains("Fundo"))
             {
-                Background = new SolidColorBrush(WColor.FromRgb(246, 246, 245));
+                Background = Cor(246, 246, 245);
                 FontFamily = new FontFamily("Segoe UI");
                 FontSize = 13;
             }
         }
 
-        object Rec(string k) => TryFindResource(k);
-        Brush Pincel(string k, byte r, byte g, byte b) => Rec(k) as Brush ?? new SolidColorBrush(WColor.FromRgb(r, g, b));
+        static SolidColorBrush Cor(byte r, byte g, byte b) => new SolidColorBrush(WColor.FromRgb(r, g, b));
+        Brush Pincel(string k, byte r, byte g, byte b) => TryFindResource(k) as Brush ?? Cor(r, g, b);
+        Brush Tinta => Pincel("Tinta", 29, 29, 29);
+        Brush Suave => Pincel("Suave", 94, 94, 92);
+        Brush Fraco => Pincel("Fraco", 143, 143, 140);
+        Brush Linha => Pincel("Linha", 226, 226, 223);
+        Brush Painel => Pincel("Painel", 255, 255, 255);
+        Brush Hover => Pincel("Hover", 241, 240, 238);
+        Brush Destaque => Pincel("Destaque", 142, 27, 27);
+        Brush DestaqueFraco => Pincel("DestaqueFraco", 247, 236, 234);
 
-        Border Cartao()
-        {
-            var b = new Border { Margin = new Thickness(0, 0, 0, 12) };
-            if (Rec("Cartao") is Style st) { b.Style = st; b.Margin = new Thickness(0, 0, 0, 12); }
-            else { b.Background = Brushes.White; b.BorderBrush = Pincel("Linha", 226, 226, 223); b.BorderThickness = new Thickness(1); b.CornerRadius = new CornerRadius(6); }
-            return b;
-        }
-
-        Button Botao(string texto, string estilo)
-        {
-            var b = new Button { Content = texto, Padding = new Thickness(12, 4, 12, 4), VerticalAlignment = VerticalAlignment.Center };
-            if (Rec(estilo) is Style st) b.Style = st;
-            return b;
-        }
-
-        TextBlock Titulo(string t) => new TextBlock { Text = t, FontWeight = FontWeights.SemiBold };
-
-        TextBlock Nota(string t) => new TextBlock
-        {
-            Text = t, TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Margin = new Thickness(0, 4, 0, 0),
-            Foreground = Pincel("Fraco", 143, 143, 140),
-        };
+        // ------------------------------------------------------------ montagem
 
         void Montar(string nomeVista)
         {
-            var raiz = new StackPanel { Margin = new Thickness(16) };
+            var raiz = new StackPanel { Margin = new Thickness(20, 18, 20, 18) };
             Content = raiz;
-            raiz.Children.Add(new TextBlock { Text = "Vista ativa: " + nomeVista, Margin = new Thickness(0, 0, 0, 10), TextTrimming = TextTrimming.CharacterEllipsis, Foreground = Pincel("Suave", 94, 94, 92) });
 
-            // ---- alcance
-            int nSel = todos.Count(d => d.Selecionado);
-            var cA = Cartao();
-            var spA = new StackPanel { Margin = new Thickness(12) };
-            spA.Children.Add(Titulo("Quais eixos e níveis"));
-            rbSel = new RadioButton { Content = "Os selecionados (" + nSel + ")", GroupName = "alc", Margin = new Thickness(0, 8, 0, 0), IsEnabled = nSel > 0 };
-            rbTodos = new RadioButton { Content = "Todos os visíveis nesta vista (" + todos.Count + ")", GroupName = "alc", Margin = new Thickness(0, 6, 0, 0) };
-            if (nSel > 0 && !o.TodosDaVista) rbSel.IsChecked = true; else rbTodos.IsChecked = true;
-            rbSel.Checked += (s, a) => Atualizar();
-            rbTodos.Checked += (s, a) => Atualizar();
-            spA.Children.Add(rbSel); spA.Children.Add(rbTodos);
-            cA.Child = spA;
-            raiz.Children.Add(cA);
+            raiz.Children.Add(new TextBlock { Text = "Trocar lado", FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = Tinta });
+            raiz.Children.Add(new TextBlock { Text = nomeVista, FontSize = 12, Foreground = Suave, Margin = new Thickness(0, 2, 0, 14), TextTrimming = TextTrimming.CharacterEllipsis });
 
-            // ---- grupos
-            raiz.Children.Add(Grupo("Linhas verticais na tela", new[] { "Em cima", "Embaixo" }, rbVert, o.Verticais, "v", out txVert, out spVert));
-            raiz.Children.Add(Grupo("Linhas horizontais na tela", new[] { "À esquerda", "À direita" }, rbHor, o.Horizontais, "h", out txHor, out spHor));
+            if (nEixos > 0)
+                raiz.Children.Add(Cartao("Eixos", nEixos, true, blocosE,
+                    new[] { (AcaoLado.LadoA, "Em cima"), (AcaoLado.LadoB, "Embaixo"), (AcaoLado.DoisLados, "Nos dois"), (AcaoLado.Trocar, "Trocar"), (AcaoLado.NaoMexer, "Não mexer") }));
+            if (nNiveis > 0)
+                raiz.Children.Add(Cartao("Níveis", nNiveis, false, blocosN,
+                    new[] { (AcaoLado.LadoA, "À esquerda"), (AcaoLado.LadoB, "À direita"), (AcaoLado.DoisLados, "Nos dois"), (AcaoLado.Trocar, "Trocar"), (AcaoLado.NaoMexer, "Não mexer") }));
 
-            raiz.Children.Add(Nota("As pontas passam para 2D nesta vista antes da mudança, para não alterar as outras vistas. Ctrl+Z desfaz."));
-
-            // ---- rodapé
-            var rod = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
-            var bts = new StackPanel { Orientation = Orientation.Horizontal };
-            var btCancelar = Botao("Cancelar", "Discreto");
+            var bts = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 6, 0, 0) };
+            var btCancelar = new Button { Content = "Cancelar", Padding = new Thickness(16, 0, 16, 0), MinHeight = 34 };
             btCancelar.Click += (s, a) => Close();
-            btAplicar = Botao("Aplicar", "Primario");
-            btAplicar.Margin = new Thickness(8, 0, 0, 0);
+            btAplicar = new Button { Content = "Aplicar", Padding = new Thickness(22, 0, 22, 0), MinHeight = 34, Margin = new Thickness(8, 0, 0, 0), IsDefault = true };
+            if (TryFindResource("Primario") is Style st) btAplicar.Style = st;
             btAplicar.Click += (s, a) => Confirmar();
             bts.Children.Add(btCancelar); bts.Children.Add(btAplicar);
-            DockPanel.SetDock(bts, Dock.Right);
-            rod.Children.Add(bts);
-            txErro = new TextBlock { Foreground = new SolidColorBrush(WColor.FromRgb(176, 58, 46)), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-            rod.Children.Add(txErro);
-            raiz.Children.Add(rod);
+            raiz.Children.Add(bts);
         }
 
-        Border Grupo(string titulo, string[] lados, RadioButton[] rbs, AcaoLado atual, string nomeGrupo, out TextBlock resumo, out StackPanel corpo)
+        Border Cartao(string titulo, int qtd, bool eixo, List<Bloco> blocos, (AcaoLado a, string t)[] opcoes)
         {
-            var c = Cartao();
-            var sp = new StackPanel { Margin = new Thickness(12) };
-            sp.Children.Add(Titulo(titulo));
-            resumo = new TextBlock { Margin = new Thickness(0, 2, 0, 6), FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = Pincel("Suave", 94, 94, 92) };
-            sp.Children.Add(resumo);
-            string[] textos = { "Não mexer", "Ligar tudo " + lados[0].ToLowerInvariant(), "Ligar tudo " + lados[1].ToLowerInvariant(), "Ligar dos dois lados", "Trocar de lado" };
-            var ordem = new[] { AcaoLado.LadoA, AcaoLado.LadoB, AcaoLado.Trocar, AcaoLado.DoisLados, AcaoLado.NaoMexer };
-            var wrap = new WrapPanel();
-            foreach (var a in ordem)
+            var c = new Border { Margin = new Thickness(0, 0, 0, 12) };
+            if (TryFindResource("Cartao") is Style st) { c.Style = st; c.Margin = new Thickness(0, 0, 0, 12); }
+            else { c.Background = Painel; c.BorderBrush = Linha; c.BorderThickness = new Thickness(1); c.CornerRadius = new CornerRadius(8); }
+
+            var sp = new StackPanel { Margin = new Thickness(14, 12, 14, 14) };
+            var cab = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
+            cab.Children.Add(new TextBlock { Text = titulo, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Tinta, VerticalAlignment = VerticalAlignment.Center });
+            cab.Children.Add(new Border
             {
-                var rb = new RadioButton { Content = textos[(int)a], GroupName = nomeGrupo, Margin = new Thickness(0, 4, 18, 0), IsChecked = a == atual };
-                rb.Checked += (s, e) => Atualizar();
-                rbs[(int)a] = rb;
-                wrap.Children.Add(rb);
+                Background = DestaqueFraco, CornerRadius = new CornerRadius(9), Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(8, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = qtd.ToString(), FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = Destaque },
+            });
+            sp.Children.Add(cab);
+
+            var linha = new UniformGrid5();
+            foreach (var (a, t) in opcoes)
+            {
+                var bl = NovoBloco(a, t, eixo);
+                blocos.Add(bl);
+                linha.Children.Add(bl.B);
             }
-            sp.Children.Add(wrap);
-            sp.Children.Add(Nota(nomeGrupo == "v"
-                ? "Trocar de lado: só nas linhas com indicação de um lado; as com indicação nos dois lados, ou sem nenhuma, ficam como estão."
-                : "Níveis em cortes e fachadas, e eixos horizontais nas plantas."));
+            sp.Children.Add(linha);
             c.Child = sp;
-            corpo = sp;
             return c;
         }
 
-        static AcaoLado Escolha(RadioButton[] rbs)
+        /// <summary>Cinco colunas iguais (UniformGrid sem depender de Primitives no using).</summary>
+        sealed class UniformGrid5 : System.Windows.Controls.Primitives.UniformGrid { public UniformGrid5() { Columns = 5; } }
+
+        Bloco NovoBloco(AcaoLado a, string texto, bool eixo)
         {
-            for (int i = 0; i < rbs.Length; i++) if (rbs[i]?.IsChecked == true) return (AcaoLado)i;
-            return AcaoLado.NaoMexer;
+            var bl = new Bloco { A = a };
+            var cv = new Canvas { Width = 44, Height = 44, HorizontalAlignment = HorizontalAlignment.Center };
+            Desenhar(cv, bl, a);
+            if (!eixo) cv.RenderTransform = new RotateTransform(-90, 22, 22);   // nível: o "em cima" vira "à esquerda"
+
+            bl.T = new TextBlock { Text = texto, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
+            var sp = new StackPanel();
+            sp.Children.Add(cv); sp.Children.Add(bl.T);
+
+            bl.B = new Border
+            {
+                Child = sp, CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1.5), Padding = new Thickness(4, 10, 4, 8),
+                Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand, SnapsToDevicePixels = true,
+            };
+            bl.B.MouseEnter += (s, e) => { if (!Escolhido(bl, eixo)) bl.B.Background = Hover; };
+            bl.B.MouseLeave += (s, e) => Pintar();
+            bl.B.MouseLeftButtonUp += (s, e) => { if (eixo) Eixos = a; else Niveis = a; Pintar(); };
+            return bl;
         }
 
-        public AcaoLado Verticais => Escolha(rbVert);
-        public AcaoLado Horizontais => Escolha(rbHor);
+        bool Escolhido(Bloco bl, bool eixo) => (eixo ? Eixos : Niveis) == bl.A;
 
-        static string Resumo(List<DatumNaVista> g, string a, string b)
+        /// <summary>Ícone: a linha do eixo (vertical) com as bolhas; para os níveis o desenho é girado.</summary>
+        void Desenhar(Canvas cv, Bloco bl, AcaoLado a)
         {
-            if (g.Count == 0) return "Nenhuma no alcance escolhido.";
-            int eixos = g.Count(d => d.D is Autodesk.Revit.DB.Grid), niveis = g.Count - eixos;
-            var qual = new List<string>();
-            if (eixos > 0) qual.Add(eixos + (eixos == 1 ? " eixo" : " eixos"));
-            if (niveis > 0) qual.Add(niveis + (niveis == 1 ? " nível" : " níveis"));
-            var est = new List<string>();
-            int sa = g.Count(d => d.A && !d.B), sb = g.Count(d => d.B && !d.A), dois = g.Count(d => d.A && d.B), nen = g.Count(d => !d.A && !d.B);
-            if (sa > 0) est.Add(sa + " " + a);
-            if (sb > 0) est.Add(sb + " " + b);
-            if (dois > 0) est.Add(dois + " nos dois lados");
-            if (nen > 0) est.Add(nen + " sem indicação");
-            return string.Join(" e ", qual) + " — hoje: " + string.Join(", ", est) + ".";
+            bool cima = a == AcaoLado.LadoA || a == AcaoLado.DoisLados || a == AcaoLado.Trocar;
+            bool baixo = a == AcaoLado.LadoB || a == AcaoLado.DoisLados || a == AcaoLado.Trocar;
+            const double x = 22, r = 6.5;
+            double y0 = cima ? 3 + 2 * r : 4, y1 = baixo ? 41 - 2 * r : 40;
+            var ln = new WLine { X1 = x, Y1 = y0, X2 = x, Y2 = y1, StrokeThickness = 1.6 };
+            if (a == AcaoLado.NaoMexer) ln.StrokeDashArray = new DoubleCollection { 3, 2 };
+            cv.Children.Add(ln); bl.Formas.Add(ln);
+            void Bolha(double cy, bool tracejada)
+            {
+                var el = new System.Windows.Shapes.Ellipse { Width = 2 * r, Height = 2 * r, StrokeThickness = 1.6, Fill = Brushes.Transparent };
+                if (tracejada) el.StrokeDashArray = new DoubleCollection { 2, 1.5 };
+                Canvas.SetLeft(el, x - r); Canvas.SetTop(el, cy - r);
+                cv.Children.Add(el); bl.Formas.Add(el);
+            }
+            if (cima) Bolha(3 + r, a == AcaoLado.Trocar);
+            if (baixo) Bolha(41 - r, false);
+            if (a == AcaoLado.Trocar)
+            {
+                // seta curva ao lado: de baixo para cima
+                var seta = new System.Windows.Shapes.Path
+                {
+                    StrokeThickness = 1.5, Fill = Brushes.Transparent,
+                    Data = System.Windows.Media.Geometry.Parse("M 31,33 C 39,28 39,16 31,11 M 31,11 L 35.5,11.5 M 31,11 L 32.5,15"),
+                };
+                cv.Children.Add(seta); bl.Formas.Add(seta);
+            }
         }
 
-        void Atualizar()
+        void Pintar()
         {
-            if (txVert == null || txHor == null || btAplicar == null) return;
-            var alvo = Alvo;
-            var v = alvo.Where(d => d.Vertical).ToList();
-            var h = alvo.Where(d => !d.Vertical).ToList();
-            txVert.Text = Resumo(v, "em cima", "embaixo");
-            txHor.Text = Resumo(h, "à esquerda", "à direita");
-            spVert.IsEnabled = v.Count > 0; spVert.Opacity = v.Count > 0 ? 1 : 0.55;
-            spHor.IsEnabled = h.Count > 0; spHor.Opacity = h.Count > 0 ? 1 : 0.55;
-
-            string erro = "";
-            bool algo = (v.Count > 0 && Verticais != AcaoLado.NaoMexer) || (h.Count > 0 && Horizontais != AcaoLado.NaoMexer);
-            if (alvo.Count == 0) erro = "Nenhum eixo ou nível no alcance escolhido.";
-            else if (!algo) erro = "Escolha o que fazer em pelo menos um dos grupos.";
-            txErro.Text = erro;
-            btAplicar.IsEnabled = erro == "";
+            foreach (var (lista, atual) in new[] { (blocosE, Eixos), (blocosN, Niveis) })
+                foreach (var bl in lista)
+                {
+                    bool sel = bl.A == atual;
+                    bl.B.Background = sel ? DestaqueFraco : Painel;
+                    bl.B.BorderBrush = sel ? Destaque : Linha;
+                    bl.T.Foreground = sel ? Destaque : Suave;
+                    bl.T.FontWeight = sel ? FontWeights.SemiBold : FontWeights.Normal;
+                    var traco = sel ? Destaque : (bl.A == AcaoLado.NaoMexer ? Fraco : Tinta);
+                    foreach (var f in bl.Formas) f.Stroke = traco;
+                }
+            if (btAplicar != null) btAplicar.IsEnabled = Eixos != AcaoLado.NaoMexer || Niveis != AcaoLado.NaoMexer;
         }
 
         void Confirmar()
         {
-            o.Verticais = Verticais;
-            o.Horizontais = Horizontais;
-            o.TodosDaVista = rbTodos.IsChecked == true;
+            if (nEixos > 0) o.Eixos = Eixos;
+            if (nNiveis > 0) o.Niveis = Niveis;
             Confirmado = true;
             Close();
         }
