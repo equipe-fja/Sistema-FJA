@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~17h24 — commit e4cd951
+- Extensão do Revit 2.26.10 (antes 2.26.9): **Estender/Alinhar** — quando a referência é outro eixo ou nível paralelo, o clicado fica com a mesma extensão dele (as duas pontas); vale também para os já selecionados. O código entrou no commit da 2.26.9, mas a compilação daquela versão saiu sem ele; esta recompila.
+
 ## oficial Firebase — 13/11, ~17h25 — commit e6b4d30
 - Extensão do Revit 2.26.9 (antes 2.26.8): correções do teste do **Cotar vistas** feito pelo conector na PMA.NÍVEL 1. O desvio dos números passa a valer também nas cadeias, que antes ficavam de fora por um erro. O retângulo do número parte da base, sobre a linha, e o número não cai mais riscado pela própria linha. As cotas apoiadas em faces de paredes fora de esquadro só são feitas se o desvio ao longo do vão for de até 3 cm, o que evita as cotas inclinadas em vãos longos.
 
