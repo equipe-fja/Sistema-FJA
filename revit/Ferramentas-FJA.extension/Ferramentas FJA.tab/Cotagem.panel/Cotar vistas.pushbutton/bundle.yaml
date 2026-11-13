@@ -1,0 +1,6 @@
+title:
+  pt_br: "Cotar vistas"
+  en_us: "Cotar vistas"
+tooltip:
+  pt_br: "Cota a vista ativa, ou as vistas e folhas selecionadas no navegador de projeto, pelas regras da FJA (tipo da vista × escala). O tipo da vista vem do template e pode ser trocado numa lista. Só acrescenta o que ainda não está cotado; o modo Refazer as minhas apaga e refaz apenas as cotas criadas pela ferramenta. Versão inicial: eixos e níveis (cadeia + total)."
+  en_us: "Cota a vista ativa, ou as vistas e folhas selecionadas no navegador de projeto, pelas regras da FJA (tipo da vista × escala). O tipo da vista vem do template e pode ser trocado numa lista. Só acrescenta o que ainda não está cotado; o modo Refazer as minhas apaga e refaz apenas as cotas criadas pela ferramenta. Versão inicial: eixos e níveis (cadeia + total)."

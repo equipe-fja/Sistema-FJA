@@ -1,0 +1,4 @@
+{
+  "_leia": "Cotagem: correspondencia nome do View Template -> tipo da vista. Tipos: PlantaBaixa, TetoRefletido, Pontos, Paginacao, Corte, Fachada, VistaInterna, Implantacao. Templates fora desta lista sao reconhecidos por palavras-chave no nome (teto, forro, pontos, paginacao, corte, fachada, planta...).",
+  "templates": {}
+}
