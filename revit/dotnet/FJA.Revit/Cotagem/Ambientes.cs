@@ -55,15 +55,18 @@ namespace FJA.Revit.Cotagem
             if (fa == null || fb == null) return false;
             // faces paralelas: face a face; senão, o par de quinas na mesma altura mais perto da origem (a cota entre
             // pontos em alturas diferentes sai torta) — a linha fica junto das quinas
-            if (!Internas.Paralelo(fa, fb))
-            {
-                var par = Internas.ParDeQuinas(fa, fb, k, linha);
-                if (par == null) { res.TrechosSemParalela++; return true; }
-                (fa, fb, linha) = par.Value;
-            }
             bool hor = k == 0;
             // já cotado por uma cota dentro deste ambiente (ambientes iguais lado a lado têm cada um a sua)
             if (Motor.MedidoEm(ex, hor, fa.Pos, fb.Pos, c0, c1)) { res.JaExistiam++; return true; }
+            if (!Internas.Paralelo(fa, fb))
+            {
+                // faces não paralelas: face + quina, ou par de quinas na mesma altura (ver Internas.CriarPonte)
+                double? l = Internas.CriarPonte(doc, v, dt, fa, fb, k, linha, hor, R, U, O, nome, res);
+                if (l == null) { res.TrechosSemParalela++; return true; }
+                res.Segmentos++;
+                ex.Add(new Intervalo { Horizontal = hor, A = fa.Pos, B = fb.Pos, Linha = l });
+                return true;
+            }
             if (Fachada.Criar(doc, v, dt, new List<Plano> { fa, fb }, hor, linha, R, U, O, nome, res))
             {
                 res.Segmentos++;

@@ -152,18 +152,35 @@ namespace FJA.Revit.Cotagem
         static void Ponte(Document doc, View v, DimensionType dt, Plano a, Plano b, int k, double y, bool hor,
                           XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
         {
-            var par = ParDeQuinas(a, b, k, y);
-            if (par == null) { res.TrechosSemParalela++; return; }
-            var (ea, eb, linha) = par.Value;
-            if (Math.Abs(ea.Pos - eb.Pos) < TOL) return;
-            if (Fachada.Criar(doc, v, dt, new List<Plano> { ea, eb }, hor, linha, R, U, O, "interna", res))
-            {
-                res.Segmentos++;
-                ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos, Linha = linha });
-            }
+            double? linha = CriarPonte(doc, v, dt, a, b, k, y, hor, R, U, O, "interna", res);
+            if (linha == null) { res.TrechosSemParalela++; return; }
+            res.Segmentos++;
+            ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos, Linha = linha });
         }
 
-        const double MESMA_ALTURA = 10 / 304.8;   // quinas a até 1 cm uma da outra no eixo perpendicular
+        /// <summary>
+        /// Cota entre duas faces não paralelas sem sair torta (pedidos da FJA, 13/11/2026), nesta ordem:
+        /// 1) face de a + quina de b na altura da linha (a aresta vertical é paralela a qualquer face vertical; a cota
+        ///    mede perpendicular à face, quase paralela ao eixo); 2) quina de a + face de b; 3) par de quinas na mesma
+        ///    altura (até 3 cm), o mais perto da origem, com a linha junto delas. Devolve a linha usada, ou null.
+        /// </summary>
+        internal static double? CriarPonte(Document doc, View v, DimensionType dt, Plano a, Plano b, int k, double y, bool hor,
+                                           XYZ R, XYZ U, XYZ O, string regra, ResultadoVista res)
+        {
+            var qb = b.ArestaPerto(y);
+            if (qb != null && Fachada.Criar(doc, v, dt, new List<Plano> { a, new Plano { Ref = qb.Ref, Eixo = k, Pos = qb.K } }, hor, y, R, U, O, regra, res, true))
+                return y;
+            var qa = a.ArestaPerto(y);
+            if (qa != null && Fachada.Criar(doc, v, dt, new List<Plano> { new Plano { Ref = qa.Ref, Eixo = k, Pos = qa.K }, b }, hor, y, R, U, O, regra, res, true))
+                return y;
+            var par = ParDeQuinas(a, b, k, y);
+            if (par == null) return null;
+            var (ea, eb, linha) = par.Value;
+            if (Math.Abs(ea.Pos - eb.Pos) < TOL) return null;
+            return Fachada.Criar(doc, v, dt, new List<Plano> { ea, eb }, hor, linha, R, U, O, regra, res, true) ? linha : (double?)null;
+        }
+
+        const double MESMA_ALTURA = 30 / 304.8;   // quinas a até 3 cm uma da outra no eixo perpendicular
         const double RECUO_LINHA = 400 / 304.8;   // linha da cota a até 40 cm das quinas, para dentro do ambiente
 
         /// <summary>
