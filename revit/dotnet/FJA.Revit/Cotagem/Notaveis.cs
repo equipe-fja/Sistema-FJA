@@ -73,7 +73,9 @@ namespace FJA.Revit.Cotagem
                 foreach (var g in Enumerable.Range(0, n).GroupBy(Raiz).Where(g => g.Count() >= 2))
                 {
                     var run = g.Select(i => ws[i]).OrderBy(w => w.Lo[k]).ToList();
-                    foreach (int s in new[] { 1, -1 })
+                    // um lado só: o voltado para a origem (em cima / à esquerda); se ele for a fachada, o outro
+                    int sOrigem = k == 0 ? 1 : -1;
+                    foreach (int s in new[] { sOrigem, -sOrigem })
                     {
                         double Face(Parede w) => w.FaceEm(s, (w.Lo[k] + w.Hi[k]) / 2);
                         // o lado de fora do edifício já tem a cadeia da fachada
@@ -102,6 +104,7 @@ namespace FJA.Revit.Cotagem
                             if (ds.Count == 0 || q.Em(k) - ds[ds.Count - 1].Pos > TOL) ds.Add(P(q, k));
                         if (ds.Count < 2) continue;
                         Cadeia(doc, v, dt, ds, k == 0, extremo + s * AFAST, "degrau", R, U, O, ex, res);
+                        break;   // um lado só
                     }
                 }
             }
@@ -162,7 +165,7 @@ namespace FJA.Revit.Cotagem
                         foreach (var f in lt.Planos.Where(f => ReferenceEquals(f.Dono, p) && f.Eixo == k && f.Sinal == lado))
                         {
                             double d = lado * (ponta - f.Pos);
-                            if (d > F2 && d < melhor && f.A <= meioC + F2 && f.B >= meioC - F2) { melhor = d; alvo = f; }
+                            if (d > F2 && d < melhor && f.A <= w.Hi[c] + F2 && f.B >= w.Lo[c] - F2) { melhor = d; alvo = f; }
                         }
                     }
                     Plano outra;
@@ -224,7 +227,10 @@ namespace FJA.Revit.Cotagem
                             if (d < melhor && Math.Sign(pc - f.Pos) == f.Sinal) { melhor = d; alvo = f; }   // face voltada para o pilar
                         }
                         if (alvo == null) continue;
-                        var ds = new[] { new Plano { Ref = rp, Eixo = k, Pos = pc }, alvo }.OrderBy(x => x.Pos).ToList();
+                        // a quina da parede (ponto): o plano do pilar e a face de uma parede torta não são paralelos
+                        var qa = alvo.ArestaPerto(oc);
+                        var pw = qa != null ? new Plano { Ref = qa.Ref, Eixo = k, Pos = qa.K } : alvo;
+                        var ds = new[] { new Plano { Ref = rp, Eixo = k, Pos = pc }, pw }.OrderBy(x => x.Pos).ToList();
                         Cadeia(doc, v, dt, ds, k == 0, oc, "pilar", R, U, O, ex, res);
                     }
                 }
