@@ -28,7 +28,9 @@ namespace FJA.Revit.Comandos
         const string CortesFora = "Cortes não são ajustados: o Revit não dá acesso às pontas da linha do corte (cabeças), só à largura do recorte, que não muda o desenho na planta. Um corte ainda pode servir de linha de referência.";
 
         /// <summary>Reta na vista (coordenadas da tela: X = RightDirection, Y = UpDirection).</summary>
-        struct Reta { public double Ax, Ay, Dx, Dy; }
+        /// <remarks>Datum: a referência é um eixo ou nível (A e A+D são as pontas visíveis dele) — com um eixo/nível
+        /// paralelo, a extensão inteira é alinhada à dele (2.26.9).</remarks>
+        struct Reta { public double Ax, Ay, Dx, Dy; public bool Datum; }
 
         sealed class FiltroLimite : ISelectionFilter
         {
@@ -204,7 +206,9 @@ namespace FJA.Revit.Comandos
                 case DatumPlane dp when !(dp is Grid g0 && g0.IsCurved):
                     var lv = Extensao2D.Visivel(dp, v);
                     if (lv == null) return "Não foi possível ler a linha desse elemento nesta vista.";
-                    return RetaDe(lv.GetEndPoint(0), lv.GetEndPoint(1), R, U, out r);
+                    var erroD = RetaDe(lv.GetEndPoint(0), lv.GetEndPoint(1), R, U, out r);
+                    r.Datum = true;
+                    return erroD;
                 case ReferencePlane rp:
                     return RetaDe(rp.BubbleEnd, rp.FreeEnd, R, U, out r);
             }
@@ -235,7 +239,9 @@ namespace FJA.Revit.Comandos
             if (vis == null) return "não aparece nesta vista";
             XYZ v0 = vis.GetEndPoint(0), v1 = vis.GetEndPoint(1);
             var t = Cruzamento(v0, v1, lim, R, U);
-            if (t == null) return "é paralelo à linha de referência";
+            if (t == null)
+                return lim.Datum ? AlinharParalelo(dp, v, lim, R, U)
+                                 : "é paralelo à linha de referência (para alinhar a extensão, use um eixo ou nível paralelo como referência)";
             var qual = Ponta(t.Value, clique != null ? Param(v0, v1, clique, R, U) : (double?)null, vis.Length);
             if (qual == null) return JaNaLinha;
             var ponta = qual == 0 ? DatumEnds.End0 : DatumEnds.End1;
@@ -252,6 +258,42 @@ namespace FJA.Revit.Comandos
             if ((b - a).DotProduct(c1 - c0) <= 0) return "a linha de referência passa além da outra ponta";
             dp.SetCurveInView(tipo, v, Line.CreateBound(a, b));
             return null;
+        }
+
+        /// <summary>
+        /// Referência = eixo ou nível paralelo (2.26.9): as duas pontas vão até as pontas da referência, projetadas
+        /// sobre o elemento (a ponta 0 fica do lado da menor projeção, mantendo a orientação). Cada ponta muda no
+        /// tipo de extensão em que já está (3D ou 2D).
+        /// </summary>
+        static string AlinharParalelo(DatumPlane dp, View v, Reta lim, XYZ R, XYZ U)
+        {
+            var tipos = new[] { dp.GetDatumExtentTypeInView(DatumEnds.End0, v), dp.GetDatumExtentTypeInView(DatumEnds.End1, v) };
+            bool mudou = false;
+            foreach (var tipo in tipos.Distinct())
+            {
+                var c = dp.GetCurvesInView(tipo, v)?.OfType<Line>().FirstOrDefault();
+                if (c == null) return "não foi possível ler a extensão";
+                XYZ c0 = c.GetEndPoint(0), c1 = c.GetEndPoint(1);
+                double s1 = Param2(c0, c1, lim.Ax, lim.Ay, R, U), s2 = Param2(c0, c1, lim.Ax + lim.Dx, lim.Ay + lim.Dy, R, U);
+                double sMin = Math.Min(s1, s2), sMax = Math.Max(s1, s2);
+                XYZ p0 = c0 + (c1 - c0) * sMin, p1 = c0 + (c1 - c0) * sMax;
+                // só as pontas que estão neste tipo de extensão
+                XYZ a = tipos[0] == tipo ? p0 : c0, b = tipos[1] == tipo ? p1 : c1;
+                if (a.DistanceTo(b) < 10 * TOL || (b - a).DotProduct(c1 - c0) <= 0) return "a extensão da referência não serve para este elemento";
+                if (a.DistanceTo(c0) < TOL && b.DistanceTo(c1) < TOL) continue;
+                dp.SetCurveInView(tipo, v, Line.CreateBound(a, b));
+                mudou = true;
+            }
+            return mudou ? null : JaNaLinha;
+        }
+
+        /// <summary>Parâmetro (0 em p0, 1 em p1) da projeção do ponto de tela (qx, qy) sobre a linha p0–p1.</summary>
+        static double Param2(XYZ p0, XYZ p1, double qx, double qy, XYZ R, XYZ U)
+        {
+            Tela(p0, R, U, out double ax, out double ay);
+            Tela(p1, R, U, out double bx, out double by);
+            double dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+            return l2 < 1e-12 ? 0 : ((qx - ax) * dx + (qy - ay) * dy) / l2;
         }
 
         /// <summary>Corte: a largura (recorte da vista do corte) vai até a reta.</summary>
