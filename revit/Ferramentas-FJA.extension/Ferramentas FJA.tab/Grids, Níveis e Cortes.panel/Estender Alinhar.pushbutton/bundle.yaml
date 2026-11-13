@@ -2,5 +2,5 @@ title:
   pt_br: "Estender/Alinhar"
   en_us: "Estender/Alinhar"
 tooltip:
-  pt_br: "Como o Aparar/Estender do Revit, para eixos, níveis e cortes. Clique na linha de referência (linha, eixo, nível, plano de referência ou corte) e depois em cada eixo, nível ou corte, do lado que fica; Esc termina. Os já selecionados ao abrir são alinhados de uma vez. A extensão muda no modo em que já está (3D ou 2D); no corte, muda a largura."
-  en_us: "Como o Aparar/Estender do Revit, para eixos, níveis e cortes. Clique na linha de referência (linha, eixo, nível, plano de referência ou corte) e depois em cada eixo, nível ou corte, do lado que fica; Esc termina. Os já selecionados ao abrir são alinhados de uma vez. A extensão muda no modo em que já está (3D ou 2D); no corte, muda a largura."
+  pt_br: "Como o Aparar/Estender do Revit, para eixos e níveis. Clique na linha de referência (linha, eixo, nível, plano de referência ou corte) e depois em cada eixo ou nível, do lado que fica; Esc termina. Os já selecionados ao abrir são alinhados de uma vez. A extensão muda no modo em que já está (3D ou 2D)."
+  en_us: "Como o Aparar/Estender do Revit, para eixos e níveis. Clique na linha de referência (linha, eixo, nível, plano de referência ou corte) e depois em cada eixo ou nível, do lado que fica; Esc termina. Os já selecionados ao abrir são alinhados de uma vez. A extensão muda no modo em que já está (3D ou 2D)."

@@ -16,13 +16,16 @@ namespace FJA.Revit.Comandos
     /// cruza o elemento, fica o lado clicado e a outra ponta é aparada; se não cruza, a ponta mais próxima é
     /// estendida. Eixos, níveis e cortes já selecionados ao abrir são alinhados de uma vez (ponta mais próxima).
     /// Cada ponta muda no tipo de extensão em que já está (3D ou 2D), sem trocar o tipo; no corte, muda a largura
-    /// (recorte da vista do corte). Ver docs/grids-niveis-cortes.md.
+    /// (recorte da vista do corte). Desde 2.26.8 os cortes não são alvo (a API não move as cabeças da linha do
+    /// corte, só o recorte, que não muda o desenho na planta); continuam aceitos como referência. AplicarCorte
+    /// fica no código para quando houver como. Ver docs/grids-niveis-cortes.md.
     /// </summary>
     public class EstenderAlinhar : ComandoFJA
     {
         const string Titulo = "Estender/Alinhar";
         const double TOL = 1.0 / 304.8;   // 1 mm
         const string JaNaLinha = "já está na linha de referência";
+        const string CortesFora = "Cortes não são ajustados: o Revit não dá acesso às pontas da linha do corte (cabeças), só à largura do recorte, que não muda o desenho na planta. Um corte ainda pode servir de linha de referência.";
 
         /// <summary>Reta na vista (coordenadas da tela: X = RightDirection, Y = UpDirection).</summary>
         struct Reta { public double Ax, Ay, Dx, Dy; }
@@ -39,7 +42,7 @@ namespace FJA.Revit.Comandos
         {
             public ElementId Limite;
             public bool AllowElement(Element e) =>
-                e.Id != Limite && ((e is Grid g && !g.IsCurved) || e is Level || EhMarcador(e));
+                e.Id != Limite && ((e is Grid g && !g.IsCurved) || e is Level);   // cortes fora desde 2.26.8
             public bool AllowReference(Reference r, XYZ p) => false;
         }
 
@@ -121,12 +124,13 @@ namespace FJA.Revit.Comandos
             while (true)
             {
                 Reference r;
-                try { r = uidoc.Selection.PickObject(ObjectType.Element, Titulo + ": clique no eixo, nível ou corte, do lado que fica (Esc para terminar)"); }
+                try { r = uidoc.Selection.PickObject(ObjectType.Element, Titulo + ": clique no eixo ou nível, do lado que fica (Esc para terminar)"); }
                 catch (Autodesk.Revit.Exceptions.OperationCanceledException) { break; }
                 var e = doc.GetElement(r);
                 if (e == null) continue;
-                if (e.Id == idLim) { TaskDialog.Show(Titulo, "Esse é a própria linha de referência. Clique num eixo, nível ou corte."); continue; }
-                if (!fAlvo.AllowElement(e)) { TaskDialog.Show(Titulo, "Não é eixo, nível nem corte: " + Descrever(e) + "."); continue; }
+                if (e.Id == idLim) { TaskDialog.Show(Titulo, "Esse é a própria linha de referência. Clique num eixo ou nível."); continue; }
+                if (EhMarcador(e)) { TaskDialog.Show(Titulo, CortesFora); continue; }
+                if (!fAlvo.AllowElement(e)) { TaskDialog.Show(Titulo, "Não é eixo nem nível: " + Descrever(e) + "."); continue; }
                 using (var t = new Transaction(doc, Titulo))
                 {
                     t.Start();
@@ -219,7 +223,7 @@ namespace FJA.Revit.Comandos
         static string Aplicar(Document doc, View v, Element e, Reta lim, XYZ clique, XYZ R, XYZ U)
         {
             if (e is DatumPlane dp) return AplicarDatum(dp, v, lim, clique, R, U);
-            if (EhMarcador(e)) return AplicarCorte(doc, e, lim, clique, R, U);
+            if (EhMarcador(e)) return CortesFora;
             return "elemento não aceito";
         }
 

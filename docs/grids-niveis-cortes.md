@@ -30,3 +30,9 @@ Teste da FJA (131, PMA.NÍVEL 1): eixos e níveis funcionaram; nos cortes, o cli
 
 ## 2.26.5 (13/11/2026) — retorno na tela
 Com a 2.26.2 o corte foi aparado no modelo (o `PMA-LE-CORTE 6` passou de −78,7 a −6,0, no eixo P.5), mas a FJA viu "nada acontecer": a vista não era redesenhada e um novo clique num corte que já estava na linha não dava aviso. Agora a vista ativa é redesenhada depois de cada mudança (`RefreshActiveView`), e o elemento que já está na linha de referência abre o aviso "já está na linha de referência".
+
+## 2.26.8 (13/11/2026) — cortes fora do Estender/Alinhar
+No teste seguinte da FJA (cortes 4, 5 e 6 até uma linha de detalhe tracejada), o recorte de cada corte foi exatamente até a linha, mas as cabeças na planta não se mexeram. No Revit, **a linha do corte (com as cabeças) e a largura do recorte são independentes**: o marcador do CORTE 5 se desenhava de 421 a 572 (pés, na planta) enquanto o recorte ia de 407 a 492. A API não dá acesso às pontas da linha do corte (o marcador não tem `LocationCurve` nem parâmetro para isso), só ao recorte (`CropBox`).
+- Decisão da FJA: **cortes saem da ferramenta como alvo**; clicar num corte mostra o aviso da limitação. Um corte continua aceito como **linha de referência** (só a posição da linha conta).
+- O botão continua no painel Grids, Níveis e Cortes, agora para eixos e níveis.
+- Os testes tinham mudado o alcance (recorte) dos cortes 4, 5 e 6 do modelo 131; com autorização da FJA, foram restaurados pelo conector aos valores lidos antes dos testes (uma transação, "FJA: restaurar largura dos cortes 4, 5 e 6").
