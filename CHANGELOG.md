@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~16h52 — commit 42b2168
+- Extensão do Revit 2.26.5 (antes 2.26.4): **Estender/Alinhar** redesenha a vista depois de cada mudança e avisa quando o elemento já está na linha de referência. No teste da FJA o corte foi aparado no modelo, mas a tela não mostrava.
+
 ## oficial Firebase — 13/11, ~16h43 — commit 534b32b
 - Extensão do Revit 2.26.4 (antes 2.26.3): **Cotar vistas** desvia os números das cotas também de paredes, escadas, mobiliário, louças e das linhas de outras cotas e de eixos, cada tipo de obstáculo com um peso. Fica a posição que menos atrapalha, mesmo sem nenhuma posição totalmente livre, com passos menores ao longo do trecho.
 
