@@ -42,10 +42,25 @@ namespace FJA.Revit.Comandos
             public bool AllowReference(Reference r, XYZ p) => false;
         }
 
+        /// <summary>Corte: o marcador na planta (OST_Viewers), a categoria Cortes ou a própria vista de corte
+        /// (2.26.1: no clique o Revit pode entregar o corte de outra forma que na seleção normal).</summary>
         static bool EhMarcador(Element e)
         {
-            try { return e.Category != null && e.Category.BuiltInCategory == BuiltInCategory.OST_Viewers; }
+            if (e is ViewSection vs) return vs.ViewType == ViewType.Section && !vs.IsTemplate;
+            try
+            {
+                var c = e.Category?.BuiltInCategory;
+                return c == BuiltInCategory.OST_Viewers || c == BuiltInCategory.OST_Sections;
+            }
             catch { return false; }
+        }
+
+        /// <summary>Classe e categoria do elemento, para dizer o que foi clicado quando não é aceito.</summary>
+        static string Descrever(Element e)
+        {
+            string cat = "";
+            try { cat = e.Category != null ? e.Category.Name : "sem categoria"; } catch { }
+            return "\"" + e.Name + "\" (" + e.GetType().Name + ", " + cat + ")";
         }
 
         public override Result Executar(UIApplication app, ref string mensagem)
@@ -61,7 +76,7 @@ namespace FJA.Revit.Comandos
             }
             XYZ R = v.RightDirection, U = v.UpDirection;
             var fAlvo = new FiltroAlvo();
-            var pre = uidoc.Selection.GetElementIds().Select(i => doc.GetElement(i)).Where(e => e != null && fAlvo.AllowElement(e)).ToList();
+            var pre = uidoc.Selection.GetElementIds().Select(i => doc.GetElement(i)).Where(e => e != null && !(e is View) && fAlvo.AllowElement(e)).ToList();   // vistas do navegador não entram
 
             // 1) linha de referência
             Reta lim;
@@ -69,9 +84,11 @@ namespace FJA.Revit.Comandos
             while (true)
             {
                 Reference r;
-                try { r = uidoc.Selection.PickObject(ObjectType.Element, new FiltroLimite(), Titulo + ": clique na linha de referência (Esc para sair)"); }
+                try { r = uidoc.Selection.PickObject(ObjectType.Element, Titulo + ": clique na linha de referência (Esc para sair)"); }
                 catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
                 var e = doc.GetElement(r);
+                if (e == null) continue;
+                if (!new FiltroLimite().AllowElement(e)) { TaskDialog.Show(Titulo, "Não serve como referência: " + Descrever(e) + ". Use uma linha reta, eixo, nível, plano de referência ou corte."); continue; }
                 string erro = LerLimite(doc, v, e, R, U, out lim);
                 if (erro == null) { idLim = e.Id; break; }
                 TaskDialog.Show(Titulo, erro);
@@ -98,14 +115,17 @@ namespace FJA.Revit.Comandos
                 if (erros.Count > 0) TaskDialog.Show(Titulo, string.Join("\n", erros));
             }
 
-            // 3) um a um, como o Aparar/Estender do Revit (Esc termina)
+            // 3) um a um, como o Aparar/Estender do Revit (Esc termina). Sem filtro no clique (2.26.1): o filtro
+            // recusava o corte sem aviso; agora qualquer clique responde e o que não serve é explicado.
             while (true)
             {
                 Reference r;
-                try { r = uidoc.Selection.PickObject(ObjectType.Element, fAlvo, Titulo + ": clique no eixo, nível ou corte, do lado que fica (Esc para terminar)"); }
+                try { r = uidoc.Selection.PickObject(ObjectType.Element, Titulo + ": clique no eixo, nível ou corte, do lado que fica (Esc para terminar)"); }
                 catch (Autodesk.Revit.Exceptions.OperationCanceledException) { break; }
                 var e = doc.GetElement(r);
                 if (e == null) continue;
+                if (e.Id == idLim) { TaskDialog.Show(Titulo, "Esse é a própria linha de referência. Clique num eixo, nível ou corte."); continue; }
+                if (!fAlvo.AllowElement(e)) { TaskDialog.Show(Titulo, "Não é eixo, nível nem corte: " + Descrever(e) + "."); continue; }
                 using (var t = new Transaction(doc, Titulo))
                 {
                     t.Start();
@@ -267,6 +287,7 @@ namespace FJA.Revit.Comandos
         /// <summary>A vista de corte de um marcador (o marcador tem o nome da vista).</summary>
         static ViewSection SecaoDoMarcador(Document doc, Element marcador)
         {
+            if (marcador is ViewSection proprio) return proprio.ViewType == ViewType.Section && !proprio.IsTemplate ? proprio : null;
             string nome = null;
             try { nome = marcador.get_Parameter(BuiltInParameter.VIEW_NAME)?.AsString(); } catch { }
             if (string.IsNullOrEmpty(nome)) nome = marcador.Name;

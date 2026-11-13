@@ -21,3 +21,9 @@ Como muda:
 - Não muda: eixo curvo, elemento paralelo à referência, ponta que passaria além da outra, resultado com menos de 1 cm.
 
 A testar no Revit (ainda não testado): eixos em planta (3D e 2D), níveis em corte, marcador de corte em planta, referência por linha de detalhe e por eixo; vista girada; corte segmentado (não tratado).
+
+## 2.26.2 (13/11/2026) — cortes
+Teste da FJA (131, PMA.NÍVEL 1): eixos e níveis funcionaram; nos cortes, o clique não fazia nada e não aparecia mensagem. Pelo conector, a própria DLL alinhou o `PMA-LE-CORTE 6` ao eixo P.5, inclusive gravando a transação (o teste foi desfeito), então a conta e a gravação estavam certas. A causa provável é o filtro de seleção: no clique, o Revit entrega o corte ao filtro de outra forma que na seleção normal (na seleção normal ele é o marcador, `OST_Viewers`), e um clique recusado pelo filtro é ignorado em silêncio.
+- Os cliques passam a aceitar **qualquer elemento**; o que não serve abre uma mensagem com o nome, a classe e a categoria do elemento clicado (também serve de diagnóstico, se o corte ainda não for reconhecido).
+- O corte é reconhecido pelo marcador (`OST_Viewers`), pela categoria Cortes (`OST_Sections`) ou pela própria vista de corte (`ViewSection`).
+- Vistas selecionadas no navegador de projeto não entram no alinhamento automático dos já selecionados.
