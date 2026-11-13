@@ -23,8 +23,9 @@ namespace FJA.Revit.Cotagem
         public bool Contorno;    // planta 1:200: só o total do contorno do edifício
         public bool Ambientes;   // planta 1:200: duas dimensões gerais (perpendiculares) por ambiente
         public bool Internas;    // planta 1:75: cadeias internas (vão + espessura), o mínimo que meça todas as paredes
+        public bool Notaveis;    // planta 1:75: mudanças de espessura, pontas livres de parede, pilares isolados (levantamento)
         public string Descricao = "";
-        public bool Vazia => !Eixos && !Niveis && !Fachada && !Contorno && !Ambientes && !Internas;
+        public bool Vazia => !Eixos && !Niveis && !Fachada && !Contorno && !Ambientes && !Internas && !Notaveis;
     }
 
     public static class Regras
@@ -84,7 +85,7 @@ namespace FJA.Revit.Cotagem
                     if (f == Faixa.F25) { r.Descricao = "1:25: cota faces de parede, não eixos (próxima versão)"; break; }
                     if (f == Faixa.F500) { r.Descricao = "1:500: lote e afastamentos (próxima versão)"; break; }
                     r.Eixos = r.EixosTotal = true;
-                    if (f == Faixa.F75) { r.Fachada = r.Internas = true; r.Descricao = "panos e vãos de fachada + total; cadeias internas (vão + espessura); eixo a eixo + total"; break; }
+                    if (f == Faixa.F75) { r.Fachada = r.Internas = r.Notaveis = true; r.Descricao = "fachada + total; cadeias internas; mudanças de espessura, pontas livres e pilares; eixos + total"; break; }
                     r.Contorno = r.Ambientes = true;
                     r.Descricao = "dimensões gerais dos ambientes; contorno do edifício; eixo a eixo + total";
                     break;
