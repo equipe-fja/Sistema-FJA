@@ -13,7 +13,7 @@ namespace FJA.Revit.Comandos
     /// Cotagem › Trocar lado (janela desde 2.21.0; eixos × níveis desde 2.23.0). Nos eixos e níveis selecionados
     /// (sem seleção, pede para escolher), liga a indicação (bolha/cabeça) toda de um lado, toda do outro, dos dois
     /// lados, ou troca de lado — uma escolha para os eixos e outra para os níveis. Só na vista ativa: as pontas
-    /// passam para 2D (extensão da vista) antes. Ver docs/cotagem.md.
+    /// e a extensão do eixo/nível não são alteradas (desde 2.23.4). Ver docs/cotagem.md.
     /// </summary>
     public class TrocarLadoIndicacao : ComandoFJA
     {
@@ -95,8 +95,6 @@ namespace FJA.Revit.Comandos
                         try
                         {
                             st.Start();
-                            // 2D nas duas pontas (só nesta vista), mantendo a extensão que aparece hoje
-                            Extensao2D.Para2D(d.D, v);
                             // liga antes de desligar (o Revit pode recusar ficar sem nenhuma indicação no meio do caminho)
                             if (a && !d.A) d.D.ShowBubbleInView(d.PontaA, v);
                             if (b && !d.B) d.D.ShowBubbleInView(d.PontaB, v);
