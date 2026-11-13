@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~15h40 — commit 4e105ee
+- Extensão do Revit 2.24.0 (antes 2.23.5): **Cotar vistas** na planta 1:75 (1:50 a 1:149) passa a criar as **cadeias internas**. Usa o mínimo de linhas, em cada direção, que meça todas as paredes, de fachada a fachada, face acabada a face acabada (vão + espessura). Linhas que passariam por um vão são evitadas. Em paredes fora de esquadro, a cadeia é dividida em cotas de faces paralelas, ligadas pelas quinas. Ver docs/cotagem.md.
+
 ## oficial Firebase — 13/11, ~13h40 — commit 108181e
 - Extensão do Revit 2.23.5 (antes 2.23.4): **Cotar vistas** passa a cotar a fachada e os ambientes pelas **quinas** das paredes (arestas verticais), como a FJA faz à mão com Tab. As paredes do modelo estão levemente fora de esquadro entre si, e o Revit recusava as cotas entre faces não paralelas. Se o vão livre de uma porta ou janela for recusado, o trecho é cotado pelas ombreiras. O texto da janela foi atualizado.
 
