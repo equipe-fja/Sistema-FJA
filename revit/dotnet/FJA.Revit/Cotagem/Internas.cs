@@ -118,7 +118,7 @@ namespace FJA.Revit.Cotagem
             }
         }
 
-        static bool Paralelo(Plano a, Plano b) => Math.Abs(a.NK * b.NC - a.NC * b.NK) < 1e-9;
+        internal static bool Paralelo(Plano a, Plano b) => Math.Abs(a.NK * b.NC - a.NC * b.NK) < 1e-9;
 
         static void Sequencia(Document doc, View v, DimensionType dt, List<Plano> seq, int k, double y, bool hor,
                               XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
@@ -152,14 +152,44 @@ namespace FJA.Revit.Cotagem
         static void Ponte(Document doc, View v, DimensionType dt, Plano a, Plano b, int k, double y, bool hor,
                           XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
         {
-            var ea = a.PelaAresta(k, y, double.MaxValue, a.Pos);
-            var eb = b.PelaAresta(k, y, double.MaxValue, b.Pos);
+            var par = ParDeQuinas(a, b, k, y);
+            if (par == null) { res.TrechosSemParalela++; return; }
+            var (ea, eb, linha) = par.Value;
             if (Math.Abs(ea.Pos - eb.Pos) < TOL) return;
-            if (Fachada.Criar(doc, v, dt, new List<Plano> { ea, eb }, hor, y, R, U, O, "interna", res))
+            if (Fachada.Criar(doc, v, dt, new List<Plano> { ea, eb }, hor, linha, R, U, O, "interna", res))
             {
                 res.Segmentos++;
-                ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos, Linha = y });
+                ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos, Linha = linha });
             }
+        }
+
+        const double MESMA_ALTURA = 10 / 304.8;   // quinas a até 1 cm uma da outra no eixo perpendicular
+        const double RECUO_LINHA = 400 / 304.8;   // linha da cota a até 40 cm das quinas, para dentro do ambiente
+
+        /// <summary>
+        /// Duas faces não paralelas: o par de quinas (uma de cada face) na mesma altura — a cota entre dois pontos sai
+        /// alinhada a eles, e só fica paralela ao eixo se estiverem na mesma altura (pedido da FJA, 13/11/2026) —,
+        /// o mais perto da origem (k = 0: em cima; k = 1: à esquerda). A linha fica logo ao lado das quinas, na
+        /// direção de y (a linha da cadeia, dentro do ambiente). null se não houver par.
+        /// </summary>
+        internal static (Plano, Plano, double)? ParDeQuinas(Plano a, Plano b, int k, double y)
+        {
+            (Aresta, Aresta)? melhor = null;
+            double nota = double.MaxValue;
+            foreach (var qa in a.Arestas)
+                foreach (var qb in b.Arestas)
+                {
+                    if (Math.Abs(qa.C - qb.C) > MESMA_ALTURA) continue;
+                    double c = (qa.C + qb.C) / 2;
+                    double n = k == 0 ? -c : c;   // origem: maior Y (em cima) ou menor X (à esquerda)
+                    if (n < nota) { nota = n; melhor = (qa, qb); }
+                }
+            if (melhor == null) return null;
+            var (ma, mb) = melhor.Value;
+            double cm = (ma.C + mb.C) / 2;
+            double linha = cm + Math.Sign(y - cm) * Math.Min(RECUO_LINHA, Math.Abs(y - cm));
+            return (new Plano { Ref = ma.Ref, Eixo = k, Pos = ma.K, Dono = a.Dono, FaceRef = a.Ref },
+                    new Plano { Ref = mb.Ref, Eixo = k, Pos = mb.K, Dono = b.Dono, FaceRef = b.Ref }, linha);
         }
     }
 }

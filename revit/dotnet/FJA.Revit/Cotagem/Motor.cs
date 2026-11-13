@@ -9,7 +9,7 @@ namespace FJA.Revit.Cotagem
     public sealed class ResultadoVista
     {
         public string Vista;
-        public int Criadas, Segmentos, JaExistiam, Removidas, EixosEstendidos, TextosMovidos, TextosSemLugar;
+        public int Criadas, Segmentos, JaExistiam, Removidas, EixosEstendidos, TextosMovidos, TextosSemLugar, TrechosSemParalela;
         internal List<Dimension> Novas = new List<Dimension>();   // cotas criadas nesta vista (para desviar os textos)
         public List<string> Avisos = new List<string>();
     }
