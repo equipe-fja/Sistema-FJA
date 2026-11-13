@@ -18,9 +18,12 @@ namespace FJA.Revit.Cotagem
     /// <summary>O que a ferramenta cota numa vista (tipo × escala).</summary>
     public sealed class Regra
     {
-        public bool Eixos, EixosTotal, Niveis, NiveisTotal, Fachada;
+        public bool Eixos, EixosTotal, Niveis, NiveisTotal;
+        public bool Fachada;     // planta 1:75: panos e vãos de fachada + total, nos quatro lados
+        public bool Contorno;    // planta 1:200: só o total do contorno do edifício
+        public bool Ambientes;   // planta 1:200: duas dimensões gerais (perpendiculares) por ambiente
         public string Descricao = "";
-        public bool Vazia => !Eixos && !Niveis && !Fachada;
+        public bool Vazia => !Eixos && !Niveis && !Fachada && !Contorno && !Ambientes;
     }
 
     public static class Regras
@@ -67,8 +70,8 @@ namespace FJA.Revit.Cotagem
         }
 
         /// <summary>
-        /// Regras: cadeias de eixos e de níveis (com total); na planta 1:75, panos e vãos de fachada. Cadeias internas, ambientes, luminárias,
-        /// pontos e paginação ficam para as próximas versões (as regras completas estão em docs/cotagem.md).
+        /// Regras: cadeias de eixos e de níveis (com total); planta 1:75, panos e vãos de fachada; planta 1:200, ambientes
+        /// e contorno. Cadeias internas, terreno, luminárias, pontos e paginação ficam para as próximas versões (docs/cotagem.md).
         /// </summary>
         public static Regra Para(TipoVista t, int escala)
         {
@@ -80,8 +83,9 @@ namespace FJA.Revit.Cotagem
                     if (f == Faixa.F25) { r.Descricao = "1:25: cota faces de parede, não eixos (próxima versão)"; break; }
                     if (f == Faixa.F500) { r.Descricao = "1:500: lote e afastamentos (próxima versão)"; break; }
                     r.Eixos = r.EixosTotal = true;
-                    if (f == Faixa.F75) { r.Fachada = true; r.Descricao = "eixo a eixo + total; panos e vãos de fachada + total"; break; }
-                    r.Descricao = "eixo a eixo + total";
+                    if (f == Faixa.F75) { r.Fachada = true; r.Descricao = "panos e vãos de fachada + total; eixo a eixo + total"; break; }
+                    r.Contorno = r.Ambientes = true;
+                    r.Descricao = "dimensões gerais dos ambientes; contorno do edifício; eixo a eixo + total";
                     break;
                 case TipoVista.Corte:
                 case TipoVista.Fachada:

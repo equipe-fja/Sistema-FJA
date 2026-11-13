@@ -5,76 +5,119 @@ using Autodesk.Revit.DB;
 
 namespace FJA.Revit.Cotagem
 {
+    /// <summary>Face plana vertical de parede (ou referência de porta/janela), perpendicular a um dos eixos da vista.</summary>
+    sealed class Plano
+    {
+        public Reference Ref;
+        public int Eixo;          // 0: normal paralela a R (posição medida em X); 1: paralela a U (medida em Y)
+        public double Pos;        // posição ao longo do eixo
+        public double A, B;       // extensão no outro eixo
+        public double Z0, Z1;
+    }
+
+    /// <summary>Porta ou janela numa parede: vão livre (referências Esquerda/Direita da família).</summary>
+    sealed class Vao
+    {
+        public double Esq, Dir;   // posições ao longo da parede (Esq < Dir)
+        public Reference RefEsq, RefDir;
+    }
+
+    /// <summary>Parede como retângulo na vista (Lo/Hi por eixo: 0 = X, 1 = Y).</summary>
+    sealed class Parede
+    {
+        public int Dir;           // 0: paralela a R (horizontal na tela); 1: paralela a U
+        public double[] Lo = new double[2], Hi = new double[2];
+        public List<Vao> Vaos = new List<Vao>();
+    }
+
+    /// <summary>Paredes e faces lidas de uma planta (cortadas pelo plano de corte).</summary>
+    sealed class Leitura
+    {
+        public List<Parede> Paredes = new List<Parede>();
+        public List<Plano> Planos = new List<Plano>();
+        public int VaosSemReferencia;
+    }
+
     /// <summary>
-    /// Planta baixa: panos e vãos de fachada (2.20.0). Em cada um dos quatro lados do edifício, uma cadeia com as
-    /// faces que chegam à face externa das paredes de fachada (ombreiras dos vãos, pontas de parede e cantos), e o
-    /// total da fachada por fora dela. Só paredes retas, alinhadas à vista e cortadas pelo plano de corte.
+    /// Planta baixa: fachadas. Na 1:75, em cada um dos quatro lados, a cadeia de panos e vãos (vão livre das portas e
+    /// janelas, pontas de parede e cantos) e o total; na 1:200, só o total do contorno. Ver docs/cotagem.md.
     /// </summary>
     static class Fachada
     {
         const double TOL = Motor.TOL;
         const double PAR = 0.999;
+        const double FOLGA_BATENTE = 120 / 304.8;   // ombreira da parede até 12 cm do vão livre = mesmo vão
 
-        /// <summary>Face plana vertical de parede, perpendicular a um dos eixos da vista.</summary>
-        sealed class Plano
+        /// <summary>Lados: (eixo ao longo da cadeia, sentido para fora). 0: em cima, 1: embaixo, 2: esquerda, 3: direita.</summary>
+        internal static readonly (int k, int s, string nome)[] Lados =
         {
-            public Reference Ref;
-            public int Eixo;          // 0: normal paralela a R (posição medida em X); 1: paralela a U (medida em Y)
-            public double Pos;        // posição ao longo do eixo
-            public double A, B;       // extensão no outro eixo
-            public double Z0, Z1;
+            (0, 1, "fachada-cima"), (0, -1, "fachada-baixo"), (1, -1, "fachada-esquerda"), (1, 1, "fachada-direita"),
+        };
+
+        /// <summary>Cota as fachadas. Devolve, por lado, a linha de cota mais externa (null se o lado não tem fachada).</summary>
+        public static double?[] Cotar(Document doc, ViewPlan v, Leitura lt, DimensionType dt, bool soTotal, XYZ R, XYZ U, XYZ O,
+                                      double esp, List<Intervalo> ex, ResultadoVista res)
+        {
+            var fora = new double?[4];
+            if (lt.Paredes.Count == 0) { res.Avisos.Add("nenhuma parede reta cortada na vista (fachada)"); return fora; }
+            for (int i = 0; i < 4; i++)
+                fora[i] = Lado(doc, v, dt, lt, Lados[i].k, Lados[i].s, Lados[i].nome, soTotal, R, U, O, esp, ex, res);
+            if (!soTotal && lt.VaosSemReferencia > 0)
+                res.Avisos.Add(lt.VaosSemReferencia + " porta(s)/janela(s) sem referências de largura: cotadas pelas ombreiras da parede");
+            return fora;
         }
 
-        /// <summary>Parede como retângulo na vista (Lo/Hi por eixo: 0 = X, 1 = Y).</summary>
-        sealed class Parede
+        static List<Parede> Externas(List<Parede> paredes, int k, int s)
         {
-            public int Dir;           // 0: paralela a R (horizontal na tela); 1: paralela a U
-            public double[] Lo = new double[2], Hi = new double[2];
+            int c = 1 - k;
+            return paredes.Where(w => w.Dir == k && Livre(w, paredes, k, c, s, s > 0 ? w.Hi[c] : w.Lo[c])).ToList();
         }
 
-        public static void Cotar(Document doc, ViewPlan v, DimensionType dt, XYZ R, XYZ U, XYZ O, double esp,
-                                 List<Intervalo> ex, ResultadoVista res)
-        {
-            double cz = CorteZ(doc, v);
-            var paredes = new List<Parede>();
-            var planos = new List<Plano>();
-            Ler(doc, v, R, U, cz, paredes, planos);
-            if (paredes.Count == 0) { res.Avisos.Add("nenhuma parede reta cortada na vista (fachada)"); return; }
-
-            var lados = new[] { (k: 0, s: 1, nome: "fachada-cima"), (k: 0, s: -1, nome: "fachada-baixo"),
-                                (k: 1, s: -1, nome: "fachada-esquerda"), (k: 1, s: 1, nome: "fachada-direita") };
-            foreach (var l in lados) Lado(doc, v, dt, paredes, planos, l.k, l.s, l.nome, R, U, O, esp, ex, res);
-        }
-
-        /// <param name="k">eixo ao longo da cadeia (0: cadeia horizontal, em cima/embaixo; 1: vertical, à esquerda/direita).</param>
-        /// <param name="s">+1: lado de cima/direita; -1: de baixo/esquerda.</param>
-        static void Lado(Document doc, View v, DimensionType dt, List<Parede> paredes, List<Plano> planos, int k, int s,
-                         string nome, XYZ R, XYZ U, XYZ O, double esp, List<Intervalo> ex, ResultadoVista res)
+        static double? Lado(Document doc, View v, DimensionType dt, Leitura lt, int k, int s, string nome, bool soTotal,
+                            XYZ R, XYZ U, XYZ O, double esp, List<Intervalo> ex, ResultadoVista res)
         {
             int c = 1 - k;
             Func<Parede, double> fora = p => s > 0 ? p.Hi[c] : p.Lo[c];
+            var externas = Externas(lt.Paredes, k, s);
+            if (externas.Count == 0) return null;
 
-            // paredes de fachada deste lado: paralelas à cadeia e sem outra parede à frente em algum ponto
-            var externas = paredes.Where(w => w.Dir == k && Livre(w, paredes, k, c, s, fora(w))).ToList();
-            if (externas.Count == 0) return;
-
-            // faces perpendiculares à cadeia que chegam à face externa de alguma parede de fachada
+            // faces perpendiculares à cadeia que chegam à face externa de alguma parede de fachada; nos vãos com
+            // porta/janela, as ombreiras da parede dão lugar ao vão livre (referências da família)
             var refs = new List<Plano>();
             foreach (var w in externas)
             {
                 double f = fora(w);
-                foreach (var p in planos)
-                    if (p.Eixo == k && p.Pos >= w.Lo[k] - TOL && p.Pos <= w.Hi[k] + TOL && p.A <= f + TOL && p.B >= f - TOL)
-                        refs.Add(p);
+                var daParede = lt.Planos.Where(p => p.Eixo == k && p.Pos >= w.Lo[k] - TOL && p.Pos <= w.Hi[k] + TOL
+                                                    && p.A <= f + TOL && p.B >= f - TOL).ToList();
+                foreach (var vao in w.Vaos)
+                {
+                    daParede.RemoveAll(p => p.Pos > vao.Esq - FOLGA_BATENTE && p.Pos < vao.Dir + FOLGA_BATENTE);
+                    refs.Add(new Plano { Ref = vao.RefEsq, Eixo = k, Pos = vao.Esq });
+                    refs.Add(new Plano { Ref = vao.RefDir, Eixo = k, Pos = vao.Dir });
+                }
+                refs.AddRange(daParede);
             }
             var ds = new List<Plano>();
             foreach (var p in refs.OrderBy(x => x.Pos))
                 if (ds.Count == 0 || p.Pos - ds[ds.Count - 1].Pos > TOL) ds.Add(p);
-            if (ds.Count < 2) return;
+            if (ds.Count < 2) return null;
 
             double borda = s > 0 ? externas.Max(fora) : externas.Min(fora);
             double linha1 = borda + s * esp, linha2 = borda + s * 2 * esp;
             bool hor = k == 0;
+
+            if (soTotal)
+            {
+                // 1:200: só o contorno (das pontas), na 1ª linha
+                var a0 = ds[0]; var b0 = ds[ds.Count - 1];
+                if (Motor.Medido(ex, hor, a0.Pos, b0.Pos)) { res.JaExistiam++; return borda; }
+                if (Criar(doc, v, dt, new List<Plano> { a0, b0 }, hor, linha1, R, U, O, nome.Replace("fachada", "contorno"), res))
+                {
+                    res.Segmentos++;
+                    ex.Add(new Intervalo { Horizontal = hor, A = a0.Pos, B = b0.Pos });
+                }
+                return linha1;
+            }
 
             int i = 0;
             while (i < ds.Count - 1)
@@ -91,17 +134,16 @@ namespace FJA.Revit.Cotagem
                 }
                 i = j;
             }
+            if (ds.Count < 3) return linha1;
 
-            if (ds.Count >= 3)
+            var a = ds[0]; var b = ds[ds.Count - 1];
+            if (Motor.Medido(ex, hor, a.Pos, b.Pos)) res.JaExistiam++;
+            else if (Criar(doc, v, dt, new List<Plano> { a, b }, hor, linha2, R, U, O, nome + "-total", res))
             {
-                var a = ds[0]; var b = ds[ds.Count - 1];
-                if (Motor.Medido(ex, hor, a.Pos, b.Pos)) res.JaExistiam++;
-                else if (Criar(doc, v, dt, new List<Plano> { a, b }, hor, linha2, R, U, O, nome + "-total", res))
-                {
-                    res.Segmentos++;
-                    ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos });
-                }
+                res.Segmentos++;
+                ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos });
             }
+            return linha2;
         }
 
         /// <summary>A parede está na fachada se, em pelo menos um ponto ao longo dela, não há outra parede mais para fora.</summary>
@@ -121,7 +163,7 @@ namespace FJA.Revit.Cotagem
 
         // ------------------------------------------------------------ leitura
 
-        static double CorteZ(Document doc, ViewPlan v)
+        internal static double CorteZ(Document doc, ViewPlan v)
         {
             try
             {
@@ -133,8 +175,10 @@ namespace FJA.Revit.Cotagem
             catch { return (v.GenLevel?.ProjectElevation ?? 0) + 1200 / 304.8; }
         }
 
-        static void Ler(Document doc, View v, XYZ R, XYZ U, double cz, List<Parede> paredes, List<Plano> planos)
+        internal static Leitura Ler(Document doc, ViewPlan v, XYZ R, XYZ U)
         {
+            var lt = new Leitura();
+            double cz = CorteZ(doc, v);
             var opt = new Options { ComputeReferences = true, View = v };
             foreach (Wall w in new FilteredElementCollector(doc, v.Id).OfClass(typeof(Wall)))
             {
@@ -188,11 +232,65 @@ namespace FJA.Revit.Cotagem
                         }
                     }
                     if (z0 > cz || z1 < cz || par.Lo[0] > par.Hi[0]) continue;   // parede não cortada
-                    paredes.Add(par);
-                    planos.AddRange(meus);
+                    LerVaos(doc, w, dir == 0 ? R : U, cz, par, lt);
+                    lt.Paredes.Add(par);
+                    lt.Planos.AddRange(meus);
                 }
                 catch { }
             }
+            return lt;
+        }
+
+        /// <summary>Portas e janelas da parede cortadas pelo plano de corte: vão livre = referências Esquerda/Direita
+        /// da família, nas posições centro ± largura/2 (lado da direita = sentido da HandOrientation).</summary>
+        static void LerVaos(Document doc, Wall w, XYZ eixo, double cz, Parede par, Leitura lt)
+        {
+            IList<ElementId> ins;
+            try { ins = w.FindInserts(true, false, false, false); } catch { return; }
+            foreach (var id in ins)
+            {
+                if (!(doc.GetElement(id) is FamilyInstance fi)) continue;
+                long cat = fi.Category?.Id != null ? Id(fi.Category.Id) : 0;
+                if (cat != (long)BuiltInCategory.OST_Doors && cat != (long)BuiltInCategory.OST_Windows) continue;
+                var bb = fi.get_BoundingBox(null);
+                if (bb == null || bb.Min.Z > cz || bb.Max.Z < cz) continue;
+                if (!(fi.Location is LocationPoint lp)) continue;
+                double larg = Largura(fi);
+                var re = fi.GetReferences(FamilyInstanceReferenceType.Left).FirstOrDefault();
+                var rd = fi.GetReferences(FamilyInstanceReferenceType.Right).FirstOrDefault();
+                if (larg <= TOL || re == null || rd == null) { lt.VaosSemReferencia++; continue; }
+                double c = lp.Point.DotProduct(eixo);
+                double sinal = fi.HandOrientation.DotProduct(eixo) >= 0 ? 1 : -1;
+                double pd = c + sinal * larg / 2, pe = c - sinal * larg / 2;
+                par.Vaos.Add(pe < pd
+                    ? new Vao { Esq = pe, Dir = pd, RefEsq = re, RefDir = rd }
+                    : new Vao { Esq = pd, Dir = pe, RefEsq = rd, RefDir = re });
+            }
+        }
+
+        static double Largura(FamilyInstance fi)
+        {
+            var bips = new[] { BuiltInParameter.DOOR_WIDTH, BuiltInParameter.WINDOW_WIDTH, BuiltInParameter.FAMILY_WIDTH_PARAM };
+            foreach (Element e in new Element[] { fi, fi.Symbol })
+                foreach (var b in bips)
+                {
+                    try
+                    {
+                        var p = e?.get_Parameter(b);
+                        if (p != null && p.StorageType == StorageType.Double && p.AsDouble() > 0) return p.AsDouble();
+                    }
+                    catch { }
+                }
+            return 0;
+        }
+
+        static long Id(ElementId id)
+        {
+#if REVIT2024
+            return id.IntegerValue;
+#else
+            return id.Value;
+#endif
         }
 
         static void Estender(Parede p, double x, double y)
@@ -212,8 +310,8 @@ namespace FJA.Revit.Cotagem
 
         // ------------------------------------------------------------ criação
 
-        static bool Criar(Document doc, View v, DimensionType dt, List<Plano> ps, bool hor, double linha,
-                          XYZ R, XYZ U, XYZ O, string regra, ResultadoVista res)
+        internal static bool Criar(Document doc, View v, DimensionType dt, List<Plano> ps, bool hor, double linha,
+                                   XYZ R, XYZ U, XYZ O, string regra, ResultadoVista res)
         {
             var ra = new ReferenceArray();
             foreach (var p in ps) ra.Append(p.Ref);

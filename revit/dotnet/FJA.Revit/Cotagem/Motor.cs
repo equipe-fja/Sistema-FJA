@@ -9,18 +9,21 @@ namespace FJA.Revit.Cotagem
     public sealed class ResultadoVista
     {
         public string Vista;
-        public int Criadas, Segmentos, JaExistiam, Removidas;
+        public int Criadas, Segmentos, JaExistiam, Removidas, EixosEstendidos;
         public List<string> Avisos = new List<string>();
     }
 
-    /// <summary>
-    /// Motor da cotagem (1ª versão): cadeias de eixos (grids) e de níveis, com total, no lado em que ficam as
-    /// bolhas. Antes de criar, lê as cotas lineares da vista e só cria os trechos que ainda não estão medidos
-    /// (mesmos pontos de início e fim, na mesma direção, tolerância de 1 mm), em qualquer posição da vista.
-    /// </summary>
-    /// <summary>Trecho já medido por uma cota (coordenadas da vista).</summary>
-    sealed class Intervalo { public bool Horizontal; public double A, B; }
+    /// <summary>Trecho já medido por uma cota (coordenadas da vista). Linha: posição da cota no outro eixo.</summary>
+    sealed class Intervalo { public bool Horizontal; public double A, B; public double? Linha; }
 
+    /// <summary>
+    /// Motor da cotagem. Plantas: fachadas (Fachada.cs) e ambientes (Ambientes.cs); depois a cadeia de eixos e o
+    /// total, sempre em cima (eixos verticais) e à esquerda (horizontais), por fora das cotas de fachada — de dentro
+    /// para fora: fachada, total da fachada, eixos, total dos eixos, bolhas (os eixos são estendidos na vista, em 2D,
+    /// quando as bolhas não cabem). Cortes e fachadas: eixos e níveis. Antes de criar, lê as cotas lineares da vista
+    /// e só cria os trechos que ainda não estão medidos (mesmos pontos de início e fim, na mesma direção, tolerância
+    /// de 1 mm), em qualquer posição da vista.
+    /// </summary>
     public static class Motor
     {
         internal const double TOL = 1.0 / 304.8;   // 1 mm, em pés
@@ -34,6 +37,8 @@ namespace FJA.Revit.Cotagem
             public double Pos;             // X da linha vertical / Y da linha horizontal
             public double Ini, Fim;        // extensão ao longo da linha (Ini < Fim)
             public bool BolhaIni, BolhaFim;
+            public XYZ P0, P1;             // pontas da linha na vista (End0, End1)
+            public bool FimEhP1;           // a ponta "Fim" é a End1
         }
 
         public static ResultadoVista Cotar(Document doc, View v, TipoVista tipo, DimensionType dt, double espacamentoMm, bool refazer)
@@ -53,17 +58,25 @@ namespace FJA.Revit.Cotagem
             }
 
             var existentes = Existentes(doc, v, R, U);
-            var datums = Datums(doc, v, R, U, regra);
 
-            // eixos e níveis medidos em X (linhas verticais na tela) → cadeia horizontal (em cima/embaixo)
+            // plantas: fachada (1:75: panos e vãos + total; 1:200: contorno) e ambientes (1:200)
+            var fora = new double?[4];
+            if ((regra.Fachada || regra.Contorno || regra.Ambientes) && v is ViewPlan vp)
+            {
+                var lt = Fachada.Ler(doc, vp, R, U);
+                if (regra.Fachada || regra.Contorno)
+                    fora = Fachada.Cotar(doc, vp, lt, dt, regra.Contorno, R, U, O, esp, existentes, res);
+                if (regra.Ambientes)
+                    Ambientes.Cotar(doc, vp, lt, dt, R, U, O, existentes, res);
+            }
+
+            var datums = Datums(doc, v, R, U, regra);
+            // eixos e níveis medidos em X (linhas verticais na tela) → cadeia horizontal, em cima; em Y → vertical, à esquerda
             var emX = datums.Where(d => d.Vertical).ToList();
             var emY = datums.Where(d => !d.Vertical).ToList();
-            CotarGrupo(doc, v, dt, emX, true, R, U, O, esp, existentes, res, NomeGrupo(emX));
-            CotarGrupo(doc, v, dt, emY, false, R, U, O, esp, existentes, res, NomeGrupo(emY));
-
-            // planta baixa 1:75: panos e vãos de fachada + total (2.20.0)
-            if (regra.Fachada && v is ViewPlan vp)
-                Fachada.Cotar(doc, vp, dt, R, U, O, esp, existentes, res);
+            bool planta = v is ViewPlan;
+            CotarGrupo(doc, v, dt, emX, true, fora[0], planta, R, U, O, esp, existentes, res, NomeGrupo(emX));
+            CotarGrupo(doc, v, dt, emY, false, fora[2], planta, R, U, O, esp, existentes, res, NomeGrupo(emY));
 
             if ((regra.Eixos || regra.Niveis) && datums.Count == 0)
                 res.Avisos.Add(regra.Eixos && regra.Niveis ? "nenhum eixo ou nível visível na vista" : regra.Eixos ? "nenhum eixo visível na vista" : "nenhum nível visível na vista");
@@ -94,27 +107,17 @@ namespace FJA.Revit.Cotagem
                 bool b0 = false, b1 = false;
                 try { b0 = dp.IsBubbleVisibleInView(DatumEnds.End0, v); b1 = dp.IsBubbleVisibleInView(DatumEnds.End1, v); } catch { }
 
-                var d = new Datum { E = e };
-                if (Math.Abs(dir.DotProduct(U)) > PARALELO)
-                {
-                    d.Vertical = true;
-                    d.Pos = p0.DotProduct(R);
-                    double a = p0.DotProduct(U), b = p1.DotProduct(U);
-                    d.Ini = Math.Min(a, b); d.Fim = Math.Max(a, b);
-                    d.BolhaIni = a < b ? b0 : b1; d.BolhaFim = a < b ? b1 : b0;
-                }
-                else if (Math.Abs(dir.DotProduct(R)) > PARALELO)
-                {
-                    d.Vertical = false;
-                    d.Pos = p0.DotProduct(U);
-                    double a = p0.DotProduct(R), b = p1.DotProduct(R);
-                    d.Ini = Math.Min(a, b); d.Fim = Math.Max(a, b);
-                    d.BolhaIni = a < b ? b0 : b1; d.BolhaFim = a < b ? b1 : b0;
-                }
+                var d = new Datum { E = e, P0 = p0, P1 = p1 };
+                XYZ ao;   // eixo ao longo da linha
+                if (Math.Abs(dir.DotProduct(U)) > PARALELO) { d.Vertical = true; d.Pos = p0.DotProduct(R); ao = U; }
+                else if (Math.Abs(dir.DotProduct(R)) > PARALELO) { d.Vertical = false; d.Pos = p0.DotProduct(U); ao = R; }
                 else continue;   // inclinado na vista: fica para outra versão
+                double a = p0.DotProduct(ao), b = p1.DotProduct(ao);
+                d.Ini = Math.Min(a, b); d.Fim = Math.Max(a, b);
+                d.FimEhP1 = b >= a;
+                d.BolhaIni = d.FimEhP1 ? b0 : b1; d.BolhaFim = d.FimEhP1 ? b1 : b0;
                 r.Add(d);
             }
-            // eixos e níveis no mesmo grupo não se misturam: níveis só aparecem horizontais nos cortes e eixos verticais
             return r;
         }
 
@@ -135,22 +138,22 @@ namespace FJA.Revit.Cotagem
                     if (Math.Abs(d.DotProduct(R)) > PARALELO) hor = true;
                     else if (Math.Abs(d.DotProduct(U)) > PARALELO) hor = false;
                     else continue;
-                    XYZ eixo = hor ? R : U;
+                    XYZ eixo = hor ? R : U, outro = hor ? U : R;
                     if (dim.NumberOfSegments == 0)
-                        Add(r, hor, dim.Origin.DotProduct(eixo), dim.Value);
+                        Add(r, hor, dim.Origin.DotProduct(eixo), dim.Value, dim.Origin.DotProduct(outro));
                     else
-                        foreach (DimensionSegment s in dim.Segments) Add(r, hor, s.Origin.DotProduct(eixo), s.Value);
+                        foreach (DimensionSegment s in dim.Segments) Add(r, hor, s.Origin.DotProduct(eixo), s.Value, s.Origin.DotProduct(outro));
                 }
                 catch { }
             }
             return r;
         }
 
-        static void Add(List<Intervalo> r, bool hor, double centro, double? valor)
+        static void Add(List<Intervalo> r, bool hor, double centro, double? valor, double linha)
         {
             if (valor == null) return;
             double m = valor.Value / 2;
-            r.Add(new Intervalo { Horizontal = hor, A = centro - m, B = centro + m });
+            r.Add(new Intervalo { Horizontal = hor, A = centro - m, B = centro + m, Linha = linha });
         }
 
         internal static bool Medido(List<Intervalo> ex, bool hor, double a, double b)
@@ -158,11 +161,19 @@ namespace FJA.Revit.Cotagem
             return ex.Any(i => i.Horizontal == hor && Math.Abs(i.A - a) < TOL && Math.Abs(i.B - b) < TOL);
         }
 
+        /// <summary>Medido por uma cota cuja linha está entre c0 e c1 (ex.: dentro do mesmo ambiente).</summary>
+        internal static bool MedidoEm(List<Intervalo> ex, bool hor, double a, double b, double c0, double c1)
+        {
+            return ex.Any(i => i.Horizontal == hor && Math.Abs(i.A - a) < TOL && Math.Abs(i.B - b) < TOL
+                               && i.Linha != null && i.Linha >= c0 - TOL && i.Linha <= c1 + TOL);
+        }
+
         // ------------------------------------------------------------ criação
 
-        /// <param name="emX">true: datums verticais na tela, cadeia horizontal; false: datums horizontais, cadeia vertical.</param>
-        static void CotarGrupo(Document doc, View v, DimensionType dt, List<Datum> grupo, bool emX, XYZ R, XYZ U, XYZ O,
-                               double esp, List<Intervalo> ex, ResultadoVista res, string regra)
+        /// <param name="emX">true: datums verticais na tela, cadeia horizontal (em cima); false: horizontais, cadeia vertical (à esquerda).</param>
+        /// <param name="base_">linha de cota mais externa da fachada deste lado (planta), ou null.</param>
+        static void CotarGrupo(Document doc, View v, DimensionType dt, List<Datum> grupo, bool emX, double? base_, bool planta,
+                               XYZ R, XYZ U, XYZ O, double esp, List<Intervalo> ex, ResultadoVista res, string regra)
         {
             // ordena e tira os coincidentes (dois eixos na mesma posição não geram trecho)
             var ds = new List<Datum>();
@@ -170,47 +181,82 @@ namespace FJA.Revit.Cotagem
                 if (ds.Count == 0 || d.Pos - ds[ds.Count - 1].Pos > TOL) ds.Add(d);
             if (ds.Count < 2) return;
 
-            // um lado só, o das bolhas (bolha do eixo / cabeça do nível). Preferência: cadeia horizontal em cima,
-            // cadeia vertical à esquerda (como nas pranchas da FJA); o outro lado só se as bolhas estiverem só lá.
-            bool temFim = ds.Any(d => d.BolhaFim), temIni = ds.Any(d => d.BolhaIni);
-            bool preferido = emX;                      // emX: Fim = em cima; senão Ini = à esquerda
-            bool lado = preferido ? (temFim || !temIni) : !(temIni || !temFim);
-
-            foreach (bool fim in new[] { lado })
+            // decisão da FJA (13/11/2026): cadeia de eixos em cima e à esquerda, todos os eixos na mesma cadeia
+            bool fim = emX;                 // emX: Fim = em cima; senão Ini = à esquerda
+            double fora = fim ? 1 : -1;     // sentido para fora do desenho
+            double linha1, linha2;
+            if (base_ != null)
             {
-                // linha da cadeia logo para dentro das bolhas: a ponta mais recuada entre os datums, menos o espaçamento
+                // por fora das cotas de fachada; as bolhas vão para fora do total (eixos estendidos na vista, se preciso)
+                linha1 = base_.Value + fora * esp;
+                linha2 = linha1 + fora * esp;
+                if (planta)
+                {
+                    double alvo = linha2 + fora * esp;
+                    foreach (var d in ds)
+                        if (d.E is Grid && fora * (alvo - (fim ? d.Fim : d.Ini)) > TOL && Estender(v, d, fim, alvo, R, U, res))
+                            res.EixosEstendidos++;
+                }
+            }
+            else
+            {
+                // sem fachada: logo para dentro das pontas (bolhas) — total junto delas, cadeia depois
                 double borda = fim ? ds.Min(d => d.Fim) : ds.Max(d => d.Ini);
-                double sinal = fim ? -1 : 1;
-                double linha1 = borda + sinal * esp;
-                double linha2 = borda + sinal * 2 * esp;
+                linha2 = borda - fora * esp;
+                linha1 = borda - fora * 2 * esp;
+            }
 
-                // trechos que faltam, em sequências contínuas
-                int i = 0;
-                while (i < ds.Count - 1)
+            // trechos que faltam, em sequências contínuas
+            int i = 0;
+            while (i < ds.Count - 1)
+            {
+                if (Medido(ex, emX, ds[i].Pos, ds[i + 1].Pos)) { res.JaExistiam++; i++; continue; }
+                int j = i;
+                while (j < ds.Count - 1 && !Medido(ex, emX, ds[j].Pos, ds[j + 1].Pos)) j++;
+                var trecho = ds.GetRange(i, j - i + 1);
+                if (Criar(doc, v, dt, trecho, emX, linha1, R, U, O, regra, res))
                 {
-                    if (Medido(ex, emX, ds[i].Pos, ds[i + 1].Pos)) { res.JaExistiam++; i++; continue; }
-                    int j = i;
-                    while (j < ds.Count - 1 && !Medido(ex, emX, ds[j].Pos, ds[j + 1].Pos)) j++;
-                    var trecho = ds.GetRange(i, j - i + 1);
-                    if (Criar(doc, v, dt, trecho, emX, linha1, R, U, O, regra, res))
-                    {
-                        res.Segmentos += trecho.Count - 1;
-                        foreach (var k in Enumerable.Range(0, trecho.Count - 1))
-                            ex.Add(new Intervalo { Horizontal = emX, A = trecho[k].Pos, B = trecho[k + 1].Pos });
-                    }
-                    i = j;
+                    res.Segmentos += trecho.Count - 1;
+                    foreach (var k in Enumerable.Range(0, trecho.Count - 1))
+                        ex.Add(new Intervalo { Horizontal = emX, A = trecho[k].Pos, B = trecho[k + 1].Pos });
                 }
+                i = j;
+            }
 
-                // total entre os extremos (só faz sentido com 3 ou mais)
-                if (ds.Count >= 3)
+            // total entre os extremos (só faz sentido com 3 ou mais)
+            if (ds.Count >= 3)
+            {
+                if (Medido(ex, emX, ds[0].Pos, ds[ds.Count - 1].Pos)) res.JaExistiam++;
+                else if (Criar(doc, v, dt, new List<Datum> { ds[0], ds[ds.Count - 1] }, emX, linha2, R, U, O, regra + "-total", res))
                 {
-                    if (Medido(ex, emX, ds[0].Pos, ds[ds.Count - 1].Pos)) res.JaExistiam++;
-                    else if (Criar(doc, v, dt, new List<Datum> { ds[0], ds[ds.Count - 1] }, emX, linha2, R, U, O, regra + "-total", res))
-                    {
-                        res.Segmentos++;
-                        ex.Add(new Intervalo { Horizontal = emX, A = ds[0].Pos, B = ds[ds.Count - 1].Pos });
-                    }
+                    res.Segmentos++;
+                    ex.Add(new Intervalo { Horizontal = emX, A = ds[0].Pos, B = ds[ds.Count - 1].Pos });
                 }
+            }
+        }
+
+        /// <summary>Leva a ponta do eixo (do lado da cadeia) até "alvo", só nesta vista (pontas em 2D).</summary>
+        static bool Estender(View v, Datum d, bool fim, double alvo, XYZ R, XYZ U, ResultadoVista res)
+        {
+            try
+            {
+                var dp = (DatumPlane)d.E;
+                XYZ ao = d.Vertical ? U : R;
+                bool moveP1 = fim == d.FimEhP1;
+                XYZ p = moveP1 ? d.P1 : d.P0;
+                XYZ np = p + ao * (alvo - p.DotProduct(ao));
+                XYZ a = moveP1 ? d.P0 : np, b = moveP1 ? np : d.P1;
+                dp.SetDatumExtentType(DatumEnds.End0, v, DatumExtentType.ViewSpecific);
+                dp.SetDatumExtentType(DatumEnds.End1, v, DatumExtentType.ViewSpecific);
+                dp.SetCurveInView(DatumExtentType.ViewSpecific, v, Line.CreateBound(a, b));
+                if (moveP1) d.P1 = np; else d.P0 = np;
+                if (fim) d.Fim = alvo; else d.Ini = alvo;
+                return true;
+            }
+            catch (Exception e)
+            {
+                res.Avisos.Add("eixo " + d.E.Name + " não estendido: " + e.Message);
+                return false;
             }
         }
 

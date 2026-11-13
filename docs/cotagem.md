@@ -37,22 +37,22 @@ Comando C# `CotarVistas` (`revit/dotnet/FJA.Revit/Cotagem/*.cs`), desde a extens
 9. **Ordem das linhas:** as cotas de fachada junto do edifício; os eixos por fora; as bolhas vão para fora (para cima) quando necessário.
 10. **1:200:** só as dimensões gerais dos ambientes (duas perpendiculares); fora isso, as dimensões gerais do contorno do edifício, amarradas aos limites do terreno.
 
-## Planta baixa 1:75 (1:41 a 1:149) — fachadas (2.20.0; vão livre e ordem das linhas em 2.21.0)
+## Planta baixa 1:75 (1:41 a 1:149) — fachadas (2.20.0; vão livre e ordem das linhas em 2.22.0)
 `Cotagem/Fachada.cs`, chamado pelo `Motor` quando a regra tem `Fachada`.
 - **Paredes lidas:** as da vista, retas, alinhadas a ela (horizontais ou verticais na tela), cortadas pelo plano de corte da vista; cortina fica de fora. A geometria vem com referências (`Options.ComputeReferences`, vista ativa).
 - **Parede de fachada de um lado** (em cima, embaixo, à esquerda, à direita): paralela a esse lado e sem outra parede mais para fora em pelo menos um de cinco pontos ao longo dela (10 %, 30 %, 50 %, 70 % e 90 % do comprimento). Recuos e blocos com fachadas em profundidades diferentes entram na mesma cadeia.
 - **Pontos da cadeia:** faces planas verticais de qualquer parede, perpendiculares ao lado, que chegam à face externa de uma parede de fachada e são cortadas pelo plano de corte (pontas de parede e o canto externo da parede perpendicular). Paredes internas que encostam na fachada não chegam à face externa e ficam de fora.
-- **Vão livre (2.21.0):** portas e janelas da parede de fachada cortadas pelo plano de corte entram pelas referências **Esquerda/Direita** da família (`GetReferences(Left/Right)`), nas posições centro ± largura/2 (largura: `DOOR_WIDTH`, `WINDOW_WIDTH` ou `FAMILY_WIDTH_PARAM`, da instância ou do tipo). As ombreiras da parede até 12 cm de cada lado do vão livre saem da cadeia. Família sem essas referências ou sem largura: fica a ombreira da parede (aviso no relatório).
+- **Vão livre (2.22.0):** portas e janelas da parede de fachada cortadas pelo plano de corte entram pelas referências **Esquerda/Direita** da família (`GetReferences(Left/Right)`), nas posições centro ± largura/2 (largura: `DOOR_WIDTH`, `WINDOW_WIDTH` ou `FAMILY_WIDTH_PARAM`, da instância ou do tipo). As ombreiras da parede até 12 cm de cada lado do vão livre saem da cadeia. Família sem essas referências ou sem largura: fica a ombreira da parede (aviso no relatório).
 - **Linhas:** a cadeia a 1 espaçamento da face externa mais saliente do lado; o total da fachada (das pontas) a 2 espaçamentos, se a cadeia tiver 3 pontos ou mais. Os quatro lados.
 - **Marca:** `fachada-cima`, `fachada-baixo`, `fachada-esquerda`, `fachada-direita` e `…-total`.
 - Não vale para parede inclinada ou curva.
 
-## Planta baixa 1:200 (1:150 a 1:399) — ambientes e contorno (2.21.0)
+## Planta baixa 1:200 (1:150 a 1:399) — ambientes e contorno (2.22.0)
 - **Ambientes** (`Cotagem/Ambientes.cs`): para cada ambiente colocado na vista, duas cotas perpendiculares — largura e profundidade gerais (pelo retângulo que envolve o contorno do ambiente medido no acabamento, `SpatialElementBoundaryLocation.Finish`), entre as faces de parede mais próximas dos limites (até 2 cm). A cota horizontal fica a 35 % da altura do ambiente, a vertical a 35 % da largura (o rótulo no centro fica livre). Limite feito por linha de separação (sem parede): a dimensão não é criada e o relatório avisa. Já cotado = cota com os mesmos pontos **dentro do ambiente** (ambientes iguais lado a lado têm cada um a sua). Marca `ambiente`.
 - **Contorno:** nos quatro lados, só o total da fachada (das pontas), a 1 espaçamento do edifício; totais iguais em lados opostos não se repetem. Marca `contorno-…`.
 - **Amarração com o terreno:** próxima versão (linhas de propriedade do Revit).
 
-## Eixos (todas as vistas; 2.21.0)
+## Eixos (todas as vistas; 2.22.0)
 - Cadeia de eixos sempre **em cima** (eixos verticais na tela) e **à esquerda** (horizontais), com todos os eixos; total por fora da cadeia.
 - **Planta com fachada cotada nesse lado:** a cadeia de eixos fica a 1 espaçamento da última linha da fachada, o total a 2; os eixos cuja ponta não chega a 1 espaçamento além do total são **estendidos nesta vista** (pontas passam para 2D, `SetCurveInView`), para as bolhas ficarem por fora. O relatório conta os eixos estendidos. A bolha não troca de lado (para isso, Trocar lado).
 - **Sem fachada nesse lado** (cortes, fachadas, plantas sem paredes): logo para dentro das pontas — total a 1 espaçamento delas, cadeia a 2.

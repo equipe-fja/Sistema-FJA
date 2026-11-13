@@ -73,19 +73,9 @@ namespace FJA.Revit.Legendas
             catch { return null; }
         }
 
-        /// <summary>Altura de qualquer instância: "Elevação do ponto" ou a elevação em relação ao nível.</summary>
-        public static int? AlturaGeral(FamilyInstance i)
-        {
-            var h = Altura(i);
-            if (h != null) return h;
-            try
-            {
-                var p = i.get_Parameter(BuiltInParameter.INSTANCE_ELEVATION_PARAM);
-                if (p == null || p.StorageType != StorageType.Double) return null;
-                return (int)Math.Round(p.AsDouble() * 304.8 / 10.0) * 10;
-            }
-            catch { return null; }
-        }
+        /// <summary>Altura para o texto das variações: só "Elevação do ponto" (decisão da FJA, 13/11/2026: só os pontos
+        /// de parede têm parâmetro de altura; pontos de teto, como access points, ficam sem altura na legenda).</summary>
+        public static int? AlturaGeral(FamilyInstance i) => Altura(i);
 
         public static string TextoAltura(int mm) => "A " + Metros(mm) + "M DO PISO";
 

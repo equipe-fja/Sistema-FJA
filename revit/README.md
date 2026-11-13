@@ -4,8 +4,8 @@ Extensão pyRevit da FJA: aba **Ferramentas FJA** no Revit (2024 e 2027).
 
 Esta pasta é a **fonte** da extensão. O projeto das ferramentas ligadas ao sistema está em `docs/revit-tipos-sincronizados.md`.
 
-## Conteúdo atual (extensão 2.20.0)
-- Painel **Cotagem** (C#, desde 2.18.0): **Cotar vistas** (eixos e níveis com total; na planta 1:75, panos e vãos de fachada) e **Trocar lado** (bolha/cabeça de eixos e níveis, em 2D). Ver `docs/cotagem.md`.
+## Conteúdo atual (extensão 2.22.0)
+- Painel **Cotagem** (C#, desde 2.18.0): **Cotar vistas** (eixos e níveis com total; planta 1:75: panos e vãos de fachada com vão livre; planta 1:200: ambientes e contorno) e **Trocar lado** (bolha/cabeça de eixos e níveis, em 2D). Ver `docs/cotagem.md`.
 - Painel **Pontos** (2.14.0; antes "Legendas"): ferramentas Legendas e Codificação.
 - Nomes e Parâmetros › **Renomear Tipos** — nome do tipo = "Type Mark - Descrição".
 - Tipos › **Nova composição** — cria/atualiza tipos de parede, piso, forro e cobertura a partir das composições do Sistema FJA (lógica em `lib/fja_sistema.py`).
@@ -73,6 +73,6 @@ Cada publicação cria o arquivo novo e manda o anterior para a lixeira do Drive
 4. Abrir o Revit (ou pyRevit › Reload).
 
 ## Ordem dos painéis (desde 2.16.1)
-- `Ferramentas FJA.tab/bundle.yaml` (`layout`) define a ordem: painéis em ordem alfabética e **Suíte sempre no fim**.
+- `Ferramentas FJA.tab/bundle.yaml` (`layout`) define a ordem: painéis em ordem alfabética e **Suíte sempre no fim** (a FJA confirmou em 13/11/2026: "Pontos" não volta a ser o primeiro).
 - `startup.py` da extensão (2.16.2): no primeiro momento ocioso depois de carregar (abertura do Revit e Reload), move o painel Suíte para o fim da aba — num Reload o pyRevit não reordena os painéis que já existem.
 - No pyRevit, painel que não está no `layout` **não aparece**. O `scripts/embutir-revit.py` recalcula a lista a cada publicação e o pacote distribuído (instalador e Suíte › Atualizar) sempre leva todos os painéis, com Suíte no fim; se o arquivo do repositório estiver desatualizado, a compilação avisa — atualizar o arquivo ao criar um painel novo.
