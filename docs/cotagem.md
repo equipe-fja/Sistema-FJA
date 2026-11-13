@@ -25,6 +25,12 @@ Comando C# `CotarVistas` (`revit/dotnet/FJA.Revit/Cotagem/*.cs`), desde a extens
 - **Preferências por pessoa:** `%APPDATA%\FJA\cotagem.json` (tipo de cota, espaçamento).
 - Avisos do Revit durante a criação são suprimidos; o relatório final lista, por vista, cotas criadas, trechos, já cotados, refeitas e erros.
 
+## Trocar lado (2.19.0, 13/11/2026)
+Comando `TrocarLadoIndicacao`. Nos eixos e níveis selecionados (sem seleção, pede para escolher), na vista ativa:
+- passa as duas pontas para 2D (`SetDatumExtentType(..., ViewSpecific)`), para não afetar outras vistas;
+- desliga a bolha/cabeça do lado em que está e liga do lado oposto;
+- com indicação dos dois lados, ou sem nenhuma, não mexe e avisa.
+
 ## Próximas versões (regras completas na doc do projeto `claude/revit-cotagem-regras.md`)
 - Planta baixa: panos e vãos de fachada, cadeias internas atravessando ambientes (com espessura de parede), bonecas ≠ 15 cm, totais por bloco; afastamentos e lote (1:200/1:500); 1:25 por faces (acabado).
 - Teto refletido (luminárias), pontos (osso), paginação (início e módulo).
