@@ -1,7 +1,7 @@
 tarefa: publicar-homolog
 status: success
-commit: 49863f5b9d4ca1c511963789e34b76e25059a8f8
-quando: 2026-11-13T15:57:39Z
+commit: f32e827f55f786fa41628eab651bca77cd92d698
+quando: 2026-11-13T16:01:15Z
 ----
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -26,7 +26,7 @@ quando: 2026-11-13T15:57:39Z
 [1mHosting URL:[22m https://sistema-fja-homolog.web.app
 servidor (homolog): e-mails=1 rotinas=[equipe autoria drive google]
 banco em: southamerica-east1 · funções em: southamerica-east1
-[36m[1mi [22m[39m Updated function googleEstado(southamerica-east1).
+[36m[1mi [22m[39m Updated function driveToken(southamerica-east1).
 [36m[1mi [22m[39m Removing secret versions: 
 
 [1m[37m===[39m Deploying to 'sistema-fja-homolog'...[22m
@@ -36,13 +36,13 @@ banco em: southamerica-east1 · funções em: southamerica-east1
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudfunctions.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mcloudbuild.googleapis.com[22m is enabled...
 [36m[1mi  artifactregistry:[22m[39m ensuring required API [1martifactregistry.googleapis.com[22m is enabled...
-[32m[1m✔  artifactregistry:[22m[39m required API [1martifactregistry.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mcloudbuild.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mcloudfunctions.googleapis.com[22m is enabled
+[32m[1m✔  artifactregistry:[22m[39m required API [1martifactregistry.googleapis.com[22m is enabled
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mpackage.json indicates an outdated version of firebase-functions. Please upgrade using [1mnpm install --save firebase-functions@latest[22m in your functions directory.
 [33m[1m⚠ [22m[39m [1m[33mfunctions: [39m[22mPlease note that there will be breaking changes when you upgrade.
 [36m[1mi  functions:[22m[39m Loading and analyzing source code for codebase default to determine what to deploy
-Serving at port 8839
+Serving at port 8939
 
 [36m[1mi  extensions:[22m[39m ensuring required API [1mfirebaseextensions.googleapis.com[22m is enabled...
 [32m[1m✔  extensions:[22m[39m required API [1mfirebaseextensions.googleapis.com[22m is enabled
@@ -54,8 +54,8 @@ Serving at port 8839
 [36m[1mi  functions:[22m[39m ensuring required API [1meventarc.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mpubsub.googleapis.com[22m is enabled...
 [36m[1mi  functions:[22m[39m ensuring required API [1mstorage.googleapis.com[22m is enabled...
-[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mpubsub.googleapis.com[22m is enabled
+[32m[1m✔  functions:[22m[39m required API [1mrun.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1mstorage.googleapis.com[22m is enabled
 [32m[1m✔  functions:[22m[39m required API [1meventarc.googleapis.com[22m is enabled
 [36m[1mi  functions:[22m[39m generating the service identity for [1mpubsub.googleapis.com[22m...
