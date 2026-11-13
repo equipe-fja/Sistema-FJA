@@ -1,9 +1,23 @@
 tarefa: importar
-status: failure
-commit: 2b2588846903081ea5ceae3478458cda04fcac94
-quando: 2026-11-12T08:21:09Z
+status: success
+commit: d4d8e0b28b19b6809886559e7db5e2f26f7edc80
+quando: 2026-11-13T08:21:20Z
 ----
 conta de serviço: firebase-adminsdk-fbsvc@sistema-fja-homolog.iam.gserviceaccount.com
 projeto: sistema-fja-homolog
-último backup: SISTEMA-FJA_BACKUP_2026-11-12_04h01
-ERRO: 00-indice.json não encontrado na pasta 1eTiDiD-K1uXDUMMhvfsoPDAyvbkLVcdx (a pasta foi compartilhada com a conta de serviço?)
+último backup: SISTEMA-FJA_BACKUP_2026-11-13_03h47
+backup: 2026-11-13T06:47:47.075Z · ambiente firebase · 1604 documentos · 16 partes
+itens: 103 gravados, 0 removidos
+espb: 342 gravados, 0 removidos
+equip: 602 gravados, 0 removidos
+coment: 133 gravados, 0 removidos
+pend: 82 gravados, 0 removidos
+rfi: 17 gravados, 0 removidos
+rdoc: 232 gravados, 0 removidos
+ata: 5 gravados, 0 removidos
+croq: 1 gravados, 0 removidos
+crono: 74 gravados, 0 removidos
+sugest: 5 gravados, 0 removidos
+etsig: 6 gravados, 0 removidos
+config: 2 gravados
+IMPORTAÇÃO CONCLUÍDA
