@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 13/11, ~13h13 — commit 9784b49
+- Extensão do Revit 2.23.0 (antes 2.22.0): **Trocar lado** usa sempre os eixos e níveis selecionados (sem seleção, pede para escolher). A janela tem dois cartões, Eixos (em cima/embaixo) e Níveis (à esquerda/à direita), com as opções em blocos desenhados no estilo do Sistema FJA (um lado, o outro, nos dois, trocar, não mexer) e sem textos explicativos.
+
 ## oficial Firebase — 13/11, ~13h05 — commit 0666362
 - Extensão do Revit 2.22.0 (antes 2.21.0): **Cotar vistas** segue as decisões da FJA de 13/11.
   - Planta 1:75: vãos de fachada pelo **vão livre** das portas e janelas. A cadeia de eixos fica sempre em cima e à esquerda, **por fora** das cotas de fachada; os eixos cujas bolhas não cabem são estendidos nessa vista (em 2D).
