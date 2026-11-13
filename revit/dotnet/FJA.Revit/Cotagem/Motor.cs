@@ -41,7 +41,8 @@ namespace FJA.Revit.Cotagem
             public bool FimEhP1;           // a ponta "Fim" é a End1
         }
 
-        public static ResultadoVista Cotar(Document doc, View v, TipoVista tipo, DimensionType dt, double espacamentoMm, bool refazer)
+        public static ResultadoVista Cotar(Document doc, View v, TipoVista tipo, DimensionType dt, double espacamentoMm, bool refazer,
+                                          bool espessuras = false)
         {
             var res = new ResultadoVista { Vista = v.Name };
             var regra = Regras.Para(tipo, v.Scale);
@@ -69,7 +70,7 @@ namespace FJA.Revit.Cotagem
                 if (regra.Ambientes)
                     Ambientes.Cotar(doc, vp, lt, dt, R, U, O, existentes, res);
                 if (regra.Internas)
-                    Internas.Cotar(doc, vp, lt, dt, R, U, O, existentes, res);
+                    Internas.Cotar(doc, vp, lt, dt, espessuras, R, U, O, existentes, res);
             }
 
             var datums = Datums(doc, v, R, U, regra);

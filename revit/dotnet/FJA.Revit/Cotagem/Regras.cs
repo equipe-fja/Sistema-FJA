@@ -190,6 +190,7 @@ namespace FJA.Revit.Cotagem
         public string TipoCota = "";
         public double EspacamentoMm = 8;
         public bool Refazer;
+        public bool Espessuras;   // cadeias internas com a espessura das paredes (padrão: só os vãos)
 
         static string Arquivo => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FJA", "cotagem.json");
 
@@ -202,6 +203,7 @@ namespace FJA.Revit.Cotagem
                 var d = Json.LerObjeto(File.ReadAllText(Arquivo, Encoding.UTF8));
                 o.TipoCota = d.Txt("tipoCota") ?? "";
                 if (double.TryParse(d.Txt("espacamentoMm"), NumberStyles.Float, CultureInfo.InvariantCulture, out double e) && e >= 2 && e <= 30) o.EspacamentoMm = e;
+                o.Espessuras = string.Equals(d.Txt("espessuras"), "true", StringComparison.OrdinalIgnoreCase);
             }
             catch { }
             return o;
@@ -216,6 +218,7 @@ namespace FJA.Revit.Cotagem
                 {
                     ["tipoCota"] = TipoCota,
                     ["espacamentoMm"] = EspacamentoMm,
+                    ["espessuras"] = Espessuras,
                 }), Encoding.UTF8);
             }
             catch { }

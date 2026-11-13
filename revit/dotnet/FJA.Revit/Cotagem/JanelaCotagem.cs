@@ -41,6 +41,7 @@ namespace FJA.Revit.Cotagem
         ComboBox cbCota, cbTodas;
         TextBox txEsp;
         RadioButton rbComplementar, rbRefazer;
+        CheckBox ckEspessura;
         TextBlock txErro;
         Button btCotar;
         readonly List<ComboBox> cbTipos = new List<ComboBox>();
@@ -217,7 +218,12 @@ namespace FJA.Revit.Cotagem
             sp.Children.Add(rbRefazer);
             sp.Children.Add(Nota("Apaga e refaz só as cotas criadas por esta ferramenta. Cotas feitas à mão nunca são apagadas."));
 
-            sp.Children.Add(Nota("\nCota hoje: eixos e níveis (cadeia + total); planta 1:50 a 1:149: panos e vãos de fachada (pelas quinas das paredes e o vão livre); planta 1:200: ambientes e contorno. Cadeias internas, terreno e as plantas de teto, pontos e paginação vêm nas próximas versões."));
+            sp.Children.Add(Rotulo("Cadeias internas (planta 1:50 a 1:149)"));
+            ckEspessura = new CheckBox { Content = "Incluir a espessura das paredes", IsChecked = o.Espessuras, Margin = new Thickness(0, 2, 0, 0) };
+            sp.Children.Add(ckEspessura);
+            sp.Children.Add(Nota("Desligado: só os vãos dos ambientes, face acabada a face acabada. Ligado: vão + espessura, em cadeia contínua."));
+
+            sp.Children.Add(Nota("\nCota hoje: eixos e níveis (cadeia + total); planta 1:50 a 1:149: panos e vãos de fachada (pelas quinas das paredes e o vão livre) e cadeias internas; planta 1:200: ambientes e contorno. Terreno e as plantas de teto, pontos e paginação vêm nas próximas versões."));
             cOp.Child = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
             WGrid.SetColumn(cOp, 2);
             raiz.Children.Add(cOp);
@@ -270,6 +276,7 @@ namespace FJA.Revit.Cotagem
             if (!LerEspacamento(out double mm)) return;
             o.EspacamentoMm = mm;
             o.Refazer = rbRefazer.IsChecked == true;
+            o.Espessuras = ckEspessura.IsChecked == true;
             TipoCota = cbCota.SelectedIndex >= 0 ? tipos[cbCota.SelectedIndex] : null;
             o.TipoCota = TipoCota?.Name ?? "";
             Confirmado = true;

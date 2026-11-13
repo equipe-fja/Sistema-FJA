@@ -16,18 +16,18 @@ namespace FJA.Revit.Cotagem
         const double MARGEM = 100 / 304.8;   // a linha fica a pelo menos 10 cm de qualquer ponta de face
         const int MAX_LINHAS = 8;            // por direção
 
-        public static void Cotar(Document doc, ViewPlan v, Leitura lt, DimensionType dt, XYZ R, XYZ U, XYZ O,
+        public static void Cotar(Document doc, ViewPlan v, Leitura lt, DimensionType dt, bool espessuras, XYZ R, XYZ U, XYZ O,
                                  List<Intervalo> ex, ResultadoVista res)
         {
             if (lt.Paredes.Count == 0) return;
             var edif = Fachada.Edificio(lt.Paredes);
             var noEdif = new HashSet<Parede>(edif);
             var planos = lt.Planos.Where(p => p.Dono != null && noEdif.Contains(p.Dono)).ToList();
-            for (int k = 0; k < 2; k++) Direcao(doc, v, dt, edif, planos, k, R, U, O, ex, res);
+            for (int k = 0; k < 2; k++) Direcao(doc, v, dt, edif, planos, k, espessuras, R, U, O, ex, res);
         }
 
         /// <param name="k">eixo da medida (0: cadeias horizontais, medindo as paredes verticais; 1: o contrário).</param>
-        static void Direcao(Document doc, View v, DimensionType dt, List<Parede> edif, List<Plano> planos, int k,
+        static void Direcao(Document doc, View v, DimensionType dt, List<Parede> edif, List<Plano> planos, int k, bool espessuras,
                             XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
         {
             int c = 1 - k;
@@ -62,10 +62,10 @@ namespace FJA.Revit.Cotagem
             if (faltam.Count > 0)
                 res.Avisos.Add(faltam.Count + " parede(s) " + (k == 0 ? "verticais" : "horizontais") + " sem cadeia interna (só atravessáveis por porta, ou mais de " + MAX_LINHAS + " linhas)");
 
-            foreach (var y in linhas.OrderBy(x => x)) Cadeia(doc, v, dt, laterais, k, y, R, U, O, ex, res);
+            foreach (var y in linhas.OrderBy(x => x)) Cadeia(doc, v, dt, laterais, k, y, espessuras, R, U, O, ex, res);
         }
 
-        static void Cadeia(Document doc, View v, DimensionType dt, List<Plano> laterais, int k, double y,
+        static void Cadeia(Document doc, View v, DimensionType dt, List<Plano> laterais, int k, double y, bool espessuras,
                            XYZ R, XYZ U, XYZ O, List<Intervalo> ex, ResultadoVista res)
         {
             bool hor = k == 0;
@@ -77,7 +77,26 @@ namespace FJA.Revit.Cotagem
                                         OK = t.f.OK, OC = t.f.OC, NK = t.f.NK, NC = t.f.NC, Arestas = t.f.Arestas });
             if (pts.Count < 2) return;
 
-            // trechos que faltam, em sequências contínuas; cada sequência dividida em grupos de faces paralelas
+            if (!espessuras)
+            {
+                // padrão (pedido da FJA, 13/11/2026): só os vãos — face a face entre paredes diferentes, uma cota por
+                // ambiente na mesma linha; as duas faces da mesma parede (espessura) ficam sem cota
+                for (int m = 0; m < pts.Count - 1; m++)
+                {
+                    Plano a = pts[m], b = pts[m + 1];
+                    if (ReferenceEquals(a.Dono, b.Dono)) continue;
+                    if (Motor.Medido(ex, hor, a.Pos, b.Pos)) { res.JaExistiam++; continue; }
+                    if (Paralelo(a, b) && Fachada.Criar(doc, v, dt, new List<Plano> { a, b }, hor, y, R, U, O, "interna", res, true))
+                    {
+                        res.Segmentos++;
+                        ex.Add(new Intervalo { Horizontal = hor, A = a.Pos, B = b.Pos, Linha = y });
+                    }
+                    else Ponte(doc, v, dt, a, b, k, y, hor, R, U, O, ex, res);
+                }
+                return;
+            }
+
+            // com espessura: trechos que faltam, em sequências contínuas; cada sequência dividida em grupos de faces paralelas
             int i = 0;
             while (i < pts.Count - 1)
             {

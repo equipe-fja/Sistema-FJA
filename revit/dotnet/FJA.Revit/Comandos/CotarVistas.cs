@@ -66,7 +66,7 @@ namespace FJA.Revit.Comandos
                         try
                         {
                             Marca.GravarTipo(l.Vista, l.Tipo);
-                            r = Motor.Cotar(doc, l.Vista, l.Tipo, j.TipoCota, o.EspacamentoMm, o.Refazer);
+                            r = Motor.Cotar(doc, l.Vista, l.Tipo, j.TipoCota, o.EspacamentoMm, o.Refazer, o.Espessuras);
                             t.Commit();
                         }
                         catch (Exception ex)
