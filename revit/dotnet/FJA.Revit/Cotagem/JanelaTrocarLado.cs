@@ -228,7 +228,7 @@ namespace FJA.Revit.Cotagem
         static string Resumo(List<DatumNaVista> g, string a, string b)
         {
             if (g.Count == 0) return "Nenhuma no alcance escolhido.";
-            int eixos = g.Count(d => d.D is Grid), niveis = g.Count - eixos;
+            int eixos = g.Count(d => d.D is Autodesk.Revit.DB.Grid), niveis = g.Count - eixos;
             var qual = new List<string>();
             if (eixos > 0) qual.Add(eixos + (eixos == 1 ? " eixo" : " eixos"));
             if (niveis > 0) qual.Add(niveis + (niveis == 1 ? " nível" : " níveis"));
