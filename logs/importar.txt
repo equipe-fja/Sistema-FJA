@@ -1,19 +1,19 @@
 tarefa: importar
 status: success
 commit: 01e1546674e64f0edc9ef888610a939b1ffcf8de
-quando: 2026-11-14T08:00:19Z
+quando: 2026-11-15T08:06:58Z
 ----
 conta de serviço: firebase-adminsdk-fbsvc@sistema-fja-homolog.iam.gserviceaccount.com
 projeto: sistema-fja-homolog
-último backup: SISTEMA-FJA_BACKUP_2026-11-14_04h38
-backup: 2026-11-14T07:38:04.445Z · ambiente firebase · 1606 documentos · 16 partes
+último backup: SISTEMA-FJA_BACKUP_2026-11-15_01h22
+backup: 2026-11-15T04:22:37.284Z · ambiente firebase · 1606 documentos · 16 partes
 itens: 103 gravados, 0 removidos
 espb: 342 gravados, 0 removidos
 equip: 602 gravados, 0 removidos
 coment: 133 gravados, 0 removidos
 pend: 83 gravados, 0 removidos
 rfi: 17 gravados, 0 removidos
-rdoc: 232 gravados, 1 removidos
+rdoc: 232 gravados, 0 removidos
 ata: 5 gravados, 0 removidos
 croq: 1 gravados, 0 removidos
 crono: 74 gravados, 0 removidos
