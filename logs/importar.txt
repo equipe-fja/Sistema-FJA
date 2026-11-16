@@ -1,7 +1,7 @@
 tarefa: importar
 status: success
 commit: 01e1546674e64f0edc9ef888610a939b1ffcf8de
-quando: 2026-11-15T08:06:58Z
+quando: 2026-11-16T09:40:54Z
 ----
 conta de serviço: firebase-adminsdk-fbsvc@sistema-fja-homolog.iam.gserviceaccount.com
 projeto: sistema-fja-homolog
