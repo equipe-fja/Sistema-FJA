@@ -68,6 +68,9 @@ header.top{display:flex;align-items:center;gap:14px;padding-block:10px;padding-l
 .sim-l .fld{font-weight:400;max-width:240px;padding:3px 6px}
 .simulando .sim-l .fld{background:#8E1B1B;color:#fff;border-color:#8E1B1B}
 .conn{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+tr.pj-arq td{background:var(--off-bg);color:var(--muted);font-weight:600;cursor:pointer;font-size:12.5px}
+tr.pj-arq .chev{margin-right:6px;vertical-align:-2px}
+tr.pj-arq .cnt{font-weight:400;margin-left:4px}
 .top-sair{display:inline-flex;align-items:center;gap:5px;margin-left:10px}
 .top-sair[hidden]{display:none}
 .conn::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--faint)}
@@ -1580,18 +1583,21 @@ function telaGrupo(h,g){
 }
 function telaSecao(h,sec){
   const s=SEC[sec]; const lista=itensDe(sec).sort(ordena);
+  // projetos arquivados ficam recolhidos num grupo "Arquivados" no fim da lista
+  let arqP=[]; if(sec==='projetos'){if(S.projArq==null) S.projArq=!!lsGet('fja.pj.arq',false); arqP=lista.filter(i=>/^Arquiv/i.test(i.status||'')); const at=lista.filter(i=>!arqP.includes(i)); lista.length=0; lista.push(...at,...(S.projArq?arqP:[]))}
+  const pjArqTr=()=>`<tr class="pj-arq" data-act="pj-arq" aria-expanded="${!!S.projArq}"><td colspan="5">${IC.chev.replace('class="chev"','class="chev'+(S.projArq?' open':'')+'"')}Arquivados <span class="cnt">${arqP.length}</span></td></tr>`;
   const cols = sec==='disciplinas'?['Código','Disciplina','Grupo','Parceiros que atendem','Status']:sec==='projetos'?['Código','Projeto','Fase','Status','Atualizado']:sec==='parceiros'?['Parceiro','Disciplinas','Contato','Projetos','Pendências abertas','Comentários abertos','Status']:['Nome','Pasta','Status','Atualizado'];
   if(sec==='parceiros') lista.sort((a,b)=>(a.pasta||'~').localeCompare(b.pasta||'~','pt')||ordena(a,b));
   if(sec==='disciplinas') lista.sort((a,b)=>(a.pasta||'~').localeCompare(b.pasta||'~','pt')||String(a.campos?.codigo||'').localeCompare(String(b.campos?.codigo||'')));
   h+=`<div class="page"><div class="crumb"><button data-act="home">Início</button><span>/</span>${crumbSec(s)}<span>${esc(s.nome)}</span></div><h1>${esc(s.nome)}</h1><p class="lead">${esc(s.desc)}</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">${S.ro?'':`<button class="btn pri" data-act="novo" data-sec="${sec}">${IC.plus}Novo ${esc(s.um)}</button>`}${S.publico?'':`<button class="btn" data-act="schema" data-sec="${sec}">Personalizar campos</button>`}</div>${ESP[sec]?.sec?espLinhaDest(sec,sec):''}${sec==='projetos'?agLinhasTempo():''}
-  <div class="sheet">${lista.length?`<div class="tablewrap"><table class="list"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${lista.map(i=>sec==='disciplinas'
+  <div class="sheet">${lista.length?`<div class="tablewrap"><table class="list"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${lista.map(i=>(arqP.length&&i===arqP[0]?pjArqTr():'')+(sec==='disciplinas'
     ?`<tr data-act="item" data-id="${esc(i.id)}"><td class="mono"><span class="sw-d" style="background:${esc(corPadrao(String(i.campos?.codigo||'').toUpperCase()))}"></span><b>${esc(i.campos?.codigo||'')}</b></td><td>${esc(i.nome)}</td><td class="muted">${esc(i.pasta||'')}</td><td class="muted">${parceiros().filter(p=>discsParc(p).includes(String(i.campos?.codigo||'').toUpperCase())).map(p=>esc(p.nome)).join(', ')}</td><td>${badge(i.status)}</td></tr>`
     :sec==='parceiros'
     ?`<tr data-act="item" data-id="${esc(i.id)}"><td><b>${esc(i.nome)}</b>${i.campos?.papel?`<div class="muted" style="font-size:12px">${esc(i.campos.papel)}</div>`:''}</td><td>${discsParc(i).map(c=>`<span class="tag-d" title="${esc(discNome(c))}">${esc(c)}</span>`).join(' ')}</td><td>${esc(i.campos?.contato||i.campos?.responsavel||'')}${[i.campos?.telefone,i.campos?.email].filter(Boolean).length?`<div class="muted" style="font-size:12px">${[i.campos?.telefone,i.campos?.email].filter(Boolean).map(esc).join(' · ')}</div>`:''}</td>${(r=>`<td class="num">${r.proj||'—'}</td><td class="num">${r.ab||'—'}${r.atr?` <b class="atras">(${r.atr} atras.)</b>`:''}</td><td class="num">${r.cm||'—'}</td>`)(resumoParc(i.id))}<td>${badge(i.status)}</td></tr>`
     :sec==='projetos'
     ?`<tr data-act="item" data-id="${esc(i.id)}"><td class="mono">${esc(i.campos?.codigo||'')}</td><td>${esc(i.nome)}</td><td class="muted">${esc(i.campos?.fase||'')}</td><td>${badge(i.status)}</td><td class="num">${fmtData(i.atualizadoEm)}</td></tr>`
-    :`<tr data-act="item" data-id="${esc(i.id)}"><td>${esc(i.nome)}</td><td class="muted">${esc(i.pasta||'')}</td><td>${badge(i.status)}</td><td class="num">${fmtData(i.atualizadoEm)}</td></tr>`).join('')}</tbody></table></div>`
+    :`<tr data-act="item" data-id="${esc(i.id)}"><td>${esc(i.nome)}</td><td class="muted">${esc(i.pasta||'')}</td><td>${badge(i.status)}</td><td class="num">${fmtData(i.atualizadoEm)}</td></tr>`)).join('')}${arqP.length&&!S.projArq?pjArqTr():''}</tbody></table></div>`
     :`<p class="note">Nenhum ${esc(s.um)} cadastrado ainda.${S.ro?'':' Use “Novo '+esc(s.um)+'” para criar o primeiro.'}</p>`}</div></div>`;
   return h;
 }
@@ -6935,6 +6941,7 @@ document.addEventListener('click',async ev=>{
   if(a==='pc-local-cm'){await pcLocalCm(b.dataset.eid);return}
   if(a==='ferr-pc-ativo'){try{localStorage.setItem(PC_LS,b.checked?'1':'0')}catch{} render(); toast(b.checked?'Conexão com PC ativada neste navegador':'Conexão com PC desativada neste navegador');return}
   if(a==='ferr-pc-testar'){await copiarOuAbrir('G:\\');return}
+  if(a==='pj-arq'){S.projArq=!S.projArq; lsSet('fja.pj.arq',S.projArq); renderMain(); return}
   if(a==='sair'){if(S.dirty){toast('Salve ou descarte as alterações antes de sair');return} b.disabled=true; try{await FB()?.sair?.()}catch{b.disabled=false; toast('Não foi possível sair. Tente de novo.')} return}
   if(a==='desfazer'){await desfazer();return}
   if(a==='refazer'){await refazer();return}
