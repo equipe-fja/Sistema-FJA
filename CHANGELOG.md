@@ -5,6 +5,13 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 18/11, ~18h35 — commit 65268ef
+- **Listas em PDF**: escolher os itens na própria tabela ("Selecionar itens na tabela…", com clique e Shift nas linhas) e gerar só os selecionados; nova opção de **capa** em papel timbrado (título, projeto, cliente, emissão e quantidade de itens), ligada por padrão.
+- **Comentários**: respostas com histórico, como na RI (bloco Respostas e bloco Histórico na ficha, coluna Respostas na tabela); o histórico registra também as mudanças feitas direto nas células.
+- **Ferramentas**: link para baixar a última versão do pyRevit, na lista e na página da Extensão do Revit.
+- **Projetos**: os arquivados ficam recolhidos num grupo "Arquivados" no fim da lista.
+- **Meu painel**: sem o texto de apresentação abaixo do título.
+
 ## oficial Firebase — 18/11, ~17h40 — commit 9de80df
 - Botão **Sair** (log off) no topo, ao lado do indicador de conexão. Com alterações não salvas, avisa em vez de sair.
 
