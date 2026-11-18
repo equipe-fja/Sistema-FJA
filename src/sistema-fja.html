@@ -847,6 +847,83 @@ table.sug-t textarea.fld,table.sug-t input.fld{width:100%;font-size:13px;padding
 @media (max-width:760px){.sug-g{grid-template-columns:1fr}}
 .cro-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 10px}
 .cro-sp{flex:1}
+/* calendário do projeto (agenda) */
+.ag-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:0 0 10px}
+.ag-nav{display:flex;align-items:center;gap:6px}
+.ag-nav .icb{font-size:18px;line-height:1;width:30px;height:30px}
+.ag-tit{font-family:var(--f-display);font-size:19px;font-weight:600;min-width:190px;text-align:center}
+.ag-q{font-size:10px;font-weight:600;background:var(--accent-weak);color:var(--accent-ink);border-radius:999px;padding:0 5px;margin-left:2px}
+.ag-lgs{margin:0}
+.cro-lg i.ag-lg{width:14px;height:10px;border-radius:3px}
+.cro-lg i.ag-lg.ev{background:var(--info)}
+.cro-lg i.ag-lg.fer{background:var(--ok-bg);border:1px solid #9fc9a8}
+.cro-lg i.ag-lg.ani{background:#f6e3f0;border:1px solid #d9a6c8}
+.ag-cal{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ag-sem{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--line);background:var(--off-bg)}
+.ag-sem span{padding:6px 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ag-grade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.ag-d{min-height:104px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 5px 6px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ag-d:nth-child(7n){border-right:0}
+.ag-d[data-act]{cursor:pointer}
+.ag-d[data-act]:hover{background:rgba(142,27,27,.03)}
+.ag-d.fds{background:#fafaf8}
+.ag-d.fer{background:#f1f8f2}
+.ag-d.fora .ag-n{color:var(--faint)}
+.ag-d.fora>.ag-c{opacity:.55}
+.ag-n{font-size:12px;font-weight:600;color:var(--ink);align-self:flex-start;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:999px;font-variant-numeric:tabular-nums}
+.ag-d.hj .ag-n{background:var(--accent);color:#fff}
+.ag-c{display:block;width:100%;text-align:left;border:0;border-radius:4px;padding:1px 6px;font:inherit;font-size:11.5px;line-height:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;background:none;color:var(--ink)}
+.ag-c.ev{background:var(--info);color:#fff}
+.ag-c.ev .mono{font-size:10.5px;opacity:.85}
+.ag-c.ev.multi{opacity:.88}
+.ag-c.fer{background:var(--ok-bg);color:var(--ok);cursor:default}
+button.ag-c.fer{cursor:pointer}
+.ag-c.ani{background:#f6e3f0;color:#86336b}
+.ag-c.mk{display:flex;align-items:center;gap:5px;color:var(--ink);padding-left:3px}
+.ag-c.mk i{flex:none;width:7px;height:7px;transform:rotate(45deg);background:var(--panel);border:1.5px solid var(--ink);margin:0 1px}
+.ag-c.mk.pr{color:var(--accent-ink);font-weight:600}
+.ag-c.mk.pr i{background:var(--accent);border-color:var(--accent)}
+.ag-c:hover{filter:brightness(.95);text-decoration:underline}
+.ag-mais{font-size:11px;color:var(--muted);padding-left:6px}
+#agDr .cro-g2{grid-template-columns:1fr 1fr}
+.ag-li{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:8px;align-items:baseline;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:6px 2px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer}
+.ag-li:hover:not(.nac):not(:disabled) b{text-decoration:underline}
+.ag-li.nac{cursor:default}
+.ag-li .mono{font-size:12px;color:var(--muted)}
+.ag-li .muted{font-size:11.5px}
+@media (max-width:760px){.ag-d{min-height:64px;padding:2px}.ag-c{font-size:10px;padding:0 3px}.ag-tit{min-width:0;font-size:16px}}
+/* painel de projetos: linhas do tempo */
+.lt-card{margin-bottom:18px;overflow:hidden}
+.lt-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.lt-sub{font-size:12px}
+.lt-lgs{display:flex;flex-wrap:wrap;gap:6px 18px;padding:0 16px 8px;font-size:12px;color:var(--muted)}
+.cro-lg i.lt-lg-f{background:linear-gradient(90deg,#3d6f91 50%,#9a3b2f 50%)}
+.cro-lg i.lt-lg-ev{width:7px;height:7px;border-radius:50%;background:var(--info)}
+.cro-lg i.lt-lg-fer{width:3px;height:12px;border-radius:1px;background:var(--ok)}
+.cro-lg i.lt-lg-ani{width:7px;height:7px;border-radius:50%;background:#c2629f}
+.lt{overflow-x:auto;padding:0 16px 12px}
+.lt-r{display:grid;grid-template-columns:var(--lbl) var(--w);align-items:stretch;border-top:1px solid var(--line)}
+.lt-cab{border-top:0}
+.lt-corpo{position:relative}
+.lt-grade{position:absolute;top:0;bottom:0;pointer-events:none}
+.lt-g{position:absolute;top:0;bottom:0;width:0;border-left:1px solid var(--line)}
+.lt-hj{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed var(--accent);opacity:.75;pointer-events:auto}
+.lt-l{display:flex;flex-direction:column;justify-content:center;gap:1px;text-align:left;border:0;background:none;padding:5px 10px 5px 0;font:inherit;color:var(--ink);cursor:pointer;min-width:0}
+.lt-l b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lt-l .mono{font-size:10.5px;color:var(--muted)}
+.lt-l em{font-style:normal;font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lt-l:hover b{text-decoration:underline}
+span.lt-l{cursor:default}
+.lt-t{position:relative}
+.lt-m{position:absolute;top:2px;font-size:10px;color:var(--muted);padding-left:4px;white-space:nowrap;overflow:hidden;text-transform:uppercase;letter-spacing:.06em}
+.lt-f{position:absolute;height:7px;border-radius:3px;opacity:.9}
+.lt-mk{position:absolute;width:8px;height:8px;margin-left:-4px;transform:rotate(45deg);background:var(--accent);border:1.5px solid var(--panel);z-index:2}
+.lt-mk.ps{background:var(--faint)}
+.lt-ev{position:absolute;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--info);z-index:2}
+.lt-ger .lt-l b{color:var(--ok)}
+.lt-fer{position:absolute;top:6px;bottom:6px;width:3px;margin-left:-1.5px;border-radius:1px;background:var(--ok)}
+.lt-fer.fac{opacity:.45}
+.lt-ani{position:absolute;top:11px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#c2629f;border:1.5px solid var(--panel)}
 .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden;background:var(--panel)}
 .seg button{border:0;background:none;padding:5px 11px;font-size:12.5px;cursor:pointer;color:var(--muted);border-right:1px solid var(--line)}
 .seg button:last-child{border-right:0}
@@ -1199,7 +1276,7 @@ const DEFAULT_SCHEMA = {
   ]
 };
 
-const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rfis:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), crono:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), etsig:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
+const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rfis:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), crono:new Map(), agenda:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), etsig:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
   view:{t:'home'}, fx:new Set(), fechadas:new Set((()=>{try{return JSON.parse(localStorage.getItem('fja.fechadas')||'[]')}catch{return []}})()), abertas:new Set((()=>{try{const v=JSON.parse(localStorage.getItem('fja.abertas')||'null'); if(Array.isArray(v)) return v}catch{} return ['s:projetos','g:biblioteca','s:familias','s:templates','s:representacao','s:disciplinas','s:parceiros','s:manuais']})()), busca:'', draft:null, dirty:false, schemaDraft:null, pend:null, ro:false};
 let db=null, user=null, me=null, assets=null, mcp=null, downloads=null;
 
@@ -1272,7 +1349,7 @@ function renderTree(){
           const nq2=croqsDe(i.id).length, selq2=(S.view.t==='croqs'||S.view.t==='croqi')&&S.view.id===i.id;
           h+=`<button class="row pasta ${selq2?'sel':''}" style="padding-left:${50+ind}px" data-act="croqs" data-id="${esc(i.id)}"><span class="chev"></span><span class="lbl">Croquis</span><span class="cnt">${nq2||''}</span></button>`;
           const nr=croDe(i.id).length, selr=S.view.t==='cro'&&S.view.id===i.id;
-          h+=`<button class="row pasta ${selr?'sel':''}" style="padding-left:${50+ind}px" data-act="cro" data-id="${esc(i.id)}"><span class="chev"></span><span class="lbl">Cronograma</span><span class="cnt">${nr||''}</span></button>`}
+          h+=`<button class="row pasta ${selr?'sel':''}" style="padding-left:${50+ind}px" data-act="cro" data-id="${esc(i.id)}"><span class="chev"></span><span class="lbl">Calendário/Cronograma</span><span class="cnt">${nr||''}</span></button>`}
       }
     }
     return h;
@@ -1478,7 +1555,7 @@ function telaSecao(h,sec){
   if(sec==='parceiros') lista.sort((a,b)=>(a.pasta||'~').localeCompare(b.pasta||'~','pt')||ordena(a,b));
   if(sec==='disciplinas') lista.sort((a,b)=>(a.pasta||'~').localeCompare(b.pasta||'~','pt')||String(a.campos?.codigo||'').localeCompare(String(b.campos?.codigo||'')));
   h+=`<div class="page"><div class="crumb"><button data-act="home">Início</button><span>/</span>${crumbSec(s)}<span>${esc(s.nome)}</span></div><h1>${esc(s.nome)}</h1><p class="lead">${esc(s.desc)}</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">${S.ro?'':`<button class="btn pri" data-act="novo" data-sec="${sec}">${IC.plus}Novo ${esc(s.um)}</button>`}${S.publico?'':`<button class="btn" data-act="schema" data-sec="${sec}">Personalizar campos</button>`}</div>${ESP[sec]?.sec?espLinhaDest(sec,sec):''}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">${S.ro?'':`<button class="btn pri" data-act="novo" data-sec="${sec}">${IC.plus}Novo ${esc(s.um)}</button>`}${S.publico?'':`<button class="btn" data-act="schema" data-sec="${sec}">Personalizar campos</button>`}</div>${ESP[sec]?.sec?espLinhaDest(sec,sec):''}${sec==='projetos'?agLinhasTempo():''}
   <div class="sheet">${lista.length?`<div class="tablewrap"><table class="list"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${lista.map(i=>sec==='disciplinas'
     ?`<tr data-act="item" data-id="${esc(i.id)}"><td class="mono"><span class="sw-d" style="background:${esc(corPadrao(String(i.campos?.codigo||'').toUpperCase()))}"></span><b>${esc(i.campos?.codigo||'')}</b></td><td>${esc(i.nome)}</td><td class="muted">${esc(i.pasta||'')}</td><td class="muted">${parceiros().filter(p=>discsParc(p).includes(String(i.campos?.codigo||'').toUpperCase())).map(p=>esc(p.nome)).join(', ')}</td><td>${badge(i.status)}</td></tr>`
     :sec==='parceiros'
@@ -7177,7 +7254,7 @@ function painelCronograma(d){
   const it=S.itens.get(d.id); if(!it) return '';
   const L=croDe(d.id).filter(t=>!t.arquivado), ex=L.map(extT).filter(Boolean);
   const per=ex.length?`${crS(Math.min(...ex.map(e=>e[0])))} a ${crS(Math.max(...ex.map(e=>e[1])))}`:'';
-  const tit=`<div class="painel-h"><h2><button class="painel-lk" data-act="cro" data-id="${esc(d.id)}" title="Abrir o Cronograma">Cronograma<span class="painel-seta" aria-hidden="true">›</span></button></h2>${L.length?'':'<span class="hint">nenhum item cadastrado</span>'}</div>`;
+  const tit=`<div class="painel-h"><h2><button class="painel-lk" data-act="cro" data-id="${esc(d.id)}" title="Abrir o calendário e o cronograma">Calendário/Cronograma<span class="painel-seta" aria-hidden="true">›</span></button></h2>${L.length?'':'<span class="hint">nenhum item cadastrado</span>'}</div>`;
   return `<section class="painel-p painel-cro">${tit}${L.length?croLinha(it,L,{semRod:true}):''}</section>`;
 }
 function croLinha(it,L,op={}){
@@ -7258,10 +7335,16 @@ function telaCro(h,v){
   const ex=L.map(extT).filter(Boolean), a=ex.length?Math.min(...ex.map(e=>e[0])):null, b=ex.length?Math.max(...ex.map(e=>e[1])):null;
   const nM=L.reduce((s,t)=>s+marcosT(t).length,0);
   const seg=(k,ops)=>`<div class="seg">${ops.map(([v2,r])=>`<button class="${CRO[k]===v2?'on':''}" data-act="cro-opt" data-k="${k}" data-v="${v2}">${r}</button>`).join('')}</div>`;
-  h+=`<div class="page wide"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><span>Cronograma</span></div>
-  <h1 class="h1-exp">Cronograma${btnPdfLista()}</h1>${espLinhaDest('cr',it.id)}`;
-  if(!TL.length) return h+`<div class="esp-vazio"><h2>Nenhum item no cronograma</h2><p>Cadastre as etapas e entregas do projeto. Cada item pode ter um ou mais períodos (com responsável) e marcos; os marcos principais formam a timeline resumida.</p>${S.ro?'':`<button class="btn pri" data-act="cro-novo" data-id="${esc(it.id)}">${IC.plus}Adicionar item</button> <button class="btn" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Adicionar marco</button>`}</div></div>`;
-  h+=`<div class="cro-bar">${seg('modo',[['linha','Resumido'],['gantt','Detalhado']])}
+  h+=`<div class="page wide"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><span>Calendário/Cronograma</span></div>
+  <h1 class="h1-exp">Calendário/Cronograma${CRO.modo==='cal'?'':btnPdfLista()}</h1>${espLinhaDest('cr',it.id)}`;
+  const modos=seg('modo',[['cal','Calendário'],['linha','Resumido'],['gantt','Detalhado']]);
+  if(CRO.modo==='cal'){
+    h+=`<div class="cro-bar">${modos}<span class="cro-sp"></span><button class="btn sm ghost" data-act="cro-ag-lista">Feriados e aniversários</button>
+      ${S.ro?'':`<button class="btn sm" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Marco</button><button class="btn pri sm" data-act="cro-ag-novo" data-t="evento" data-id="${esc(it.id)}">${IC.plus}Evento</button>`}</div>`;
+    return h+agCalendario(it)+`</div>`;
+  }
+  if(!TL.length) return h+`<div class="cro-bar">${modos}</div><div class="esp-vazio"><h2>Nenhum item no cronograma</h2><p>Cadastre as etapas e entregas do projeto. Cada item pode ter um ou mais períodos (com responsável) e marcos; os marcos principais formam a timeline resumida.</p>${S.ro?'':`<button class="btn pri" data-act="cro-novo" data-id="${esc(it.id)}">${IC.plus}Adicionar item</button> <button class="btn" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Adicionar marco</button>`}</div></div>`;
+  h+=`<div class="cro-bar">${modos}
     ${CRO.modo==='gantt'?seg('zoom',[['auto','Ajustar'],['mes','Mês'],['sem','Semana'],['dia','Dia']])+seg('cor',[['resp','Cor por responsável'],['disc','Cor por disciplina']])+`<button class="btn sm ghost" data-act="cro-hoje">Hoje</button>`:`<label class="cro-ck"><input type="checkbox" data-act="cro-todos"${CRO.todos?' checked':''}> Mostrar todos os marcos</label>`}
     ${nArq?`<label class="cro-ck"><input type="checkbox" data-act="cro-arq"${CRO.arq?' checked':''}> Mostrar arquivados (${nArq})</label>`:''}
     <span class="cro-sp"></span>
@@ -7279,7 +7362,8 @@ function telaCro(h,v){
 /* ficha lateral */
 function croDrawer(){
   let d=$('croDr'); const dr=CRO.dr;
-  if(!dr){d?.remove();document.body.classList.remove('cro-dr-on');return}
+  if(!dr){d?.remove();if(!AG.dr) document.body.classList.remove('cro-dr-on');return}
+  if(AG.dr){AG.dr=null; $('agDr')?.remove()}
   if(!d){d=document.createElement('aside');d.id='croDr';d.className='cro-dr';d.setAttribute('aria-label','Ficha do cronograma');document.body.appendChild(d)}
   document.body.classList.add('cro-dr-on');
   const st=d.querySelector('.cro-dr-b')?.scrollTop||0;
@@ -7434,6 +7518,7 @@ function croSelFaixa(id,marcar){
   return true;
 }
 async function croAcao(a,b,ev){
+  if(a.startsWith('cro-ag-')) return agAcao(a,b);
   const dr=CRO.dr;
   if(a==='cro-opt'){const k=b.dataset.k;CRO[k]=b.dataset.v;lsSet('fja.cro.'+k,CRO[k]);renderMain()}
   else if(a==='cro-todos'){CRO.todos=b.checked;lsSet('fja.cro.todos',CRO.todos);renderMain()}
@@ -7472,9 +7557,200 @@ async function croAcao(a,b,ev){
   else if(a==='cro-hoje'){const w=$('gtWrap'); if(w){const x=(crHoje()-(+w.dataset.a))*(+w.dataset.px); w.scrollLeft=Math.max(0,x-(w.clientWidth-CRO_LW)/2)}}
 }
 
+/* ---------- calendário (coleção agenda): eventos do projeto, feriados e aniversários ---------- */
+// agenda/<id>: {tipo:'evento', projeto, titulo, data 'dd/mm/aaaa', fim?, hora?, local?, obs?}
+//              {tipo:'feriado', titulo, data 'dd/mm/aaaa', recorrente}  — feriados próprios (os nacionais são calculados)
+//              {tipo:'aniversario', titulo (nome da pessoa), data 'dd/mm'}
+const agColl=()=>db.collection('agenda');
+const AG={mes:null,dr:null,jan:lsGet('fja.ag.jan','ano')};
+const MESES_L=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const SEMANA_C=['dom','seg','ter','qua','qui','sex','sáb'];
+const agN=(y,m,d)=>Math.round(Date.UTC(y,m,d)/864e5);
+function agPascoa(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),x=h+l-7*m+114;return agN(y,Math.floor(x/31)-1,x%31+1)}
+// feriados nacionais (Carnaval e Corpus Christi são pontos facultativos)
+function agNacionais(y){const p=agPascoa(y), f=(d,m,nome)=>({n:agN(y,m-1,d),nome});
+  return [f(1,1,'Confraternização Universal'),{n:p-48,nome:'Carnaval',fac:true},{n:p-47,nome:'Carnaval',fac:true},{n:p-2,nome:'Sexta-feira Santa'},f(21,4,'Tiradentes'),f(1,5,'Dia do Trabalho'),{n:p+60,nome:'Corpus Christi',fac:true},
+    f(7,9,'Independência do Brasil'),f(12,10,'Nossa Senhora Aparecida'),f(2,11,'Finados'),f(15,11,'Proclamação da República'),f(20,11,'Dia Nacional de Zumbi e da Consciência Negra'),f(25,12,'Natal')]}
+const agDM=s=>{const m=/^(\d{1,2})\/(\d{1,2})/.exec(String(s||'').trim());return m?{d:+m[1],m:+m[2]}:null};
+const agDe=t=>[...S.agenda.values()].filter(e=>e.tipo===t);
+// feriados (nacionais e próprios) e aniversários entre os dias a e b
+function agGerais(a,b){
+  const r=[], y0=crUD(a).getUTCFullYear(), y1=crUD(b).getUTCFullYear(), dentro=n=>n>=a&&n<=b;
+  for(let y=y0;y<=y1;y++){
+    for(const f of agNacionais(y)) if(dentro(f.n)) r.push({n:f.n,tipo:'feriado',titulo:f.nome,fac:!!f.fac,nac:true});
+    for(const e of agDe('feriado')){const n=e.recorrente?(dm=>dm?agN(y,dm.m-1,dm.d):null)(agDM(e.data)):(y===y0?crN(e.data):null); if(n!=null&&dentro(n)) r.push({n,tipo:'feriado',titulo:e.titulo||'Feriado',id:e.id})}
+    for(const e of agDe('aniversario')){const dm=agDM(e.data); if(!dm) continue; const n=agN(y,dm.m-1,dm.d); if(dentro(n)) r.push({n,tipo:'aniversario',titulo:e.titulo||'',id:e.id})}
+  }
+  return r;
+}
+const agEvDe=pid=>agDe('evento').filter(e=>e.projeto===pid);
+function agEventos(pid,a,b){
+  const r=[];
+  for(const e of agEvDe(pid)){const s=crN(e.data); if(s==null) continue; let f=crN(e.fim); if(f==null||f<s) f=s;
+    for(let n=Math.max(s,a);n<=Math.min(f,b);n++) r.push({n,tipo:'evento',titulo:e.titulo||'Evento',hora:e.hora||'',id:e.id,ini:s,fim:f,local:e.local||''})}
+  return r;
+}
+function agMarcos(pid,a,b){
+  const r=[];
+  // marcos com o mesmo nome no mesmo dia (vários itens) viram um só, com a lista de itens
+  const g=new Map();
+  for(const t of croDe(pid)) if(!t.arquivado) for(const m of marcosT(t)) if(m.n>=a&&m.n<=b){const nm=nomeMarco(m), k=m.n+'|'+nm; if(!g.has(k)) g.set(k,{n:m.n,tipo:'marco',titulo:nm,pr:false,tid:t.id,itens:[]}); const o=g.get(k); o.pr=o.pr||principalM(pid,m); if(t.nome&&!o.itens.includes(t.nome)) o.itens.push(t.nome)}
+  for(const o of g.values()){r.push({...o,item:o.itens.join(' · ')})}
+  return r;
+}
+const AG_ORD={feriado:0,aniversario:1,marco:2,evento:3};
+function agChip(o){
+  const dt=crS(o.n);
+  if(o.tipo==='feriado') return `<${o.id&&!S.ro?'button data-act="cro-ag-ed" data-id="'+esc(o.id)+'"':'span'} class="ag-c fer" data-tipj="${esc(o.titulo)} · ${dt} · ${o.nac?(o.fac?'ponto facultativo nacional':'feriado nacional'):'feriado cadastrado'}">${esc(o.titulo)}</${o.id&&!S.ro?'button':'span'}>`;
+  if(o.tipo==='aniversario') return `<button class="ag-c ani"${S.ro?'':` data-act="cro-ag-ed" data-id="${esc(o.id)}"`} data-tipj="Aniversário · ${esc(o.titulo)} · ${dt.slice(0,5)}">Aniv. ${esc(o.titulo)}</button>`;
+  if(o.tipo==='marco') return `<button class="ag-c mk${o.pr?' pr':''}" data-act="cro-abrir" data-tid="${esc(o.tid)}" data-tipj="Marco · ${esc(o.titulo)} · ${dt} · ${esc(o.item)}"><i></i>${esc(o.titulo)}${o.itens.length>1?` <span class="ag-q">${o.itens.length}</span>`:''}</button>`;
+  return `<button class="ag-c ev${o.fim>o.ini?' multi':''}" data-act="cro-ag-ed" data-id="${esc(o.id)}" data-tipj="${esc(o.titulo)} · ${o.fim>o.ini?crS(o.ini)+' a '+crS(o.fim):dt}${o.hora?' · '+esc(o.hora):''}${o.local?' · '+esc(o.local):''}">${o.hora&&o.n===o.ini?`<span class="mono">${esc(o.hora)}</span> `:''}${esc(o.titulo)}</button>`;
+}
+function agCalendario(it){
+  const pid=it.id, hj=crHoje();
+  if(!AG.mes||AG.mes.pid!==pid){const d=crUD(hj); AG.mes={pid,y:d.getUTCFullYear(),m:d.getUTCMonth()}}
+  const {y,m}=AG.mes, p1=crMes1(y,m), ult=crMes1(y,m+1)-1, a=p1-crUD(p1).getUTCDay(), b=a+Math.ceil((ult-a+1)/7)*7-1;
+  const porDia=new Map();
+  for(const o of [...agGerais(a,b),...agEventos(pid,a,b),...agMarcos(pid,a,b)]){if(!porDia.has(o.n)) porDia.set(o.n,[]); porDia.get(o.n).push(o)}
+  let cel='';
+  for(let n=a;n<=b;n++){
+    const L=(porDia.get(n)||[]).sort((p,q)=>AG_ORD[p.tipo]-AG_ORD[q.tipo]||(p.pr===q.pr?0:p.pr?-1:1)||String(p.hora||'').localeCompare(String(q.hora||''))), wd=crUD(n).getUTCDay();
+    const fer=L.some(o=>o.tipo==='feriado'&&!o.fac), max=4;
+    cel+=`<div class="ag-d${n<p1||n>ult?' fora':''}${wd===0||wd===6?' fds':''}${fer?' fer':''}${n===hj?' hj':''}"${S.ro?'':` data-act="cro-ag-dia" data-n="${n}" title="Clique para adicionar um evento em ${crS(n)}"`}>
+      <span class="ag-n">${crUD(n).getUTCDate()}</span>${L.slice(0,max).map(agChip).join('')}${L.length>max?`<span class="ag-mais" data-tipj="${esc(L.slice(max).map(o=>o.titulo).join(' · '))}">+${L.length-max}</span>`:''}</div>`;
+  }
+  const nEv=agEvDe(pid).length;
+  return `<div class="ag-bar"><div class="ag-nav"><button class="icb" data-act="cro-ag-mes" data-d="-1" title="Mês anterior" aria-label="Mês anterior">‹</button><b class="ag-tit">${MESES_L[m][0].toUpperCase()+MESES_L[m].slice(1)} de ${y}</b><button class="icb" data-act="cro-ag-mes" data-d="1" title="Próximo mês" aria-label="Próximo mês">›</button><button class="btn sm ghost" data-act="cro-ag-mes" data-d="0">Hoje</button></div>
+    <div class="cro-lgs ag-lgs"><span class="cro-lg"><i class="ag-lg ev"></i>Evento${nEv?` (${nEv})`:''}</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span><span class="cro-lg"><i class="mk"></i>Marco</span><span class="cro-lg"><i class="ag-lg fer"></i>Feriado</span><span class="cro-lg"><i class="ag-lg ani"></i>Aniversário</span></div></div>
+  <section class="ag-cal" aria-label="Calendário de ${MESES_L[m]} de ${y}"><div class="ag-sem">${SEMANA_C.map(s=>`<span>${s}</span>`).join('')}</div><div class="ag-grade">${cel}</div></section>
+  ${S.ro?'':'<p class="muted cro-dica" style="margin:6px 2px 0">Clique num dia para adicionar um evento. Os marcos vêm do cronograma: clique num marco para abrir o item.</p>'}`;
+}
+/* ficha lateral da agenda */
+function agDrawer(){
+  let d=$('agDr'); const dr=AG.dr;
+  if(!dr){d?.remove(); if(!CRO.dr) document.body.classList.remove('cro-dr-on'); return}
+  if(CRO.dr){CRO.dr=null; croDrawer()}
+  if(!d){d=document.createElement('aside');d.id='agDr';d.className='cro-dr';d.setAttribute('aria-label','Ficha da agenda');document.body.appendChild(d)}
+  document.body.classList.add('cro-dr-on');
+  d.innerHTML=dr.tipo==='lista'?agListaHTML():agFichaHTML(dr);
+}
+const AG_TIT={evento:['Novo evento','Evento'],feriado:['Novo feriado','Feriado'],aniversario:['Novo aniversário','Aniversário']};
+function agFichaHTML(dr){
+  const ro=S.ro?'disabled':'', dm=agDM(dr.data)||{d:'',m:''};
+  let campos='';
+  if(dr.tipo==='evento') campos=`<label class="fl">Título<input class="fld" data-agf="titulo" value="${esc(dr.titulo||'')}" placeholder="Ex.: Reunião com o cliente, visita à obra" ${ro}></label>
+    <div class="cro-g2"><label class="fl">Data<input type="date" class="fld" data-agf="data" value="${dIso(dr.data)}" ${ro}></label><label class="fl">Até (opcional)<input type="date" class="fld" data-agf="fim" value="${dIso(dr.fim)}" ${ro}></label></div>
+    <div class="cro-g2"><label class="fl">Horário (opcional)<input type="time" class="fld" data-agf="hora" value="${esc(dr.hora||'')}" ${ro}></label><label class="fl">Local (opcional)<input class="fld" data-agf="local" value="${esc(dr.local||'')}" ${ro}></label></div>
+    <label class="fl">Observações<textarea class="fld" rows="4" data-agf="obs" ${ro}>${esc(dr.obs||'')}</textarea></label>`;
+  else if(dr.tipo==='feriado') campos=`<label class="fl">Nome<input class="fld" data-agf="titulo" value="${esc(dr.titulo||'')}" placeholder="Ex.: São Sebastião" ${ro}></label>
+    <label class="fl">Data<input type="date" class="fld" data-agf="data" value="${dIso(dr.data)}" ${ro}></label>
+    <label class="cro-ck"><input type="checkbox" data-agf="recorrente"${dr.recorrente?' checked':''} ${ro}> Repete todo ano no mesmo dia</label>
+    <p class="muted cro-vz">Os feriados nacionais já aparecem sozinhos. Cadastre aqui os estaduais, municipais e os recessos do escritório.</p>`;
+  else campos=`<label class="fl">Nome<input class="fld" data-agf="titulo" value="${esc(dr.titulo||'')}" placeholder="Nome da pessoa" ${ro}></label>
+    <div class="cro-g2"><label class="fl">Dia<select class="fld" data-agf="dia" ${ro}><option value="">—</option>${Array.from({length:31},(_,i)=>`<option${dm.d===i+1?' selected':''}>${i+1}</option>`).join('')}</select></label>
+    <label class="fl">Mês<select class="fld" data-agf="mes" ${ro}><option value="">—</option>${MESES_L.map((nm,i)=>`<option value="${i+1}"${dm.m===i+1?' selected':''}>${nm}</option>`).join('')}</select></label></div>`;
+  return `<div class="cro-dr-h"><b>${AG_TIT[dr.tipo][dr.novo?0:1]}</b><button class="icb" data-act="cro-ag-fechar" title="Fechar">${IC.x}</button></div>
+  <div class="cro-dr-b">${dr.voltar?`<button class="btn sm ghost" style="align-self:flex-start" data-act="cro-ag-lista">‹ Feriados e aniversários</button>`:''}${campos}</div>
+  ${S.ro?'':`<div class="cro-dr-f">${dr.novo?'':`<button class="btn danger sm" data-act="cro-ag-excluir">${IC.trash}Excluir</button>`}<span class="cro-sp"></span><button class="btn sm" data-act="cro-ag-fechar">Cancelar</button><button class="btn pri sm" data-act="cro-ag-salvar">Salvar</button></div>`}`;
+}
+function agListaHTML(){
+  const y=crUD(crHoje()).getUTCFullYear(), ord=(p,q)=>{const a=agDM(p.data)||{m:99,d:99}, b=agDM(q.data)||{m:99,d:99}; return a.m-b.m||a.d-b.d};
+  const fer=agDe('feriado').sort(ord), ani=agDe('aniversario').sort(ord), nac=[...agNacionais(y)].sort((p,q)=>p.n-q.n);
+  const lin=(e,sub)=>`<button class="ag-li" data-act="cro-ag-ed" data-id="${esc(e.id)}" data-voltar="1"${S.ro?' disabled':''}><span class="mono">${esc(String(e.data||'').slice(0,e.tipo==='aniversario'||e.recorrente?5:10))}</span><b>${esc(e.titulo||'(sem nome)')}</b><span class="muted">${sub}</span></button>`;
+  return `<div class="cro-dr-h"><b>Feriados e aniversários</b><button class="icb" data-act="cro-ag-fechar" title="Fechar">${IC.x}</button></div>
+  <div class="cro-dr-b">
+    <div class="cro-sec"><span>Aniversários</span>${S.ro?'':`<button class="btn sm ghost" data-act="cro-ag-novo" data-t="aniversario">${IC.plus}Aniversário</button>`}</div>
+    ${ani.length?ani.map(e=>lin(e,'')).join(''):'<p class="muted cro-vz">Nenhum aniversário cadastrado.</p>'}
+    <div class="cro-sec"><span>Feriados cadastrados</span>${S.ro?'':`<button class="btn sm ghost" data-act="cro-ag-novo" data-t="feriado">${IC.plus}Feriado</button>`}</div>
+    ${fer.length?fer.map(e=>lin(e,e.recorrente?'todo ano':'')).join(''):'<p class="muted cro-vz">Nenhum feriado cadastrado. Inclua aqui os feriados estaduais e municipais e os recessos do escritório.</p>'}
+    <div class="cro-sec"><span>Feriados nacionais de ${y}</span></div>
+    ${nac.map(f=>`<div class="ag-li nac"><span class="mono">${crCurto(f.n)}</span><b>${esc(f.nome)}</b><span class="muted">${f.fac?'ponto facultativo':''}</span></div>`).join('')}
+    <p class="muted cro-vz">Calculados automaticamente todo ano, inclusive as datas móveis (Carnaval, Sexta-feira Santa e Corpus Christi).</p>
+  </div>`;
+}
+function agLimpo(dr){
+  const b={tipo:dr.tipo,titulo:String(dr.titulo||'').trim()};
+  if(dr.tipo==='evento'){const s=crN(dr.data); b.projeto=dr.projeto; b.data=s!=null?crS(s):''; const f=crN(dr.fim); b.fim=f!=null&&s!=null&&f>s?crS(f):''; b.hora=String(dr.hora||''); b.local=String(dr.local||'').trim(); b.obs=String(dr.obs||'')}
+  else if(dr.tipo==='feriado'){b.data=crN(dr.data)!=null?crS(crN(dr.data)):''; b.recorrente=!!dr.recorrente}
+  else {const dm=agDM(dr.data); b.data=dm?`${String(dm.d).padStart(2,'0')}/${String(dm.m).padStart(2,'0')}`:''}
+  for(const k of ['criadoEm','criadoPor']) if(dr[k]!=null) b[k]=dr[k];
+  return b;
+}
+async function agSalvar(){
+  const dr=AG.dr; if(!dr||S.ro) return;
+  const b=agLimpo(dr);
+  if(!b.titulo){toast(dr.tipo==='aniversario'?'Informe o nome':'Dê um título');return}
+  if(!b.data){toast(dr.tipo==='aniversario'?'Escolha o dia e o mês':'Informe a data');return}
+  b.atualizadoEm=Date.now(); if(me) b.atualizadoPor=me;
+  try{
+    if(dr.novo){b.criadoEm=Date.now(); if(me) b.criadoPor=me; const ref=agColl().doc(); await ref.set(b); S.agenda.set(ref.id,{...b,id:ref.id})}
+    else {await agColl().doc(dr.id).set(b); S.agenda.set(dr.id,{...b,id:dr.id})}
+    AG.dr=dr.voltar?{tipo:'lista'}:null; agDrawer(); render(); toast('Salvo');
+  }catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
+}
+async function agAcao(a,b){
+  const dr=AG.dr;
+  if(a==='cro-ag-mes'){const d=+b.dataset.d, pid=S.view.id; if(!d){AG.mes=null} else {const m0=AG.mes||{y:crUD(crHoje()).getUTCFullYear(),m:crUD(crHoje()).getUTCMonth()}; let m=m0.m+d, y=m0.y; if(m<0){m=11;y--} if(m>11){m=0;y++} AG.mes={pid,y,m}} renderMain()}
+  else if(a==='cro-ag-dia'){if(S.ro) return; const n=+b.dataset.n; AG.dr={tipo:'evento',novo:true,projeto:S.view.id,titulo:'',data:crS(n),fim:'',hora:'',local:'',obs:''}; agDrawer(); setTimeout(()=>$('agDr')?.querySelector('[data-agf="titulo"]')?.focus(),0)}
+  else if(a==='cro-ag-novo'){if(S.ro) return; const t=b.dataset.t||'evento', hj=crHoje();
+    AG.dr={tipo:t,novo:true,voltar:dr?.tipo==='lista',titulo:'',data:t==='aniversario'?'':crS(hj),recorrente:t==='feriado',...(t==='evento'?{projeto:b.dataset.id||S.view.id,fim:'',hora:'',local:'',obs:''}:{})}; agDrawer(); setTimeout(()=>$('agDr')?.querySelector('[data-agf="titulo"]')?.focus(),0)}
+  else if(a==='cro-ag-ed'){const e=S.agenda.get(b.dataset.id); if(e){AG.dr={...structuredClone(e),voltar:!!b.dataset.voltar||dr?.tipo==='lista'}; agDrawer()}}
+  else if(a==='cro-ag-lista'){AG.dr={tipo:'lista'}; agDrawer()}
+  else if(a==='cro-ag-fechar'){AG.dr=dr?.voltar?{tipo:'lista'}:null; agDrawer()}
+  else if(a==='cro-ag-salvar'){await agSalvar()}
+  else if(a==='cro-ag-excluir'&&dr&&!dr.novo){
+    if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
+    try{await agColl().doc(dr.id).delete();S.agenda.delete(dr.id);AG.dr=dr.voltar?{tipo:'lista'}:null;agDrawer();render();toast('Excluído')}catch{toast('Não foi possível excluir.')}}
+  else if(a==='cro-ag-jan'){AG.jan=b.dataset.v;lsSet('fja.ag.jan',AG.jan);renderMain()}
+}
+document.addEventListener('input',ev=>{
+  const el=ev.target, dr=AG.dr; if(!dr||!el.closest?.('#agDr')||!el.dataset.agf) return;
+  const k=el.dataset.agf, v=el.type==='checkbox'?el.checked:el.type==='date'?dBr(el.value):el.value;
+  if(k==='dia'||k==='mes'){const dm=agDM(dr.data)||{d:0,m:0}; if(k==='dia') dm.d=+v||0; else dm.m=+v||0; dr.data=dm.d&&dm.m?`${String(dm.d).padStart(2,'0')}/${String(dm.m).padStart(2,'0')}`:(dm.d||dm.m?`${dm.d||0}/${dm.m||0}`:'')}
+  else dr[k]=v;
+});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&AG.dr&&!$('celPop')){AG.dr=null;agDrawer()}});
+/* painel geral de projetos: linhas do tempo resumidas dos projetos ativos, num eixo comum */
+function agLinhasTempo(){
+  const ps=itensDe('projetos').filter(pnAberto).sort(ordena), hj=crHoje();
+  const dados=ps.map(p=>{const L=croDe(p.id).filter(t=>!t.arquivado), ex=L.map(extT).filter(Boolean); return {p,L,ex}});
+  const com=dados.filter(d=>d.ex.length), sem=dados.length-com.length;
+  let a, b;
+  if(AG.jan==='tudo'&&com.length){a=Math.min(hj,...com.flatMap(d=>d.ex.map(e=>e[0]))); b=Math.max(hj+30,...com.flatMap(d=>d.ex.map(e=>e[1])))}
+  else {a=hj-30; b=hj+365}
+  const da=crUD(a), db_=crUD(b); a=crMes1(da.getUTCFullYear(),da.getUTCMonth()); b=crMes1(db_.getUTCFullYear(),db_.getUTCMonth()+1)-1;
+  const LBL=230, W=Math.max(420,($('main')?.clientWidth||1100)-110-LBL), px=W/(b-a+1), X=n=>(n-a)*px, dentro=(s,e)=>e>=a&&s<=b;
+  const clip=(s,e)=>[Math.max(s,a),Math.min(e,b)];
+  const meses=mesesE(a,b);
+  const cab=meses.map((o,i)=>{const w=(o.e-o.s+1)*px; return `<span class="lt-m" style="left:${X(o.s).toFixed(1)}px;width:${w.toFixed(1)}px">${w>40?MESES_C[o.m]+(o.m===0||i===0?' '+String(o.y).slice(2):''):w>14?MESES_C[o.m][0]:''}</span>`}).join('');
+  const grade=meses.map(o=>`<i class="lt-g" style="left:${X(o.s).toFixed(1)}px"></i>`).join('')+(hj>=a&&hj<=b?`<i class="lt-hj" style="left:${X(hj+.5).toFixed(1)}px" data-tipj="Hoje · ${crS(hj)}"></i>`:'');
+  let rows='';
+  for(const {p,L,ex} of com){
+    const pid=p.id, fs=fasesDe(L).map(([f,ts],i)=>{const fe=ts.map(extT).filter(Boolean);return fe.length?{f,a:Math.min(...fe.map(e=>e[0])),b:Math.max(...fe.map(e=>e[1])),cor:COR_FASE[i%COR_FASE.length]}:null}).filter(Boolean);
+    const lanes=[]; for(const o of fs){let k=lanes.findIndex(e=>e<o.a); if(k<0){k=lanes.length;lanes.push(0)} lanes[k]=o.b; o.k=k}
+    const nl=Math.max(1,lanes.length), H=Math.max(26,nl*9+12);
+    let tr='';
+    for(const o of fs) if(dentro(o.a,o.b)){const [s,e]=clip(o.a,o.b); tr+=`<div class="lt-f" style="left:${X(s).toFixed(1)}px;width:${Math.max(2,(e-s+1)*px).toFixed(1)}px;top:${6+o.k*9}px;background:${o.cor}" data-tipj="${esc(o.f)} · ${crS(o.a)} a ${crS(o.b)}"></div>`}
+    const mm=new Map(); for(const t of L) for(const m of marcosT(t)) if(principalM(pid,m)&&m.n>=a&&m.n<=b){const nm=nomeMarco(m), k=m.n+'|'+nm; if(!mm.has(k)) mm.set(k,{n:m.n,nm,it:[]}); mm.get(k).it.push(t.nome||'')}
+    for(const g of mm.values()) tr+=`<i class="lt-mk${g.n<hj?' ps':''}" style="left:${X(g.n+.5).toFixed(1)}px;top:${H/2-5}px" data-tipj="${esc(g.nm)} · ${crS(g.n)} · ${esc(g.it.join(' · '))}"></i>`;
+    for(const e of agEvDe(pid)){const s=crN(e.data); if(s==null||s<a||s>b) continue; tr+=`<i class="lt-ev" style="left:${X(s+.5).toFixed(1)}px;top:${H-7}px" data-tipj="Evento · ${esc(e.titulo||'')} · ${crS(s)}${e.hora?' · '+esc(e.hora):''}"></i>`}
+    const per=`${crS(Math.min(...ex.map(e=>e[0])))} a ${crS(Math.max(...ex.map(e=>e[1])))}`;
+    rows+=`<div class="lt-r"><button class="lt-l" data-act="cro" data-id="${esc(pid)}" title="Abrir o calendário/cronograma"><span class="mono">${esc(p.campos?.codigo||'')}</span><b>${esc(p.nome||'')}</b><em>${per}</em></button><div class="lt-t" style="height:${H}px">${tr}</div></div>`;
+  }
+  // feriados e aniversários
+  const gs=agGerais(a,b); let tg='';
+  for(const o of gs){const fer=o.tipo==='feriado'; tg+=`<i class="${fer?'lt-fer'+(o.fac?' fac':''):'lt-ani'}" style="left:${X(o.n+.5).toFixed(1)}px" data-tipj="${fer?(o.fac?'Ponto facultativo':'Feriado'):'Aniversário'} · ${esc(o.titulo)} · ${crS(o.n)}"></i>`}
+  rows+=`<div class="lt-r lt-ger"><button class="lt-l" data-act="cro-ag-lista" title="Cadastrar feriados e aniversários"><b>Feriados e aniversários</b><em>${gs.filter(o=>o.tipo==='feriado').length} feriados · ${gs.filter(o=>o.tipo==='aniversario').length} aniversários no período</em></button><div class="lt-t" style="height:30px">${tg}</div></div>`;
+  const seg=`<div class="seg">${[['ano','Próximos 12 meses'],['tudo','Período completo']].map(([v,r])=>`<button class="${AG.jan===v?'on':''}" data-act="cro-ag-jan" data-v="${v}">${r}</button>`).join('')}</div>`;
+  return `<section class="sheet lt-card"><div class="sheet-h lt-h"><h2>Linhas do tempo</h2><span class="muted lt-sub">${com.length} projeto${com.length===1?'':'s'} ativo${com.length===1?'':'s'} com cronograma${sem?` · ${sem} sem cronograma`:''}</span><span class="cro-sp"></span>${seg}<button class="btn sm ghost" data-act="cro-ag-lista">Feriados e aniversários</button></div>
+    <div class="lt-lgs"><span class="cro-lg"><i class="lt-lg-f"></i>Etapas</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span><span class="cro-lg"><i class="lt-lg-ev"></i>Evento</span><span class="cro-lg"><i class="lt-lg-fer"></i>Feriado</span><span class="cro-lg"><i class="lt-lg-ani"></i>Aniversário</span></div>
+    <div class="lt" style="--lbl:${LBL}px;--w:${W.toFixed(1)}px"><div class="lt-r lt-cab"><span class="lt-l"></span><div class="lt-t" style="height:20px">${cab}</div></div>
+    <div class="lt-corpo"><div class="lt-grade" style="left:${LBL}px;width:${W.toFixed(1)}px">${grade}</div>${rows}</div></div></section>`;
+}
+
 /* ---------- desfazer (últimas ações desta sessão) ---------- */
 var DESF={pilha:[],refazer:[],grupo:null,t:0,rodando:false}; const SOMBRA={};
-const MAPA_COLL={sugest:()=>S.sugest,itens:()=>S.itens,coment:()=>S.coment,pend:()=>S.pends,rdoc:()=>S.rdocs,ata:()=>S.atas,croq:()=>S.croqs,equip:()=>S.equip,crono:()=>S.crono,espec:()=>S.espec,espb:()=>S.espb,etsig:()=>S.etsig};
+const MAPA_COLL={sugest:()=>S.sugest,itens:()=>S.itens,coment:()=>S.coment,pend:()=>S.pends,rdoc:()=>S.rdocs,ata:()=>S.atas,croq:()=>S.croqs,equip:()=>S.equip,crono:()=>S.crono,agenda:()=>S.agenda,espec:()=>S.espec,espb:()=>S.espb,etsig:()=>S.etsig};
 function sombraDe(n){return SOMBRA[n]||(SOMBRA[n]=new Map())}
 // campos de controle (vínculos e espelhos de planilhas) não entram no desfazer
 const SEM_DESF=new Set(['comEspelhoDev','pdEspelhoDev','equipEspelhoDev','comEspelhoOff','pdEspelhoOff','equipEspelhoOff','croEspelho','comEspelho','pdEspelho','rdEspelho','rdEspelhoDev','rdEspelhoOff','rdOrigem','rdExport','ataPasta','croqPasta','comOrigem','pdOrigem','equipOrigem','comExport','pdExport','equipExport']);
@@ -8374,8 +8650,8 @@ function telaFerr(h,v){
 
 /* ---------- backup completo do banco (Drive) ---------- */
 const BKP={pasta:'1uRdXSx8JnBNegGSD4y59klSfSyLB9HuC',caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\BACKUP',st:null,rodando:false};
-const BKP_ROT={itens:'Projetos e catálogos',espec:'Especificações',espb:'Especificações (biblioteca)',equip:'Equipamentos',coment:'Comentários',pend:'Pendências',rdoc:'Relação de documentos',ata:'Atas',croq:'Croquis',crono:'Cronograma',sugest:'Sugestões',etsig:'Siglas de keynote',config:'Configurações'};
-const BKP_COLS=()=>[['itens',coll],['espec',espColl],['espb',espbColl],['equip',eqColl],['coment',comColl],['pend',pendColl],['rfi',rfiColl],['rdoc',rdColl],['ata',ataColl],['croq',croqColl],['crono',croColl],['sugest',sugColl],['etsig',etsigColl]];
+const BKP_ROT={itens:'Projetos e catálogos',espec:'Especificações',espb:'Especificações (biblioteca)',equip:'Equipamentos',coment:'Comentários',pend:'Pendências',rdoc:'Relação de documentos',ata:'Atas',croq:'Croquis',crono:'Cronograma',agenda:'Calendário (eventos, feriados e aniversários)',sugest:'Sugestões',etsig:'Siglas de keynote',config:'Configurações'};
+const BKP_COLS=()=>[['itens',coll],['espec',espColl],['espb',espbColl],['equip',eqColl],['coment',comColl],['pend',pendColl],['rfi',rfiColl],['rdoc',rdColl],['ata',ataColl],['croq',croqColl],['crono',croColl],['agenda',agColl],['sugest',sugColl],['etsig',etsigColl]];
 const bkpHoje=()=>new Date().toLocaleDateString('sv-SE');
 function bkpLer(ref){
   if(typeof ref.get==='function') return ref.get();
@@ -8901,6 +9177,7 @@ async function modoPublico(){
     S.atas=new Map(Object.entries(snap.ata||{}).map(([id,v])=>[id,{...v,id}]));
     S.croqs=new Map(Object.entries(snap.croq||{}).map(([id,v])=>[id,{...v,id}]));
     S.crono=new Map(Object.entries(snap.crono||{}).map(([id,v])=>[id,{...v,id}]));
+    S.agenda=new Map(Object.entries(snap.agenda||{}).map(([id,v])=>[id,{...v,id}]));
     S.sugest=new Map(Object.entries(snap.sugest||{}).map(([id,v])=>[id,{...v,id}]));
     S.publico=snap.geradoEm||true; S.ro=true; S.carregado=true; S.estado='ok'; if(restaurarVista()){setConn('Versão pública · somente leitura','on');return}
     setConn('Versão pública · somente leitura','on');
@@ -8945,6 +9222,10 @@ async function modoPublico(){
   croColl().onSnapshot(snap=>{
     const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.projeto) m.set(d.id,{...structuredClone(v),id:d.id})}
     S.crono=m; if(S.carregado&&!crDrag){if(S.dirty) renderTree(); else render()}
+  },()=>{});
+  agColl().onSnapshot(snap=>{
+    const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.tipo) m.set(d.id,{...structuredClone(v),id:d.id})}
+    S.agenda=m; if(S.carregado&&!crDrag){if(S.dirty||AG.dr) renderTree(); else render()}
   },()=>{});
   croqColl().onSnapshot(snap=>{
     const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.projeto) m.set(d.id,{...structuredClone(v),id:d.id})}
