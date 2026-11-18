@@ -7713,7 +7713,9 @@ document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&AG.dr&&!$('celPop
 /* painel geral de projetos: linhas do tempo resumidas dos projetos ativos, num eixo comum */
 function agLinhasTempo(){
   const ps=itensDe('projetos').filter(pnAberto).sort(ordena), hj=crHoje();
-  const dados=ps.map(p=>{const L=croDe(p.id).filter(t=>!t.arquivado), ex=L.map(extT).filter(Boolean); return {p,L,ex}});
+  // projetos com itens no cronograma ou com eventos no calendário
+  const exEv=e=>{const s=crN(e.data); if(s==null) return null; const f=crN(e.fim); return [s,f!=null&&f>s?f:s]};
+  const dados=ps.map(p=>{const L=croDe(p.id).filter(t=>!t.arquivado), ex=[...L.map(extT),...agEvDe(p.id).map(exEv)].filter(Boolean); return {p,L,ex}});
   const com=dados.filter(d=>d.ex.length), sem=dados.length-com.length;
   let a, b;
   if(AG.jan==='tudo'&&com.length){a=Math.min(hj,...com.flatMap(d=>d.ex.map(e=>e[0]))); b=Math.max(hj+30,...com.flatMap(d=>d.ex.map(e=>e[1])))}
@@ -7742,7 +7744,7 @@ function agLinhasTempo(){
   for(const o of gs){const fer=o.tipo==='feriado'; tg+=`<i class="${fer?'lt-fer'+(o.fac?' fac':''):'lt-ani'}" style="left:${X(o.n+.5).toFixed(1)}px" data-tipj="${fer?(o.fac?'Ponto facultativo':'Feriado'):'Aniversário'} · ${esc(o.titulo)} · ${crS(o.n)}"></i>`}
   rows+=`<div class="lt-r lt-ger"><button class="lt-l" data-act="cro-ag-lista" title="Cadastrar feriados e aniversários"><b>Feriados e aniversários</b><em>${gs.filter(o=>o.tipo==='feriado').length} feriados · ${gs.filter(o=>o.tipo==='aniversario').length} aniversários no período</em></button><div class="lt-t" style="height:30px">${tg}</div></div>`;
   const seg=`<div class="seg">${[['ano','Próximos 12 meses'],['tudo','Período completo']].map(([v,r])=>`<button class="${AG.jan===v?'on':''}" data-act="cro-ag-jan" data-v="${v}">${r}</button>`).join('')}</div>`;
-  return `<section class="sheet lt-card"><div class="sheet-h lt-h"><h2>Linhas do tempo</h2><span class="muted lt-sub">${com.length} projeto${com.length===1?'':'s'} ativo${com.length===1?'':'s'} com cronograma${sem?` · ${sem} sem cronograma`:''}</span><span class="cro-sp"></span>${seg}<button class="btn sm ghost" data-act="cro-ag-lista">Feriados e aniversários</button></div>
+  return `<section class="sheet lt-card"><div class="sheet-h lt-h"><h2>Linhas do tempo</h2><span class="muted lt-sub">${com.length} projeto${com.length===1?'':'s'} ativo${com.length===1?'':'s'} com cronograma ou eventos${sem?` · ${sem} sem datas`:''}</span><span class="cro-sp"></span>${seg}<button class="btn sm ghost" data-act="cro-ag-lista">Feriados e aniversários</button></div>
     <div class="lt-lgs"><span class="cro-lg"><i class="lt-lg-f"></i>Etapas</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span><span class="cro-lg"><i class="lt-lg-ev"></i>Evento</span><span class="cro-lg"><i class="lt-lg-fer"></i>Feriado</span><span class="cro-lg"><i class="lt-lg-ani"></i>Aniversário</span></div>
     <div class="lt" style="--lbl:${LBL}px;--w:${W.toFixed(1)}px"><div class="lt-r lt-cab"><span class="lt-l"></span><div class="lt-t" style="height:20px">${cab}</div></div>
     <div class="lt-corpo"><div class="lt-grade" style="left:${LBL}px;width:${W.toFixed(1)}px">${grade}</div>${rows}</div></div></section>`;
