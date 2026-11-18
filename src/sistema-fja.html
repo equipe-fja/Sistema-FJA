@@ -641,6 +641,14 @@ tr.rd-sel>td:first-child{box-shadow:inset 3px 0 0 var(--accent,#8e1b1b)}
 .pdfl-ck{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
 .pdfl-n{margin:0;font-size:11.5px;color:var(--faint)}
 .pdfl-go{align-self:flex-end}
+.pdfl-sel{align-self:flex-start}
+.psel-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--accent-weak);border:1px solid #e6c9c4;border-radius:10px;padding:8px 12px;margin:0 0 8px;font-size:13px;position:sticky;top:0;z-index:12}
+.psel-bar b{color:var(--accent-ink)}.psel-bar .muted{font-size:12px}
+.psel-modo tr[data-eid]{cursor:pointer}
+.psel-modo tr[data-eid]>td:first-child{position:relative;padding-left:28px!important}
+.psel-modo tr[data-eid]>td:first-child::before{content:'';position:absolute;left:8px;top:50%;width:13px;height:13px;margin-top:-7px;border:1.5px solid var(--line-strong);border-radius:3px;background:var(--panel)}
+.psel-modo tr.psel>td{background:var(--accent-weak)!important}
+.psel-modo tr.psel>td:first-child::before{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--panel)}
 .ferr-caminhos{margin:0 0 14px}.ferr-caminhos .ferr-cam{margin:0}.ferr-caminhos .sync-msg:empty{display:none}
 .ferr-cam{display:flex;flex-direction:column;gap:3px;margin:-4px 0 12px;font-size:11.5px;color:var(--muted)}
 .ferr-cam-l{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
@@ -2388,7 +2396,8 @@ function eqCorpoHTML(pid,cols){
   return h;
 }
 function eqTabelaHTML(pid){
-  const m=M();
+  const m=M(); pselConferir();
+  if(PSEL.on&&!impAtivo(m,pid)) return `${pselBarHTML(pid)}<div class="psel-modo">${eqTabelaHTML2(pid,m).replace(/<tr data-act="[^"]*" data-id="[^"]*" data-eid="([^"]*)" class="/g,(x,id)=>PSEL.ids.has(id)?x+'psel ':x)}</div>`;
   if(impAtivo(m,pid)){const t=eqTabelaHTML2(pid,m); return `<div class="imp-rev">${impBarraHTML()}${t}</div>`}
   return eqTabelaHTML2(pid,m);
 }
@@ -5651,7 +5660,22 @@ async function exportarPdfEq(btn){
 /* ---------- exportar a lista exibida em PDF (papel timbrado) ----------
    Segue exatamente o que a tela mostra: colunas visíveis e sua ordem, filtros, busca, ordenação e agrupamento. */
 const PDFL_LS='fja.pdfLista';
-const pdflPref=()=>{try{return {papel:'A4',orient:'paisagem',graficos:true,...(JSON.parse(localStorage.getItem(PDFL_LS)||'{}'))}}catch{return {papel:'A4',orient:'paisagem',graficos:true}}};
+const pdflPref=()=>{try{return {papel:'A4',orient:'paisagem',graficos:true,capa:true,...(JSON.parse(localStorage.getItem(PDFL_LS)||'{}'))}}catch{return {papel:'A4',orient:'paisagem',graficos:true,capa:true}}};
+/* seleção de itens para o PDF: modo de seleção na própria tabela (clique nas linhas marca e desmarca) */
+const PSEL={on:false,ids:new Set(),chave:'',ancora:null,usar:false};
+const pselChave=()=>(S.view?.t||'')+'|'+(S.view?.id||'');
+function pselConferir(){const k=pselChave(); if(PSEL.chave!==k){PSEL.chave=k; PSEL.on=false; PSEL.ids.clear(); PSEL.ancora=null; PSEL.usar=false}}
+function pselBarHTML(pid){const n=PSEL.ids.size, t=eqFiltrados(pid).length;
+  return `<div class="psel-bar" id="pselBar"><b>${n}</b> de ${t} ${t===1?'item':'itens'} selecionado${n===1?'':'s'} para o PDF<span class="muted">· clique nas linhas para marcar ou desmarcar (Shift marca um intervalo)</span><span class="cro-sp"></span><button class="btn sm ghost" data-act="psel-todos">Selecionar todos</button><button class="btn sm ghost" data-act="psel-limpar">Limpar</button><button class="btn sm ghost" data-act="psel-sair">Concluir</button><button class="btn sm pri" data-act="pdfl-abrir"${n?'':' disabled'}>${IC.pdf}Gerar PDF</button></div>`}
+function pselPinta(pid){document.querySelectorAll('.psel-modo tr[data-eid]').forEach(tr=>tr.classList.toggle('psel',PSEL.ids.has(tr.dataset.eid))); const b=$('pselBar'); if(b) b.outerHTML=pselBarHTML(pid)}
+// no modo de seleção, o clique na linha marca (e não abre a ficha)
+document.addEventListener('click',ev=>{
+  if(!PSEL.on) return; const tr=ev.target.closest?.('.psel-modo tr[data-eid]'); if(!tr) return;
+  ev.preventDefault(); ev.stopPropagation(); const id=tr.dataset.eid;
+  if(ev.shiftKey&&PSEL.ancora){const trs=[...document.querySelectorAll('.psel-modo tr[data-eid]')].map(t=>t.dataset.eid), a=trs.indexOf(PSEL.ancora), b=trs.indexOf(id); if(a>=0&&b>=0) trs.slice(Math.min(a,b),Math.max(a,b)+1).forEach(x=>PSEL.ids.add(x))}
+  else PSEL.ids.has(id)?PSEL.ids.delete(id):PSEL.ids.add(id);
+  PSEL.ancora=id; PSEL.usar=PSEL.ids.size>0; document.getSelection()?.removeAllRanges(); pselPinta(S.view.id);
+},true);
 const IC_PDFL='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6m0 0-2.5-2.5M12 17l2.5-2.5"/></svg>';
 const IC_XLSL='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h7M9 9v12"/><path d="M16.5 11.5v6m0 0-2.3-2.3m2.3 2.3 2.3-2.3"/></svg>';
 const temXlsx=()=>{const m=M(), t=S.view?.t; return ['eq','com','pen','rel'].includes(t)&&!!m.xcols&&!!m.xNome};
@@ -5664,6 +5688,8 @@ function abrirPdflPop(btn){
   d.innerHTML=`<div class="pdfl-t">Exportar em PDF</div>
     <div class="pdfl-l"><span>Papel</span>${seg('papel',[['A4','A4'],['A3','A3']])}</div>
     <div class="pdfl-l"><span>Orientação</span>${seg('orient',[['retrato','Retrato'],['paisagem','Paisagem']])}</div>
+    ${S.view?.t==='cro'?'':(pselConferir(),`<div class="pdfl-l"><span>Itens</span><div class="seg pdfl-seg"><button class="${PSEL.usar&&PSEL.ids.size?'':'on'}" data-act="psel-usar" data-v="0">Todos exibidos (${eqFiltrados(S.view.id).length})</button><button class="${PSEL.usar&&PSEL.ids.size?'on':''}" data-act="psel-usar" data-v="1"${PSEL.ids.size?'':' disabled'}>Selecionados (${PSEL.ids.size})</button></div></div><button class="btn sm ghost pdfl-sel" data-act="psel-entrar">Selecionar itens na tabela…</button>`)}
+    <label class="pdfl-ck"><input type="checkbox" id="pdflCapa"${p.capa?' checked':''}> Incluir capa</label>
     <label class="pdfl-ck"><input type="checkbox" id="pdflGraf"${p.graficos?' checked':''}> ${S.view?.t==='cro'?'Incluir gantt':'Incluir gráficos'}</label>
     <p class="pdfl-n">${S.view?.t==='cro'?'Segue as etapas, as cores e os arquivados exibidos na tela. Sem o gantt, sai a tabela com períodos e marcos.':'Segue os filtros, a ordenação, o agrupamento e as colunas visíveis na tela.'}</p>
     <button class="btn pri sm pdfl-go" data-act="pdfl-gerar">${IC.pdf}Gerar PDF</button>`;
@@ -5676,9 +5702,11 @@ async function pdflAcao(a,b){
   if(a==='pdfl-abrir'){abrirPdflPop(b);return}
   if(a==='pdfl-opt'){const p=pdflPref(); p[b.dataset.k]=b.dataset.v; try{localStorage.setItem(PDFL_LS,JSON.stringify(p))}catch{}
     b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); return}
-  if(a==='pdfl-gerar'){const p={...pdflPref(),graficos:!!$('pdflGraf')?.checked}; try{localStorage.setItem(PDFL_LS,JSON.stringify(p))}catch{}
+  if(a==='psel-entrar'){fecharPdflPop(); PSEL.on=true; renderMain(); toast('Clique nas linhas para escolher os itens do PDF'); return}
+  if(a==='psel-usar'){PSEL.usar=b.dataset.v==='1'; b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); return}
+  if(a==='pdfl-gerar'){const p={...pdflPref(),graficos:!!$('pdflGraf')?.checked,capa:!!$('pdflCapa')?.checked}; try{localStorage.setItem(PDFL_LS,JSON.stringify(p))}catch{}
     const t0=b.innerHTML; b.disabled=true; b.textContent='Gerando PDF…';
-    try{const {bytes,nome}=await montarPdfLista(S.view.id,p), blob=new Blob([bytes],{type:'application/pdf'});
+    try{const {bytes,nome}=await montarPdfLista(S.view.id,{...p,sel:S.view?.t!=='cro'&&PSEL.usar&&PSEL.ids.size?new Set(PSEL.ids):null}), blob=new Blob([bytes],{type:'application/pdf'});
       if(downloads){const r=await downloads.save({filename:nome+'.pdf',data:blob});toast(r?.status==='saved'?'PDF salvo':'PDF gerado')}
       else{const u=URL.createObjectURL(blob),x=document.createElement('a');x.href=u;x.download=nome+'.pdf';document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('PDF gerado')}
       fecharPdflPop();
@@ -6466,7 +6494,7 @@ async function montarPdfLista(pid,op){
   const nomeP=nomeEmissao(it);
   const hoje=new Date(), hojeTxt=hoje.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
   const tituloDoc=PDFL_TIT[mod]||'Lista';
-  const paginas=[]; let pg,y;
+  const paginas=[]; let pg,y, nCapa=null;
   function timbre(p){
     p.drawRectangle({x:0,y:H-4*k,width:W,height:4*k,color:C.brand});
     const ly=H-MG-26*k, ls=28*k;
@@ -6574,7 +6602,7 @@ async function montarPdfLista(pid,op){
     }
   } else {
   // ---- dados exatamente como na tela
-  const gk=agrupaCol(); let lista=eqFiltrados(pid);
+  const gk=agrupaCol(); let lista=eqFiltrados(pid); if(op.sel) lista=lista.filter(e=>op.sel.has(e.id)); nCapa=lista.length;
   const gv=e=>gk?htmlTxt(valEq(gk,e)).trim():'';
   if(gk){const ordm=new Map(); lista.forEach(e=>{const v=gv(e); if(!ordm.has(v)) ordm.set(v,ordm.size)});
     const o=ordAtiva(), pelaOrd=o&&o.k===gk, og=md.ordGrupo?.[gk];
@@ -6681,6 +6709,18 @@ async function montarPdfLista(pid,op){
   paginas.forEach((p,i)=>{p.drawLine({start:{x:MG,y:BOT-12*k},end:{x:W-MG,y:BOT-12*k},thickness:.5,color:C.line});
     const esq=safe(`Filipe Jacopucci Arquitetura  ·  Sistema FJA  ·  ${tituloDoc}  ·  ${nomeP}`);p.drawText(esq,{x:MG,y:BOT-24*k,size:6.8*k,font:F,color:C.faint});
     const d=`${i+1} / ${n}`;p.drawText(d,{x:W-MG-FB.widthOfTextAtSize(d,7*k),y:BOT-24*k,size:7*k,font:FB,color:C.muted})});
+  if(op.capa){ // capa em papel timbrado (sem número de página)
+    const cp=doc.insertPage(0,[W,H]); timbre(cp);
+    const t=(tx,x,yy,sz,f=F,c=C.ink)=>cp.drawText(safe(tx,f),{x,y:yy,size:sz,font:f,color:c});
+    let yy=H*.62; t(tituloDoc.toUpperCase(),MG,yy,10*k,FB,C.brand); yy-=34*k;
+    for(const l of wrap(nomeP,26*k,CW,FB)){t(l,MG,yy,26*k,FB,C.ink); yy-=32*k}
+    yy-=6*k; cp.drawLine({start:{x:MG,y:yy},end:{x:MG+120*k,y:yy},thickness:1.2,color:C.brand}); yy-=26*k;
+    const cli=it?.campos?.cliente, filtrado=!cro&&!op.sel&&eqFiltrados(pid).length!==(md.de?.(pid)||[]).length;
+    const linhas=[cli&&['Cliente',cli],['Emissão',hojeTxt],nCapa!=null&&['Itens',`${nCapa} ${nCapa===1?'item':'itens'}${op.sel?' selecionados':''}`],filtrado&&['Recorte','conforme os filtros da tela']].filter(Boolean);
+    for(const [r,v] of linhas){t(r.toUpperCase(),MG,yy,7.5*k,FB,C.muted); t(v,MG+90*k,yy,10*k,F,C.ink); yy-=20*k}
+    cp.drawLine({start:{x:MG,y:BOT-12*k},end:{x:W-MG,y:BOT-12*k},thickness:.5,color:C.line});
+    cp.drawText(safe('Filipe Jacopucci Arquitetura  ·  Sistema FJA'),{x:MG,y:BOT-24*k,size:6.8*k,font:F,color:C.faint});
+  }
   doc.setTitle(`${tituloDoc} · ${nomeP}`); doc.setAuthor('Filipe Jacopucci Arquitetura'); doc.setCreator('Sistema FJA');
   const nome=`${codEmissao(it)||'000'}-${PDFL_NOME[mod]||'LISTA'}-${hoje.toISOString().slice(0,10)}`;
   return {bytes:await doc.save(),nome};
@@ -6946,7 +6986,10 @@ document.addEventListener('click',async ev=>{
   const a=b.dataset.act;
   if(b.dataset.tk&&ev.target.closest('.chev')&&!S.busca.trim()){alternarTk(b);return}
   if(a==='sug'||a.startsWith('sug-')){await sugAcao(a,b);return}
-  if(a.startsWith('pdfl-')){await pdflAcao(a,b);return}
+  if(a.startsWith('pdfl-')||a==='psel-entrar'||a==='psel-usar'){await pdflAcao(a,b);return}
+  if(a==='psel-todos'){for(const e of eqFiltrados(S.view.id)) PSEL.ids.add(e.id); PSEL.usar=true; pselPinta(S.view.id); return}
+  if(a==='psel-limpar'){PSEL.ids.clear(); PSEL.usar=false; pselPinta(S.view.id); return}
+  if(a==='psel-sair'){PSEL.on=false; renderMain(); if(PSEL.ids.size) toast(`${PSEL.ids.size} ${PSEL.ids.size===1?'item ficou selecionado':'itens ficaram selecionados'} para o PDF`); return}
   if(a.startsWith('ata-')){await ataAcao(a,b);return}
   if(a.startsWith('cq-')){await cqAcao(a,b);return}
   if(a.startsWith('cp-')){await cpAcao(a,b);return}
