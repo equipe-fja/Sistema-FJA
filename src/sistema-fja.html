@@ -6806,10 +6806,12 @@ function alternarTk(b){
   if(def) lsSet('fja.fechadas',[...S.fechadas]);
   renderTree();
 }
-function ir(view){
+// op.pop: veio do botão voltar/avançar do navegador (não grava nova entrada); op.substituir: troca a entrada atual (abertura da página)
+function ir(view,op={}){
   if(S.dirty){S.pend=view;renderMain();$('main').scrollTop=0;return}
   if(S.qnovo&&view.eid!==S.qnovo) S.qnovo=null;
   if(RH.on&&!(RH.geral?view.t==='rfi'&&view.id===RH.geral:view.t==='rfii'&&view.eid===S.view?.eid)) rfiHistFechar();
+  if(!op.pop) histGravar(view,op.substituir);
   S.view=view; S.pend=null; S.fx.clear(); lsSet('fja.view',view);
   if(view.t!=='item') S.draft=null;
   if(view.t!=='espbi') S.edraft=null;
@@ -6837,14 +6839,34 @@ function ir(view){
   if(window.innerWidth<=760 && view.t==='item') $('side').classList.add('collapsed');
 }
 function render(){renderTree();renderMain()}
+/* histórico do navegador: cada tela aberta vira uma entrada, e voltar/avançar reabre a tela (com a rolagem em que estava).
+   A URL não muda; a tela fica em history.state.fja. */
+function histGravar(view,substituir){
+  try{
+    const y=$('main')?.scrollTop||0, atual=history.state?.fja;
+    // guarda a rolagem da tela que está sendo deixada, para voltar ao mesmo ponto
+    if(atual) history.replaceState({...history.state,y},'');
+    else history.replaceState({fja:S.view,y},'');
+    if(substituir) history.replaceState({fja:view,y:0},'');
+    else if(JSON.stringify(history.state.fja)!==JSON.stringify(view)) history.pushState({fja:view,y:0},'');
+  }catch(e){console.warn('histórico',e)}
+}
+addEventListener('popstate',ev=>{
+  const v=ev.state?.fja; if(!v||!S.carregado) return;
+  if(AG?.dr){AG.dr=null; agDrawer()}
+  // com alterações não salvas, a tela fica onde está: recoloca a entrada e mostra o aviso de salvar/descartar
+  if(S.dirty){try{history.pushState({fja:S.view,y:$('main')?.scrollTop||0},'')}catch{} S.pend=v; renderMain(); $('main').scrollTop=0; return}
+  ir(v,{pop:true});
+  const y=+ev.state.y||0; if(y) requestAnimationFrame(()=>{const m=$('main'); if(m) m.scrollTop=y});
+});
 function restaurarVista(){
   // link dos e-mails de aviso: #ri=<projeto>/<id> abre direto a RI
-  const m=String(location.hash||'').match(/^#ri=([^/]+)\/(.+)$/); if(m){history.replaceState(null,'',location.pathname+location.search); try{ir({t:'rfii',id:decodeURIComponent(m[1]),eid:decodeURIComponent(m[2])});return true}catch{}}
+  const m=String(location.hash||'').match(/^#ri=([^/]+)\/(.+)$/); if(m){history.replaceState(null,'',location.pathname+location.search); try{ir({t:'rfii',id:decodeURIComponent(m[1]),eid:decodeURIComponent(m[2])},{substituir:true});return true}catch{}}
   // ao entrar, abre sempre o painel da pessoa (o link de um e-mail, acima, tem prioridade)
-  if(AMB==='firebase'){try{ir({t:'painel'});return true}catch{}}
+  if(AMB==='firebase'){try{ir({t:'painel'},{substituir:true});return true}catch{}}
   const v=lsGet('fja.view',null);
   if(!v||typeof v!=='object'||!v.t||v.t==='home') return false;
-  try{ir(v);return true}catch{S.view={t:'home'};return false}
+  try{ir(v,{substituir:true});return true}catch{S.view={t:'home'};return false}
 }
 
 async function salvarItem(){
