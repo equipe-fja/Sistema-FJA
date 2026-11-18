@@ -7337,9 +7337,9 @@ function croLinha(it,L,op={}){
   const LH=40, LBH=32, topo=nUp*LH+24, nL=Math.max(1,lanes.length), bandH=nL*22, eixo=topo, ticks=eixo+bandH+4, base=ticks+20, H=base+nDn*LH+12;
   let h='';
   const MS_=mesesE(E.a,E.b).filter(o=>crMes1(o.y,o.m)>E.a); MS_.forEach((o,i)=>{const x=X(o.s), w=(o.e-o.s+1)*px; h+=`<i class="tl-tk" style="left:${x.toFixed(1)}px;top:${eixo}px;height:${bandH+10}px"></i><span class="tl-ml" style="left:${x.toFixed(1)}px;top:${ticks+2}px;width:${w.toFixed(1)}px">${w>44?MESES_C[o.m]+(o.m===0||i===0?' '+o.y:''):w>18?MESES_C[o.m].slice(0,1):''}</span>`});
-  for(const [n,rot,cl] of [[E.a,'Início','ini'],[E.b,'Fim','fim']]) h+=`<i class="tl-hj tl-lim" style="left:${X(cl==='ini'?n:n+1).toFixed(1)}px;top:14px;height:${H-14}px"></i><span class="tl-hjl tl-lim ${cl}" style="left:${X(cl==='ini'?n:n+1).toFixed(1)}px;top:0">${rot} · ${crCurto(n)}</span>`;
+  for(const [n,rot,cl] of [[E.a,'Início','ini'],[E.b,'Fim','fim']]) h+=`<i class="tl-hj tl-lim" style="left:${X(cl==='ini'?n:n+1).toFixed(1)}px;top:14px;height:${ticks-14}px"></i><span class="tl-hjl tl-lim ${cl}" style="left:${X(cl==='ini'?n:n+1).toFixed(1)}px;top:0">${rot} · ${crCurto(n)}</span>`;
   for(const o of fs){const w=Math.max(2,(o.b-o.a+1)*px); h+=`<div class="tl-f" data-a="${o.a}" data-b="${o.b}" style="left:${X(o.a).toFixed(1)}px;width:${w.toFixed(1)}px;top:${eixo+o.k*22}px;background:${o.cor}" data-tipj="${esc(o.f)} · ${crS(o.a)} a ${crS(o.b)}">${w>o.f.length*7+20?`<span>${esc(o.f)}</span>`:''}</div>`}
-  if(hj>=E.a&&hj<=E.b) h+=`<i class="tl-hj" style="left:${X(hj+.5).toFixed(1)}px;top:14px;height:${H-14}px"></i><span class="tl-hjl" style="left:${X(hj+.5).toFixed(1)}px;top:0">Hoje · ${crCurto(hj)}</span>`;
+  if(hj>=E.a&&hj<=E.b) h+=`<i class="tl-hj" style="left:${X(hj+.5).toFixed(1)}px;top:14px;height:${ticks-14}px"></i><span class="tl-hjl" style="left:${X(hj+.5).toFixed(1)}px;top:0">Hoje · ${crCurto(hj)}</span>`;
   for(const g of ms){const up=g.sd==='up', ty=up?topo-(g.lv+1)*LH:base+g.lv*LH, passado=g.n<hj;
     const lin=up?`top:${ty}px;height:${eixo-ty}px`:`top:${eixo}px;height:${ty+LBH-eixo}px`;
     const nomes=g.itens.join(' · ');
@@ -7352,7 +7352,7 @@ function croLinha(it,L,op={}){
     // os meses já estão na régua da linha do tempo, logo acima: o calendário não repete os nomes
     cal=anoGrade(E.a,E.b,px,W,ycMapaProj(pid,E.a,E.b,fs),{pid,semCab:true});
   }
-  const tl=`<div class="tl-sc"${op.zoom?` data-zm="crl" data-a="${E.a}" data-px="${px}"`:''}><div class="tl" data-orig style="width:${W}px;height:${H}px">${h}</div>${cal}</div>`;
+  const tl=`<div class="tl-sc"${op.zoom?` data-zm="crl" data-a="${E.a}" data-px="${px}"`:''}><div class="tl" data-orig data-ate="${ticks}" style="width:${W}px;height:${H}px">${h}</div>${cal}</div>`;
   if(op.semRod) return `<section class="tl-card">${tl}${op.ano?ycLegenda(true):''}</section>`;
   return `<section class="tl-card">${tl}
     <div class="tl-rod"><div class="tl-lgs">${leg}</div>${prox.length?`<div class="tl-px"><span class="muted">Próximos marcos</span>${prox.map(g=>`<span><span class="mono">${crS(g.n)}</span> <b>${esc(g.nome)}</b> · <span class="muted">${esc(g.itens[0]||'')}${g.itens.length>1?' +'+(g.itens.length-1):''}</span></span>`).join('')}</div>`:''}</div></section>`;
@@ -7843,7 +7843,7 @@ function hlAplicar(card,a,b,doCal){
     for(const e of card.querySelectorAll('.tl-f[data-b],.lt-f[data-b]')) if(+e.dataset.a<=b&&+e.dataset.b>=a) marca(e);
   } else for(const e of card.querySelectorAll('.yc-d[data-n]')){const n=+e.dataset.n; if(n>=a&&n<=b) marca(e)}
   let guia=null; const sc=card.querySelector('[data-zm]'), org=card.querySelector('[data-orig]'), cont=card.querySelector('.lt-corpo')||card.querySelector('.tl');
-  if(doCal&&sc&&org&&cont){guia=document.createElement('i'); guia.className='hl-guia'; guia.style.left=(org.getBoundingClientRect().left-cont.getBoundingClientRect().left+(a-(+sc.dataset.a)+.5)*(+sc.dataset.px)).toFixed(1)+'px'; cont.appendChild(guia)}
+  if(doCal&&sc&&org&&cont){guia=document.createElement('i'); guia.className='hl-guia'; if(cont.dataset.ate){guia.style.bottom='auto'; guia.style.height=cont.dataset.ate+'px'} guia.style.left=(org.getBoundingClientRect().left-cont.getBoundingClientRect().left+(a-(+sc.dataset.a)+.5)*(+sc.dataset.px)).toFixed(1)+'px'; cont.appendChild(guia)}
   HL={els,guia,card,a,b,cal:doCal};
 }
 document.addEventListener('mouseover',ev=>{
@@ -7889,18 +7889,19 @@ function agLinhasTempo(){
   for(const o of gs) tg+=`<i data-n="${o.n}" class="${o.tipo==='feriado'?'lt-fer'+(o.fac?' fac':''):o.tipo==='data'?'lt-dt':'lt-ani'}" style="left:${X(o.n+.5).toFixed(1)}px"${o.id&&o.tipo!=='feriado'&&agAdm()?` data-act="cro-ag-ed" data-id="${esc(o.id)}"`:''} data-tipj="${o.fac?'Ponto facultativo':ROT_G[o.tipo]} · ${esc(o.titulo)} · ${crS(o.n)}"></i>`;
   const nG=t=>gs.filter(o=>o.tipo===t).length, pl=(n,s,p)=>`${n} ${n===1?s:p}`;
   rows+=`<div class="lt-r lt-ger"><button class="lt-l" data-act="cro-ag-lista" title="Ver e cadastrar datas importantes, aniversários e feriados"><b>Datas importantes</b><em>${[pl(nG('feriado'),'feriado','feriados'),pl(nG('data'),'data','datas'),pl(nG('aniversario'),'aniversário','aniversários')].join(' · ')} no período</em></button><div class="lt-t" style="height:30px">${tg}</div></div>`;
+  let calAno='';
   if(AG.ano){ // calendário anual alinhado à régua: feriados, aniversários, marcos principais e eventos dos projetos ativos
     const m=new Map(); ycGerais(m,a,b);
     for(const {p} of com){const cod=p.campos?.codigo||p.nome||'';
       for(const k of agMarcos(p.id,a,b)) if(k.pr) ycPor(m,k.n).mk.push({t:`${k.titulo} (${cod})`,pr:true});
       for(const e of agEventos(p.id,a,b)) ycPor(m,e.n).ev.push(`${e.titulo} (${cod})`)}
-    rows+=`<div class="lt-r lt-ano"><div class="lt-l yc-l"><b>Calendário</b><em>Passe o mouse sobre um dia para ver o que há nele.${agAdm()?' Clique num dia para incluir uma data importante ou um aniversário.':''}</em>${ycLegenda(false)}</div><div class="lt-t">${anoGrade(a,b,px,W,m)}</div></div>`;
+    calAno=`<div class="lt-r lt-ano"><div class="lt-l yc-l"><b>Calendário</b><em>Passe o mouse sobre um dia para ver o que há nele.${agAdm()?' Clique num dia para incluir uma data importante ou um aniversário.':''}</em>${ycLegenda(false)}</div><div class="lt-t">${anoGrade(a,b,px,W,m)}</div></div>`;
   }
   const seg=`<div class="seg">${[['ano','Próximos 12 meses'],['tudo','Período completo']].map(([v,r])=>`<button class="${AG.jan===v?'on':''}" data-act="cro-ag-jan" data-v="${v}">${r}</button>`).join('')}</div>`;
   return `<section class="sheet lt-card"><div class="sheet-h lt-h"><h2>Linhas do tempo</h2><span class="muted lt-sub">${com.length} projeto${com.length===1?'':'s'} ativo${com.length===1?'':'s'} com cronograma ou eventos${sem?` · ${sem} sem datas`:''}</span><span class="cro-sp"></span><label class="cro-ck"><input type="checkbox" data-act="cro-ag-ano"${AG.ano?' checked':''}> Calendário anual</label>${seg}<button class="btn sm ghost" data-act="cro-ag-zl-reset" title="Voltar a mostrar o período inteiro na largura da tela"${AG.zl===1?' disabled':''}>Redefinir zoom</button><button class="btn sm ghost" data-act="cro-ag-lista">Datas importantes</button></div>
     <div class="lt-lgs"><span class="cro-lg"><i class="lt-lg-f"></i>Etapas</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span><span class="cro-lg"><i class="lt-lg-ev"></i>Evento</span><span class="cro-lg"><i class="lt-lg-fer"></i>Feriado</span><span class="cro-lg"><i class="lt-lg-dt"></i>Data importante</span><span class="cro-lg"><i class="lt-lg-ani"></i>Aniversário</span></div>
     <div class="lt" data-zm="ag" data-a="${a}" data-px="${px}" style="--lbl:${LBL}px;--w:${W.toFixed(1)}px"><div class="lt-r lt-cab"><span class="lt-l"></span><div class="lt-t" data-orig style="height:20px">${cab}</div></div>
-    <div class="lt-corpo"><div class="lt-grade" style="left:${LBL}px;width:${W.toFixed(1)}px">${grade}</div>${rows}</div></div></section>`;
+    <div class="lt-corpo"><div class="lt-grade" style="left:${LBL}px;width:${W.toFixed(1)}px">${grade}</div>${rows}</div>${calAno}</div></section>`;
 }
 
 /* ---------- desfazer (últimas ações desta sessão) ---------- */
