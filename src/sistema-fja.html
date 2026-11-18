@@ -7174,7 +7174,7 @@ $('menuToggle').addEventListener('click',()=>$('side').classList.toggle('collaps
 /* ---------- cronograma (gantt) ---------- */
 const croColl=()=>db.collection('crono');
 const croDe=pid=>[...S.crono.values()].filter(t=>t.projeto===pid).sort((a,b)=>(a.ordem??1e9)-(b.ordem??1e9)||String(a.num||'').localeCompare(String(b.num||''),'pt',{numeric:true})||(a.criadoEm||0)-(b.criadoEm||0));
-const CRO={modo:lsGet('fja.cro.modo','gantt'),zoom:lsGet('fja.cro.zoom','auto'),cor:lsGet('fja.cro.cor','resp'),todos:lsGet('fja.cro.todos',false),fechadas:new Set(),dr:null,sel:new Set(),arq:false,selP:null,ultSel:null};
+const CRO={modo:lsGet('fja.cro.modo','gantt'),zoom:lsGet('fja.cro.zoom','auto'),pxv:lsGet('fja.cro.pxv',null),cor:lsGet('fja.cro.cor','resp'),todos:lsGet('fja.cro.todos',false),fechadas:new Set(),dr:null,sel:new Set(),arq:false,selP:null,ultSel:null};
 const crN=s=>{const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||'').trim());return m?Math.round(Date.UTC(+m[3],m[2]-1,+m[1])/864e5):null};
 const crUD=n=>new Date(n*864e5);
 const crS=n=>{const d=crUD(n);return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`};
@@ -7203,7 +7203,7 @@ function croEscala(L,larg){
   const ex=L.map(extT).filter(Boolean), h=crHoje();
   let a=ex.length?Math.min(...ex.map(e=>e[0])):h-15, b=ex.length?Math.max(...ex.map(e=>e[1])):h+75;
   const da=crUD(a), dz=crUD(b); a=crMes1(da.getUTCFullYear(),da.getUTCMonth()); b=crMes1(dz.getUTCFullYear(),dz.getUTCMonth()+1)-1;
-  const dias=b-a+1, z=CRO.zoom, px=z==='mes'?3.2:z==='sem'?9:z==='dia'?26:Math.max(1.1,larg/dias);
+  const dias=b-a+1, z=CRO.zoom, px=z==='livre'&&+CRO.pxv>0?+CRO.pxv:z==='mes'?3.2:z==='sem'?9:z==='dia'?26:Math.max(1.1,larg/dias);
   return {a,b,dias,px,w:Math.ceil(dias*px)};
 }
 function mesesE(a,b){const r=[];const d=crUD(a);let y=d.getUTCFullYear(),m=d.getUTCMonth();for(let g=0;g<240;g++){const s=crMes1(y,m);if(s>b)break;const e=crMes1(y,m+1)-1;r.push({s:Math.max(s,a),e:Math.min(e,b),y,m});if(++m>11){m=0;y++}}return r}
@@ -7345,7 +7345,7 @@ function telaCro(h,v){
   }
   if(!TL.length) return h+`<div class="cro-bar">${modos}</div><div class="esp-vazio"><h2>Nenhum item no cronograma</h2><p>Cadastre as etapas e entregas do projeto. Cada item pode ter um ou mais períodos (com responsável) e marcos; os marcos principais formam a timeline resumida.</p>${S.ro?'':`<button class="btn pri" data-act="cro-novo" data-id="${esc(it.id)}">${IC.plus}Adicionar item</button> <button class="btn" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Adicionar marco</button>`}</div></div>`;
   h+=`<div class="cro-bar">${modos}
-    ${CRO.modo==='gantt'?seg('zoom',[['auto','Ajustar'],['mes','Mês'],['sem','Semana'],['dia','Dia']])+seg('cor',[['resp','Cor por responsável'],['disc','Cor por disciplina']])+`<button class="btn sm ghost" data-act="cro-hoje">Hoje</button>`:`<label class="cro-ck"><input type="checkbox" data-act="cro-todos"${CRO.todos?' checked':''}> Mostrar todos os marcos</label>`}
+    ${CRO.modo==='gantt'?seg('zoom',[['auto','Ajustar'],['mes','Mês'],['sem','Semana'],['dia','Dia']])+`<button class="btn sm ghost" data-act="cro-zoom-reset" title="Voltar a mostrar o cronograma inteiro na largura da tela"${CRO.zoom==='auto'?' disabled':''}>Redefinir zoom</button>`+seg('cor',[['resp','Cor por responsável'],['disc','Cor por disciplina']])+`<button class="btn sm ghost" data-act="cro-hoje">Hoje</button>`:`<label class="cro-ck"><input type="checkbox" data-act="cro-todos"${CRO.todos?' checked':''}> Mostrar todos os marcos</label>`}
     ${nArq?`<label class="cro-ck"><input type="checkbox" data-act="cro-arq"${CRO.arq?' checked':''}> Mostrar arquivados (${nArq})</label>`:''}
     <span class="cro-sp"></span>
     <button class="btn sm ghost" data-act="cro-cfg" data-id="${esc(it.id)}">Responsáveis</button>
@@ -7353,7 +7353,7 @@ function telaCro(h,v){
   if(CRO.modo==='gantt'){
     const lg=CRO.cor==='disc'?[...new Set(L.map(t=>t.disciplina).filter(Boolean))].map(c=>`<span class="cro-lg"><i style="background:${corDP(it.id,c)}"></i>${esc(siglaP(it.id,c))} <span class="muted">${esc(discNome(c))}</span></span>`).join('')
       :cfg.resp.map(r=>`<span class="cro-lg"><i style="background:${r.cor}"></i>${esc(r.nome)}</span>`).join('');
-    h+=`<div class="cro-lgs">${lg}<span class="cro-lg"><i class="mk"></i>Marco</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span>${S.ro?'':'<span class="muted cro-dica">Arraste as barras para mover; puxe as pontas para mudar a duração.</span>'}</div>`;
+    h+=`<div class="cro-lgs">${lg}<span class="cro-lg"><i class="mk"></i>Marco</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span><span class="muted cro-dica">${S.ro?'':'Arraste as barras para mover; puxe as pontas para mudar a duração. '}Zoom: Ctrl + roda do mouse no gráfico, ou a roda sobre as datas.</span></div>`;
     if(CRO.sel.size&&!S.ro) h+=croLoteHTML(it,L);
     h+=`<section class="sheet gt-sheet">${croGantt(it,L)}</section>`;
   } else h+=croLinha(it,L,{semRod:true});
@@ -7474,6 +7474,27 @@ document.addEventListener('input',ev=>{
 });
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&CRO.dr&&!$('celPop')){CRO.dr=null;croDrawer()}});
 let croRsT=0; addEventListener('resize',()=>{clearTimeout(croRsT);croRsT=setTimeout(()=>{if(S.view.t==='cro'&&!crDrag) renderMain()},180)});
+/* zoom com a roda do mouse no gantt: Ctrl + roda em qualquer ponto (também o gesto de pinça do touchpad), ou a roda sobre a régua de datas.
+   O dia sob o cursor fica parado; "Redefinir zoom" volta ao ajuste automático. */
+let croZoomRaf=0, croZoomAc=0, croZoomX=0;
+document.addEventListener('wheel',ev=>{
+  if(S.view.t!=='cro'||CRO.modo!=='gantt'||crDrag) return;
+  if(!ev.target.closest?.('#gtWrap')) return;
+  if(!ev.ctrlKey&&!ev.target.closest('.gt-head .gt-t')) return;
+  if(Math.abs(ev.deltaY)<Math.abs(ev.deltaX)) return;
+  ev.preventDefault();
+  croZoomAc+=ev.deltaY*(ev.deltaMode===1?33:ev.deltaMode===2?400:1); croZoomX=ev.clientX;
+  if(croZoomRaf) return;
+  croZoomRaf=requestAnimationFrame(()=>{croZoomRaf=0;
+    const w=$('gtWrap'); if(!w){croZoomAc=0;return}
+    const px=+w.dataset.px, r=w.getBoundingClientRect(), off=croZoomX-r.left, dia=(w.scrollLeft+off-CRO_LW)/px+(+w.dataset.a);
+    const novo=Math.min(60,Math.max(.4,px*Math.exp(-croZoomAc*.0015))); croZoomAc=0;
+    if(Math.abs(novo-px)<1e-3) return;
+    CRO.zoom='livre'; CRO.pxv=novo; lsSet('fja.cro.zoom','livre'); lsSet('fja.cro.pxv',novo);
+    esconderTip?.(); renderMain();
+    const w2=$('gtWrap'); if(w2) w2.scrollLeft=Math.max(0,(dia-(+w2.dataset.a))*(+w2.dataset.px)+CRO_LW-off);
+  });
+},{passive:false});
 function croLoteHTML(it,L){
   const pid=it.id, sel=L.filter(t=>CRO.sel.has(t.id)), n=sel.length, cfg=croCfg(pid);
   const fases=[...new Set(croDe(pid).map(t=>t.fase).filter(Boolean))], cods=discsProj(pid).map(l=>l.cod);
@@ -7554,6 +7575,7 @@ async function croAcao(a,b,ev){
   else if(a==='cro-lote-ok'){await croLoteAplicar()}
   else if(a==='cro-lote-arq'){const ids=[...CRO.sel], v=b.dataset.v==='1'; const ok=await croGravarLote(ids.map(id=>[id,{arquivado:v}])); if(v&&!CRO.arq) CRO.sel.clear(); renderMain(); if(ok) toast(`${ids.length} ite${ids.length>1?'ns':'m'} ${v?'arquivado':'desarquivado'}${ids.length>1?'s':''}`)}
   else if(a==='cro-arq1'&&dr&&!dr.novo){const v=!dr.arquivado; CRO.dr=null; croDrawer(); await croGravar(dr.id,{arquivado:v}); toast(v?'Item arquivado':'Item desarquivado')}
+  else if(a==='cro-zoom-reset'){CRO.zoom='auto';lsSet('fja.cro.zoom','auto');renderMain()}
   else if(a==='cro-hoje'){const w=$('gtWrap'); if(w){const x=(crHoje()-(+w.dataset.a))*(+w.dataset.px); w.scrollLeft=Math.max(0,x-(w.clientWidth-CRO_LW)/2)}}
 }
 
