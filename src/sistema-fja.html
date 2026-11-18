@@ -848,43 +848,6 @@ table.sug-t textarea.fld,table.sug-t input.fld{width:100%;font-size:13px;padding
 .cro-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 10px}
 .cro-sp{flex:1}
 /* calendário do projeto (agenda) */
-.ag-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin:0 0 10px}
-.ag-nav{display:flex;align-items:center;gap:6px}
-.ag-nav .icb{font-size:18px;line-height:1;width:30px;height:30px}
-.ag-tit{font-family:var(--f-display);font-size:19px;font-weight:600;min-width:190px;text-align:center}
-.ag-q{font-size:10px;font-weight:600;background:var(--accent-weak);color:var(--accent-ink);border-radius:999px;padding:0 5px;margin-left:2px}
-.ag-lgs{margin:0}
-.cro-lg i.ag-lg{width:14px;height:10px;border-radius:3px}
-.cro-lg i.ag-lg.ev{background:var(--info)}
-.cro-lg i.ag-lg.fer{background:var(--ok-bg);border:1px solid #9fc9a8}
-.cro-lg i.ag-lg.ani{background:#f6e3f0;border:1px solid #d9a6c8}
-.ag-cal{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.ag-sem{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--line);background:var(--off-bg)}
-.ag-sem span{padding:6px 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.ag-grade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
-.ag-d{min-height:104px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 5px 6px;display:flex;flex-direction:column;gap:2px;min-width:0}
-.ag-d:nth-child(7n){border-right:0}
-.ag-d[data-act]{cursor:pointer}
-.ag-d[data-act]:hover{background:rgba(142,27,27,.03)}
-.ag-d.fds{background:#fafaf8}
-.ag-d.fer{background:#f1f8f2}
-.ag-d.fora .ag-n{color:var(--faint)}
-.ag-d.fora>.ag-c{opacity:.55}
-.ag-n{font-size:12px;font-weight:600;color:var(--ink);align-self:flex-start;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:999px;font-variant-numeric:tabular-nums}
-.ag-d.hj .ag-n{background:var(--accent);color:#fff}
-.ag-c{display:block;width:100%;text-align:left;border:0;border-radius:4px;padding:1px 6px;font:inherit;font-size:11.5px;line-height:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;background:none;color:var(--ink)}
-.ag-c.ev{background:var(--info);color:#fff}
-.ag-c.ev .mono{font-size:10.5px;opacity:.85}
-.ag-c.ev.multi{opacity:.88}
-.ag-c.fer{background:var(--ok-bg);color:var(--ok);cursor:default}
-button.ag-c.fer{cursor:pointer}
-.ag-c.ani{background:#f6e3f0;color:#86336b}
-.ag-c.mk{display:flex;align-items:center;gap:5px;color:var(--ink);padding-left:3px}
-.ag-c.mk i{flex:none;width:7px;height:7px;transform:rotate(45deg);background:var(--panel);border:1.5px solid var(--ink);margin:0 1px}
-.ag-c.mk.pr{color:var(--accent-ink);font-weight:600}
-.ag-c.mk.pr i{background:var(--accent);border-color:var(--accent)}
-.ag-c:hover{filter:brightness(.95);text-decoration:underline}
-.ag-mais{font-size:11px;color:var(--muted);padding-left:6px}
 #agDr .cro-g2{grid-template-columns:1fr 1fr}
 .ag-li{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:8px;align-items:baseline;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:6px 2px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer}
 .ag-li:hover:not(.nac):not(:disabled) b{text-decoration:underline}
@@ -935,12 +898,19 @@ span.lt-l{cursor:default}
 .lt-dt{position:absolute;top:10px;width:8px;height:8px;margin-left:-4px;border-radius:2px;background:#c08a1e;border:1.5px solid var(--panel);z-index:2}
 .lt-dt[data-act],.lt-ani[data-act]{cursor:pointer}
 .cro-lg i.lt-lg-dt{width:7px;height:7px;border-radius:2px;background:#c08a1e}
-.cro-lg i.ag-lg.dt{background:#fbf3e2;border:1px solid #e3c88f}
-.ag-c.dt{background:#fbf3e2;color:#8a5d05}
-.ag-c.ev{background:var(--info-bg);color:var(--info)}
-.ag-c.ev .mono{opacity:1}
-.cro-lg i.ag-lg.ev{background:var(--info-bg);border:1px solid #b9cde0}
 .ag-tipos{align-self:flex-start;margin-bottom:4px}
+/* realce ligado calendário ↔ linhas do tempo */
+.hl-guia{position:absolute;top:0;bottom:0;width:0;border-left:1.5px solid var(--accent);opacity:.6;pointer-events:none;z-index:5}
+.tl-f.hl,.lt-f.hl{opacity:1;box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px var(--accent)}
+.lt-mk.hl{transform:rotate(45deg) scale(1.5);z-index:6}
+.lt-ev.hl,.lt-dt.hl,.lt-ani.hl{transform:scale(1.6);box-shadow:0 0 0 1.5px var(--accent);z-index:6}
+.lt-fer.hl{box-shadow:0 0 0 1.5px var(--accent);z-index:6}
+.tl-dm.hl{transform:scale(1.6);background:var(--accent);z-index:6}
+.tl-ld.hl{opacity:1;border-left-width:2px;border-left-color:var(--accent)}
+.tl-lb.hl{background:var(--accent-weak);z-index:6;text-shadow:none}
+.tl-lb.hl b{text-decoration:underline}
+.yc-d.hl{background:var(--accent-weak);box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent-ink)}
+.yc.sem-cab{margin-top:10px}
 /* calendário anual em colunas: sem preenchimentos fortes, só o necessário para ler */
 .yc{position:relative;margin:14px auto 0}
 .yc-m{position:absolute;top:0;bottom:0}
@@ -7368,22 +7338,19 @@ function croLinha(it,L,op={}){
   let h='';
   const MS_=mesesE(E.a,E.b).filter(o=>crMes1(o.y,o.m)>E.a); MS_.forEach((o,i)=>{const x=X(o.s), w=(o.e-o.s+1)*px; h+=`<i class="tl-tk" style="left:${x.toFixed(1)}px;top:${eixo}px;height:${bandH+10}px"></i><span class="tl-ml" style="left:${x.toFixed(1)}px;top:${ticks+2}px;width:${w.toFixed(1)}px">${w>44?MESES_C[o.m]+(o.m===0||i===0?' '+o.y:''):w>18?MESES_C[o.m].slice(0,1):''}</span>`});
   for(const [n,rot,cl] of [[E.a,'Início','ini'],[E.b,'Fim','fim']]) h+=`<i class="tl-hj tl-lim" style="left:${X(cl==='ini'?n:n+1).toFixed(1)}px;top:14px;height:${H-14}px"></i><span class="tl-hjl tl-lim ${cl}" style="left:${X(cl==='ini'?n:n+1).toFixed(1)}px;top:0">${rot} · ${crCurto(n)}</span>`;
-  for(const o of fs){const w=Math.max(2,(o.b-o.a+1)*px); h+=`<div class="tl-f" style="left:${X(o.a).toFixed(1)}px;width:${w.toFixed(1)}px;top:${eixo+o.k*22}px;background:${o.cor}" data-tipj="${esc(o.f)} · ${crS(o.a)} a ${crS(o.b)}">${w>o.f.length*7+20?`<span>${esc(o.f)}</span>`:''}</div>`}
+  for(const o of fs){const w=Math.max(2,(o.b-o.a+1)*px); h+=`<div class="tl-f" data-a="${o.a}" data-b="${o.b}" style="left:${X(o.a).toFixed(1)}px;width:${w.toFixed(1)}px;top:${eixo+o.k*22}px;background:${o.cor}" data-tipj="${esc(o.f)} · ${crS(o.a)} a ${crS(o.b)}">${w>o.f.length*7+20?`<span>${esc(o.f)}</span>`:''}</div>`}
   if(hj>=E.a&&hj<=E.b) h+=`<i class="tl-hj" style="left:${X(hj+.5).toFixed(1)}px;top:14px;height:${H-14}px"></i><span class="tl-hjl" style="left:${X(hj+.5).toFixed(1)}px;top:0">Hoje · ${crCurto(hj)}</span>`;
   for(const g of ms){const up=g.sd==='up', ty=up?topo-(g.lv+1)*LH:base+g.lv*LH, passado=g.n<hj;
     const lin=up?`top:${ty}px;height:${eixo-ty}px`:`top:${eixo}px;height:${ty+LBH-eixo}px`;
     const nomes=g.itens.join(' · ');
-    h+=`<i class="tl-ld${passado?' ps':''}" style="left:${g.x.toFixed(1)}px;${lin}"></i><i class="tl-dm${passado?' ps':''}" style="left:${g.x.toFixed(1)}px;top:${eixo-7}px"></i>
-      <button class="tl-lb${up?' up':''}${g.esq?' esq':''}${g.cx?' cx':''}${passado?' ps':''}" data-act="cro-abrir" data-tid="${esc(g.t0)}" style="left:${g.l.toFixed(1)}px;top:${ty}px;width:${g.w}px;height:${LBH}px" data-tipj="${esc(g.nome)} · ${crS(g.n)} · ${esc(nomes)}"><span class="tl-c"><b>${esc(g.nome)}</b></span><em><span class="mono">${crCurto(g.n)}</span> · ${esc(nomes)}</em></button>`}
+    h+=`<i class="tl-ld${passado?' ps':''}" data-n="${g.n}" style="left:${g.x.toFixed(1)}px;${lin}"></i><i class="tl-dm${passado?' ps':''}" data-n="${g.n}" style="left:${g.x.toFixed(1)}px;top:${eixo-7}px"></i>
+      <button class="tl-lb${up?' up':''}${g.esq?' esq':''}${g.cx?' cx':''}${passado?' ps':''}" data-n="${g.n}" data-act="cro-abrir" data-tid="${esc(g.t0)}" style="left:${g.l.toFixed(1)}px;top:${ty}px;width:${g.w}px;height:${LBH}px" data-tipj="${esc(g.nome)} · ${crS(g.n)} · ${esc(nomes)}"><span class="tl-c"><b>${esc(g.nome)}</b></span><em><span class="mono">${crCurto(g.n)}</span> · ${esc(nomes)}</em></button>`}
   const prox=ms.filter(g=>g.n>=hj).slice(0,4);
   const leg=fs.map(o=>`<span class="tl-lg"><i style="background:${o.cor}"></i><b>${esc(o.f)}</b><span class="mono">${crCurto(o.a)} – ${crCurto(o.b)}</span></span>`).join('');
   let cal='';
   if(op.ano){ // calendário anual alinhado à régua: marcos, eventos, etapas, feriados e aniversários
-    const m=new Map(); ycGerais(m,E.a,E.b);
-    for(const k of agMarcos(pid,E.a,E.b)) ycPor(m,k.n).mk.push({t:k.titulo+(k.item?' ('+k.item+')':''),pr:k.pr});
-    for(const e of agEventos(pid,E.a,E.b)) ycPor(m,e.n).ev.push(e.titulo+(e.hora&&e.n===e.ini?' '+e.hora:''));
-    for(const o of fs) for(let n=o.a;n<=o.b;n++){const q=ycPor(m,n); if(!q.cor){q.cor=o.cor;q.fase=o.f}}
-    cal=anoGrade(E.a,E.b,px,W,m);
+    // os meses já estão na régua da linha do tempo, logo acima: o calendário não repete os nomes
+    cal=anoGrade(E.a,E.b,px,W,ycMapaProj(pid,E.a,E.b,fs),{pid,semCab:true});
   }
   const tl=`<div class="tl-sc"${op.zoom?` data-zm="crl" data-a="${E.a}" data-px="${px}"`:''}><div class="tl" data-orig style="width:${W}px;height:${H}px">${h}</div>${cal}</div>`;
   if(op.semRod) return `<section class="tl-card">${tl}${op.ano?ycLegenda(true):''}</section>`;
@@ -7398,20 +7365,21 @@ function telaCro(h,v){
   const nM=L.reduce((s,t)=>s+marcosT(t).length,0);
   const seg=(k,ops)=>`<div class="seg">${ops.map(([v2,r])=>`<button class="${CRO[k]===v2?'on':''}" data-act="cro-opt" data-k="${k}" data-v="${v2}">${r}</button>`).join('')}</div>`;
   h+=`<div class="page wide"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><span>Calendário/Cronograma</span></div>
-  <h1 class="h1-exp">Calendário/Cronograma${CRO.modo==='cal'?'':btnPdfLista()}</h1>${espLinhaDest('cr',it.id)}`;
-  const modos=seg('modo',[['cal','Calendário'],['linha','Resumido'],['gantt','Detalhado']]);
-  if(CRO.modo==='cal'){
-    h+=`<div class="cro-bar">${modos}<span class="cro-sp"></span><button class="btn sm ghost" data-act="cro-ag-lista">Datas importantes</button>
-      ${S.ro?'':`<button class="btn sm" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Marco</button><button class="btn pri sm" data-act="cro-ag-novo" data-t="evento" data-id="${esc(it.id)}">${IC.plus}Evento</button>`}</div>`;
-    return h+agCalendario(it)+`</div>`;
+  <h1 class="h1-exp">Calendário/Cronograma${btnPdfLista()}</h1>${espLinhaDest('cr',it.id)}`;
+  if(CRO.modo!=='gantt') CRO.modo='linha'; // o modo "Calendário" (mês a mês) deu lugar ao calendário anual sob o Resumido
+  const modos=seg('modo',[['linha','Resumido'],['gantt','Detalhado']]);
+  const btAg=`<button class="btn sm ghost" data-act="cro-ag-lista">Datas importantes</button>`, btEv=S.ro?'':`<button class="btn sm" data-act="cro-ag-novo" data-t="evento" data-id="${esc(it.id)}">${IC.plus}Evento</button>`;
+  if(!TL.length){ // sem cronograma: o calendário anual mostra os próximos 12 meses
+    const d0=crUD(crHoje()), a0=crMes1(d0.getUTCFullYear(),d0.getUTCMonth()), b0=crMes1(d0.getUTCFullYear(),d0.getUTCMonth()+12)-1, W0=Math.max(520,($('main')?.clientWidth||1100)-100), m0=ycMapaProj(it.id,a0,b0,[]);
+    return h+`<div class="cro-bar">${modos}<span class="cro-sp"></span>${btAg}${btEv}</div><div class="esp-vazio"><h2>Nenhum item no cronograma</h2><p>Cadastre as etapas e entregas do projeto. Cada item pode ter um ou mais períodos (com responsável) e marcos; os marcos principais formam a timeline resumida.</p>${S.ro?'':`<button class="btn pri" data-act="cro-novo" data-id="${esc(it.id)}">${IC.plus}Adicionar item</button> <button class="btn" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Adicionar marco</button>`}</div>
+      <section class="tl-card" style="margin-top:16px">${anoGrade(a0,b0,W0/(b0-a0+1),W0,m0,{pid:it.id})}${ycLegenda(false)}</section></div>`;
   }
-  if(!TL.length) return h+`<div class="cro-bar">${modos}</div><div class="esp-vazio"><h2>Nenhum item no cronograma</h2><p>Cadastre as etapas e entregas do projeto. Cada item pode ter um ou mais períodos (com responsável) e marcos; os marcos principais formam a timeline resumida.</p>${S.ro?'':`<button class="btn pri" data-act="cro-novo" data-id="${esc(it.id)}">${IC.plus}Adicionar item</button> <button class="btn" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Adicionar marco</button>`}</div></div>`;
   h+=`<div class="cro-bar">${modos}
     ${CRO.modo==='gantt'?seg('zoom',[['auto','Ajustar'],['mes','Mês'],['sem','Semana'],['dia','Dia']])+`<button class="btn sm ghost" data-act="cro-zoom-reset" title="Voltar a mostrar o cronograma inteiro na largura da tela"${CRO.zoom==='auto'?' disabled':''}>Redefinir zoom</button>`+seg('cor',[['resp','Cor por responsável'],['disc','Cor por disciplina']])+`<button class="btn sm ghost" data-act="cro-hoje">Hoje</button>`:CRO.modo==='linha'?`<label class="cro-ck"><input type="checkbox" data-act="cro-todos"${CRO.todos?' checked':''}> Mostrar todos os marcos</label><label class="cro-ck"><input type="checkbox" data-act="cro-ano"${CRO.ano?' checked':''}> Calendário anual</label><button class="btn sm ghost" data-act="cro-zl-reset" title="Voltar a mostrar a linha do tempo inteira na largura da tela"${CRO.zl===1?' disabled':''}>Redefinir zoom</button>`:''}
     ${nArq?`<label class="cro-ck"><input type="checkbox" data-act="cro-arq"${CRO.arq?' checked':''}> Mostrar arquivados (${nArq})</label>`:''}
     <span class="cro-sp"></span>
-    <button class="btn sm ghost" data-act="cro-cfg" data-id="${esc(it.id)}">Responsáveis</button>
-    ${S.ro?'':`<button class="btn sm" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Marco</button><button class="btn pri sm" data-act="cro-novo" data-id="${esc(it.id)}">${IC.plus}Item</button>`}</div>`;
+    ${CRO.modo==='linha'?btAg:''}<button class="btn sm ghost" data-act="cro-cfg" data-id="${esc(it.id)}">Responsáveis</button>
+    ${S.ro?'':`${CRO.modo==='linha'?btEv:''}<button class="btn sm" data-act="cro-novo" data-id="${esc(it.id)}" data-marco="1">${IC.plus}Marco</button><button class="btn pri sm" data-act="cro-novo" data-id="${esc(it.id)}">${IC.plus}Item</button>`}</div>`;
   if(CRO.modo==='gantt'){
     const lg=CRO.cor==='disc'?[...new Set(L.map(t=>t.disciplina).filter(Boolean))].map(c=>`<span class="cro-lg"><i style="background:${corDP(it.id,c)}"></i>${esc(siglaP(it.id,c))} <span class="muted">${esc(discNome(c))}</span></span>`).join('')
       :cfg.resp.map(r=>`<span class="cro-lg"><i style="background:${r.cor}"></i>${esc(r.nome)}</span>`).join('');
@@ -7648,7 +7616,7 @@ async function croAcao(a,b,ev){
 //              {tipo:'feriado', titulo, data 'dd/mm/aaaa', recorrente}  — feriados próprios (os nacionais são calculados)
 //              {tipo:'aniversario', titulo (nome da pessoa), data 'dd/mm'}
 const agColl=()=>db.collection('agenda');
-const AG={mes:null,dr:null,jan:lsGet('fja.ag.jan','ano'),zl:Math.max(1,+lsGet('fja.ag.zl',1)||1),ano:lsGet('fja.ag.ano',true)};
+const AG={dr:null,jan:lsGet('fja.ag.jan','ano'),zl:Math.max(1,+lsGet('fja.ag.zl',1)||1),ano:lsGet('fja.ag.ano',true)};
 const MESES_L=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const SEMANA_C=['dom','seg','ter','qua','qui','sex','sáb'];
 const agN=(y,m,d)=>Math.round(Date.UTC(y,m,d)/864e5);
@@ -7685,36 +7653,8 @@ function agMarcos(pid,a,b){
   for(const o of g.values()){r.push({...o,item:o.itens.join(' · ')})}
   return r;
 }
-const AG_ORD={feriado:0,data:1,aniversario:2,marco:3,evento:4};
 // datas importantes, aniversários e feriados próprios: só administradores incluem e alteram (na versão do Claude, quem pode editar)
 const agAdm=()=>!S.ro&&(AMB!=='firebase'||!!FB()?.admin());
-function agChip(o){
-  const dt=crS(o.n);
-  if(o.tipo==='feriado') return `<${o.id&&agAdm()?'button data-act="cro-ag-ed" data-id="'+esc(o.id)+'"':'span'} class="ag-c fer" data-tipj="${esc(o.titulo)} · ${dt} · ${o.nac?(o.fac?'ponto facultativo nacional':'feriado nacional'):'feriado cadastrado'}">${esc(o.titulo)}</${o.id&&agAdm()?'button':'span'}>`;
-  if(o.tipo==='aniversario') return `<button class="ag-c ani"${agAdm()?` data-act="cro-ag-ed" data-id="${esc(o.id)}"`:''} data-tipj="Aniversário · ${esc(o.titulo)} · ${dt.slice(0,5)}">Aniv. ${esc(o.titulo)}</button>`;
-  if(o.tipo==='data') return `<button class="ag-c dt"${agAdm()?` data-act="cro-ag-ed" data-id="${esc(o.id)}"`:''} data-tipj="Data importante · ${esc(o.titulo)} · ${dt}">${esc(o.titulo)}</button>`;
-  if(o.tipo==='marco') return `<button class="ag-c mk${o.pr?' pr':''}" data-act="cro-abrir" data-tid="${esc(o.tid)}" data-tipj="Marco · ${esc(o.titulo)} · ${dt} · ${esc(o.item)}"><i></i>${esc(o.titulo)}${o.itens.length>1?` <span class="ag-q">${o.itens.length}</span>`:''}</button>`;
-  return `<button class="ag-c ev${o.fim>o.ini?' multi':''}" data-act="cro-ag-ed" data-id="${esc(o.id)}" data-tipj="${esc(o.titulo)} · ${o.fim>o.ini?crS(o.ini)+' a '+crS(o.fim):dt}${o.hora?' · '+esc(o.hora):''}${o.local?' · '+esc(o.local):''}">${o.hora&&o.n===o.ini?`<span class="mono">${esc(o.hora)}</span> `:''}${esc(o.titulo)}</button>`;
-}
-function agCalendario(it){
-  const pid=it.id, hj=crHoje();
-  if(!AG.mes||AG.mes.pid!==pid){const d=crUD(hj); AG.mes={pid,y:d.getUTCFullYear(),m:d.getUTCMonth()}}
-  const {y,m}=AG.mes, p1=crMes1(y,m), ult=crMes1(y,m+1)-1, a=p1-crUD(p1).getUTCDay(), b=a+Math.ceil((ult-a+1)/7)*7-1;
-  const porDia=new Map();
-  for(const o of [...agGerais(a,b),...agEventos(pid,a,b),...agMarcos(pid,a,b)]){if(!porDia.has(o.n)) porDia.set(o.n,[]); porDia.get(o.n).push(o)}
-  let cel='';
-  for(let n=a;n<=b;n++){
-    const L=(porDia.get(n)||[]).sort((p,q)=>AG_ORD[p.tipo]-AG_ORD[q.tipo]||(p.pr===q.pr?0:p.pr?-1:1)||String(p.hora||'').localeCompare(String(q.hora||''))), wd=crUD(n).getUTCDay();
-    const fer=L.some(o=>o.tipo==='feriado'&&!o.fac), max=4;
-    cel+=`<div class="ag-d${n<p1||n>ult?' fora':''}${wd===0||wd===6?' fds':''}${fer?' fer':''}${n===hj?' hj':''}"${S.ro?'':` data-act="cro-ag-dia" data-n="${n}" title="Clique para adicionar um evento em ${crS(n)}"`}>
-      <span class="ag-n">${crUD(n).getUTCDate()}</span>${L.slice(0,max).map(agChip).join('')}${L.length>max?`<span class="ag-mais" data-tipj="${esc(L.slice(max).map(o=>o.titulo).join(' · '))}">+${L.length-max}</span>`:''}</div>`;
-  }
-  const nEv=agEvDe(pid).length;
-  return `<div class="ag-bar"><div class="ag-nav"><button class="icb" data-act="cro-ag-mes" data-d="-1" title="Mês anterior" aria-label="Mês anterior">‹</button><b class="ag-tit">${MESES_L[m][0].toUpperCase()+MESES_L[m].slice(1)} de ${y}</b><button class="icb" data-act="cro-ag-mes" data-d="1" title="Próximo mês" aria-label="Próximo mês">›</button><button class="btn sm ghost" data-act="cro-ag-mes" data-d="0">Hoje</button></div>
-    <div class="cro-lgs ag-lgs"><span class="cro-lg"><i class="ag-lg ev"></i>Evento${nEv?` (${nEv})`:''}</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span><span class="cro-lg"><i class="mk"></i>Marco</span><span class="cro-lg"><i class="ag-lg fer"></i>Feriado</span><span class="cro-lg"><i class="ag-lg dt"></i>Data importante</span><span class="cro-lg"><i class="ag-lg ani"></i>Aniversário</span></div></div>
-  <section class="ag-cal" aria-label="Calendário de ${MESES_L[m]} de ${y}"><div class="ag-sem">${SEMANA_C.map(s=>`<span>${s}</span>`).join('')}</div><div class="ag-grade">${cel}</div></section>
-  ${S.ro?'':'<p class="muted cro-dica" style="margin:6px 2px 0">Clique num dia para adicionar um evento. Os marcos vêm do cronograma: clique num marco para abrir o item.</p>'}`;
-}
 /* ficha lateral da agenda */
 function agDrawer(){
   let d=$('agDr'); const dr=AG.dr;
@@ -7728,7 +7668,15 @@ const AG_TIT={evento:['Novo evento','Evento'],feriado:['Novo feriado','Feriado']
 function agFichaHTML(dr){
   const ro=(dr.tipo==='evento'?S.ro:!agAdm())?'disabled':'', dm=agDM(dr.data)||{d:'',m:''};
   // aberto ao clicar num dia do calendário anual: escolhe entre data importante e aniversário
-  let campos=dr.escolha?`<div class="seg ag-tipos">${[['data','Data importante'],['aniversario','Aniversário']].map(([t,r])=>`<button class="${dr.tipo===t?'on':''}" data-act="cro-ag-tipo" data-t="${t}">${r}</button>`).join('')}</div>`:'';
+  let campos='';
+  if(dr.escolha){
+    // o que já existe neste dia (para editar) e a escolha do que incluir
+    const n=dr.n0, ja=[...agGerais(n,n),...(dr.projeto?[...agMarcos(dr.projeto,n,n),...agEventos(dr.projeto,n,n)]:[])], ROT={feriado:'Feriado',data:'Data importante',aniversario:'Aniversário',marco:'Marco',evento:'Evento'};
+    if(ja.length) campos+=`<div class="cro-sec"><span>Neste dia · ${crS(n)}</span></div>${ja.map(o=>{const ed=o.id&&(o.tipo==='evento'?!S.ro:agAdm());
+      return `<${ed?`button data-act="cro-ag-ed" data-id="${esc(o.id)}"`:'div'} class="ag-li${ed?'':' nac'}"><span class="mono">${o.fac?'Ponto facultativo':ROT[o.tipo]}</span><b>${esc(o.titulo)}</b><span class="muted">${o.tipo==='marco'?esc(o.item||''):o.hora?esc(o.hora):''}</span></${ed?'button':'div'}>`}).join('')}<div class="cro-sec"><span>Incluir</span></div>`;
+    const RT={evento:'Evento do projeto',data:'Data importante',aniversario:'Aniversário'};
+    if(dr.escolha.length>1) campos+=`<div class="seg ag-tipos">${dr.escolha.map(t=>`<button class="${dr.tipo===t?'on':''}" data-act="cro-ag-tipo" data-t="${t}">${RT[t]}</button>`).join('')}</div>`;
+  }
   if(dr.tipo==='data') campos+=`<label class="fl">Título<input class="fld" data-agf="titulo" value="${esc(dr.titulo||'')}" placeholder="Ex.: Aniversário do escritório, inauguração, prazo do edital" ${ro}></label>
     <label class="fl">Data<input type="date" class="fld" data-agf="data" value="${dIso(crN(dr.data)!=null?dr.data:'')}" ${ro}></label>
     <label class="cro-ck"><input type="checkbox" data-agf="recorrente"${dr.recorrente?' checked':''} ${ro}> Repete todo ano no mesmo dia</label>
@@ -7789,9 +7737,9 @@ async function agSalvar(){
 }
 async function agAcao(a,b){
   const dr=AG.dr;
-  if(a==='cro-ag-mes'){const d=+b.dataset.d, pid=S.view.id; if(!d){AG.mes=null} else {const m0=AG.mes||{y:crUD(crHoje()).getUTCFullYear(),m:crUD(crHoje()).getUTCMonth()}; let m=m0.m+d, y=m0.y; if(m<0){m=11;y--} if(m>11){m=0;y++} AG.mes={pid,y,m}} renderMain()}
-  else if(a==='cro-ag-dia'){if(S.ro) return; const n=+b.dataset.n; AG.dr={tipo:'evento',novo:true,projeto:S.view.id,titulo:'',data:crS(n),fim:'',hora:'',local:'',obs:''}; agDrawer(); setTimeout(()=>$('agDr')?.querySelector('[data-agf="titulo"]')?.focus(),0)}
-  else if(a==='cro-ag-dia-ano'){if(!agAdm()) return; const n=+b.dataset.n; AG.dr={tipo:'data',novo:true,escolha:true,n0:n,titulo:'',data:crS(n),recorrente:false}; agDrawer(); setTimeout(()=>$('agDr')?.querySelector('[data-agf="titulo"]')?.focus(),0)}
+  if(a==='cro-ag-dia-ano'){ // clique num dia do calendário anual: no projeto, evento (todos que editam) ou data/aniversário (administradores)
+    const n=+b.dataset.n, pid=b.dataset.pid||'', tipos=[...(pid&&!S.ro?['evento']:[]),...(agAdm()?['data','aniversario']:[])]; if(!tipos.length) return;
+    AG.dr={tipo:tipos[0],novo:true,escolha:tipos,n0:n,projeto:pid,titulo:'',data:crS(n),recorrente:false,fim:'',hora:'',local:'',obs:''}; agDrawer(); setTimeout(()=>$('agDr')?.querySelector('[data-agf="titulo"]')?.focus(),0)}
   else if(a==='cro-ag-tipo'&&dr?.escolha){const t=b.dataset.t; if(t===dr.tipo) return; dr.tipo=t; dr.data=t==='aniversario'?crS(dr.n0).slice(0,5):crS(dr.n0); agDrawer(); setTimeout(()=>$('agDr')?.querySelector('[data-agf="titulo"]')?.focus(),0)}
   else if(a==='cro-ag-novo'){const t=b.dataset.t||'evento', hj=crHoje(); if(t==='evento'?S.ro:!agAdm()) return;
     AG.dr={tipo:t,novo:true,voltar:dr?.tipo==='lista',titulo:'',data:t==='aniversario'?'':crS(hj),recorrente:t==='feriado',...(t==='evento'?{projeto:b.dataset.id||S.view.id,fim:'',hora:'',local:'',obs:''}:{})}; agDrawer(); setTimeout(()=>$('agDr')?.querySelector('[data-agf="titulo"]')?.focus(),0)}
@@ -7818,19 +7766,30 @@ document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&AG.dr&&!$('celPop
 const YC_RH=17, YC_TOP=24, YC_WD='DSTQQSS';
 function ycPor(m,n){let o=m.get(n); if(!o){o={ani:[],dt:[],mk:[],ev:[]}; m.set(n,o)} return o}
 function ycGerais(m,a,b){for(const g of agGerais(a,b)){const o=ycPor(m,g.n); if(g.tipo==='feriado'){if(!o.fer||o.fer.fac) o.fer={t:g.titulo,fac:!!g.fac}} else (g.tipo==='data'?o.dt:o.ani).push(g.titulo)}}
+// dia → o que há nele num projeto: todos os marcos do cronograma (principais destacados), eventos, etapas, feriados, datas e aniversários
+function ycMapaProj(pid,a,b,fs){
+  const m=new Map(); ycGerais(m,a,b);
+  for(const k of agMarcos(pid,a,b)) ycPor(m,k.n).mk.push({t:k.titulo+(k.item?' ('+k.item+')':''),pr:k.pr});
+  for(const e of agEventos(pid,a,b)) ycPor(m,e.n).ev.push(e.titulo+(e.hora&&e.n===e.ini?' '+e.hora:''));
+  for(const o of fs) for(let n=Math.max(o.a,a);n<=Math.min(o.b,b);n++){const q=ycPor(m,n); if(!q.cor){q.cor=o.cor;q.fase=o.f}}
+  return m;
+}
 function ycLegenda(etapas){
   return `<div class="yc-lgs"><span><i class="yc-q fds"></i>Sábado e domingo</span><span><i class="yc-q fer"></i>Feriado</span><span><i class="yc-q fac"></i>Ponto facultativo</span>${etapas?'<span><i class="yc-q et"></i>Etapa (cor à esquerda)</span>':''}<span><i class="yc-mk pr"></i>Marco principal</span>${etapas?'<span><i class="yc-mk"></i>Marco</span>':''}<span><i class="yc-ev"></i>Evento</span><span><i class="yc-dt"></i>Data importante</span><span><i class="yc-an"></i>Aniversário</span></div>`;
 }
 // a..b: período da régua; px: pixels por dia; W: largura da régua; m: dia → {fer, ani[], mk[], ev[], cor, fase}
-function anoGrade(a,b,px,W,m){
-  const hj=crHoje(), adm=agAdm(); let h='';
+// op.pid: calendário de um projeto (o clique no dia também inclui eventos); op.semCab: sem os nomes dos meses (já estão na régua acima)
+function anoGrade(a,b,px,W,m,op={}){
+  const hj=crHoje(), adm=agAdm(), clic=op.pid?!S.ro:adm, top0=op.semCab?4:YC_TOP;
+  const dica=!clic?'':op.pid?(adm?'clique para incluir um evento, uma data importante ou um aniversário':'clique para incluir um evento'):'clique para incluir uma data importante ou um aniversário';
+  let h='';
   for(const o of mesesE(a,b)){
     const ini=crMes1(o.y,o.m), nd=crMes1(o.y,o.m+1)-ini, x=(o.s-a)*px, w=(o.e-o.s+1)*px-3;
     if(w<4) continue;
     const nome=w>=84?MESES_L[o.m]:w>=30?MESES_C[o.m]:w>=12?MESES_C[o.m][0]:'', ano=(o.m===0||o.s===a)&&w>=46;
-    let c=`<div class="yc-h" data-tipj="${MESES_L[o.m]} de ${o.y}">${nome}${ano?` <span>${o.y}</span>`:''}</div>`;
+    let c=op.semCab?'':`<div class="yc-h" data-tipj="${MESES_L[o.m]} de ${o.y}">${nome}${ano?` <span>${o.y}</span>`:''}</div>`;
     for(let d=1;d<=nd;d++){
-      const n=ini+d-1, fora=n<a||n>b, wd=crUD(n).getUTCDay(), inf=fora?null:m.get(n), top=YC_TOP+(d-1)*YC_RH;
+      const n=ini+d-1, fora=n<a||n>b, wd=crUD(n).getUTCDay(), inf=fora?null:m.get(n), top=top0+(d-1)*YC_RH;
       if(fora){c+=`<div class="yc-d fora" style="top:${top}px"></div>`; continue}
       const tip=[];
       if(inf?.fer) tip.push(`${inf.fer.fac?'Ponto facultativo':'Feriado'}: ${inf.fer.t}`);
@@ -7839,13 +7798,15 @@ function anoGrade(a,b,px,W,m){
       for(const k of inf?.mk||[]) tip.push(`${k.pr?'Marco principal':'Marco'}: ${k.t}`);
       for(const t of inf?.ev||[]) tip.push('Evento: '+t);
       if(inf?.fase) tip.push('Etapa: '+inf.fase);
-      const dots=w>=24&&inf?(inf.mk.length?`<i class="yc-mk${inf.mk.some(k=>k.pr)?' pr':''}"></i>`:'')+(inf.ev.length?'<i class="yc-ev"></i>':'')+(inf.dt.length?'<i class="yc-dt"></i>':'')+(inf.ani.length?'<i class="yc-an"></i>':''):'';
-      const cls=`yc-d${wd===0||wd===6?' fds':''}${inf?.fer?(inf.fer.fac?' fac':' fer'):''}${n===hj?' hj':''}${!dots&&inf&&(inf.mk.length||inf.ev.length||inf.dt.length||inf.ani.length)?' tem':''}`;
-      c+=`<div class="${cls}" style="top:${top}px"${adm?` data-act="cro-ag-dia-ano" data-n="${n}"`:''} data-tipj="${esc(`${crS(n)} · ${SEMANA_C[wd]}${tip.length?' · '+tip.join(' · '):''}${adm?' · clique para incluir uma data importante ou um aniversário':''}`)}">${inf?.cor?`<s style="background:${inf.cor}"></s>`:''}${w>=15?`<b>${d}</b>`:''}${w>=36?`<em>${YC_WD[wd]}</em>`:''}${dots?`<span>${dots}</span>`:''}</div>`;
+      // marcadores: todos quando cabem; em colunas estreitas, só o mais importante (marco primeiro)
+      const mk=inf?.mk.length?`<i class="yc-mk${inf.mk.some(k=>k.pr)?' pr':''}"></i>`:'', ev=inf?.ev.length?'<i class="yc-ev"></i>':'', dt=inf?.dt.length?'<i class="yc-dt"></i>':'', an=inf?.ani.length?'<i class="yc-an"></i>':'';
+      const dots=w>=24?mk+ev+dt+an:w>=12?(mk||dt||ev||an):'';
+      const cls=`yc-d${wd===0||wd===6?' fds':''}${inf?.fer?(inf.fer.fac?' fac':' fer'):''}${n===hj?' hj':''}${!dots&&(mk||ev||dt||an)?' tem':''}`;
+      c+=`<div class="${cls}" style="top:${top}px" data-n="${n}"${clic?` data-act="cro-ag-dia-ano"${op.pid?` data-pid="${esc(op.pid)}"`:''}`:''} data-tipj="${esc(`${crS(n)} · ${SEMANA_C[wd]}${tip.length?' · '+tip.join(' · '):''}${dica?' · '+dica:''}`)}">${inf?.cor?`<s style="background:${inf.cor}"></s>`:''}${w>=15?`<b>${d}</b>`:''}${w>=36?`<em>${YC_WD[wd]}</em>`:''}${dots?`<span>${dots}</span>`:''}</div>`;
     }
     h+=`<div class="yc-m" style="left:${x.toFixed(1)}px;width:${w.toFixed(1)}px">${c}</div>`;
   }
-  return `<div class="yc" style="width:${(+W).toFixed(1)}px;height:${YC_TOP+31*YC_RH+2}px">${h}</div>`;
+  return `<div class="yc${op.semCab?' sem-cab':''}" style="width:${(+W).toFixed(1)}px;height:${top0+31*YC_RH+2}px">${h}</div>`;
 }
 /* zoom das linhas do tempo (Resumido e painel de Projetos): Ctrl + roda, ou a roda sobre os meses; o dia sob o cursor fica parado.
    O fator de zoom multiplica a largura que cabe na tela (1 = tudo visível). */
@@ -7870,6 +7831,31 @@ document.addEventListener('wheel',ev=>{
     sc2.scrollLeft+=org2.getBoundingClientRect().left-(LIN.x-(dia-(+sc2.dataset.a))*(+sc2.dataset.px)); LIN.sl[k]=sc2.scrollLeft;
   });
 },{passive:false});
+/* realce ligado entre o calendário anual e a linha do tempo do mesmo quadro:
+   mouse num dia do calendário → linha-guia na data e destaque do que cai nela (marcos, eventos, datas, etapas em andamento);
+   mouse num marco, evento ou etapa da linha do tempo → destaque dos dias correspondentes no calendário */
+let HL=null;
+function hlLimpar(){if(!HL) return; for(const e of HL.els) e.classList.remove('hl'); HL.guia?.remove(); HL=null}
+function hlAplicar(card,a,b,doCal){
+  hlLimpar(); const els=[], marca=e=>{e.classList.add('hl');els.push(e)};
+  if(doCal){
+    for(const e of card.querySelectorAll('.tl [data-n],.lt-corpo .lt-r:not(.lt-ano) [data-n]')){const n=+e.dataset.n; if(n>=a&&n<=b) marca(e)}
+    for(const e of card.querySelectorAll('.tl-f[data-b],.lt-f[data-b]')) if(+e.dataset.a<=b&&+e.dataset.b>=a) marca(e);
+  } else for(const e of card.querySelectorAll('.yc-d[data-n]')){const n=+e.dataset.n; if(n>=a&&n<=b) marca(e)}
+  let guia=null; const sc=card.querySelector('[data-zm]'), org=card.querySelector('[data-orig]'), cont=card.querySelector('.lt-corpo')||card.querySelector('.tl');
+  if(doCal&&sc&&org&&cont){guia=document.createElement('i'); guia.className='hl-guia'; guia.style.left=(org.getBoundingClientRect().left-cont.getBoundingClientRect().left+(a-(+sc.dataset.a)+.5)*(+sc.dataset.px)).toFixed(1)+'px'; cont.appendChild(guia)}
+  HL={els,guia,card,a,b,cal:doCal};
+}
+document.addEventListener('mouseover',ev=>{
+  const t=ev.target; if(!t.closest) return;
+  const cal=t.closest('.yc-d[data-n]'), lin=cal?null:t.closest('.tl [data-n],.tl-f[data-b],.lt-corpo .lt-t [data-n],.lt-f[data-b]');
+  const el=cal||lin, card=el?.closest('.tl-card,.lt-card');
+  if(!el||!card){if(HL) hlLimpar(); return}
+  const a=el.dataset.n!=null?+el.dataset.n:+el.dataset.a, b=el.dataset.n!=null?a:+el.dataset.b;
+  if(HL&&HL.card===card&&HL.a===a&&HL.b===b&&HL.cal===!!cal) return;
+  hlAplicar(card,a,b,!!cal);
+});
+document.addEventListener('mouseleave',()=>hlLimpar());
 function agLinhasTempo(){
   const ps=itensDe('projetos').filter(pnAberto).sort(ordena), hj=crHoje();
   // projetos com itens no cronograma ou com eventos no calendário
@@ -7891,16 +7877,16 @@ function agLinhasTempo(){
     const lanes=[]; for(const o of fs){let k=lanes.findIndex(e=>e<o.a); if(k<0){k=lanes.length;lanes.push(0)} lanes[k]=o.b; o.k=k}
     const nl=Math.max(1,lanes.length), H=Math.max(26,nl*9+12);
     let tr='';
-    for(const o of fs) if(dentro(o.a,o.b)){const [s,e]=clip(o.a,o.b); tr+=`<div class="lt-f" style="left:${X(s).toFixed(1)}px;width:${Math.max(2,(e-s+1)*px).toFixed(1)}px;top:${6+o.k*9}px;background:${o.cor}" data-tipj="${esc(o.f)} · ${crS(o.a)} a ${crS(o.b)}"></div>`}
+    for(const o of fs) if(dentro(o.a,o.b)){const [s,e]=clip(o.a,o.b); tr+=`<div class="lt-f" data-a="${o.a}" data-b="${o.b}" style="left:${X(s).toFixed(1)}px;width:${Math.max(2,(e-s+1)*px).toFixed(1)}px;top:${6+o.k*9}px;background:${o.cor}" data-tipj="${esc(o.f)} · ${crS(o.a)} a ${crS(o.b)}"></div>`}
     const mm=new Map(); for(const t of L) for(const m of marcosT(t)) if(principalM(pid,m)&&m.n>=a&&m.n<=b){const nm=nomeMarco(m), k=m.n+'|'+nm; if(!mm.has(k)) mm.set(k,{n:m.n,nm,it:[]}); mm.get(k).it.push(t.nome||'')}
-    for(const g of mm.values()) tr+=`<i class="lt-mk${g.n<hj?' ps':''}" style="left:${X(g.n+.5).toFixed(1)}px;top:${H/2-5}px" data-tipj="${esc(g.nm)} · ${crS(g.n)} · ${esc(g.it.join(' · '))}"></i>`;
-    for(const e of agEvDe(pid)){const s=crN(e.data); if(s==null||s<a||s>b) continue; tr+=`<i class="lt-ev" style="left:${X(s+.5).toFixed(1)}px;top:${H-7}px" data-tipj="Evento · ${esc(e.titulo||'')} · ${crS(s)}${e.hora?' · '+esc(e.hora):''}"></i>`}
+    for(const g of mm.values()) tr+=`<i class="lt-mk${g.n<hj?' ps':''}" data-n="${g.n}" style="left:${X(g.n+.5).toFixed(1)}px;top:${H/2-5}px" data-tipj="${esc(g.nm)} · ${crS(g.n)} · ${esc(g.it.join(' · '))}"></i>`;
+    for(const e of agEvDe(pid)){const s=crN(e.data); if(s==null||s<a||s>b) continue; tr+=`<i class="lt-ev" data-n="${s}" style="left:${X(s+.5).toFixed(1)}px;top:${H-7}px" data-tipj="Evento · ${esc(e.titulo||'')} · ${crS(s)}${e.hora?' · '+esc(e.hora):''}"></i>`}
     const per=`${crS(Math.min(...ex.map(e=>e[0])))} a ${crS(Math.max(...ex.map(e=>e[1])))}`;
     rows+=`<div class="lt-r"><button class="lt-l" data-act="cro" data-id="${esc(pid)}" title="Abrir o calendário/cronograma"><span class="mono">${esc(p.campos?.codigo||'')}</span><b>${esc(p.nome||'')}</b><em>${per}</em></button><div class="lt-t" style="height:${H}px">${tr}</div></div>`;
   }
   // datas importantes: feriados, datas cadastradas e aniversários
   const gs=agGerais(a,b), ROT_G={feriado:'Feriado',data:'Data importante',aniversario:'Aniversário'}; let tg='';
-  for(const o of gs) tg+=`<i class="${o.tipo==='feriado'?'lt-fer'+(o.fac?' fac':''):o.tipo==='data'?'lt-dt':'lt-ani'}" style="left:${X(o.n+.5).toFixed(1)}px"${o.id&&o.tipo!=='feriado'&&agAdm()?` data-act="cro-ag-ed" data-id="${esc(o.id)}"`:''} data-tipj="${o.fac?'Ponto facultativo':ROT_G[o.tipo]} · ${esc(o.titulo)} · ${crS(o.n)}"></i>`;
+  for(const o of gs) tg+=`<i data-n="${o.n}" class="${o.tipo==='feriado'?'lt-fer'+(o.fac?' fac':''):o.tipo==='data'?'lt-dt':'lt-ani'}" style="left:${X(o.n+.5).toFixed(1)}px"${o.id&&o.tipo!=='feriado'&&agAdm()?` data-act="cro-ag-ed" data-id="${esc(o.id)}"`:''} data-tipj="${o.fac?'Ponto facultativo':ROT_G[o.tipo]} · ${esc(o.titulo)} · ${crS(o.n)}"></i>`;
   const nG=t=>gs.filter(o=>o.tipo===t).length, pl=(n,s,p)=>`${n} ${n===1?s:p}`;
   rows+=`<div class="lt-r lt-ger"><button class="lt-l" data-act="cro-ag-lista" title="Ver e cadastrar datas importantes, aniversários e feriados"><b>Datas importantes</b><em>${[pl(nG('feriado'),'feriado','feriados'),pl(nG('data'),'data','datas'),pl(nG('aniversario'),'aniversário','aniversários')].join(' · ')} no período</em></button><div class="lt-t" style="height:30px">${tg}</div></div>`;
   if(AG.ano){ // calendário anual alinhado à régua: feriados, aniversários, marcos principais e eventos dos projetos ativos
