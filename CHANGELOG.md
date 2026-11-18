@@ -5,6 +5,16 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 18/11, ~15h05 — commit 5e90fbb
+- **Calendário/Cronograma** (antes Cronograma), com os modos Resumido e Detalhado:
+  - Calendário anual em colunas (um mês por coluna, um dia por linha) abaixo da linha do tempo do Resumido, alinhado à régua dos meses. Mostra todos os marcos, os eventos, a etapa em andamento, os feriados, as datas importantes e os aniversários.
+  - Clicar num dia inclui um evento do projeto; administradores também incluem datas importantes e aniversários. O painel lateral lista o que já existe naquele dia.
+  - Zoom com Ctrl + roda do mouse (ou a roda sobre os meses) no Resumido e no Detalhado, com o botão "Redefinir zoom".
+  - Realce ligado: o mouse num dia do calendário destaca a data na linha do tempo, e o mouse num marco ou etapa destaca os dias no calendário.
+- **Painel de Projetos**: bloco "Linhas do tempo" com as etapas, os marcos principais e os eventos de cada projeto ativo numa régua comum, a linha "Datas importantes" (feriados, datas e aniversários) e o calendário anual; zoom e realce como no Resumido.
+- **Datas importantes**: feriados nacionais calculados automaticamente (inclusive Carnaval, Sexta-feira Santa e Corpus Christi); feriados próprios, datas importantes e aniversários cadastrados pelos administradores.
+- Nova coleção `agenda` no banco (eventos, feriados próprios, datas importantes e aniversários), incluída no backup e no desfazer. Nenhum dado existente foi alterado.
+
 ## oficial Firebase — 13/11, ~17h53 — commit 1c5052e
 - Extensão do Revit 2.27.0 (antes 2.26.10): **Cotar vistas** na planta 1:75 cota também os **elementos notáveis** para levantamentos por nuvem de pontos: o comprimento de cada trecho de espessura nas paredes que mudam de espessura, as pontas livres de parede até a primeira parede perpendicular e os pilares isolados até as paredes mais próximas, nas duas direções. Testado pelo conector na PMA.NÍVEL 1 (101 cotas, nenhuma recusada). Ver docs/cotagem.md.
 
