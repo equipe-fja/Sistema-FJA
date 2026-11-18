@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 18/11, ~17h40 — commit 9de80df
+- Botão **Sair** (log off) no topo, ao lado do indicador de conexão. Com alterações não salvas, avisa em vez de sair.
+
 ## oficial Firebase — 18/11, ~17h25 — commit 6eae619
 - **Meu painel** mostra só o que cita a pessoa num campo: RIs em que ela é requerida ou requerente, e pendências e comentários cujo responsável cita o nome dela. Ter criado o registro, ou estar ligado só pela empresa ou pelos parceiros da disciplina, deixou de contar.
 
