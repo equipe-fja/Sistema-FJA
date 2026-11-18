@@ -900,16 +900,18 @@ span.lt-l{cursor:default}
 .cro-lg i.lt-lg-dt{width:7px;height:7px;border-radius:2px;background:#c08a1e}
 .ag-tipos{align-self:flex-start;margin-bottom:4px}
 /* realce ligado calendário ↔ linhas do tempo */
-.hl-guia{position:absolute;top:0;bottom:0;width:0;border-left:1.5px solid var(--accent);opacity:.6;pointer-events:none;z-index:5}
-.tl-f.hl,.lt-f.hl{opacity:1;box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px var(--accent)}
-.lt-mk.hl{transform:rotate(45deg) scale(1.5);z-index:6}
-.lt-ev.hl,.lt-dt.hl,.lt-ani.hl{transform:scale(1.6);box-shadow:0 0 0 1.5px var(--accent);z-index:6}
-.lt-fer.hl{box-shadow:0 0 0 1.5px var(--accent);z-index:6}
-.tl-dm.hl{transform:scale(1.6);background:var(--accent);z-index:6}
-.tl-ld.hl{opacity:1;border-left-width:2px;border-left-color:var(--accent)}
-.tl-lb.hl{background:var(--accent-weak);z-index:6;text-shadow:none}
-.tl-lb.hl b{text-decoration:underline}
-.yc-d.hl{background:var(--accent-weak);box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent-ink)}
+.hl-guia{position:absolute;top:0;bottom:0;width:0;border-left:1px solid var(--accent);opacity:.3;pointer-events:none;z-index:5}
+/* realce suave: tons leves e transição curta, sem contornos fortes */
+.tl-f,.lt-f,.lt-mk,.lt-ev,.lt-dt,.lt-ani,.lt-fer,.tl-dm,.tl-ld,.tl-lb,.yc-d{transition:background-color .18s ease,box-shadow .18s ease,transform .18s ease,opacity .18s ease}
+.tl-f.hl,.lt-f.hl{opacity:1;box-shadow:0 0 0 1.5px rgba(142,27,27,.28)}
+.lt-mk.hl{transform:rotate(45deg) scale(1.25);z-index:6}
+.lt-ev.hl,.lt-dt.hl,.lt-ani.hl{transform:scale(1.25);box-shadow:0 0 0 1px rgba(142,27,27,.3);z-index:6}
+.lt-fer.hl{box-shadow:0 0 0 1px rgba(142,27,27,.3);z-index:6}
+.tl-dm.hl{transform:scale(1.25);z-index:6}
+.tl-ld.hl{opacity:.9}
+.tl-lb.hl{background:rgba(142,27,27,.05);z-index:6}
+.yc-d.hl{background:rgba(142,27,27,.06);box-shadow:inset 0 0 0 1px rgba(142,27,27,.18)}
+.yc-d.hl.hj{box-shadow:inset 0 0 0 1.5px var(--accent)}
 .yc.sem-cab{margin-top:10px}
 /* calendário anual em colunas: sem preenchimentos fortes, só o necessário para ler */
 .yc{position:relative;margin:14px auto 0}
@@ -925,7 +927,7 @@ span.lt-l{cursor:default}
 .yc-d.hj{box-shadow:inset 0 0 0 1.5px var(--accent)}
 .yc-d.hj b{color:var(--accent)}
 .yc-d.tem::after{content:'';position:absolute;right:2px;top:2px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
-.yc-d:hover{background:var(--accent-weak)}
+.yc-d:hover{background:rgba(142,27,27,.09)}
 .yc-d b{font-weight:500;min-width:13px;text-align:right;font-variant-numeric:tabular-nums}
 .yc-d em{font-style:normal;color:var(--faint);font-size:9px}
 .yc-d.fer em,.yc-d.fac em{color:inherit;opacity:.7}
