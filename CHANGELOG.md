@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 18/11, ~15h15 — commit 89e459e
+- Realce ligado entre o calendário anual e as linhas do tempo mais suave: tons leves e contornos finos, marcadores que crescem menos, linha-guia mais discreta e uma transição curta ao entrar e sair do realce.
+
 ## oficial Firebase — 18/11, ~15h05 — commit 5e90fbb
 - **Calendário/Cronograma** (antes Cronograma), com os modos Resumido e Detalhado:
   - Calendário anual em colunas (um mês por coluna, um dia por linha) abaixo da linha do tempo do Resumido, alinhado à régua dos meses. Mostra todos os marcos, os eventos, a etapa em andamento, os feriados, as datas importantes e os aniversários.
