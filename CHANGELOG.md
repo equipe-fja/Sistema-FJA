@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 18/11, ~17h15 — commit ca94a32
+- Botões **voltar e avançar do navegador** passam a navegar entre as telas do sistema, voltando à rolagem em que cada tela estava. Com alterações não salvas, a tela fica onde está e aparece o aviso de salvar ou descartar.
+
 ## oficial Firebase — 18/11, ~15h15 — commit 89e459e
 - Realce ligado entre o calendário anual e as linhas do tempo mais suave: tons leves e contornos finos, marcadores que crescem menos, linha-guia mais discreta e uma transição curta ao entrar e sair do realce.
 
