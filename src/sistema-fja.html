@@ -2626,6 +2626,7 @@ async function salvarCelCm(eid,k,v){
   if(k==='status'&&v===SF&&!e[DF]) novo[DF]=new Date().toLocaleDateString('pt-BR');
   if(md===MODS.pd){if(['inclusao','previsao','finalizacao'].includes(k)) novo.status=''; regraPd(novo)}
   const upd={[k]:novo[k]??v,status:novo.status||'',[DF]:novo[DF]||'',atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{}),...(e.origem?{editadoLocal:true}:{})};
+  if(md===MODS.cm){const hz=cmHistEntrada(e,{...e,...upd}); if(hz) upd.historico=[...(e.historico||[]),hz]}
   const ant={...e}; Object.assign(e,upd); render();
   try{await md.coll().doc(eid).update(upd);toast(k==='prioridade'?'Prioridade: '+(capCm(v)||'sem prioridade'):k==='status'?'Status: '+(capCm(novo.status)||'sem status'):'Data salva'+(novo.status!==ant.status?' · status '+capCm(novo.status):''))}
   catch(err){Object.assign(e,ant);render();toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
@@ -2635,6 +2636,7 @@ const CM_TCOLS=[
   ['status','Status',1,e=>celEdCm(e,'status',statusCm(e)),''],
   ['prioridade','Prioridade',1,e=>celEdCm(e,'prioridade',priorCm(e)),''],
   ['texto','Comentário',2,e=>`<span class="cm-txt">${esc(e.texto||'Sem texto')}</span>`,'wide'],
+  ['respostas','Respostas',1,e=>rfiEvCel(e,'respostas'),'muted wide'],
   ['documento','Documento',1,docCm,'mono mid'],
   ['disciplina','Disciplina',1,e=>{const c=codCm(e);return c?tagsCel(e.projeto,[c]):esc(e.disciplina||'')},''],
   ['parceiro','Parceiro',1,e=>chipsParc(parcsCm(e)),''],
@@ -2651,6 +2653,8 @@ const CM_TCOLS=[
 ];
 const ordCm=(a,b)=>(a.num??1e9)-(b.num??1e9)||(a.linha??1e9)-(b.linha??1e9)||(a.criadoEm||0)-(b.criadoEm||0);
 const proxNumCm=pid=>comDe(pid).reduce((m,e)=>Math.max(m,+e.num||0),0)+1;
+// coluna Respostas (nova): aparece uma vez para quem já tinha escolhido as colunas, logo depois de Comentário
+(()=>{try{if(localStorage.getItem('fja.cm.cols.resp')) return; const r=localStorage.getItem('fja.cm.cols'); localStorage.setItem('fja.cm.cols.resp','1'); if(!r) return; const L=JSON.parse(r); if(Array.isArray(L)&&!L.includes('respostas')){const i=L.indexOf('texto'); L.splice(i<0?L.length:i+1,0,'respostas'); localStorage.setItem('fja.cm.cols',JSON.stringify(L))}}catch{}})();
 iniciarMod({id:'cm',lk:'fja.cm.',T:CM_TCOLS,padrao:CM_TCOLS.filter(c=>c[2]).map(c=>c[0]),de:id=>comDe(id),mapa:()=>S.coment,coll:()=>comColl(),ord:ordCm,
   val:{status:e=>e.status&&e.status!=='-'?capCm(e.status):'',prioridade:e=>capCm(e.prioridade),emitido:e=>e.emitido&&e.emitido!=='-'?e.emitido:''},
   num:{num:e=>e.num,prioridade:e=>e.prioridade?PRIOR_CM.indexOf(e.prioridade)+1||null:null,recebido:e=>dataNum(e.recebido),encaminhado:e=>dataNum(e.encaminhado),atendido:e=>dataNum(e.atendido),emitido:e=>dataNum(e.emitido),imagem:e=>e.capa?1:0,local:e=>/^https?:/.test(e.local||'')?1:0},
@@ -2786,6 +2790,7 @@ function telaCmItem(h,v){
     ${caminhoCm(e)?`<div class="cam-win" title="Cole na barra de endereço do Windows Explorer">${esc(caminhoCm(e).arquivo||caminhoCm(e).pasta)}</div>`:''}</div>`;
   h+=`<div class="eq-top eq-top2">${blocoCapaEq(e)}${acoes}</div>`;
   for(const [tit,fs] of CMF) h+=`<section class="sheet"><div class="sheet-h"><h2>${esc(tit)}</h2></div><div class="grid">${fs.map(f=>f[0]==='documento'?campoDocCm(f,e):f[0]==='disciplina'?eqCampoHTML(f,e[f[0]]).replace('data-q="disciplina"','data-q="disciplina" list="dlDiscCm" autocomplete="off"')+`<datalist id="dlDiscCm">${[...new Set([...discsProj(e.projeto).map(l=>l.cod),...CAT().keys()])].map(c=>`<option value="${esc(c)}">${esc(discNome(c))}</option>`).join('')}</datalist>${codCm(e)?`<span class="muted" style="font-size:12px;margin-top:-6px">${esc(codCm(e))} · ${esc(discNome(codCm(e)))}${parcsCm(e).length?' — '+parcsCm(e).map(nomeParc).map(esc).join(', '):''}</span>`:''}`:eqCampoHTML(f,e[f[0]])).join('')}</div></section>`;
+  h+=blocoEvRfi(e,'respostas','Respostas','Registre a resposta: quem respondeu, o que foi definido…',S.ro)+blocoHistCm(base);
   if(e.origem) h+=`<div class="banner pub eq-origem"><span class="sp">Importado da linha <b>${esc(e.origem.linha)}</b> da aba <b>${esc(e.origem.aba)}</b>.${e.editadoLocal?' Editado no sistema: uma nova importação não sobrescreve este item.':''}</span><a class="btn sm" href="https://docs.google.com/spreadsheets/d/${esc(e.origem.planilha)}/edit" target="_blank" rel="noopener">Abrir planilha</a></div>`;
   h+=`<div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="cm-del">${IC.trash}Excluir</button><button class="btn pri" data-act="cm-salvar">Salvar alterações</button></div>`;
@@ -2841,12 +2846,29 @@ document.addEventListener('contextmenu',ev=>{
 document.addEventListener('click',ev=>{const m=$('menuLinha');if(m&&!m.contains(ev.target))fecharMenuLinha()},true);
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&$('menuLinha')){fecharMenuLinha();ev.stopPropagation()}},true);
 document.addEventListener('scroll',ev=>{const m=$('menuLinha'); if(m&&(m.classList.contains('eqp-menu')||ev.target instanceof Node&&m.contains(ev.target))) return; fecharMenuLinha()},true);
+/* histórico do comentário: alterações de campos e respostas (como na RI) */
+const CM_HC=[['status','Status',v=>capCm(v||'')],['prioridade','Prioridade',v=>capCm(v||'')],['texto','Comentário'],['documento','Documento'],['responsavel','Responsável'],['recebido','Recebido em'],['encaminhado','Encaminhado em'],['atendido','Atendido em'],['obs','Observação']];
+function cmHistEntrada(a,b,novo){
+  const quem={em:Date.now(),por:rfiEuNome(),porId:rfiEuId()};
+  if(novo) return {...quem,acao:'Criou o comentário'};
+  const campos=[]; for(const [k,r,fm] of CM_HC){const v=x=>rfiCurto(fm?fm(x):String(x??'')), x=v(a[k]), y=v(b[k]); if(x!==y) campos.push({c:r,...(x?{de:x}:{}),para:y||'(vazio)'})}
+  const ev=rfiHistEv(a.respostas,b.respostas,'Resposta','a');
+  if(!campos.length&&!ev.length) return null;
+  const so=!campos.filter(c=>c.c!=='Status').length&&ev.length&&ev.every(c=>c.c.startsWith('Resposta adicionad'));
+  return {...quem,acao:so?'Respondeu':'Alterou',campos:[...campos,...ev]};
+}
+function blocoHistCm(base){
+  const L=[...(base?.historico||[])].sort((x,y)=>(y.em||0)-(x.em||0));
+  return `<section class="sheet"><div class="sheet-h"><h2>Histórico</h2><span class="hint">${L.length||'Nenhum'}${L.length?` registro${L.length===1?'':'s'}`:''}</span></div><div class="pad">${L.length?`<ol class="rh-l">${L.map(x=>rfiHistItem(x)).join('')}</ol>`:'<p class="muted" style="font-size:12px;margin:0">O registro das alterações e respostas começa a partir da próxima gravação.</p>'}</div></section>`;
+}
 async function salvarCm(){
   const e=S.qdraft; if(!e) return true;
   const body={...e}; delete body.id;
   body.status=normStCm(body.status); body.prioridade=(body.prioridade||'').toUpperCase(); delete body._stAntes;
   regraAtendido(body);
   if(body.origem) body.editadoLocal=true;
+  if(Array.isArray(body.respostas)) body.respostas=rfiLimpaEv(body.respostas);
+  {const base=S.coment.get(e.id), hz=cmHistEntrada(base||{},body,!base); if(hz) body.historico=[...(base?.historico||[]),hz]}
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
   try{await comColl().doc(e.id).set(body);S.coment.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;S.qnovo=null;toast('Salvo');setTimeout(detectarExtsCm,300);return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
@@ -3340,7 +3362,7 @@ function blocoEvRfi(e,c,tit,ph,soLeitura){
 }
 const rfiLimpaEv=l=>(l||[]).map(x=>({data:x.data||'',texto:String(x.texto||'').trim(),...(x.por?{por:x.por}:{}),...(x.porId?{porId:x.porId}:{}),...(x.em?{em:x.em}:{})})).filter(x=>x.texto||x.data);
 const rfiAutorEv=x=>x.por||x.em?`<span class="ev-autor">${esc([x.por,x.em&&new Date(x.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})].filter(Boolean).join(' · '))}</span>`:'';
-function rfiGarantir(){const d=S.qdraft; if(!d) return; for(const c of ['respostas','comentarios','disciplinas']) if(!Array.isArray(d[c])) d[c]=[]}
+function rfiGarantir(){const d=S.qdraft; if(!d) return; for(const c of S.view?.t==='comi'?['respostas']:['respostas','comentarios','disciplinas']) if(!Array.isArray(d[c])) d[c]=[]}
 async function salvarRfi(){
   const e=S.qdraft; if(!e) return true; rfiGarantir();
   const base=S.rfis.get(e.id)||{};
