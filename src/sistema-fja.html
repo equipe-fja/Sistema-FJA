@@ -1478,19 +1478,20 @@ function bannerPend(){
 const PN={escopo:null,proj:'',vistoAnt:null};
 function pnEu(){const p=FB()?.perfil(); const emp=p?.empresa||''; return {id:rfiEuId(),nome:rfiEuNome(),empresa:emp,empNome:emp?(S.itens.get(emp)?.nome||''):''}}
 const pnAberto=p=>!/^(Conclu|Arquiv)/i.test(p.status||'');
-const pnReqMim=(r,eu)=>reqsRfi(r).some(q=>q.tipo==='u'?q.id===eu.id:(!!eu.empresa&&q.id===eu.empresa));
-// responsável (texto livre) ou empresa (parceiro) ligados à pessoa
-function pnLigado(resp,parcs,eu){
-  if(eu.empresa&&(parcs||[]).includes(eu.empresa)) return true;
+// O painel mostra só o que cita a própria pessoa num campo: ter criado o registro, ou estar ligado só pela empresa, não basta.
+const pnReqMim=(r,eu)=>reqsRfi(r).some(q=>q.tipo==='u'&&q.id===eu.id);
+const pnRequerente=(r,eu)=>r.requerente?.tipo==='u'&&r.requerente.id===eu.id;
+// responsável (texto livre) que cita a pessoa: o nome completo ou o primeiro nome como palavra inteira
+function pnLigado(resp,eu){
   const r=semAc(String(resp||'')).toLowerCase(); if(!r) return false;
-  const nm=semAc(eu.nome||'').toLowerCase().trim(), pr=nm.split(/\s+/)[0]||'', em=semAc(eu.empNome||'').toLowerCase().trim();
-  return (nm.length>2&&r.includes(nm))||(pr.length>2&&new RegExp('\\b'+pr.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(r))||(em.length>2&&r.includes(em));
+  const nm=semAc(eu.nome||'').toLowerCase().trim(), pr=nm.split(/\s+/)[0]||'';
+  return (nm.length>2&&r.includes(nm))||(pr.length>2&&new RegExp('\\b'+pr.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(r));
 }
 function pnProjetos(eu){
   if(PN.escopo==null) PN.escopo=lsGet('fja.pn.escopo','meus');
   const todos=itensDe('projetos').filter(pnAberto);
   if(S.convidado||PN.escopo==='todos') return todos;
-  return todos.filter(p=>partsDe(p).includes(eu.id)||(eu.empresa&&empresasProj(p).includes(eu.empresa))||rfiDe(p.id).some(r=>rfiAutorId(r)===eu.id||pnReqMim(r,eu)));
+  return todos.filter(p=>partsDe(p).includes(eu.id)||(eu.empresa&&empresasProj(p).includes(eu.empresa))||rfiDe(p.id).some(r=>pnRequerente(r,eu)||pnReqMim(r,eu)));
 }
 const pnPrazo=d=>{const n=dataNum(d); if(!n) return null; const h=hojeNum(); if(n<h) return {t:'vencida',al:true}; const dt=Math.round((new Date(String(n).replace(/(\d{4})(\d\d)(\d\d)/,'$1-$2-$3'))-new Date(String(h).replace(/(\d{4})(\d\d)(\d\d)/,'$1-$2-$3')))/864e5);
   return {t:dt===0?'vence hoje':dt===1?'vence amanhã':`faltam ${dt} dias`,al:dt<=2}};
@@ -1498,12 +1499,12 @@ function pnDados(){
   const eu=pnEu(), ps=pnProjetos(eu).filter(p=>!PN.proj||p.id===PN.proj), ids=new Set(ps.map(p=>p.id)), nomeP=id=>{const p=S.itens.get(id); return p?((p.campos?.codigo?p.campos.codigo+' ':'')+(p.nome||'')):''};
   const ris=[...S.rfis.values()].filter(r=>ids.has(r.projeto));
   const riMinhas=ris.filter(r=>r.status==='ABERTA'&&pnReqMim(r,eu)).sort((a,b)=>(dataNum(a.prazo)||9e9)-(dataNum(b.prazo)||9e9));
-  const riAguardo=ris.filter(r=>r.status==='ABERTA'&&rfiAutorId(r)===eu.id).sort((a,b)=>(dataNum(a.prazo)||9e9)-(dataNum(b.prazo)||9e9));
+  const riAguardo=ris.filter(r=>r.status==='ABERTA'&&pnRequerente(r,eu)).sort((a,b)=>(dataNum(a.prazo)||9e9)-(dataNum(b.prazo)||9e9));
   let pds=[], cms=[];
   if(!S.convidado){
-    pds=[...S.pends.values()].filter(e=>ids.has(e.projeto)&&ANTES_PD.has(e.status||'')&&!e.finalizacao&&pnLigado(e.responsavel,parcsPd(e),eu))
+    pds=[...S.pends.values()].filter(e=>ids.has(e.projeto)&&ANTES_PD.has(e.status||'')&&!e.finalizacao&&pnLigado(e.responsavel,eu))
       .sort((a,b)=>(atrasadaPd(b)?1:0)-(atrasadaPd(a)?1:0)||(dataNum(a.previsao)||9e9)-(dataNum(b.previsao)||9e9));
-    cms=[...S.coment.values()].filter(e=>ids.has(e.projeto)&&e.status!=='ATENDIDO'&&pnLigado(e.responsavel,parcsCm(e),eu)).sort((a,b)=>(b.atualizadoEm||0)-(a.atualizadoEm||0));
+    cms=[...S.coment.values()].filter(e=>ids.has(e.projeto)&&e.status!=='ATENDIDO'&&pnLigado(e.responsavel,eu)).sort((a,b)=>(b.atualizadoEm||0)-(a.atualizadoEm||0));
   }
   // atualizações dos últimos 14 dias feitas por outras pessoas
   const desde=Date.now()-14*864e5, upd=[];
@@ -1532,18 +1533,18 @@ function telaPainel(h){
   const card=(n,k,al)=>`<div class="pn-card${n?'':' zero'}"><span class="n">${n}</span><span class="k">${k}</span>${al?`<span class="al">${al}</span>`:''}</div>`;
   const projOps=pnProjetos(eu).sort(ordena);
   const pri=String(eu.nome||'').trim().split(/\s+/)[0]||'';
-  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1><p class="lead">O que pede a sua ação e o que mudou nos projetos em que você está envolvido.</p>
+  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1><p class="lead">O que pede a sua ação e o que mudou nos projetos em que você está envolvido. As RIs, pendências e comentários aparecem só quando citam você num campo (requerente, requerido ou responsável).</p>
   <div class="pn-filtros">${conv?'':`<label class="fl" style="flex-direction:row;align-items:center;gap:6px">Projetos <select class="fld sm" id="pnEscopo" style="width:auto"><option value="meus"${PN.escopo!=='todos'?' selected':''}>Em que estou envolvido</option><option value="todos"${PN.escopo==='todos'?' selected':''}>Todos em andamento</option></select></label>`}
     <select class="fld sm" id="pnProj" aria-label="Projeto" style="width:auto;max-width:380px"><option value="">Todos os projetos (${projOps.length})</option>${projOps.map(p=>`<option value="${esc(p.id)}"${PN.proj===p.id?' selected':''}>${esc(d.nomeP(p.id))}</option>`).join('')}</select>
-    ${!conv&&!eu.empresa&&AMB==='firebase'?'<span class="muted" style="font-size:12px">Dica: defina a sua empresa em Usuários e acesso para o painel achar as pendências e comentários da sua empresa.</span>':''}</div>
-  <div class="pn-cards">${card(d.riMinhas.length,'RIs aguardando a sua resposta',venc?`${venc} com prazo vencendo ou vencido`:'')}${card(d.riAguardo.length,'RIs suas aguardando resposta','')}
-    ${conv?'':card(d.pds.length,'Pendências ligadas a você',atr?`${atr} atrasada${atr>1?'s':''}`:'')+card(d.cms.length,'Comentários em aberto ligados a você','')}
+    </div>
+  <div class="pn-cards">${card(d.riMinhas.length,'RIs aguardando a sua resposta',venc?`${venc} com prazo vencendo ou vencido`:'')}${card(d.riAguardo.length,'RIs em que você é o requerente, aguardando resposta','')}
+    ${conv?'':card(d.pds.length,'Pendências que citam você',atr?`${atr} atrasada${atr>1?'s':''}`:'')+card(d.cms.length,'Comentários em aberto que citam você','')}
     ${card(novos,'Novidades desde a sua última visita','')}</div>
   <div class="pn-grid"><div>
     ${lista('RIs aguardando a sua resposta',d.riMinhas.map(riIt),'Nenhuma RI aguardando você.')}
-    ${lista('RIs que você abriu, aguardando resposta',d.riAguardo.map(riAgIt),'Nenhuma RI sua em aberto.')}
-    ${conv?'':lista('Pendências ligadas a você',d.pds.map(pdIt),'Nenhuma pendência em aberto ligada a você ou à sua empresa.')}
-    ${conv?'':lista('Comentários em aberto ligados a você',d.cms.map(cmIt),'Nenhum comentário em aberto ligado a você ou à sua empresa.')}
+    ${lista('RIs em que você é o requerente, aguardando resposta',d.riAguardo.map(riAgIt),'Nenhuma RI em aberto com você como requerente.')}
+    ${conv?'':lista('Pendências que citam você',d.pds.map(pdIt),'Nenhuma pendência em aberto com você como responsável.')}
+    ${conv?'':lista('Comentários em aberto que citam você',d.cms.map(cmIt),'Nenhum comentário em aberto com você como responsável.')}
   </div><div>
     <section class="sheet"><div class="sheet-h"><h2>Atualizações recentes</h2></div>
     <p class="muted" style="font-size:12px;padding:0 14px;margin:0">Últimos 14 dias, feitas por outras pessoas. <span class="pn-novo" style="display:inline-block;margin:0 3px 0 0;vertical-align:middle"></span>= novo desde a sua última visita.</p>
