@@ -1536,7 +1536,7 @@ function telaPainel(h){
   const card=(n,k,al)=>`<div class="pn-card${n?'':' zero'}"><span class="n">${n}</span><span class="k">${k}</span>${al?`<span class="al">${al}</span>`:''}</div>`;
   const projOps=pnProjetos(eu).sort(ordena);
   const pri=String(eu.nome||'').trim().split(/\s+/)[0]||'';
-  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1><p class="lead">O que pede a sua ação e o que mudou nos projetos em que você está envolvido. As RIs, pendências e comentários aparecem só quando citam você num campo (requerente, requerido ou responsável).</p>
+  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1>
   <div class="pn-filtros">${conv?'':`<label class="fl" style="flex-direction:row;align-items:center;gap:6px">Projetos <select class="fld sm" id="pnEscopo" style="width:auto"><option value="meus"${PN.escopo!=='todos'?' selected':''}>Em que estou envolvido</option><option value="todos"${PN.escopo==='todos'?' selected':''}>Todos em andamento</option></select></label>`}
     <select class="fld sm" id="pnProj" aria-label="Projeto" style="width:auto;max-width:380px"><option value="">Todos os projetos (${projOps.length})</option>${projOps.map(p=>`<option value="${esc(p.id)}"${PN.proj===p.id?' selected':''}>${esc(d.nomeP(p.id))}</option>`).join('')}</select>
     </div>
