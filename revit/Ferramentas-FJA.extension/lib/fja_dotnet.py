@@ -114,3 +114,17 @@ def rodar_botao(comando, uiapp, titulo=u"Ferramentas FJA"):
     if r.Status == "erro":
         forms.alert(r.Mensagem or u"O comando falhou.", sub_msg=r.Detalhe or None, title=titulo)
     return r
+
+
+def registrar_paineis(uiapp):
+    """Painéis encaixáveis da biblioteca C# (o Revit só aceita registrar na abertura): chamado pelo startup.py."""
+    asm = carregar(caminho_dll(uiapp))
+    try:
+        AppDomain.CurrentDomain.SetData("FJA.Extensao", pasta_extensao())
+    except Exception:
+        pass
+    tipo = asm.GetType("FJA.Revit.Entrada")
+    metodo = tipo.GetMethod("RegistrarPaineis") if tipo is not None else None
+    if metodo is None:
+        return u"DLL sem RegistrarPaineis"
+    return metodo.Invoke(None, Array[Object]([uiapp]))

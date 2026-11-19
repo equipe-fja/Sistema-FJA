@@ -37,3 +37,11 @@ try:
     __revit__.Idling += _ocioso  # noqa: F821
 except Exception:
     pass
+
+
+# painéis encaixáveis da biblioteca C# (Tipos › Componentes): o Revit só aceita registrar na abertura
+try:
+    import fja_dotnet as _D
+    _D.registrar_paineis(__revit__)  # noqa: F821
+except Exception:
+    pass

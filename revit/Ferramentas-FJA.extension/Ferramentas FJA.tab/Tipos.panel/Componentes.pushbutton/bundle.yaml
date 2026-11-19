@@ -1,0 +1,7 @@
+title:
+  pt_br: "Componentes"
+  en_us: "Componentes"
+tooltip:
+  pt_br: "Painel encaixável (em aba com Propriedades): árvore Categoria › Família › Tipo das famílias carregáveis do modelo, com busca e cor pela situação no Sistema FJA (verde = sincronizado com um keynote do projeto). Ligar tipos a um código da biblioteca e Sincronizar (o sistema é a referência). Na primeira vez depois de atualizar a suíte, feche e abra o Revit."
+  en_us: "Painel de componentes ligados ao Sistema FJA."
+author: "Ferramentas FJA"

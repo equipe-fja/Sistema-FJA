@@ -49,6 +49,13 @@ namespace FJA.Revit
             }
         }
 
+        /// <summary>Painéis encaixáveis (só aceitos na abertura do Revit): chamado pelo startup.py da extensão.</summary>
+        public static string RegistrarPaineis(UIApplication app)
+        {
+            try { return "Componentes: " + Componentes.Registro.Registrar(app); }
+            catch (Exception e) { return "Componentes: " + e.Message; }
+        }
+
         /// <summary>Lista dos comandos disponíveis nesta DLL (para diagnóstico).</summary>
         public static string[] Comandos()
         {

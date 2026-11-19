@@ -64,6 +64,7 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 | Cotagem › Cotar vistas | `CotarVistas` (`Cotagem/*.cs`; ver `docs/cotagem.md`) | 2.18.0 (13/11/2026); fachada 2.20.0 |
 | Grids, Níveis e Cortes › Trocar lado | `TrocarLadoIndicacao` (`Cotagem/JanelaTrocarLado.cs`; ver `docs/cotagem.md`) | 2.19.0 (13/11/2026); janela 2.21.0; painel próprio 2.25.0 |
 | Grids, Níveis e Cortes › Estender/Alinhar | `EstenderAlinhar` (ver `docs/grids-niveis-cortes.md`) | 2.25.0 (13/11/2026) |
+| Tipos › Componentes (painel encaixável) | `ComponentesPainel` (`Componentes/*.cs`; registro do painel em `Entrada.RegistrarPaineis`, chamado pelo `startup.py`; ver `docs/revit-componentes.md`) | 2.28.0 (19/11/2026; migrado do Python a pedido da FJA: painel encaixável) |
 
 ### Prévia LOG (2.6.0)
 - Migrada em 10/11/2026 a pedido da FJA (janela elaborada e lógica em crescimento).
