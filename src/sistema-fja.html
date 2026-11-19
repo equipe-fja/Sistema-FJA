@@ -99,6 +99,10 @@ header.top{display:flex;align-items:center;gap:14px;padding-block:10px;padding-l
 .me-cot-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .me-cot-l li{display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:8px;align-items:start;font-size:12.5px;border-bottom:1px solid var(--line);padding:5px 0}
 .me-cot-t small{display:block;color:var(--muted);font-size:11px}
+.sf-s{margin-bottom:16px}
+.sf-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.sf-l li{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:6px 0}
+.sf-t{flex:1;min-width:0;display:flex;flex-direction:column}.sf-t .muted{font-size:12px}
 @media (max-width:640px){.me-cot-g,.me-cot-n{grid-template-columns:1fr}.me-cot{padding-left:4px}}
 .ficha-fs:disabled{opacity:1}
 .ficha-ed{display:inline-flex;align-items:center;gap:5px}
@@ -1681,7 +1685,7 @@ function telaSecao(h,sec){
   if(sec==='parceiros') lista.sort((a,b)=>(a.pasta||'~').localeCompare(b.pasta||'~','pt')||ordena(a,b));
   if(sec==='disciplinas') lista.sort((a,b)=>(a.pasta||'~').localeCompare(b.pasta||'~','pt')||String(a.campos?.codigo||'').localeCompare(String(b.campos?.codigo||'')));
   h+=`<div class="page"><div class="crumb"><button data-act="home">Início</button><span>/</span>${crumbSec(s)}<span>${esc(s.nome)}</span></div><h1>${esc(s.nome)}</h1><p class="lead">${esc(s.desc)}</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">${S.ro?'':`<button class="btn pri" data-act="novo" data-sec="${sec}">${IC.plus}Novo ${esc(s.um)}</button>`}${S.publico?'':`<button class="btn" data-act="schema" data-sec="${sec}">Personalizar campos</button>`}</div>${ESP[sec]?.sec?espLinhaDest(sec,sec):''}${sec==='projetos'?agLinhasTempo():''}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">${S.ro?'':`<button class="btn pri" data-act="novo" data-sec="${sec}">${IC.plus}Novo ${esc(s.um)}</button>`}${S.publico?'':`<button class="btn" data-act="schema" data-sec="${sec}">Personalizar campos</button>`}</div>${ESP[sec]?.sec?espLinhaDest(sec,sec):''}${sec==='fornecedores'?blocoSugForn():''}${sec==='projetos'?agLinhasTempo():''}
   <div class="sheet">${lista.length?`<div class="tablewrap"><table class="list"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${lista.map(i=>(arqP.length&&i===arqP[0]?pjArqTr():'')+(sec==='disciplinas'
     ?`<tr data-act="item" data-id="${esc(i.id)}"><td class="mono"><span class="sw-d" style="background:${esc(corPadrao(String(i.campos?.codigo||'').toUpperCase()))}"></span><b>${esc(i.campos?.codigo||'')}</b></td><td>${esc(i.nome)}</td><td class="muted">${esc(i.pasta||'')}</td><td class="muted">${parceiros().filter(p=>discsParc(p).includes(String(i.campos?.codigo||'').toUpperCase())).map(p=>esc(p.nome)).join(', ')}</td><td>${badge(i.status)}</td></tr>`
     :sec==='parceiros'
@@ -5932,7 +5936,7 @@ const numBr=v=>{const t=String(v??'').trim(); if(!t) return null; const n=+t.rep
 iniciarMod({id:'es',lk:'fja.es.',T:ES_TCOLS,padrao:ES_TCOLS.filter(c=>c[2]).map(c=>c[0]),de:id=>espDe(id),mapa:()=>S.espec,coll:()=>espColl(),ord:ordEs,
   num:{kn:null},
   semFiltro:new Set(['texto','desc','obs','ferragens','kn','orig']),grupos:{tabela:'tabela',fja:'item central',tipo:'tipo'},
-  val:{diag:e=>DESC_EST[descEstado(e)]?.[0]||'Sem item central',tabela:e=>tabEs(e),fja:e=>espbDe(e)?.fja||'',nbr:e=>espbDe(e)?.nbr||'',tipo:e=>TIPOS_ET[tipoEt(espbDe(e))]||'',orig:e=>(e.var?.length?e.var.map(v=>v.kn):[e.knOrig]).filter(Boolean).join(', ')},
+  val:{materiais:e=>matTxtEs(e),diag:e=>DESC_EST[descEstado(e)]?.[0]||'Sem item central',tabela:e=>tabEs(e),fja:e=>espbDe(e)?.fja||'',nbr:e=>espbDe(e)?.nbr||'',tipo:e=>TIPOS_ET[tipoEt(espbDe(e))]||'',orig:e=>(e.var?.length?e.var.map(v=>v.kn):[e.knOrig]).filter(Boolean).join(', ')},
   ordGrupo:{tabela:v=>ordSig(String(v).split(' · ')[0])},
   rotGrupo(k,v){return v?esc(v):'Sem '+(k==='tabela'?'tabela':'item central')},
   busca:e=>[e.kn,e.desc,e.texto,tabEs(e),e.ferragens,e.obs,espbDe(e)?.fja,espbDe(e)?.nbr,espbDe(e)?.desc].join(' '),
@@ -8189,6 +8193,26 @@ async function cotGravar(mid,patch){
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
 }
 document.addEventListener('change',ev=>{const el=ev.target; if(!el?.dataset?.cot||!el.closest('.me-cot')) return; cotGravar(el.dataset.mid,{[el.dataset.cot]:el.value.trim()})});
+// texto dos materiais do keynote (PDF e filtros): "1. Fabricante – Material (código)", um por linha
+function matTxtEs(e){
+  return matEfetivos(e).map((id,i)=>{const m=S.materiais.get(id), fo=S.itens.get(m?.fornecedor); return `${i+1}. ${fo?.nome||''} – ${m?.nome||''}${m?.codigo?' ('+m.codigo+')':''}`}).join('\n');
+}
+// materiais para os arquivos do Revit (sem preços nem contatos)
+const matRevit=ids=>ids.map(id=>S.materiais.get(id)).filter(Boolean).map(m=>({fornecedor:S.itens.get(m.fornecedor)?.nome||'',material:m.nome||'',codigo:m.codigo||'',...(m.datasheet?{datasheet:m.datasheet}:{})}));
+const nTxtF=t=>semAc(String(t||'')).toLowerCase().replace(/\s+/g,' ').trim();
+// nomes do campo "Fabricante" da biblioteca central que ainda não são fornecedores cadastrados
+function sugFornecedores(){
+  const exist=new Set(itensDe('fornecedores').map(i=>nTxtF(i.nome))), m=new Map();
+  for(const b of S.espb.values()){const v=String(b.fabricante||'').trim(); if(!v||/^(-+|n\/?a|a definir|ver .*|diversos)$/i.test(v)) continue;
+    const k=nTxtF(v); if(exist.has(k)) continue; if(!m.has(k)) m.set(k,{nome:v,itens:[]}); m.get(k).itens.push(b.fja||'')}
+  return [...m.values()].sort((a,b)=>b.itens.length-a.itens.length||a.nome.localeCompare(b.nome,'pt'));
+}
+function blocoSugForn(){
+  if(!matAdm()) return ''; const L=sugFornecedores(); if(!L.length) return '';
+  return `<section class="sheet sf-s"><div class="sheet-h"><h2>Sugestões a partir do campo “Fabricante”</h2><span class="hint">${L.length} nome${L.length===1?'':'s'} da biblioteca central ainda sem fornecedor</span></div><div class="pad">
+    <p class="muted" style="margin:0 0 8px;font-size:12.5px">Os nomes vêm do campo livre “Fabricante” dos itens da biblioteca central. Revise cada um antes de criar: nada é criado sem o seu clique.</p>
+    <ul class="sf-l">${L.slice(0,80).map(x=>`<li><span class="sf-t"><b>${esc(x.nome)}</b><span class="muted">${x.itens.length} ite${x.itens.length===1?'m':'ns'}: ${esc(x.itens.slice(0,6).join(', '))}${x.itens.length>6?'…':''}</span></span><button class="btn sm" data-act="mat-sug-criar" data-nome="${esc(x.nome)}">Criar fornecedor</button></li>`).join('')}</ul></div></section>`;
+}
 async function matProjGravar(L){
   const e=S.qdraft, base=S.espec.get(e?.id); if(!e||!base||!matAdm()) return;
   const v=L===null?null:[...L];
@@ -8260,6 +8284,10 @@ async function matAcao(a,b){
   else if(a==='mat-excluir'&&dr&&!dr.novo){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
     try{await matSincronizar(dr.id,[]); await matColl().doc(dr.id).delete(); S.materiais.delete(dr.id); MAT.dr=null; matDrawer(); render(); toast('Material excluído')}catch{toast('Não foi possível excluir.')}}
+  else if(a==='mat-sug-criar'){if(!matAdm()) return; const nome=String(b.dataset.nome||'').trim(); if(!nome) return;
+    if(itensDe('fornecedores').some(i=>nTxtF(i.nome)===nTxtF(nome))){toast('Esse fornecedor já existe');return}
+    const ref=coll().doc(), body={secao:'fornecedores',nome,pasta:'',status:STATUS.fornecedores[0],campos:{},criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me,atualizadoPor:me}:{})};
+    try{await ref.set(body); S.itens.set(ref.id,{...body,id:ref.id}); render(); toast('Fornecedor criado: '+nome)}catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível criar.')}}
   else if(a==='mat-c-abrir'){const m=b.dataset.mid; COT.abertos.has(m)?COT.abertos.delete(m):COT.abertos.add(m); renderMain()}
   else if(a==='mat-c-contato'){const mid=b.dataset.mid, t=String($('cotTxt_'+mid)?.value||'').trim(), d=dBr($('cotData_'+mid)?.value||''); if(!t){toast('Escreva o que foi tratado');$('cotTxt_'+mid)?.focus();return}
     const eu=AMB==='firebase'?FB()?.perfil():null, L=[...(cotDe(S.espec.get(S.qdraft?.id),mid).contatos||[]),{data:d,texto:t,por:eu?.nome||eu?.email||S.meuNome||'',porId:eu?.uid||me||'',em:Date.now()}];
@@ -8857,7 +8885,7 @@ function rvMontar(){
   const projs=[...S.itens.values()].filter(i=>i.secao==='projetos'&&espDe(i.id).length).sort((a,b)=>rvCod(a).localeCompare(rvCod(b),'pt',{numeric:true}));
   const bib={...base,tipo:'biblioteca',
     siglas:siglasEt().map(x=>({sigla:x.sigla,nome:x.nome||'',tipo:x.tipo,...(x.rvCat?{rvCat:x.rvCat}:{}),...(x.papel?{papel:x.papel}:{})})),
-    itens:[...S.espb.values()].sort((a,b)=>fjaNum(a)-fjaNum(b)).map(b=>{const t=tipoEt(b), o={id:b.id,fja:b.fja||'',sigla:sigB(b)||'',tipo:t,desc:b.desc||'',texto:b.texto||'',nbr:b.nbr||'',fabricante:b.fabricante||'',...(b.pedido?{pedido:b.pedido}:{})};
+    itens:[...S.espb.values()].sort((a,b)=>fjaNum(a)-fjaNum(b)).map(b=>{const t=tipoEt(b), o={id:b.id,fja:b.fja||'',sigla:sigB(b)||'',tipo:t,desc:b.desc||'',texto:b.texto||'',nbr:b.nbr||'',fabricante:b.fabricante||'',...(b.pedido?{pedido:b.pedido}:{}),materiais:matRevit(espbMats(b).map(x=>x.id))};
       if(t==='sistema'){o.rvCat=b.rvCat||siglaEt(sigB(b))?.rvCat||''; o.papel=cpPapel(b); o.camadas=cpCamadas(b).map(c=>({funcao:c.fn,funcaoRevit:fnRv(c.fn),material:c.mat||'',esp:+c.esp||0})); o.espTotal=cpTotal(b)}
       else if(t==='elemento'&&b.rvCat) o.rvCat=b.rvCat;
       return o}),
@@ -8867,7 +8895,7 @@ function rvMontar(){
       .map(i=>({id:i.id,codigo:rvCod(i),nome:i.nome||'',disciplinas:discsProj(i.id).filter(l=>l.cod).map(l=>({cod:l.cod,sigla:siglaP(i.id,l.cod),cor:corDisc(i,l)}))}))};
   const arqs=[{nome:'biblioteca.json',obj:bib}];
   for(const i of projs) arqs.push({nome:rvNomeProj(i),obj:{...base,tipo:'projeto',projeto:{id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||''},
-    itens:espDe(i.id).sort(ordEs).map(e=>({id:e.id,item:e.item||'',kn:e.kn||'',sigla:knPref(e.kn),desc:e.desc||'',texto:e.texto||'',...(e.pedido?{pedido:e.pedido}:{})}))}});
+    itens:espDe(i.id).sort(ordEs).map(e=>({id:e.id,item:e.item||'',kn:e.kn||'',sigla:knPref(e.kn),desc:e.desc||'',texto:e.texto||'',...(e.pedido?{pedido:e.pedido}:{}),materiais:matRevit(matEfetivos(e))}))}});
   return arqs;
 }
 async function rvPublicar(manual){
