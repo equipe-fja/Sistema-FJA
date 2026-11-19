@@ -82,6 +82,8 @@ header.top{display:flex;align-items:center;gap:14px;padding-block:10px;padding-l
 .me-t .muted{font-size:12px}.me-t em{font-style:normal;font-size:12px;color:var(--ink)}
 .me-pad{font-size:10.5px;color:var(--accent-ink);font-weight:600;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
 .me-acts{display:flex;gap:2px}
+.me-ds{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;color:var(--muted);flex:none}
+.me-ds:hover{color:var(--accent);background:var(--accent-weak)}
 .me-add{display:flex;gap:8px;align-items:center;margin-top:10px}.me-add .fld{flex:1;min-width:0}
 .me-lk{display:grid;grid-template-columns:1fr auto;gap:4px 6px;align-items:center;border-bottom:1px solid var(--line);padding:6px 0}
 .me-lk>div{grid-column:1/-1;font-size:12.5px}
@@ -8105,6 +8107,8 @@ function agLinhasTempo(){
    Vínculo com a biblioteca central: espb.materiais = [{id, nota, em}], em ordem de recomendação;
    os 3 primeiros são o padrão que os projetos recebem. Só administradores incluem e alteram. */
 const matColl=()=>db.collection('materiais');
+const IC_DS='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>';
+const lkDs=u=>`<a class="me-ds" href="${esc(u)}" target="_blank" rel="noopener" aria-label="Datasheet" data-tipj="Datasheet">${IC_DS}</a>`;
 const MAT={dr:null};
 const matAdm=()=>agAdm();
 const matDe=fid=>[...S.materiais.values()].filter(m=>m.fornecedor===fid).sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt'));
@@ -8120,7 +8124,7 @@ function blocoMatForn(d){
   const L=matDe(d.id), adm=matAdm();
   return `<section class="sheet"><div class="sheet-h"><h2>Materiais</h2><span class="hint">${L.length?L.length+(L.length===1?' material':' materiais'):'nenhum'}</span><span class="sp"></span>${adm?`<button class="btn sm" data-act="mat-novo" data-id="${esc(d.id)}">${IC.plus}Material</button>`:''}</div>
   ${L.length?`<div class="tablewrap"><table class="list"><thead><tr><th>Material</th><th>Código</th><th>Atende (biblioteca central)</th><th>Datasheet</th></tr></thead><tbody>${L.map(m=>{const at=atendeDe(m.id);
-    return `<tr data-act="mat-abrir" data-mid="${esc(m.id)}"><td><b>${esc(m.nome||'(sem nome)')}</b>${m.descricao?`<div class="muted" style="font-size:12px">${esc(descCurta(m.descricao))}</div>`:''}</td><td class="mono">${esc(m.codigo||'')}</td><td>${at.length?at.map(b=>`<span class="tag-d" title="${esc(descCurta(b.desc||b.texto||''))}">${esc(b.fja||'')}</span>`).join(' '):'<span class="muted">—</span>'}</td><td>${m.datasheet?`<a href="${esc(m.datasheet)}" target="_blank" rel="noopener">Abrir ↗</a>`:''}</td></tr>`}).join('')}</tbody></table></div>`
+    return `<tr data-act="mat-abrir" data-mid="${esc(m.id)}"><td><b>${esc(m.nome||'(sem nome)')}</b>${m.descricao?`<div class="muted" style="font-size:12px">${esc(descCurta(m.descricao))}</div>`:''}</td><td class="mono">${esc(m.codigo||'')}</td><td>${at.length?at.map(b=>`<span class="tag-d" title="${esc(descCurta(b.desc||b.texto||''))}">${esc(b.fja||'')}</span>`).join(' '):'<span class="muted">—</span>'}</td><td>${m.datasheet?lkDs(m.datasheet):''}</td></tr>`}).join('')}</tbody></table></div>`
     :`<p class="note" style="padding:0 14px 12px">Nenhum material cadastrado.${adm?' Use “Material” para incluir os produtos deste fabricante.':''}</p>`}</section>`;
 }
 function blocoMatEspb(bid){
@@ -8160,7 +8164,7 @@ function blocoMatEs(e,b){
   const adm=matAdm(), L=matEfetivos(e), aj=matAjustado(e), av=matAvisoEs(e);
   const cand=b?espbMats(b).filter(x=>S.materiais.has(x.id)&&!L.includes(x.id)):[];
   const linha=(id,i)=>{const m=S.materiais.get(id), fo=S.itens.get(m.fornecedor), nota=espbMats(b).find(x=>x.id===id)?.nota||'';
-    return `<li class="me-i"><span class="me-n">${i+1}</span><span class="me-logo">${logoForn(fo)}</span><span class="me-t"><b>${esc(m.nome||'')}</b><span class="muted">${esc(fo?.nome||'')}${m.codigo?' · '+esc(m.codigo):''}</span>${nota?`<em>${esc(nota)}</em>`:''}</span>${m.datasheet?`<a class="btn sm ghost" href="${esc(m.datasheet)}" target="_blank" rel="noopener">Datasheet ↗</a>`:''}${adm?`<span class="me-acts"><button class="icb" data-act="mat-p-sobe" data-i="${i}" title="Subir na ordem"${i?'':' disabled'}>↑</button><button class="icb" data-act="mat-p-desce" data-i="${i}" title="Descer na ordem"${i<L.length-1?'':' disabled'}>↓</button><button class="icb" data-act="mat-p-tira" data-i="${i}" title="Retirar deste projeto">${IC.x}</button></span>`:''}${cotBtn(e,id)}${cotPainel(e,id)}</li>`};
+    return `<li class="me-i"><span class="me-n">${i+1}</span><span class="me-logo">${logoForn(fo)}</span><span class="me-t"><b>${esc(m.nome||'')}</b><span class="muted">${esc(fo?.nome||'')}${m.codigo?' · '+esc(m.codigo):''}</span>${nota?`<em>${esc(nota)}</em>`:''}</span>${m.datasheet?lkDs(m.datasheet):''}${adm?`<span class="me-acts"><button class="icb" data-act="mat-p-sobe" data-i="${i}" title="Subir na ordem"${i?'':' disabled'}>↑</button><button class="icb" data-act="mat-p-desce" data-i="${i}" title="Descer na ordem"${i<L.length-1?'':' disabled'}>↓</button><button class="icb" data-act="mat-p-tira" data-i="${i}" title="Retirar deste projeto">${IC.x}</button></span>`:''}${cotBtn(e,id)}${cotPainel(e,id)}</li>`};
   return `<section class="sheet"><div class="sheet-h"><h2>Materiais neste projeto</h2><span class="hint">${b?(aj?'ajustado neste projeto':'padrão da biblioteca central (os 3 primeiros recomendados)'):'sem item central'}</span><span class="sp"></span>${adm&&aj?'<button class="btn sm ghost" data-act="mat-p-padrao" title="Descartar o ajuste e voltar aos 3 primeiros recomendados do item central">Voltar ao padrão</button>':''}</div><div class="pad">
     ${av?`<div class="me-aviso">${esc(av)}</div>`:''}
     ${L.length?`<ol class="me-l">${L.map(linha).join('')}</ol>`:''}
