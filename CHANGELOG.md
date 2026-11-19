@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~11h35 — commit ca0d5e6
+- Extensão do Revit 2.28.0 (antes 2.27.0): **Tipos › Componentes** vira um **painel encaixável** em C# (em aba com Propriedades): árvore Categoria › Família › Tipo de todas as famílias carregáveis do modelo, com busca, filtro e cor pela situação no Sistema FJA (verde = ligado a um keynote do projeto e igual ao sistema; âmbar = com diferença; azul = aguardando; vermelho = código inexistente; cinza = sem ligação). Detalhes do nó, **Ligar a um código** (tipo ou família), **Sincronizar** (nó ou tudo; o sistema é a referência), Selecionar no modelo e Desligar. A janela antiga continua como **Novo componente** (carregar .rfa e código novo). Painel novo: fechar e abrir o Revit depois de atualizar. Ver docs/revit-componentes.md.
+
 ## oficial Firebase — 19/11, ~11h05 — commit 31934b0
 - **Ficha do item**: os campos abrem travados (só leitura). O botão **Editar** (com lápis), ao lado de "Ficha", libera a edição; **Concluir** trava de novo. Vale para os campos da Ficha; nome, pasta e status continuam editáveis.
 - **PDF**: a explicação do menu vira dica de um "?" ao lado do título "Exportar em PDF". O botão "Selecionar itens na tabela…" saiu: "Selecionados" entra direto no modo de seleção (commits 0d8a610 e e863971).
