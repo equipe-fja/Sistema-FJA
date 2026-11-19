@@ -64,11 +64,58 @@ namespace FJA.Revit.Componentes
             moldura.Child = new PainelComponentes(app);
         }
 
-        /// <summary>Botão Componentes: mostra o painel (montando o conteúdo com esta DLL, se ainda não for dela).</summary>
+        const string JANELA = "FJA.Componentes.Janela";
+
+        /// <summary>Botão Componentes: mostra o painel encaixável (montando o conteúdo com esta DLL, se ainda não for dela).
+        /// Se o Revit ainda não criou o painel — o registro só vale na abertura do Revit; num Atualizar/Reload do pyRevit
+        /// ele é aceito mas o painel não é criado —, abre o mesmo conteúdo numa janela.</summary>
         public static void Mostrar(UIApplication app)
         {
-            if (!(AppDomain.CurrentDomain.GetData(ATUAL) is PainelComponentes)) Montar(app);
-            app.GetDockablePane(Id).Show();
+            DockablePane dp = null;
+            try { if (AppDomain.CurrentDomain.GetData(MOLDURA) is Border) dp = app.GetDockablePane(Id); }
+            catch { dp = null; }
+            if (dp != null)
+            {
+                if (!(AppDomain.CurrentDomain.GetData(ATUAL) is PainelComponentes p) || p.EstaVisivel != null)
+                {
+                    (AppDomain.CurrentDomain.GetData(JANELA) as Window)?.Close();
+                    Montar(app);
+                }
+                dp.Show();
+                return;
+            }
+            AbrirJanela(app);
+        }
+
+        static void AbrirJanela(UIApplication app)
+        {
+            if (AppDomain.CurrentDomain.GetData(JANELA) is Window w && w.IsVisible && w.Content is PainelComponentes)
+            {
+                if (w.WindowState == WindowState.Minimized) w.WindowState = WindowState.Normal;
+                w.Activate();
+                return;
+            }
+            var painel = new PainelComponentes(app);
+            var j = new Window
+            {
+                Title = "Componentes FJA", Width = 440, Height = 820, MinWidth = 340, MinHeight = 420,
+                Content = painel, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.Manual,
+                Left = SystemParameters.WorkArea.Right - 460, Top = SystemParameters.WorkArea.Top + 40,
+            };
+            painel.EstaVisivel = () => j.IsVisible && j.WindowState != WindowState.Minimized;
+            new System.Windows.Interop.WindowInteropHelper(j) { Owner = app.MainWindowHandle };
+            j.Closed += (s, e) =>
+            {
+                if (ReferenceEquals(AppDomain.CurrentDomain.GetData(ATUAL), painel)) AppDomain.CurrentDomain.SetData(ATUAL, null);
+                AppDomain.CurrentDomain.SetData(JANELA, null);
+            };
+            AppDomain.CurrentDomain.SetData(JANELA, j);
+            j.Show();
+            if (AppDomain.CurrentDomain.GetData("FJA.Componentes.AvisoJanela") == null)
+            {
+                AppDomain.CurrentDomain.SetData("FJA.Componentes.AvisoJanela", true);
+                TaskDialog.Show("Componentes", "O painel encaixável só fica disponível depois de fechar e abrir o Revit (o Revit cria painéis apenas na abertura).\n\nAté lá, Componentes abre nesta janela, com as mesmas funções.");
+            }
         }
     }
 }

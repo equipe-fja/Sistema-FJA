@@ -77,6 +77,9 @@ namespace FJA.Revit.Componentes
         readonly RUI.ExternalEvent ev;
         readonly OpcoesComponentes op = OpcoesComponentes.Carregar();
 
+        /// <summary>Quando o painel está numa janela (painel encaixável ainda não criado): se a janela está visível.</summary>
+        public Func<bool> EstaVisivel;
+
         DadosSistema dados;
         string erroDados = "";
         bool dadosLidos, sujo = true;
@@ -141,7 +144,8 @@ namespace FJA.Revit.Componentes
             if (!Ativo) { Soltar(app); return; }
             if (!sujo) return;
             bool visivel;
-            try { visivel = app.GetDockablePane(Registro.Id).IsShown(); } catch { visivel = false; }
+            if (EstaVisivel != null) visivel = EstaVisivel();
+            else try { visivel = app.GetDockablePane(Registro.Id).IsShown(); } catch { visivel = false; }
             if (!visivel) return;
             sujo = false;
             try

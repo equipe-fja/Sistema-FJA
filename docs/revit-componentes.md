@@ -10,7 +10,7 @@ Painel em C# desde a extensão 2.28.0 (19/11/2026), a pedido da FJA: no lugar da
 - **Painel encaixável**, como a barra de Propriedades; migrar para C#.
 
 ## Como funciona
-- **Abrir:** Tipos › Componentes. O painel fica encaixado em aba com Propriedades (pode ser solto ou levado para outro lugar; o Revit lembra). Na primeira vez depois de atualizar a suíte, **fechar e abrir o Revit** (o Revit só registra painéis na abertura).
+- **Abrir:** Tipos › Componentes. O painel fica encaixado em aba com Propriedades (pode ser solto ou levado para outro lugar; o Revit lembra). Na primeira vez depois de atualizar a suíte, **fechar e abrir o Revit** (o Revit só registra painéis na abertura). Se o painel ainda não foi criado (o Atualizar recarrega o pyRevit com o Revit aberto, e o Revit só cria painéis na abertura), o botão abre o mesmo conteúdo numa **janela** e avisa uma vez (2.29.1).
 - **Árvore:** famílias carregáveis de modelo (sem in-place, anotações, itens de detalhe, perfis, massa e carimbos). Categoria e família mostram "sincronizados/total"; categorias abertas e famílias fechadas por padrão (com busca, tudo aberto). Cada tipo tem um ponto colorido, o keynote ao lado e "sem instâncias" quando não está colocado.
 - **Cores** (`Coleta.Diagnosticar`, mesma regra do Diagnóstico em Python):
   | Cor | Situação |
