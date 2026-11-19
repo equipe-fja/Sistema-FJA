@@ -69,6 +69,22 @@ header.top{display:flex;align-items:center;gap:14px;padding-block:10px;padding-l
 .simulando .sim-l .fld{background:#8E1B1B;color:#fff;border-color:#8E1B1B}
 .conn{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .ficha-fs{border:0;margin:0;padding:0;min-width:0}
+.forn-logo{min-height:110px;border:1px dashed var(--line-strong);border-radius:10px;display:flex;align-items:center;justify-content:center;padding:14px;background:var(--panel)}
+.forn-logo img{max-height:120px;max-width:100%;object-fit:contain}
+.forn-logo.over{border-color:var(--accent);background:var(--accent-weak)}
+.me-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.me-i{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.me-i.p3{border-color:#e6c9c4;background:var(--accent-weak)}
+.me-n{width:20px;text-align:center;font-weight:700;color:var(--muted);font-size:12px;flex:none}
+.me-logo{width:36px;height:36px;flex:none;border-radius:6px;background:var(--off-bg);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:11px;font-weight:700;color:var(--muted)}
+.me-logo img{width:100%;height:100%;object-fit:contain;background:#fff}
+.me-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.me-t .muted{font-size:12px}.me-t em{font-style:normal;font-size:12px;color:var(--ink)}
+.me-pad{font-size:10.5px;color:var(--accent-ink);font-weight:600;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.me-acts{display:flex;gap:2px}
+.me-add{display:flex;gap:8px;align-items:center;margin-top:10px}.me-add .fld{flex:1;min-width:0}
+.me-lk{display:grid;grid-template-columns:1fr auto;gap:4px 6px;align-items:center;border-bottom:1px solid var(--line);padding:6px 0}
+.me-lk>div{grid-column:1/-1;font-size:12.5px}
 .ficha-fs:disabled{opacity:1}
 .ficha-ed{display:inline-flex;align-items:center;gap:5px}
 .ficha-ed.on{background:var(--accent-weak);color:var(--accent-ink);border-color:#e6c9c4}
@@ -1218,6 +1234,7 @@ const IC = {
   ext:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
   disciplinas:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg>',
   parceiros:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20v-1.5A4.5 4.5 0 0 1 7.5 14h3a4.5 4.5 0 0 1 4.5 4.5V20"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14h1.5a3.5 3.5 0 0 1 3.5 3.5V20"/></svg>',
+  fornecedores:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V10l5 3v-3l5 3V7l8 4v10z"/><path d="M3 21h18M8 17h2M13 17h2"/></svg>',
   copy:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>'
 };
 const SECOES = [
@@ -1226,10 +1243,11 @@ const SECOES = [
   {id:'templates', pai:'biblioteca', nome:'Templates', um:'template', desc:'Templates de projeto e as configurações que eles carregam: vistas, worksets e parâmetros compartilhados.'},
   {id:'representacao', pai:'biblioteca', nome:'Representação gráfica', um:'padrão gráfico', desc:'Carimbos, folhas, textos, cotas, linhas e hachuras do escritório.'},
   {id:'disciplinas', pai:'biblioteca', nome:'Disciplinas', um:'disciplina', desc:'Catálogo de disciplinas do escritório, com código, grupo e outros nomes usados. Os projetos escolhem daqui as suas disciplinas, e os parceiros, as que atendem.'},
+  {id:'fornecedores', pai:'biblioteca', nome:'Fornecedores', um:'fornecedor', desc:'Fabricantes de materiais: logomarca, descrição, site e os materiais que atendem aos itens da especificação técnica central.'},
   {id:'parceiros', pai:'biblioteca', nome:'Parceiros/Projetistas', um:'parceiro', desc:'Projetistas e empresas parceiras, organizados por disciplina: contatos, registro profissional, projetos feitos juntos e avaliação.'},
   {id:'manuais', nome:'Manuais', um:'manual', desc:'Procedimentos do escritório. Os marcados como ajustáveis aparecem na ficha de cada projeto para registrar o que muda ali.'}
 ];
-const GRUPOS = {biblioteca:{nome:'Biblioteca',filhos:['familias','templates','representacao','disciplinas','parceiros']}};
+const GRUPOS = {biblioteca:{nome:'Biblioteca',filhos:['familias','templates','representacao','disciplinas','parceiros','fornecedores']}};
 const TOPO = ['projetos','biblioteca','manuais'];
 const SEC = Object.fromEntries(SECOES.map(s=>[s.id,s]));
 SEC.espec={id:'espec',nome:'Especificação técnica',um:'item de especificação'};
@@ -1241,6 +1259,7 @@ const STATUS = {
   representacao:['Rascunho','Vigente','Obsoleto'],
   disciplinas:['Ativa','Inativa'],
   parceiros:['Ativo','Em avaliação','Inativo'],
+  fornecedores:['Ativo','Inativo'],
   manuais:['Rascunho','Em revisão','Vigente']
 };
 const TOM = {'Ativa':'t-ok','Inativa':'t-off','Ativo':'t-ok','Em avaliação':'t-warn','Inativo':'t-off','Em estudo':'t-warn','Aprovado pelo cliente':'t-ok','Especificado':'t-info','Substituído':'t-off','Em andamento':'t-ok','Aprovada':'t-ok','Vigente':'t-ok','Concluído':'t-info','Em teste':'t-warn','Em revisão':'t-warn','Rascunho':'t-warn','Arquivado':'t-off','Obsoleta':'t-off','Obsoleto':'t-off'};
@@ -1292,6 +1311,16 @@ const DEFAULT_SCHEMA = {
     {key:'sinonimos',label:'Outros nomes usados (separados por vírgula)',type:'text'},
     {key:'descricao',label:'Descrição / escopo típico',type:'longtext'}
   ],
+  fornecedores:[
+    {key:'descricao',label:'Descrição',type:'longtext'},
+    {key:'site',label:'Site',type:'url'},
+    {key:'siglas',label:'Siglas que atende (ex.: PO, PMD, ALV)',type:'text'},
+    {key:'contato',label:'Contato comercial',type:'text'},
+    {key:'telefone',label:'Telefone / WhatsApp',type:'text'},
+    {key:'email',label:'E-mail',type:'text'},
+    {key:'cidade',label:'Cidade / UF',type:'text'},
+    {key:'observacoes',label:'Observações',type:'longtext'}
+  ],
   parceiros:[
     {key:'disciplinas',label:'Disciplinas atendidas',type:'discs'},
     {key:'papel',label:'Papel',type:'select',options:['Projetista','Consultor','Arquitetura autora','Cliente','Órgão / concessionária','Interno (FJA)']},
@@ -1337,7 +1366,7 @@ const DEFAULT_SCHEMA = {
   ]
 };
 
-const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rfis:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), crono:new Map(), agenda:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), etsig:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
+const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rfis:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), crono:new Map(), agenda:new Map(), materiais:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), etsig:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
   view:{t:'home'}, fx:new Set(), fechadas:new Set((()=>{try{return JSON.parse(localStorage.getItem('fja.fechadas')||'[]')}catch{return []}})()), abertas:new Set((()=>{try{const v=JSON.parse(localStorage.getItem('fja.abertas')||'null'); if(Array.isArray(v)) return v}catch{} return ['s:projetos','g:biblioteca','s:familias','s:templates','s:representacao','s:disciplinas','s:parceiros','s:manuais']})()), busca:'', draft:null, dirty:false, schemaDraft:null, pend:null, ro:false};
 let db=null, user=null, me=null, assets=null, mcp=null, downloads=null;
 
@@ -1667,6 +1696,7 @@ function telaItem(h,id){
   <fieldset class="ficha-fs" ${fe?'':'disabled'}><div class="grid">${(dCorSug=d.secao==='disciplinas'&&d.campos?.codigo?corPadrao(String(d.campos.codigo).toUpperCase()):'',S.schema[d.secao].map(f=>campoHTML(f,d.campos?.[f.key])).join(''))}</div></fieldset></section>`;
   if(d.secao==='projetos') h+=blocoPadronizacao(d)+blocoProjeto(d);
   if(d.secao==='familias') h+=blocoUsadoEm(d);
+  if(d.secao==='fornecedores') h+=blocoLogoForn(d)+blocoMatForn(d);
   if(d.secao==='parceiros') h+=blocoParceiroProj(d);
   if(d.secao==='parceiros') h+=blocoParceiroPessoas(d);
   if(AJUSTAVEIS.includes(d.secao)) h+=blocoPadrao(d);
@@ -6316,7 +6346,7 @@ function telaEspbItem(h,v){
     ${fld('texto','Especificação base (opcional)','longtext')}${fld('fabricante','Fabricante / referência','text','wide')}${fld('obs','Observações','text','wide')}</div>
     <datalist id="dlNbr">${[...new Set([...S.espb.values()].map(x=>x.nbr).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join('')}</datalist></section>
   ${ehComp(b)?cpEditorHTML(b):''}
-  <section class="sheet"><div class="sheet-h"><h2>Uso nos projetos</h2><span class="cnt">${us.length}</span></div>${us.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th style="width:170px">Projeto</th><th style="width:90px">Keynote</th><th>Descrição no projeto</th></tr></thead><tbody>${us.map(x=>{const p=S.itens.get(x.projeto);return `<tr data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}"><td>${esc((p?.campos?.codigo?p.campos.codigo+' ':'')+(p?.nome||''))}</td><td class="mono"><b>${esc(x.kn)}</b>${desatEs(x)?' <span class="et-dot" title="Texto central alterado depois">●</span>':''}</td><td>${esc(x.desc||'')}</td></tr>`}).join('')}</tbody></table></div>`:`<p class="pad muted">Ainda não usado em nenhum projeto.</p>`}</section>
+  ${blocoMatEspb(v.bid)}<section class="sheet"><div class="sheet-h"><h2>Uso nos projetos</h2><span class="cnt">${us.length}</span></div>${us.length?`<div class="tablewrap"><table class="list esp"><thead><tr><th style="width:170px">Projeto</th><th style="width:90px">Keynote</th><th>Descrição no projeto</th></tr></thead><tbody>${us.map(x=>{const p=S.itens.get(x.projeto);return `<tr data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}"><td>${esc((p?.campos?.codigo?p.campos.codigo+' ':'')+(p?.nome||''))}</td><td class="mono"><b>${esc(x.kn)}</b>${desatEs(x)?' <span class="et-dot" title="Texto central alterado depois">●</span>':''}</td><td>${esc(x.desc||'')}</td></tr>`}).join('')}</tbody></table></div>`:`<p class="pad muted">Ainda não usado em nenhum projeto.</p>`}</section>
   <div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="et-b-del">${IC.trash}Excluir</button><button class="btn pri" data-act="et-b-salvar">Salvar alterações</button></div>`;
   return h;
@@ -6327,7 +6357,7 @@ async function salvarEspb(){
   if(!body.desc){toast('A descrição simplificada é obrigatória (é o texto do keynote).');return false}
   if(!at||normTxtEt(at.texto)!==normTxtEt(body.texto)) body.textoEm=Date.now();
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  if(at){body.desc=at.desc; if(at.descs) body.descs=at.descs; if(at.descPri) body.descPri=at.descPri}
+  if(at){body.desc=at.desc; if(at.descs) body.descs=at.descs; if(at.descPri) body.descPri=at.descPri; if(at.materiais) body.materiais=at.materiais}
   try{await espbColl().doc(b.id).set(body);S.espb.set(b.id,{...body,id:b.id});S.edraft={...body,id:b.id};S.dirty=false;
     toast('Salvo');return true}
   catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.');return false}
@@ -7046,6 +7076,7 @@ document.addEventListener('click',async ev=>{
   if(a==='ferr-pc-ativo'){try{localStorage.setItem(PC_LS,b.checked?'1':'0')}catch{} render(); toast(b.checked?'Conexão com PC ativada neste navegador':'Conexão com PC desativada neste navegador');return}
   if(a==='ferr-pc-testar'){await copiarOuAbrir('G:\\');return}
   if(a==='pj-arq'){S.projArq=!S.projArq; lsSet('fja.pj.arq',S.projArq); renderMain(); return}
+  if(a.startsWith('mat-')){await matAcao(a,b);return}
   if(a==='ficha-editar'){S.fichaEd=!S.fichaEd; renderMain(); return}
   if(a==='sair'){if(S.dirty){toast('Salve ou descarte as alterações antes de sair');return} b.disabled=true; try{await FB()?.sair?.()}catch{b.disabled=false; toast('Não foi possível sair. Tente de novo.')} return}
   if(a==='desfazer'){await desfazer();return}
@@ -8045,9 +8076,125 @@ function agLinhasTempo(){
     <div class="lt-corpo"><div class="lt-grade" style="left:${LBL}px;width:${W.toFixed(1)}px">${grade}</div>${rows}</div>${calAno}</div></section>`;
 }
 
+/* ---------- fornecedores (fabricantes) e materiais ----------
+   Fornecedor: item da Biblioteca (seção fornecedores), com a logomarca na capa.
+   Material: coleção materiais {fornecedor, nome, codigo, descricao, datasheet, obs}.
+   Vínculo com a biblioteca central: espb.materiais = [{id, nota, em}], em ordem de recomendação;
+   os 3 primeiros são o padrão que os projetos recebem. Só administradores incluem e alteram. */
+const matColl=()=>db.collection('materiais');
+const MAT={dr:null};
+const matAdm=()=>agAdm();
+const matDe=fid=>[...S.materiais.values()].filter(m=>m.fornecedor===fid).sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt'));
+const espbMats=b=>Array.isArray(b?.materiais)?b.materiais.filter(x=>x&&x.id):[];
+const atendeDe=mid=>[...S.espb.values()].filter(b=>espbMats(b).some(x=>x.id===mid)).sort((a,b)=>String(a.fja||'').localeCompare(String(b.fja||''),'pt',{numeric:true}));
+const logoForn=(f,cl='')=>f?.capa?.id?`<img class="${cl}" src="${esc(urlArq(f.capa))}" alt="">`:`<span>${esc(String(f?.nome||'?').trim().slice(0,2).toUpperCase())}</span>`;
+function blocoLogoForn(d){
+  const it=S.itens.get(d.id)||d, c=it.capa?.id?it.capa:null, pode=matAdm()&&!!assets;
+  return `<section class="sheet"><div class="sheet-h"><h2>Logomarca</h2><span class="sp"></span>${pode?`<button class="btn sm ghost" data-act="add-arq" data-ctx="capa">${c?'Trocar imagem':'Enviar imagem'}</button>${c?'<button class="btn sm ghost" data-act="capa-auto">Remover</button>':''}`:''}</div>
+  <div class="pad"><div class="forn-logo${pode?' drop':''}" data-ctx="capa">${c?`<img src="${esc(urlArq(c))}" alt="Logomarca de ${esc(it.nome||'')}">`:`<span class="muted">${pode?'Arraste a logomarca para cá ou use “Enviar imagem”.':'Sem logomarca.'}</span>`}</div></div></section>`;
+}
+function blocoMatForn(d){
+  const L=matDe(d.id), adm=matAdm();
+  return `<section class="sheet"><div class="sheet-h"><h2>Materiais</h2><span class="hint">${L.length?L.length+(L.length===1?' material':' materiais'):'nenhum'}</span><span class="sp"></span>${adm?`<button class="btn sm" data-act="mat-novo" data-id="${esc(d.id)}">${IC.plus}Material</button>`:''}</div>
+  ${L.length?`<div class="tablewrap"><table class="list"><thead><tr><th>Material</th><th>Código</th><th>Atende (biblioteca central)</th><th>Datasheet</th></tr></thead><tbody>${L.map(m=>{const at=atendeDe(m.id);
+    return `<tr data-act="mat-abrir" data-mid="${esc(m.id)}"><td><b>${esc(m.nome||'(sem nome)')}</b>${m.descricao?`<div class="muted" style="font-size:12px">${esc(descCurta(m.descricao))}</div>`:''}</td><td class="mono">${esc(m.codigo||'')}</td><td>${at.length?at.map(b=>`<span class="tag-d" title="${esc(descCurta(b.desc||b.texto||''))}">${esc(b.fja||'')}</span>`).join(' '):'<span class="muted">—</span>'}</td><td>${m.datasheet?`<a href="${esc(m.datasheet)}" target="_blank" rel="noopener">Abrir ↗</a>`:''}</td></tr>`}).join('')}</tbody></table></div>`
+    :`<p class="note" style="padding:0 14px 12px">Nenhum material cadastrado.${adm?' Use “Material” para incluir os produtos deste fabricante.':''}</p>`}</section>`;
+}
+function blocoMatEspb(bid){
+  const b=S.espb.get(bid); if(!b) return '';
+  const L=espbMats(b), adm=matAdm();
+  const linha=(x,i)=>{const m=S.materiais.get(x.id), fo=m?S.itens.get(m.fornecedor):null;
+    return `<li class="me-i${i<3?' p3':''}"><span class="me-n">${i+1}</span><span class="me-logo">${logoForn(fo)}</span><span class="me-t"><b>${esc(m?.nome||'(material excluído)')}</b><span class="muted">${esc(fo?.nome||'')}${m?.codigo?' · '+esc(m.codigo):''}</span>${x.nota?`<em>${esc(x.nota)}</em>`:''}</span>${i<3?'<span class="me-pad">padrão dos projetos</span>':''}${adm?`<span class="me-acts"><button class="icb" data-act="mat-sobe" data-bid="${esc(bid)}" data-i="${i}" title="Subir na ordem"${i?'':' disabled'}>↑</button><button class="icb" data-act="mat-desce" data-bid="${esc(bid)}" data-i="${i}" title="Descer na ordem"${i<L.length-1?'':' disabled'}>↓</button><button class="icb" data-act="mat-tira" data-bid="${esc(bid)}" data-i="${i}" title="Retirar da lista">${IC.x}</button></span>`:''}${m?`<button class="btn sm ghost" data-act="mat-abrir" data-mid="${esc(m.id)}">Abrir</button>`:''}</li>`};
+  const disp=[...S.materiais.values()].filter(m=>!L.some(x=>x.id===m.id));
+  const porF=new Map(); for(const m of disp){const k=S.itens.get(m.fornecedor)?.nome||'(sem fornecedor)'; if(!porF.has(k)) porF.set(k,[]); porF.get(k).push(m)}
+  const opts=[...porF].sort((a,b)=>a[0].localeCompare(b[0],'pt')).map(([fn,ms])=>`<optgroup label="${esc(fn)}">${ms.sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt')).map(m=>`<option value="${esc(m.id)}">${esc(m.nome||'')}${m.codigo?' · '+esc(m.codigo):''}</option>`).join('')}</optgroup>`).join('');
+  return `<section class="sheet"><div class="sheet-h"><h2>Materiais recomendados</h2><span class="hint">${L.length?L.length+' · os 3 primeiros são o padrão dos projetos':'nenhum'}</span></div><div class="pad">
+    ${L.length?`<ol class="me-l">${L.map(linha).join('')}</ol>`:'<p class="muted" style="margin:0">Nenhum material vinculado a este item.</p>'}
+    ${adm?(disp.length?`<div class="me-add"><select class="fld" id="meAdd" aria-label="Material a vincular"><option value="">Vincular um material…</option>${opts}</select><button class="btn sm" data-act="mat-vincular" data-bid="${esc(bid)}">Vincular</button></div>`:`<p class="muted" style="margin:10px 0 0;font-size:12px">${S.materiais.size?'Todos os materiais cadastrados já estão na lista.':'Cadastre materiais em Biblioteca › Fornecedores.'}</p>`):''}
+  </div></section>`;
+}
+async function espbMatsGravar(bid,L){
+  const b=S.espb.get(bid); if(!b) return;
+  await espbColl().doc(bid).update({materiais:L,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})});
+  b.materiais=L; if(S.edraft?.id===bid) S.edraft.materiais=L;
+}
+// grava os vínculos do material nos itens da biblioteca central (inclui no fim da lista, retira ou atualiza a nota)
+async function matSincronizar(mid,links){
+  const quer=new Map((links||[]).filter(l=>l.id&&S.espb.has(l.id)).map(l=>[l.id,String(l.nota||'').trim()]));
+  for(const b of [...S.espb.values()]){
+    const L=espbMats(b), tem=L.find(x=>x.id===mid); let novo=null;
+    if(quer.has(b.id)&&!tem) novo=[...L,{id:mid,nota:quer.get(b.id),em:Date.now()}];
+    else if(!quer.has(b.id)&&tem) novo=L.filter(x=>x.id!==mid);
+    else if(tem&&(tem.nota||'')!==quer.get(b.id)) novo=L.map(x=>x.id===mid?{...x,nota:quer.get(b.id),em:Date.now()}:x);
+    if(novo) await espbMatsGravar(b.id,novo);
+  }
+}
+function matDrawer(){
+  let d=$('matDr'); const dr=MAT.dr;
+  if(!dr){d?.remove(); if(!$('croDr')&&!$('agDr')) document.body.classList.remove('cro-dr-on'); return}
+  if(!d){d=document.createElement('aside'); d.id='matDr'; d.className='cro-dr'; d.setAttribute('aria-label','Material'); document.body.appendChild(d)}
+  document.body.classList.add('cro-dr-on');
+  const adm=matAdm(), ro=adm?'':'disabled', fo=S.itens.get(dr.fornecedor);
+  const livres=[...S.espb.values()].filter(b=>!dr.links.some(l=>l.id===b.id)).sort((a,b)=>String(a.fja||'').localeCompare(String(b.fja||''),'pt',{numeric:true}));
+  d.innerHTML=`<div class="cro-dr-h"><b>${dr.novo?'Novo material':'Material'}${fo?' · '+esc(fo.nome||''):''}</b><button class="icb" data-act="mat-fechar" title="Fechar">${IC.x}</button></div>
+  <div class="cro-dr-b">
+    <label class="fl">Nome comercial<input class="fld" data-mf="nome" value="${esc(dr.nome||'')}" ${ro}></label>
+    <label class="fl">Código / referência do fabricante<input class="fld" data-mf="codigo" value="${esc(dr.codigo||'')}" ${ro}></label>
+    <label class="fl">Descrição<textarea class="fld" rows="3" data-mf="descricao" ${ro}>${esc(dr.descricao||'')}</textarea></label>
+    <label class="fl">Datasheet (link)<input class="fld" data-mf="datasheet" value="${esc(dr.datasheet||'')}" placeholder="https://…" ${ro}></label>
+    <label class="fl">Observações<textarea class="fld" rows="2" data-mf="obs" ${ro}>${esc(dr.obs||'')}</textarea></label>
+    <div class="cro-sec"><span>Atende aos itens da biblioteca central</span></div>
+    ${dr.links.length?dr.links.map((l,i)=>{const b=S.espb.get(l.id); return `<div class="me-lk"><div><b class="mono">${esc(b?.fja||'?')}</b> <span class="muted">${esc(descCurta(b?.desc||b?.texto||''))}</span></div><input class="fld" data-ml="${i}" value="${esc(l.nota||'')}" placeholder="Nota: atende, ou atende com ressalva: …" ${ro}>${adm?`<button class="icb" data-act="mat-link-rm" data-i="${i}" title="Desvincular">${IC.x}</button>`:''}</div>`}).join(''):'<p class="muted cro-vz">Ainda não vinculado a nenhum item.</p>'}
+    ${adm?`<div class="me-add"><input class="fld" id="matLinkIn" list="matEspbList" placeholder="Código FJ ou descrição do item"><datalist id="matEspbList">${livres.map(b=>`<option value="${esc(b.fja||'')} — ${esc(descCurta(b.desc||b.texto||''))}">`).join('')}</datalist><button class="btn sm" data-act="mat-link-add">Vincular</button></div><p class="muted cro-vz">Um material novo entra no fim da lista de recomendados de cada item. A ordem é ajustada na ficha do item da biblioteca central.</p>`:''}
+  </div>
+  ${adm?`<div class="cro-dr-f">${dr.novo?'':`<button class="btn danger sm" data-act="mat-excluir">${IC.trash}Excluir</button>`}<span class="cro-sp"></span><button class="btn sm" data-act="mat-fechar">Cancelar</button><button class="btn pri sm" data-act="mat-salvar">Salvar</button></div>`:''}`;
+}
+function matAbrir(dr){if(CRO.dr){CRO.dr=null;croDrawer()} if(AG?.dr){AG.dr=null;agDrawer()} MAT.dr=dr; matDrawer(); setTimeout(()=>$('matDr')?.querySelector('[data-mf="nome"]')?.focus(),0)}
+async function matSalvar(){
+  const dr=MAT.dr; if(!dr||!matAdm()) return;
+  const body={fornecedor:dr.fornecedor,nome:String(dr.nome||'').trim(),codigo:String(dr.codigo||'').trim(),descricao:String(dr.descricao||'').trim(),datasheet:String(dr.datasheet||'').trim(),obs:String(dr.obs||'').trim(),atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};
+  if(!body.nome){toast('Dê um nome ao material');return}
+  if(body.datasheet&&!/^https?:\/\//i.test(body.datasheet)) body.datasheet='https://'+body.datasheet;
+  try{
+    let id=dr.id;
+    if(dr.novo){body.criadoEm=Date.now(); if(me) body.criadoPor=me; const ref=matColl().doc(); id=ref.id; await ref.set(body)}
+    else await matColl().doc(id).update(body);
+    S.materiais.set(id,{...(S.materiais.get(id)||{}),...body,id});
+    await matSincronizar(id,dr.links);
+    MAT.dr=null; matDrawer(); render(); toast('Material salvo');
+  }catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
+}
+async function matAcao(a,b){
+  const dr=MAT.dr;
+  if(a==='mat-novo'){if(matAdm()) matAbrir({novo:true,fornecedor:b.dataset.id,nome:'',codigo:'',descricao:'',datasheet:'',obs:'',links:[]})}
+  else if(a==='mat-abrir'){const m=S.materiais.get(b.dataset.mid); if(m) matAbrir({...structuredClone(m),links:atendeDe(m.id).map(x=>({id:x.id,nota:espbMats(x).find(y=>y.id===m.id)?.nota||''}))})}
+  else if(a==='mat-fechar'){MAT.dr=null; matDrawer()}
+  else if(a==='mat-salvar') await matSalvar();
+  else if(a==='mat-link-add'&&dr){const v=String($('matLinkIn')?.value||'').trim(), cod=v.split(' — ')[0].trim().toUpperCase(); if(!cod) return;
+    const alvo=[...S.espb.values()].find(x=>String(x.fja||'').toUpperCase()===cod)||[...S.espb.values()].find(x=>String(x.fjaAntigo||'').toUpperCase()===cod);
+    if(!alvo){toast('Item não encontrado: escolha um código da lista');return}
+    if(!dr.links.some(l=>l.id===alvo.id)) dr.links.push({id:alvo.id,nota:''}); matDrawer()}
+  else if(a==='mat-link-rm'&&dr){dr.links.splice(+b.dataset.i,1); matDrawer()}
+  else if(a==='mat-excluir'&&dr&&!dr.novo){
+    if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
+    try{await matSincronizar(dr.id,[]); await matColl().doc(dr.id).delete(); S.materiais.delete(dr.id); MAT.dr=null; matDrawer(); render(); toast('Material excluído')}catch{toast('Não foi possível excluir.')}}
+  else if(['mat-sobe','mat-desce','mat-tira','mat-vincular'].includes(a)){
+    if(!matAdm()) return; const bid=b.dataset.bid, L=[...espbMats(S.espb.get(bid))], i=+b.dataset.i;
+    if(a==='mat-sobe'&&i>0) [L[i-1],L[i]]=[L[i],L[i-1]];
+    else if(a==='mat-desce'&&i<L.length-1) [L[i+1],L[i]]=[L[i],L[i+1]];
+    else if(a==='mat-tira') L.splice(i,1);
+    else if(a==='mat-vincular'){const mid=$('meAdd')?.value; if(!mid){toast('Escolha um material');return} if(!L.some(x=>x.id===mid)) L.push({id:mid,nota:'',em:Date.now()})}
+    try{await espbMatsGravar(bid,L); renderMain()}catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}}
+}
+document.addEventListener('input',ev=>{
+  const el=ev.target, dr=MAT.dr; if(!dr||!el.closest?.('#matDr')) return;
+  if(el.dataset.mf) dr[el.dataset.mf]=el.value; else if(el.dataset.ml!=null&&dr.links[+el.dataset.ml]) dr.links[+el.dataset.ml].nota=el.value;
+});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&MAT.dr&&!$('celPop')){MAT.dr=null;matDrawer()}});
+
 /* ---------- desfazer (últimas ações desta sessão) ---------- */
 var DESF={pilha:[],refazer:[],grupo:null,t:0,rodando:false}; const SOMBRA={};
-const MAPA_COLL={sugest:()=>S.sugest,itens:()=>S.itens,coment:()=>S.coment,pend:()=>S.pends,rdoc:()=>S.rdocs,ata:()=>S.atas,croq:()=>S.croqs,equip:()=>S.equip,crono:()=>S.crono,agenda:()=>S.agenda,espec:()=>S.espec,espb:()=>S.espb,etsig:()=>S.etsig};
+const MAPA_COLL={sugest:()=>S.sugest,itens:()=>S.itens,coment:()=>S.coment,pend:()=>S.pends,rdoc:()=>S.rdocs,ata:()=>S.atas,croq:()=>S.croqs,equip:()=>S.equip,crono:()=>S.crono,agenda:()=>S.agenda,materiais:()=>S.materiais,espec:()=>S.espec,espb:()=>S.espb,etsig:()=>S.etsig};
 function sombraDe(n){return SOMBRA[n]||(SOMBRA[n]=new Map())}
 // campos de controle (vínculos e espelhos de planilhas) não entram no desfazer
 const SEM_DESF=new Set(['comEspelhoDev','pdEspelhoDev','equipEspelhoDev','comEspelhoOff','pdEspelhoOff','equipEspelhoOff','croEspelho','comEspelho','pdEspelho','rdEspelho','rdEspelhoDev','rdEspelhoOff','rdOrigem','rdExport','ataPasta','croqPasta','comOrigem','pdOrigem','equipOrigem','comExport','pdExport','equipExport']);
@@ -8947,8 +9094,8 @@ function telaFerr(h,v){
 
 /* ---------- backup completo do banco (Drive) ---------- */
 const BKP={pasta:'1uRdXSx8JnBNegGSD4y59klSfSyLB9HuC',caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\BACKUP',st:null,rodando:false};
-const BKP_ROT={itens:'Projetos e catálogos',espec:'Especificações',espb:'Especificações (biblioteca)',equip:'Equipamentos',coment:'Comentários',pend:'Pendências',rdoc:'Relação de documentos',ata:'Atas',croq:'Croquis',crono:'Cronograma',agenda:'Calendário (eventos, feriados e aniversários)',sugest:'Sugestões',etsig:'Siglas de keynote',config:'Configurações'};
-const BKP_COLS=()=>[['itens',coll],['espec',espColl],['espb',espbColl],['equip',eqColl],['coment',comColl],['pend',pendColl],['rfi',rfiColl],['rdoc',rdColl],['ata',ataColl],['croq',croqColl],['crono',croColl],['agenda',agColl],['sugest',sugColl],['etsig',etsigColl]];
+const BKP_ROT={itens:'Projetos e catálogos',espec:'Especificações',espb:'Especificações (biblioteca)',equip:'Equipamentos',coment:'Comentários',pend:'Pendências',rdoc:'Relação de documentos',ata:'Atas',croq:'Croquis',crono:'Cronograma',materiais:'Materiais (fornecedores)',agenda:'Calendário (eventos, feriados e aniversários)',sugest:'Sugestões',etsig:'Siglas de keynote',config:'Configurações'};
+const BKP_COLS=()=>[['itens',coll],['espec',espColl],['espb',espbColl],['equip',eqColl],['coment',comColl],['pend',pendColl],['rfi',rfiColl],['rdoc',rdColl],['ata',ataColl],['croq',croqColl],['crono',croColl],['agenda',agColl],['materiais',matColl],['sugest',sugColl],['etsig',etsigColl]];
 const bkpHoje=()=>new Date().toLocaleDateString('sv-SE');
 function bkpLer(ref){
   if(typeof ref.get==='function') return ref.get();
@@ -9475,6 +9622,7 @@ async function modoPublico(){
     S.croqs=new Map(Object.entries(snap.croq||{}).map(([id,v])=>[id,{...v,id}]));
     S.crono=new Map(Object.entries(snap.crono||{}).map(([id,v])=>[id,{...v,id}]));
     S.agenda=new Map(Object.entries(snap.agenda||{}).map(([id,v])=>[id,{...v,id}]));
+    S.materiais=new Map(Object.entries(snap.materiais||{}).map(([id,v])=>[id,{...v,id}]));
     S.sugest=new Map(Object.entries(snap.sugest||{}).map(([id,v])=>[id,{...v,id}]));
     S.publico=snap.geradoEm||true; S.ro=true; S.carregado=true; S.estado='ok'; if(restaurarVista()){setConn('Versão pública · somente leitura','on');return}
     setConn('Versão pública · somente leitura','on');
@@ -9521,6 +9669,10 @@ async function modoPublico(){
   croColl().onSnapshot(snap=>{
     const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.projeto) m.set(d.id,{...structuredClone(v),id:d.id})}
     S.crono=m; if(S.carregado&&!crDrag){if(S.dirty) renderTree(); else render()}
+  },()=>{});
+  matColl().onSnapshot(snap=>{
+    const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.fornecedor) m.set(d.id,{...structuredClone(v),id:d.id})}
+    S.materiais=m; if(S.carregado){if(S.dirty||MAT.dr) renderTree(); else render()}
   },()=>{});
   agColl().onSnapshot(snap=>{
     const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.tipo) m.set(d.id,{...structuredClone(v),id:d.id})}
