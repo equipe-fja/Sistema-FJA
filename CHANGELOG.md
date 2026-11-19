@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~14h15 — commit 53d174a
+- Extensão do Revit 2.31.0 (antes 2.30.2): painel **Componentes** com caixas de seleção nos tipos, famílias e categorias e as setas **← Do sistema** (sincroniza os escolhidos) e **→ Para o sistema** (leva ao sistema a Descrição alterada no Revit, só em tipos já no padrão — ligados a um item do projeto e sincronizados antes; keynote e Type Mark não vão; o tipo fica aguardando até o sistema aplicar). Ver docs/revit-componentes.md.
+
 ## oficial Firebase — 19/11, ~13h38 — commit 14c233d
 - Extensão do Revit 2.30.2 (antes 2.30.1): o **projeto do modelo é sempre automático** (pedido da FJA). No painel Componentes o projeto aparece só como texto; sem projeto reconhecido, mostra "Sem projeto" e o botão **Conectar a um projeto…**; trocar ou desfazer uma ligação existente é manutenção, no botão discreto **Reconectar…** (com aviso). Em Composições e Diagnóstico a lista de projetos fica travada quando há projeto e só se libera para conectar.
 
