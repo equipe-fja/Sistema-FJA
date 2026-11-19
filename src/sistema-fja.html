@@ -1241,6 +1241,7 @@ const AMB_DEV=AMB==='dev'||!!window.FJA_FB_HOMOLOG;
 const MIGRADO_PARA='https://sistema-fja.web.app';   // oficial do Claude: só leitura, aponta para a versão Firebase
 const AUTO_OK=AMB==='firebase'?(!!window.FJA_FB_VIRADA&&!window.FJA_FB_HOMOLOG):!(AMB==='oficial'&&MIGRADO_PARA);
 const IC = {
+  fin:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>',
   painel:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
   hist:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14M5 2h14"/><path d="M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22"/><path d="M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2"/></svg>',
   manut:'<svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
@@ -1409,11 +1410,15 @@ const fmtHora = t => t ? new Date(t).toLocaleString('pt-BR',{day:'2-digit',month
 const itensDe = sec => [...S.itens.values()].filter(i=>i.secao===sec);
 const ordena = (a,b) => (a.pasta||'').localeCompare(b.pasta||'','pt') || (a.campos?.codigo||'').localeCompare(b.campos?.codigo||'','pt',{numeric:true}) || (a.nome||'').localeCompare(b.nome||'','pt');
 const badge = st => st ? `<span class="badge ${TOM[st]||'t-off'}"><span class="dot"></span>${esc(st)}</span>` : '';
+/* Gerente: administra tudo, mas só exclui o que ele mesmo criou (o banco também barra). */
+const podeExcluir=d=>AMB!=='firebase'||!FB()?.gerente?.()||(!!me&&d?.criadoPor===me);
+const avisoExcluir=()=>{toast('Como Gerente, você só exclui o que você mesmo criou. Peça ao autor ou ao Master.'); return true};
 function toast(msg){const t=$('toast');t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2200); if(DESF&&DESF.pilha.length&&!DESF.rodando&&Date.now()-(DESF.pilha.at(-1).t||0)<4000&&!/desfeit|refeit|Nada para/i.test(msg)) botaoDesf()}
 
 /* ---------- árvore ---------- */
 function renderTree(){
   if(S.convidado){$('tree').innerHTML=arvoreConvidado(); return}
+  if(S.soFin){$('tree').innerHTML=arvoreFin(); return}
   const q = S.busca.trim().toLowerCase();
   const selId = S.view.t==='item' ? S.view.id : null;
   const chev = ab => IC.chev.replace('class="chev"','class="chev'+(ab?' open':'')+'"');
@@ -1488,6 +1493,7 @@ function renderTree(){
       h+=`<div class="secline sub"><button class="row sub-h ${selF?'sel':''}" style="padding-left:28px" data-act="ferr" data-tk="${kF}" aria-expanded="${abF}">${chev(abF)}${IC.ferr}<span class="lbl">Ferramentas</span><span class="cnt">${FERRAMENTAS.length}</span></button></div>`;
       if(abF) for(const x of FERRAMENTAS) h+=`<button class="row item ${S.view.t==='ferr'&&S.view.f===x.id?'sel':''}" style="padding-left:64px" data-act="ferr" data-f="${x.id}"><span class="lbl">${esc(x.nome)}</span>${x.id==='pc'&&pcAtivo()?'<span class="dot t-ok" title="Ativa neste computador"></span>':''}</button>`}
   }
+  if(finVe()) h+=finLinha();
   {const kM='s:manut', abM=S.abertas.has(kM)||(S.view.t==='manut'&&!!S.view.f&&!S.fx.has(kM)), selM=S.view.t==='manut'&&!S.view.f;
    h+=`<div class="secline"><button class="row sec-h ${selM?'sel':''}" data-act="manut" data-tk="${kM}" aria-expanded="${abM}">${chev(abM)}${IC.manut}<span class="lbl">Manutenção</span><span class="cnt">${MANUT.length||''}</span></button></div>`;
    if(abM) for(const x of MANUT) h+=`<button class="row item ${S.view.t==='manut'&&S.view.f===x.id?'sel':''}" style="padding-left:44px" data-act="manut" data-f="${x.id}"><span class="lbl">${esc(x.nome)}</span></button>`}
@@ -1525,11 +1531,14 @@ function renderMain(){
   if(S.estado==='indisponivel'){m.innerHTML=`<div class="page"><h1>Sistema FJA indisponível</h1><p class="lead">O banco de dados do sistema não abriu nesta visualização. Entre com sua conta do Claude e abra a página pelo link compartilhado do escritório.</p></div>`;return}
   if(!S.carregado){m.innerHTML='<div class="loading">Carregando o Sistema FJA…</div>';return}
   if(S.convidado&&!vistaConvidadoOk(S.view)) S.view={t:'painel'};
+  if(S.soFin&&!(S.view?.t==='fin'||(S.view?.t==='manut'&&S.view.f==='conta'))) S.view={t:'fin'};
+  if(S.view?.t==='fin'&&!finVe()) S.view={t:'home'};
   const v=S.view; let h='';
   if(S.pend) h+=bannerPend();
   if(v.t==='home') h=telaHome(h);
   else if(v.t==='painel') h=telaPainel(h);
   else if(v.t==='grupo') h=telaGrupo(h,v.g);
+  else if(v.t==='fin') h=telaFin(h);
   else if(v.t==='secao') h=telaSecao(h,v.sec);
   else if(v.t==='schema') h=telaSchema(h,v.sec);
   else if(v.t==='item') h=telaItem(h,v.id);
@@ -3285,6 +3294,20 @@ document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-act="p
 document.addEventListener('change',ev=>{const s=ev.target.closest?.('select[data-act="part-add"]'); if(!s||!s.value) return;
   const it=S.itens.get(s.dataset.id); if(it&&!partsDe(it).includes(s.value)) partsGravar(it.id,[...partsDe(it),s.value])},true);
 const vistaConvidadoOk=v=>v&&(v.t==='painel'||v.t==='rfi'||v.t==='rfii'||(v.t==='manut'&&(!v.f||v.f==='conta')))&&(!v.id||v.t==='manut'||S.itens.has(v.id));
+/* ---------- Financeiro ----------
+   Galho visível só para Master, Gerente e Financeiro. O nível Financeiro vê só este galho (e Minha conta).
+   Os dados financeiros ficam em coleções com o prefixo fin_ (regras do banco: só esses três níveis; fora do backup comum). */
+const finVe=()=>AMB!=='firebase'||!!FB()?.fin?.();
+const finLinha=()=>`<div class="secline"><button class="row sec-h ${S.view.t==='fin'?'sel':''}" data-act="fin"><span class="chev"></span>${IC.fin}<span class="lbl">Financeiro</span></button></div>`;
+function arvoreFin(){
+  return finLinha()+`<div class="secline"><button class="row sec-h ${S.view.t==='manut'?'sel':''}" data-act="manut" data-f="conta"><span class="chev"></span>${IC.manut}<span class="lbl">Minha conta</span></button></div>`;
+}
+function iniciarFin(){S.soFin=true; S.ro=false; S.itens=new Map(); S.carregado=true; S.estado='ok'; S.view={t:'fin'}; render()}
+function telaFin(h){
+  return h+`<div class="page"><div class="crumb"><span>Financeiro</span></div><h1>Financeiro</h1>
+  <p class="lead">Área restrita: só o Master, o Gerente e o Financeiro veem este galho.</p>
+  <div class="sheet"><div class="pad"><p class="note" style="margin:0">Em construção. As telas do financeiro entram aqui, uma a uma. Os dados ficam protegidos no banco: as demais contas (Administrador e Convidado) não conseguem ler nem gravar.</p></div></div></div>`;
+}
 function arvoreConvidado(){
   const ps=itensDe('projetos').sort(ordena);
   let h=`<div class="secline"><button class="row sec-h ${S.view.t==='painel'?'sel':''}" data-act="painel">${IC.painel}<span class="lbl">${esc(pnRotulo())}</span><span class="cnt">${pnContagem()||''}</span></button></div>`;
@@ -3302,16 +3325,19 @@ async function simularMontar(){
   const eu=f.perfilReal(), at=f.perfil(); let L=[];
   try{const s=await db.collection('acessos').get(); L=s.docs.map(d=>({...d.data(),uid:d.id})).filter(x=>!x.placeholder&&x.uid!==eu.uid)}catch{}
   const nm=x=>x.nome||x.email||x.uid, ord=(a,b)=>String(nm(a)).localeCompare(String(nm(b)),'pt');
-  const atual=!at?.simulado?'m':at.uid===eu.uid?'a':'u:'+at.uid;
+  const atual=!at?.simulado?'m':at.uid===eu.uid?({gerente:'g',financeiro:'f'})[at.nivel]||'a':'u:'+at.uid;
   const op=(v,t)=>`<option value="${esc(v)}"${v===atual?' selected':''}>${esc(t)}</option>`;
-  const adm=L.filter(x=>x.nivel==='admin').sort(ord), conv=L.filter(x=>x.nivel==='usuario').sort(ord);
-  w.innerHTML=`<label class="sim-l" title="Só na homologação: veja o sistema como outro nível ou pessoa. O banco continua vendo a conta Master.">Ver como <select class="fld sm" id="simSel">${op('m','Master (eu)')}${op('a','Administrador (eu, sem Master)')}
+  const adm=L.filter(x=>x.nivel==='admin').sort(ord), conv=L.filter(x=>x.nivel==='usuario').sort(ord), ger=L.filter(x=>x.nivel==='gerente').sort(ord), finL=L.filter(x=>x.nivel==='financeiro').sort(ord);
+  w.innerHTML=`<label class="sim-l" title="Só na homologação: veja o sistema como outro nível ou pessoa. O banco continua vendo a conta Master.">Ver como <select class="fld sm" id="simSel">${op('m','Master (eu)')}${op('a','Administrador (eu, sem Master)')}${op('g','Gerente (eu)')}${op('f','Financeiro (eu)')}
+    ${ger.length?`<optgroup label="Gerentes">${ger.map(x=>op('u:'+x.uid,nm(x))).join('')}</optgroup>`:''}
+    ${finL.length?`<optgroup label="Financeiro">${finL.map(x=>op('u:'+x.uid,nm(x))).join('')}</optgroup>`:''}
     ${adm.length?`<optgroup label="Administradores">${adm.map(x=>op('u:'+x.uid,nm(x))).join('')}</optgroup>`:''}
     ${conv.length?`<optgroup label="Convidados">${conv.map(x=>op('u:'+x.uid,nm(x)+(x.empresa&&S.itens.get(x.empresa)?' · '+S.itens.get(x.empresa).nome:''))).join('')}</optgroup>`:'<option disabled>(nenhum convidado cadastrado)</option>'}</select></label>`;
   if(at?.simulado) document.documentElement.classList.add('simulando');
   $('simSel').onchange=ev=>{const v=ev.target.value;
     if(v==='m') return f.simular(null);
     if(v==='a') return f.simular({...eu,nivel:'admin'});
+    if(v==='g'||v==='f') return f.simular({...eu,nivel:v==='g'?'gerente':'financeiro'});
     const x=L.find(y=>'u:'+y.uid===v); if(x) f.simular({uid:x.uid,nome:x.nome||'',email:x.email||'',nivel:x.nivel,empresa:x.empresa||''})};
 }
 function iniciarConvidado(){
@@ -4168,7 +4194,7 @@ async function ataAcao(a0,b){
     if(!its.length){toast('A ata '+numAta(ant.num)+' não tem itens pendentes');return}
     (a.secoes=a.secoes||[]).push({titulo:`Pendências da ata ${numAta(ant.num)}`,itens:its}); ataMudou(true); toast(`${its.length} pendência${its.length>1?'s':''} trazida${its.length>1?'s':''} da ata ${numAta(ant.num)}`)}
   else if(a0==='ata-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir ata'}},4000);return}
-    try{await ataColl().doc(a.id).delete(); S.atas.delete(a.id); toast('Ata excluída'); ir({t:'atas',id:a.projeto})}catch{toast('Não foi possível excluir')}}
+    if(!podeExcluir(a)) return avisoExcluir();try{await ataColl().doc(a.id).delete(); S.atas.delete(a.id); toast('Ata excluída'); ir({t:'atas',id:a.projeto})}catch{toast('Não foi possível excluir')}}
   else if(a0==='ata-pdf'){const t0=b.innerHTML; b.disabled=true; b.textContent='Gerando…';
     try{const {bytes,nome}=await montarPdfAta(a), blob=new Blob([bytes],{type:'application/pdf'});
       if(downloads){const r=await downloads.save({filename:nome+'.pdf',data:blob});toast(r?.status==='saved'?'PDF salvo':'PDF gerado')}
@@ -4452,7 +4478,7 @@ async function cqAcao(a0,b){
   else if(a0==='cq-email'){cqEmail(c)}
   else if(a0==='cq-salvar'){clearTimeout(CQ.timer); CQ.pend=c.id; c.atualizadoEm=Date.now(); await cqGravar(); toast('Croqui salvo'); renderMain()}
   else if(a0==='cq-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir croqui'}},4000);return}
-    try{await croqColl().doc(c.id).delete(); S.croqs.delete(c.id); toast('Croqui excluído (os arquivos continuam no Drive)'); ir({t:'croqs',id:c.projeto})}catch{toast('Não foi possível excluir')}}
+    if(!podeExcluir(c)) return avisoExcluir();try{await croqColl().doc(c.id).delete(); S.croqs.delete(c.id); toast('Croqui excluído (os arquivos continuam no Drive)'); ir({t:'croqs',id:c.projeto})}catch{toast('Não foi possível excluir')}}
 }
 function pedirLinkArq(){return new Promise(ok=>{
   $('linkModal')?.remove(); const d=document.createElement('div'); d.id='linkModal'; d.className='pc-modal';
@@ -4625,7 +4651,7 @@ function eqpRender(){
     corpo=`<label class="fl">Nome *<input class="fld" id="eqpNome"></label>
       <label class="fl">E-mail <span style="font-size:11px">(vazio = sem acesso; o e-mail e o acesso podem vir depois)</span><input class="fld" id="eqpEmail" type="email"></label>
       <label class="fl">Empresa<select class="fld" id="eqpEmp">${acsEmpOpcoes(dr.e||'')}</select></label>
-      <label class="fl">Nível<select class="fld" id="eqpNivel"><option value="usuario">Convidado</option><option value="admin">Administrador</option></select></label>
+      <label class="fl">Nível<select class="fld" id="eqpNivel">${nivOps('usuario')}</select></label>
       <label class="fl">Senha provisória <span style="font-size:11px">(só se tiver e-mail)</span><input class="fld mono" id="eqpSenha" value="${esc(dr.senha||=FB().senhaProvisoria())}"></label>
       ${dr.criada?`<div class="banner pub"><span class="sp">Conta criada: <b>${esc(dr.criada.email)}</b> · senha <b class="mono">${esc(dr.criada.senha)}</b></span><button class="btn sm" data-act="eqp-copiar">Copiar mensagem</button></div>`:''}`;
     pe=`<button class="btn pri" data-act="eqp-criar">Cadastrar${dr.pid?' e adicionar':''}</button>`;
@@ -4638,7 +4664,7 @@ function eqpRender(){
     corpo=`<label class="fl">Nome<input class="fld" id="eqpNome" value="${esc(u.nome||'')}" ${adm?'':'disabled'}></label>
       <label class="fl">E-mail<input class="fld mono" value="${esc(u.email||'')}" disabled placeholder="sem e-mail"></label>
       <label class="fl">Empresa<select class="fld" id="eqpEmp" ${adm?'':'disabled'}>${acsEmpOpcoes(u.empresa||'')}</select></label>
-      <label class="fl">Nível${u.nivel==='master'?`<input class="fld" value="Master" disabled>`:`<select class="fld" id="eqpNivel" ${ro}><option value="usuario"${u.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${u.nivel==='admin'?' selected':''}>Administrador</option></select>`}</label>
+      <label class="fl">Nível${u.nivel==='master'?`<input class="fld" value="Master" disabled>`:`<select class="fld" id="eqpNivel" ${ro||(nivMexe(u)?'':'disabled')}>${nivOps(u.nivel)}</select>`}</label>
       ${u.nivel==='usuario'?`<label class="fl" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:13px"><input type="checkbox" id="eqpTodos" ${u.todosProjetos?'checked':''} ${ro}>Acesso às RIs de todos os projetos</label>`:''}
       <div class="fl">Situação<span style="color:var(--ink);font-size:13.5px">${esc(sit)}</span></div>
       <div class="fl">Projetos (${projs.length})<span style="color:var(--ink);font-size:13.5px">${projs.map(p=>esc((p.campos?.codigo?p.campos.codigo+' ':'')+p.nome)).join('<br>')||'nenhum'}</span></div>
@@ -4664,7 +4690,7 @@ document.addEventListener('click',async ev=>{
   const dr=EQP.dr; if(!dr) return;
   if(a==='eqp-copiar'){try{await navigator.clipboard.writeText(acsMsgConvite(dr.criada)); toast('Mensagem copiada')}catch{} return}
   if(a==='eqp-salvar'){const u=(ACS.lista||[]).find(x=>x.id===dr.u); if(!u) return;
-    const upd={nome:v('eqpNome')||u.nome, empresa:v('eqpEmp').replace(ACS_NOVO,'')}; if($('eqpTodos')) upd.todosProjetos=$('eqpTodos').checked; if(u.nivel!=='master'&&$('eqpNivel')) upd.nivel=v('eqpNivel')==='admin'?'admin':'usuario';
+    const upd={nome:v('eqpNome')||u.nome, empresa:v('eqpEmp').replace(ACS_NOVO,'')}; if($('eqpTodos')) upd.todosProjetos=$('eqpTodos').checked; if(nivMexe(u)&&$('eqpNivel')) upd.nivel=nivOk(v('eqpNivel'));
     try{await db.collection('acessos').doc(u.id).update(upd); toast('Dados salvos'); eqpFechar()}catch(e){toast('Não foi possível salvar: '+(e?.message||e))} return}
   const it=dr.pid?S.itens.get(dr.pid):null;
   if(a==='eqp-criar'&&dr.tipo==='empresa'){
@@ -4677,7 +4703,7 @@ document.addEventListener('click',async ev=>{
     if(it) await empresasExtraGravar(it.id,[...(it.empresasExtra||[]),eid]); toast(ex?'Já existia: '+ex.nome+(it?' (adicionada ao projeto)':''):'Empresa cadastrada'); eqpFechar(); return}
   if(a==='eqp-criar'){
     const fb=FB(); if(!fb?.admin()){toast('Somente administradores cadastram pessoas');return}
-    const nome=v('eqpNome'), em=v('eqpEmail').toLowerCase(), empresa=v('eqpEmp').replace(ACS_NOVO,''), nivel=v('eqpNivel')==='admin'?'admin':'usuario', senha=v('eqpSenha');
+    const nome=v('eqpNome'), em=v('eqpEmail').toLowerCase(), empresa=v('eqpEmp').replace(ACS_NOVO,''), nivel=nivOk(v('eqpNivel')), senha=v('eqpSenha');
     if(!nome){toast('Informe o nome');return}
     if(!em){const id=await acsCriarPlaceholder({nome,nivel,empresa}); if(id){if(it) await partsGravar(it.id,[...partsDe(it),id]); eqpFechar()} return}
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
@@ -6602,7 +6628,7 @@ async function esAcao(a,b){
     return}
   if(a==='et-salvar'){if(await salvarEs()) render();return}
   if(a==='et-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    const e=S.qdraft; try{await espColl().doc(e.id).delete();S.espec.delete(e.id);S.dirty=false;S.qdraft=null;toast('Item retirado do projeto (o item central continua na biblioteca)');ir({t:'esp',id:e.projeto})}catch{toast('Não foi possível excluir.')}
+    const e=S.qdraft; if(!podeExcluir(e)) return avisoExcluir();try{await espColl().doc(e.id).delete();S.espec.delete(e.id);S.dirty=false;S.qdraft=null;toast('Item retirado do projeto (o item central continua na biblioteca)');ir({t:'esp',id:e.projeto})}catch{toast('Não foi possível excluir.')}
     return}
   if(a==='et-trazer'||a==='et-ciente'){const e=S.qdraft, c=espbDe(e); if(!e||!c) return;
     if(a==='et-trazer'){e.texto=c.texto||''; e.desc=c.desc||e.desc}
@@ -6632,7 +6658,7 @@ async function esAcao(a,b){
   if(a==='et-b-del'){const x=S.edraft; if(!x) return; const n=usosEspb(x.id).length;
     if(n){toast(`${x.fja} é usado em ${n} keynote${n>1?'s':''} de projeto. Retire-o dos projetos antes de excluir.`);return}
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    try{await espbColl().doc(x.id).delete();S.espb.delete(x.id);S.dirty=false;S.edraft=null;toast('Item excluído');ir({t:'espb'})}catch{toast('Não foi possível excluir.')}
+    if(!podeExcluir(x)) return avisoExcluir();try{await espbColl().doc(x.id).delete();S.espb.delete(x.id);S.dirty=false;S.edraft=null;toast('Item excluído');ir({t:'espb'})}catch{toast('Não foi possível excluir.')}
     return}
 }
 
@@ -7217,6 +7243,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='copiar-ref'){fecharMenuLinha();await copiarOuAbrir(b.dataset.path)}
   else if(a==='home'){ir({t:'home'})}
   else if(a==='painel'){ir({t:'painel'})}
+  else if(a==='fin'){ir({t:'fin'})}
   else if(a==='pn-abrir'){ir({t:b.dataset.t,id:b.dataset.id,eid:b.dataset.eid})}
   else if(a==='grupo'){
     const k='g:'+b.dataset.g;
@@ -7230,7 +7257,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='excluir'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
     const d=S.draft; const sec=d.secao;
-    try{await coll().doc(d.id).delete();S.itens.delete(d.id);S.dirty=false;S.draft=null;toast('Excluído');ir({t:'secao',sec})}catch{toast('Não foi possível excluir.')}
+    if(!podeExcluir(d)) return avisoExcluir();try{await coll().doc(d.id).delete();S.itens.delete(d.id);S.dirty=false;S.draft=null;toast('Excluído');ir({t:'secao',sec})}catch{toast('Não foi possível excluir.')}
   }
   else if(a==='abrir-arq'){const ctx=b.dataset.ctx,arr=listaCtx(ctx),idx=+b.dataset.i;const pos=arr.map((x,k)=>[x,k]).filter(([x])=>!ehRef(x));abrirViewer(pos.map(([x])=>({...x,original:originalDe(x,ctx)})),Math.max(0,pos.findIndex(([,k])=>k===idx)))}
   else if(a==='add-arq'){S.upCtx=b.dataset.ctx;$('fileArq')?.click()}
@@ -7268,7 +7295,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='rd-rev'){fecharMenuLinha();duplicarRd(b.dataset.eid,true)}
   else if(a==='rd-salvar'){if(await salvarRd()) render()}
   else if(a==='rd-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    const e=S.qdraft;try{await rdColl().doc(e.id).delete();S.rdocs.delete(e.id);S.dirty=false;S.qdraft=null;toast('Documento excluído');ir({t:'rel',id:e.projeto})}catch{toast('Não foi possível excluir.')}}
+    const e=S.qdraft;if(!podeExcluir(e)) return avisoExcluir();try{await rdColl().doc(e.id).delete();S.rdocs.delete(e.id);S.dirty=false;S.qdraft=null;toast('Documento excluído');ir({t:'rel',id:e.projeto})}catch{toast('Não foi possível excluir.')}}
   else if(a==='pd-tag-add'){const i=$('pdTagIn'),v=String(i?.value||'').trim().toUpperCase(); if(!v){i?.focus();return} pdGarantirArrays(); if(!S.qdraft.disciplinas.includes(v)) S.qdraft.disciplinas.push(v); marcaSujo(); renderMain(); $('pdTagIn')?.focus()}
   else if(a==='pd-tag-rm'){pdGarantirArrays(); S.qdraft.disciplinas.splice(+b.dataset.i,1); marcaSujo(); renderMain()}
   else if(a==='pd-ev-add'){const t=String($('evTxt')?.value||'').trim(), d=dBr($('evData')?.value||''); if(!t){$('evTxt')?.focus();toast('Escreva a descrição do evento');return} pdGarantirArrays(); S.qdraft.eventos.push({data:d,texto:t}); marcaSujo(); renderMain()}
@@ -7278,7 +7305,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='pd-salvar'){if(await salvarPd()) render()}
   else if(a==='pd-del'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    const e=S.qdraft;try{await pendColl().doc(e.id).delete();S.pends.delete(e.id);S.dirty=false;S.qdraft=null;toast('Pendência excluída');ir({t:'pen',id:e.projeto})}catch{toast('Não foi possível excluir.')}}
+    const e=S.qdraft;if(!podeExcluir(e)) return avisoExcluir();try{await pendColl().doc(e.id).delete();S.pends.delete(e.id);S.dirty=false;S.qdraft=null;toast('Pendência excluída');ir({t:'pen',id:e.projeto})}catch{toast('Não foi possível excluir.')}}
   else if(a==='cm-pdf'){abrirPdfCm(b.dataset.eid,b)}
   else if(a==='cm-cel'){abrirCelPop(b)}
   else if(a==='cor-pick'){return}
@@ -7304,7 +7331,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='cm-salvar'){if(await salvarCm()) render()}
   else if(a==='cm-del'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    const e=S.qdraft;try{await comColl().doc(e.id).delete();S.coment.delete(e.id);S.dirty=false;S.qdraft=null;toast('Comentário excluído');ir({t:'com',id:e.projeto})}catch{toast('Não foi possível excluir.')}
+    const e=S.qdraft;if(!podeExcluir(e)) return avisoExcluir();try{await comColl().doc(e.id).delete();S.coment.delete(e.id);S.dirty=false;S.qdraft=null;toast('Comentário excluído');ir({t:'com',id:e.projeto})}catch{toast('Não foi possível excluir.')}
   }
   else if(a==='eq-abrir'){lembrarRolagemLista();ir({t:'eqi',id:b.dataset.id,eid:b.dataset.eid})}
   else if(a==='eq-novo'){novoEq(b.dataset.id)}
@@ -7352,7 +7379,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='eq-setor'){S.eqSetor=b.dataset.st;renderMain();$('eqTabela')?.scrollIntoView({block:'start'})}
   else if(a==='eq-del'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    const e=S.qdraft;try{await eqColl().doc(e.id).delete();S.equip.delete(e.id);S.dirty=false;S.qdraft=null;toast('Equipamento excluído');ir({t:'eq',id:e.projeto})}catch{toast('Não foi possível excluir.')}
+    const e=S.qdraft;if(!podeExcluir(e)) return avisoExcluir();try{await eqColl().doc(e.id).delete();S.equip.delete(e.id);S.dirty=false;S.qdraft=null;toast('Equipamento excluído');ir({t:'eq',id:e.projeto})}catch{toast('Não foi possível excluir.')}
   }
   else if(a==='esp-abrir'){lembrarRolagemLista();ir({t:'espi',id:b.dataset.id,eid:b.dataset.eid})}
   else if(a==='esp-novo'){novoEsp(b.dataset.id)}
@@ -7361,7 +7388,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='esp-del'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
     const e=S.edraft;
-    try{await espColl().doc(e.id).delete();S.espec.delete(e.id);if(e.imagem)for(const x of idsDe(e.imagem))if(!arquivoEmUso(x)){try{await assets.delete(x)}catch{}}S.dirty=false;S.edraft=null;toast('Item excluído');ir({t:'esp',id:e.projeto})}catch{toast('Não foi possível excluir.')}
+    if(!podeExcluir(e)) return avisoExcluir();try{await espColl().doc(e.id).delete();S.espec.delete(e.id);if(e.imagem)for(const x of idsDe(e.imagem))if(!arquivoEmUso(x)){try{await assets.delete(x)}catch{}}S.dirty=false;S.edraft=null;toast('Item excluído');ir({t:'esp',id:e.projeto})}catch{toast('Não foi possível excluir.')}
   }
   else if(a==='esp-cat'){S.espCat=b.dataset.cat;renderMain()}
   else if(a==='esp-st'){S.espStatus=S.espStatus===b.dataset.st?'':b.dataset.st;renderMain()}
@@ -7857,7 +7884,7 @@ async function croAcao(a,b,ev){
   else if(a==='cro-dup'&&dr&&!dr.novo){const c=structuredClone(dr);delete c.id;delete c.origem;delete c.editadoLocal;c.novo=true;c.ordem=(+dr.ordem||0)+1;c.nome=(dr.nome||'')+' (cópia)';CRO.dr=c;croDrawer()}
   else if(a==='cro-excluir'&&dr&&!dr.novo){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    try{await croColl().doc(dr.id).delete();S.crono.delete(dr.id);CRO.dr=null;croDrawer();render();toast('Item excluído')}catch{toast('Não foi possível excluir.')}}
+    if(!podeExcluir(S.crono.get(dr.id))) return avisoExcluir();try{await croColl().doc(dr.id).delete();S.crono.delete(dr.id);CRO.dr=null;croDrawer();render();toast('Item excluído')}catch{toast('Não foi possível excluir.')}}
   else if(a==='cro-cfg-salvar'&&dr){
     const it=S.itens.get(dr.projeto); if(!it||S.ro) return;
     const c={...(it.crono||{}),resp:dr.resp.filter(r=>String(r.nome).trim()).map(r=>({nome:String(r.nome).trim(),cor:HEX(r.cor)?r.cor:'#a3abb5'})),legenda:dr.legenda.filter(l=>String(l.cod).trim()).map(l=>({cod:String(l.cod).trim(),desc:String(l.desc||'').trim(),principal:!!l.principal}))};
@@ -8016,7 +8043,7 @@ async function agAcao(a,b){
   else if(a==='cro-ag-salvar'){await agSalvar()}
   else if(a==='cro-ag-excluir'&&dr&&!dr.novo){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    try{await agColl().doc(dr.id).delete();S.agenda.delete(dr.id);AG.dr=dr.voltar?{tipo:'lista'}:null;agDrawer();render();toast('Excluído')}catch{toast('Não foi possível excluir.')}}
+    if(!podeExcluir(S.agenda.get(dr.id))) return avisoExcluir();try{await agColl().doc(dr.id).delete();S.agenda.delete(dr.id);AG.dr=dr.voltar?{tipo:'lista'}:null;agDrawer();render();toast('Excluído')}catch{toast('Não foi possível excluir.')}}
   else if(a==='cro-ag-jan'){AG.jan=b.dataset.v;lsSet('fja.ag.jan',AG.jan);renderMain()}
   else if(a==='cro-ag-zl-reset'){AG.zl=1;lsSet('fja.ag.zl',1);renderMain()}
   else if(a==='cro-ag-ano'){AG.ano=b.checked;lsSet('fja.ag.ano',AG.ano);renderMain()}
@@ -8357,7 +8384,7 @@ async function matAcao(a,b){
   else if(a==='mat-link-rm'&&dr){dr.links.splice(+b.dataset.i,1); matDrawer()}
   else if(a==='mat-excluir'&&dr&&!dr.novo){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    try{await matSincronizar(dr.id,[]); await matColl().doc(dr.id).delete(); S.materiais.delete(dr.id); MAT.dr=null; matDrawer(); render(); toast('Material excluído')}catch{toast('Não foi possível excluir.')}}
+    if(!podeExcluir(S.materiais.get(dr.id))) return avisoExcluir();try{await matSincronizar(dr.id,[]); await matColl().doc(dr.id).delete(); S.materiais.delete(dr.id); MAT.dr=null; matDrawer(); render(); toast('Material excluído')}catch{toast('Não foi possível excluir.')}}
   else if(a==='mat-sug-criar'){if(!matAdm()) return; const nome=String(b.dataset.nome||'').trim(); if(!nome) return;
     if(itensDe('fornecedores').some(i=>nTxtF(i.nome)===nTxtF(nome))){toast('Esse fornecedor já existe');return}
     const ref=coll().doc(), body={secao:'fornecedores',nome,pasta:'',status:STATUS.fornecedores[0],campos:{},criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me,atualizadoPor:me}:{})};
@@ -9454,7 +9481,13 @@ async function acsNovoParceiro(){
 const acsMsgConvite=(c)=>`Olá${c.nome?' '+c.nome:''}! Sua conta no Sistema FJA foi criada.\n\nEndereço: ${location.origin}\nE-mail: ${c.email}\nSenha provisória: ${c.senha}\n\nNo primeiro acesso o sistema pede que você crie a sua própria senha.`;
 /* ---- lista de contas: Master sempre no topo; demais agrupadas e ordenadas pela escolha guardada no navegador ---- */
 const acsPref=()=>{try{return JSON.parse(localStorage.getItem('fja.acsLista')||'{}')}catch{return {}}};
-const acsNivelTxt=n=>n==='master'?'Master':n==='admin'?'Administrador':'Convidado';
+const acsNivelTxt=n=>({master:'Master',gerente:'Gerente',admin:'Administrador',financeiro:'Financeiro'})[n]||'Convidado';
+/* níveis que quem está usando pode atribuir: Master e Gerente, todos (menos Master); Administrador, só Administrador e Convidado */
+const NIVEIS=[['usuario','Convidado'],['admin','Administrador'],['gerente','Gerente'],['financeiro','Financeiro']];
+const nivAtrib=()=>AMB!=='firebase'||['master','gerente'].includes(FB()?.perfil()?.nivel)?NIVEIS:NIVEIS.slice(0,2);
+const nivOk=v=>nivAtrib().some(x=>x[0]===v)?v:'usuario';
+const nivMexe=x=>x?.nivel!=='master'&&nivAtrib().some(y=>y[0]===(x?.nivel||'usuario'));
+const nivOps=c=>{c=c||'usuario'; const L=nivAtrib(); return (L.some(x=>x[0]===c)?L:[...L,[c,acsNivelTxt(c)]]).map(([v,t])=>`<option value="${v}"${v===c?' selected':''}>${t}</option>`).join('')};
 const acsSituacao=x=>x.pend?'Liberado (conta antiga)':ehPh(x)?'Sem acesso':x.ultimoAcesso?'Ativo':'Aguardando 1º acesso';
 const ACS_X='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const acsCasaX=(btn)=>`<span style="display:inline-block;width:30px;text-align:right">${btn||''}</span>`;
@@ -9466,12 +9499,12 @@ function acsLinha(x,eu,fmt){
   const fixo=master||x.id===eu;
   if(ehPh(x)) return `<tr><td>${esc(x.nome||'')}</td><td class="mono">${x.email?esc(x.email):'<span class="muted">sem e-mail</span>'}</td>
      <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
-     <td><select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select></td>
+     <td>${nivMexe(x)?`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}">${nivOps(x.nivel)}</select>`:acsNivelTxt(x.nivel)}</td>
      <td class="muted">sem acesso</td>
      <td style="text-align:right;white-space:nowrap"><button class="btn sm ghost" data-act="acs-ph-email" data-id="${esc(x.id)}">${x.email?'Alterar e-mail':'Definir e-mail'}</button> ${x.email?`<button class="btn sm ghost" data-act="acs-ph-ativar" data-id="${esc(x.id)}" ${ACS_VERM} title="Cria a conta e envia o link para a pessoa criar a senha">Enviar acesso</button>`:''}${acsCasaX(`<button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}" title="Remover" aria-label="Remover ${esc(x.nome||'')}" style="padding:4px 6px">${ACS_X}</button>`)}</td></tr>`;
   return `<tr${master?' style="background:var(--bg2,#F2F2EF)"':''}><td>${master?'<b>':''}${esc(x.nome||'')}${master?'</b>':''}${x.id===eu?' <span class="muted">(você)</span>':''}</td><td class="mono">${esc(x.email||'')}</td>
      <td><select class="fld" data-act="acs-emp" data-id="${esc(x.id)}">${acsEmpOpcoes(x.empresa||'')}</select></td>
-     <td>${fixo?acsNivelTxt(x.nivel):`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}"><option value="usuario"${x.nivel!=='admin'?' selected':''}>Convidado</option><option value="admin"${x.nivel==='admin'?' selected':''}>Administrador</option></select>`}</td>
+     <td>${fixo||!nivMexe(x)?acsNivelTxt(x.nivel):`<select class="fld" data-act="acs-nivel" data-id="${esc(x.id)}">${nivOps(x.nivel)}</select>`}</td>
      <td class="muted">${!x.ultimoAcesso?'aguardando 1º acesso':fmt(x.ultimoAcesso)}${link}</td>
      <td style="text-align:right;white-space:nowrap">${!x.ultimoAcesso?`<button class="btn sm ghost" data-act="acs-reenviar" data-id="${esc(x.id)}" title="Mostra de novo a mensagem com a senha provisória, para copiar">Copiar mensagem</button> <button class="btn sm ghost" data-act="acs-email" data-id="${esc(x.id)}">Alterar e-mail</button> `:''}${acsBtSenha('acs-reset',`data-id="${esc(x.id)}"`,!x.ultimoAcesso,x.linkSenhaEm)}${acsCasaX(fixo?'':`<button class="btn sm ghost" data-act="acs-rm" data-id="${esc(x.id)}" title="Remover acesso" aria-label="Remover acesso de ${esc(x.nome||x.email||'')}" style="padding:4px 6px">${ACS_X}</button>`)}</td></tr>`;
 }
@@ -9519,7 +9552,7 @@ const ehPh=x=>!!x?.placeholder||String(x?.id||'').startsWith('ph-');
 async function acsCriarPlaceholder({nome,nivel,empresa,email}){
   const fb=FB(); if(!fb?.admin()){toast('Somente administradores');return null}
   const id='ph-'+crypto.randomUUID().replace(/-/g,'').slice(0,20);
-  try{await db.collection('acessos').doc(id).set({nome,nivel:nivel==='admin'?'admin':'usuario',empresa:empresa||'',email:email||'',placeholder:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
+  try{await db.collection('acessos').doc(id).set({nome,nivel:nivOk(nivel),empresa:empresa||'',email:email||'',placeholder:true,criadoPor:fb.perfil()?.email||'',em:Date.now()});
     toast(`${nome} cadastrado sem acesso. Preencha o e-mail depois para enviar o acesso.`); return id}
   catch(e){toast('Não foi possível cadastrar: '+(e?.message||e)); return null}
 }
@@ -9602,7 +9635,7 @@ function telaAcesso(h){
       <input class="fld" id="acsEm" type="email" placeholder="e-mail (vazio = pessoa sem acesso, preencher depois)" style="flex:2 1 220px">
       <input class="fld" id="acsNome" placeholder="nome" style="flex:1 1 160px">
       <select class="fld" id="acsEmp" data-act="acs-emp-novo" style="flex:1 1 200px" title="Empresa (Biblioteca › Parceiros)">${acsEmpOpcoes(ACS.emp||'')}</select>
-      <select class="fld" id="acsNivel" style="flex:0 0 auto"><option value="usuario">Convidado</option><option value="admin">Administrador</option></select>
+      <select class="fld" id="acsNivel" style="flex:0 0 auto">${nivOps('usuario')}</select>
       <input class="fld mono" id="acsSenha" value="${esc(ACS.senha||=FB().senhaProvisoria())}" title="Senha provisória (pode trocar)" style="flex:0 1 140px">
       <button class="btn pri" data-act="acs-add">Criar conta</button></div>
   </div></section>
@@ -9624,7 +9657,7 @@ document.addEventListener('click',async ev=>{
   if(a==='acs-sair'){fb.sair();return}
   if(!fb.admin()){toast('Somente administradores');return}
   if(a==='acs-add'){
-    const em=($('acsEm')?.value||'').trim().toLowerCase(), nome=($('acsNome')?.value||'').trim(), nivel=$('acsNivel')?.value==='admin'?'admin':'usuario', empresa=($('acsEmp')?.value||'').replace(ACS_NOVO,''), senha=($('acsSenha')?.value||'').trim();
+    const em=($('acsEm')?.value||'').trim().toLowerCase(), nome=($('acsNome')?.value||'').trim(), nivel=nivOk($('acsNivel')?.value), empresa=($('acsEmp')?.value||'').replace(ACS_NOVO,''), senha=($('acsSenha')?.value||'').trim();
     if(!nome){toast('Informe o nome');return}
     if(!em){if(await acsCriarPlaceholder({nome,nivel,empresa})){['acsEm','acsNome'].forEach(k=>{const el=$(k); if(el) el.value=''}); ACS.emp=''}; return}
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){toast('E-mail inválido');return}
@@ -9777,7 +9810,7 @@ function telaSug(h){
   return h+`</tbody></table></div></section></div>`;
 }
 async function sugAcao(a,b){
-  if(a==='sug'){ir({t:'sug'});return}
+  if(a==='sug'){ir({t:'sug'});return}
   if(a==='sug-filtro'){SUG.filtro=b.dataset.v;renderMain();return}
   if(S.ro) return;
   if(a==='sug-add'){
@@ -9794,7 +9827,7 @@ async function sugAcao(a,b){
     await sugGravar(id,{descricao:desc,autor:($('sugEdAutor')?.value||'').trim(),data:dBr($('sugEdData')?.value||'')||S.sugest.get(id)?.data||''}); SUG.ed=null; renderMain(); toast('Sugestão salva')}
   else if(a==='sug-del'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.textContent='Excluir?';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash}},4000);return}
-    try{await sugColl().doc(b.dataset.id).delete();S.sugest.delete(b.dataset.id);renderMain();renderTree();toast('Sugestão excluída')}catch{toast('Não foi possível excluir.')}}
+    if(!podeExcluir(S.sugest.get(b.dataset.id))) return avisoExcluir();try{await sugColl().doc(b.dataset.id).delete();S.sugest.delete(b.dataset.id);renderMain();renderTree();toast('Sugestão excluída')}catch{toast('Não foi possível excluir.')}}
 }
 async function sugGravar(id,upd){
   const e=S.sugest.get(id); if(!e||S.ro) return; const ant={...e}, x={...upd,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};
@@ -9847,6 +9880,7 @@ async function modoPublico(){
   if(AMB==='firebase'&&FB()?.perfil()){const b=$('btSair'), p=FB().perfil(); if(b){b.hidden=false; b.title='Sair da conta '+(p.email||p.nome||'')}}
   simularMontar();
   if(AMB==='firebase'&&FB()?.perfil()?.nivel==='usuario'){iniciarConvidado(); return}
+  if(AMB==='firebase'&&FB()?.perfil()?.nivel==='financeiro'){iniciarFin(); return}
   db.doc('config/espelhos').onSnapshot(snap=>{
     const v=snap.exists?snap.data():{}; S.espSec={disciplinas:v?.disciplinas||null,parceiros:v?.parceiros||null};
     for(const sec of ['disciplinas','parceiros']) espUI(sec,sec);

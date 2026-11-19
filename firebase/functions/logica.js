@@ -8,8 +8,8 @@ function hojeSP(agora = Date.now()) { const d = new Date(agora - 3 * 36e5); retu
 function prazoTxt(prazo, agora) { const p = dataBr(prazo); if (p == null) return ''; const n = Math.round((p - hojeSP(agora)) / DIA);
   return n > 1 ? `faltam ${n} dias` : n === 1 ? 'vence amanhã' : n === 0 ? 'vence hoje' : `vencido há ${-n} dia${n === -1 ? '' : 's'}`; }
 
-// quem a RI vê: convidados só as RIs de projetos de que participam; a equipe vê todas
-const podeVer = (c, ri) => c.nivel !== 'usuario' || (ri.participantes || []).includes(c.id);
+// quem a RI vê: a equipe (admin, gerente, master) vê todas; os demais (convidados) só as dos projetos de que participam; o nível Financeiro não vê RIs
+const podeVer = (c, ri) => ['admin', 'gerente', 'master'].includes(c.nivel) || (c.nivel === 'usuario' && (ri.participantes || []).includes(c.id));
 // pessoas por trás de um requerido: a própria pessoa, ou as contas da empresa (de preferência as que participam do projeto)
 function pessoasDe(q, ri, contas) {
   if (q.tipo === 'u') return contas.filter(c => c.id === q.id);

@@ -1,35 +1,43 @@
 rules_version = '2';
 // Acesso por conta (e-mail e senha). Só entra quem tem acessos/<uid>, criado por um administrador.
-//  nivel "master" (único, equipe@): como admin, mas fixo; "admin": gerencia acessos; "usuario" (Convidado): usa o sistema.
+//  nivel "master" (único, equipe@): pode tudo (desenvolvimento e manutenção), fixo;
+//  "gerente": administra tudo e vê o Financeiro, mas só exclui o que ele mesmo criou (rastreabilidade);
+//  "admin": equipe, gerencia acessos (sem o Financeiro); "financeiro": só o Financeiro; "usuario" (Convidado): só RFI.
 // A pessoa só pode alterar no próprio registro: trocarSenha (para false), ultimoAcesso, nome e avisos (preferência de e-mail).
 service cloud.firestore {
   match /databases/{database}/documents {
     function logado() { return request.auth != null; }
     function ativo() { return logado() && exists(/databases/$(database)/documents/acessos/$(request.auth.uid)); }
-    // convidado (nivel "usuario"): só RFI. Equipe (admin/master): todo o resto.
+    // convidado (nivel "usuario"): só RFI. Financeiro: só as coleções fin_*. Equipe (admin/gerente/master): todo o resto, menos fin_*.
+    function nivel() { return get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.nivel; }
     function interno() { return admin(); }
-    function admin() { return ativo() && get(/databases/$(database)/documents/acessos/$(request.auth.uid)).data.nivel in ['admin', 'master']; }
+    function admin() { return ativo() && nivel() in ['admin', 'gerente', 'master']; }
+    function gerente() { return ativo() && nivel() == 'gerente'; }
+    function fin() { return ativo() && nivel() in ['master', 'gerente', 'financeiro']; }
+    // níveis que cada um pode atribuir: Gerente e Master, todos (menos Master); Administrador, só Administrador e Convidado
+    function niveisDe() { return nivel() in ['gerente', 'master'] ? ['admin', 'usuario', 'gerente', 'financeiro'] : ['admin', 'usuario']; }
+    function alcanca(n) { return n in niveisDe(); }
 
     // a conta Master (equipe@fj.arq.br) é única: só se define pela configuração inicial e não pode ser removida nem rebaixada
     match /acessos/{uid} {
       allow read: if admin() || (logado() && request.auth.uid == uid);
-      allow delete: if admin() && resource.data.nivel != 'master';
+      allow delete: if admin() && resource.data.nivel != 'master' && alcanca(resource.data.nivel);
       // admin cria; ou a própria pessoa, a partir de uma liberação em acessosPendentes/<email> (conta que já existia)
-      allow create: if (admin() && request.resource.data.nivel != 'master')
+      allow create: if (admin() && alcanca(request.resource.data.nivel))
         || (logado() && request.auth.uid == uid
             && exists(/databases/$(database)/documents/acessosPendentes/$(request.auth.token.email.lower()))
             && request.resource.data.nivel == get(/databases/$(database)/documents/acessosPendentes/$(request.auth.token.email.lower())).data.nivel
-            && request.resource.data.nivel in ['admin', 'usuario']
+            && request.resource.data.nivel in ['admin', 'usuario', 'gerente', 'financeiro']
             && request.resource.data.email == request.auth.token.email.lower());
-      allow update: if (admin() && request.resource.data.nivel == resource.data.nivel)
-        || (admin() && resource.data.nivel != 'master' && request.resource.data.nivel in ['admin', 'usuario'])
+      allow update: if (admin() && request.resource.data.nivel == resource.data.nivel && (resource.data.nivel == 'master' || alcanca(resource.data.nivel)))
+        || (admin() && resource.data.nivel != 'master' && alcanca(resource.data.nivel) && alcanca(request.resource.data.nivel))
         || (logado() && request.auth.uid == uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trocarSenha', 'ultimoAcesso', 'nome', 'avisos'])
             && request.resource.data.get('trocarSenha', false) == false);
     }
     match /acessosPendentes/{em} {
       allow read: if admin() || (logado() && em == request.auth.token.email.lower());
-      allow create, update: if admin() && request.resource.data.nivel in ['admin', 'usuario'];
+      allow create, update: if admin() && alcanca(request.resource.data.nivel);
       allow delete: if admin() || (logado() && em == request.auth.token.email.lower());
     }
     // senha provisória (para reenviar a mensagem enquanto a pessoa não entrou); apagada no 1º acesso
@@ -108,9 +116,18 @@ service cloud.firestore {
       allow read: if interno() || participa();
       allow write: if interno();
     }
-    // demais coleções: só a equipe (o curinga também casaria com as coleções acima, por isso a exclusão explícita)
+    // Financeiro: coleções com o prefixo fin_ (só Master, Gerente e Financeiro)
     match /{colecao}/{resto=**} {
-      allow read, write: if interno() && !(colecao in ['acessos', 'acessosPendentes', 'senhasProvisorias', 'rfi', 'projetosRfi', 'emailsEnviados', 'servidor']);
+      allow read, write: if colecao.matches('fin_.*') && fin();
+    }
+    // demais coleções: só a equipe (o curinga também casaria com as coleções acima, por isso a exclusão explícita).
+    // O Gerente só exclui, nas coleções de conteúdo, o que ele mesmo criou (criadoPor = uid).
+    function reservada(c) { return c in ['acessos', 'acessosPendentes', 'senhasProvisorias', 'rfi', 'projetosRfi', 'emailsEnviados', 'servidor'] || c.matches('fin_.*'); }
+    function rastreada(c) { return c in ['itens', 'coment', 'pend', 'rdoc', 'ata', 'croq', 'crono', 'agenda', 'materiais', 'equip', 'espb', 'sugest']; }
+    match /{colecao}/{resto=**} {
+      allow read, create, update: if interno() && !reservada(colecao);
+      allow delete: if interno() && !reservada(colecao)
+        && (!gerente() || !rastreada(colecao) || resource.data.get('criadoPor', '') == request.auth.uid);
     }
   }
 }

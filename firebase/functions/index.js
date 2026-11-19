@@ -160,7 +160,7 @@ if (rotina('drive')) {
   exports.driveToken = onCall({ region: 'southamerica-east1', secrets: [DRIVE_OAUTH ? GOOGLE_SEGREDO : DRIVE_SA].filter(Boolean), cors: true }, async req => {
     if (!req.auth) throw new HttpsError('unauthenticated', 'entre no sistema');
     const ac = await db.collection('acessos').doc(req.auth.uid).get();
-    if (!ac.exists || !['admin', 'master'].includes(ac.data().nivel)) throw new HttpsError('permission-denied', 'só administradores usam o Drive');
+    if (!ac.exists || !['admin', 'gerente', 'master'].includes(ac.data().nivel)) throw new HttpsError('permission-denied', 'só administradores usam o Drive');
     if (DRIVE_OAUTH) { try { return await tokenGoogle(); } catch (e) { logger.error('driveToken', e.message || e); throw new HttpsError('failed-precondition', e.message || String(e)); } }
     if (!jwt) {
       const k = JSON.parse(DRIVE_SA.value()), d = SRV.drive || {};

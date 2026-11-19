@@ -87,7 +87,7 @@
     if(falha){await auth.signOut();entrar('Não foi possível conferir o acesso ('+msgErro(falha)+'). Tente de novo.',true);return}
     if(!g.exists){   // conta antiga liberada por um admin: vincula agora
       try{const em=u.email.toLowerCase(), pd=await fs.collection('acessosPendentes').doc(em).get();
-        if(pd.exists){const v=pd.data(); await fs.collection('acessos').doc(u.uid).set({email:em,nome:v.nome||'',nivel:v.nivel==='admin'?'admin':'usuario',empresa:v.empresa||'',trocarSenha:false,criadoPor:v.criadoPor||'',em:v.em||Date.now()});
+        if(pd.exists){const v=pd.data(); await fs.collection('acessos').doc(u.uid).set({email:em,nome:v.nome||'',nivel:['admin','gerente','financeiro'].includes(v.nivel)?v.nivel:'usuario',empresa:v.empresa||'',trocarSenha:false,criadoPor:v.criadoPor||'',em:v.em||Date.now()});
           await fs.collection('acessosPendentes').doc(em).delete(); g=await fs.collection('acessos').doc(u.uid).get()}}catch(x){console.warn('pendente',x)}
     }
     if(!g.exists){await auth.signOut();entrar('A conta '+u.email+' não tem acesso ao sistema. Fale com um administrador.',true);return}
@@ -134,7 +134,8 @@
   // homologação: o Master pode simular outro nível/pessoa (só a tela muda; o banco continua vendo a conta Master)
   let sim=null; if(window.FJA_FB_HOMOLOG){try{sim=JSON.parse(sessionStorage.getItem('fja.simular')||'null')}catch{}}
   const ef=()=>sim&&perfil?.nivel==='master'?{...sim,simulado:true}:perfil;
-  window.FJA_FIREBASE={auth,fs,pronto:logado,perfil:ef,admin:()=>ef()?.nivel==='admin'||ef()?.nivel==='master',master:()=>ef()?.nivel==='master',
+  window.FJA_FIREBASE={auth,fs,pronto:logado,perfil:ef,admin:()=>['admin','gerente','master'].includes(ef()?.nivel),master:()=>ef()?.nivel==='master',
+    gerente:()=>ef()?.nivel==='gerente',fin:()=>['master','gerente','financeiro'].includes(ef()?.nivel),
     mestreReal:()=>perfil?.nivel==='master',perfilReal:()=>perfil,
     simular:p=>{try{p?sessionStorage.setItem('fja.simular',JSON.stringify(p)):sessionStorage.removeItem('fja.simular')}catch{} location.reload()},
     criarConta,senhaProvisoria,mensagemErro:msgErro,acaoEmail:ACAO,
