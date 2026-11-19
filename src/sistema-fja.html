@@ -397,6 +397,10 @@ table.list.esp td{padding:7px 12px}
 table.list.esp th{padding:9px 12px}
 table.list.esp tr.grp td{background:var(--side);font-family:var(--f-display);font-weight:600;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);cursor:default;padding:8px 12px}
 table.list.esp tr.grp:hover td{background:var(--side)}
+table.list.forn tr.grp td{background:var(--side);font-family:var(--f-display);font-weight:600;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);cursor:default;padding:8px 12px}
+table.list.forn tr.grp .cnt{font-weight:400;margin-left:4px}
+table.list.forn .fl-logo{display:inline-flex;align-items:center;justify-content:center;width:28px;height:18px;margin-right:8px;vertical-align:-4px;border-radius:4px;overflow:hidden;background:var(--off-bg);font-size:10px;font-weight:700;color:var(--muted)}
+table.list.forn .fl-logo img{width:100%;height:100%;object-fit:contain}
 table.list.esp tr.grp .mono{color:var(--accent);margin-right:6px}
 .esp-nome{font-weight:500;display:block}
 table.list.esp small{display:block;color:var(--faint);font-size:12px}
@@ -1683,12 +1687,18 @@ function telaSecao(h,sec){
   // projetos arquivados ficam recolhidos num grupo "Arquivados" no fim da lista
   let arqP=[]; if(sec==='projetos'){if(S.projArq==null) S.projArq=!!lsGet('fja.pj.arq',false); arqP=lista.filter(i=>/^Arquiv/i.test(i.status||'')); const at=lista.filter(i=>!arqP.includes(i)); lista.length=0; lista.push(...at,...(S.projArq?arqP:[]))}
   const pjArqTr=()=>`<tr class="pj-arq" data-act="pj-arq" aria-expanded="${!!S.projArq}"><td colspan="5">${IC.chev.replace('class="chev"','class="chev'+(S.projArq?' open':'')+'"')}Arquivados <span class="cnt">${arqP.length}</span></td></tr>`;
-  const cols = sec==='disciplinas'?['Código','Disciplina','Grupo','Parceiros que atendem','Status']:sec==='projetos'?['Código','Projeto','Fase','Status','Atualizado']:sec==='parceiros'?['Parceiro','Disciplinas','Contato','Projetos','Pendências abertas','Comentários abertos','Status']:['Nome','Pasta','Status','Atualizado'];
+  const cols = sec==='disciplinas'?['Código','Disciplina','Grupo','Parceiros que atendem','Status']:sec==='projetos'?['Código','Projeto','Fase','Status','Atualizado']:sec==='parceiros'?['Parceiro','Disciplinas','Contato','Projetos','Pendências abertas','Comentários abertos','Status']:sec==='fornecedores'?['Fornecedor','Categoria','Siglas que atende','Materiais','Status','Atualizado']:['Nome','Pasta','Status','Atualizado'];
   if(sec==='parceiros') lista.sort((a,b)=>(a.pasta||'~').localeCompare(b.pasta||'~','pt')||ordena(a,b));
+  const fGrp=sec==='fornecedores'&&!!lsGet('fja.forn.agrupar',false);
+  if(fGrp) lista.sort((a,b)=>(a.pasta||'￿').localeCompare(b.pasta||'￿','pt')||ordena(a,b));
+  const fGrpTr=i=>{if(!fGrp) return ''; const p=lista[lista.indexOf(i)-1]; if(p&&(p.pasta||'')===(i.pasta||'')) return ''; return `<tr class="grp"><td colspan="6">${esc(i.pasta||'Sem categoria')} <span class="cnt">${lista.filter(x=>(x.pasta||'')===(i.pasta||'')).length}</span></td></tr>`};
+  const thSec=c=>sec==='fornecedores'&&c==='Categoria'?`<th>${c}<button class="th-ord th-grp ${fGrp?'on':''}" data-act="forn-agrupar" title="${fGrp?'Desagrupar: voltar à lista contínua':'Agrupar por categoria'}" aria-label="${fGrp?'Desagrupar':'Agrupar por categoria'}" aria-pressed="${fGrp}"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="${fGrp?3.6:3.2}" fill="${fGrp?'currentColor':'none'}" stroke="currentColor" stroke-width="1.4"/></svg></button></th>`:`<th>${c}</th>`;
   if(sec==='disciplinas') lista.sort((a,b)=>(a.pasta||'~').localeCompare(b.pasta||'~','pt')||String(a.campos?.codigo||'').localeCompare(String(b.campos?.codigo||'')));
   h+=`<div class="page"><div class="crumb"><button data-act="home">Início</button><span>/</span>${crumbSec(s)}<span>${esc(s.nome)}</span></div><h1>${esc(s.nome)}</h1><p class="lead">${esc(s.desc)}</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">${S.ro?'':`<button class="btn pri" data-act="novo" data-sec="${sec}">${IC.plus}Novo ${esc(s.um)}</button>`}${S.publico?'':`<button class="btn" data-act="schema" data-sec="${sec}">Personalizar campos</button>`}</div>${ESP[sec]?.sec?espLinhaDest(sec,sec):''}${sec==='fornecedores'?blocoSugForn():''}${sec==='projetos'?agLinhasTempo():''}
-  <div class="sheet">${lista.length?`<div class="tablewrap"><table class="list"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${lista.map(i=>(arqP.length&&i===arqP[0]?pjArqTr():'')+(sec==='disciplinas'
+  <div class="sheet">${lista.length?`<div class="tablewrap"><table class="list${sec==='fornecedores'?' forn':''}"><thead><tr>${cols.map(thSec).join('')}</tr></thead><tbody>${lista.map(i=>(arqP.length&&i===arqP[0]?pjArqTr():'')+fGrpTr(i)+(sec==='fornecedores'
+    ?`<tr data-act="item" data-id="${esc(i.id)}"><td><span class="fl-logo">${logoForn(i)}</span><b>${esc(i.nome)}</b></td><td class="muted">${fGrp?'':esc(i.pasta||'')}</td><td class="mono muted">${esc(i.campos?.siglas||'')}</td><td class="num">${matDe(i.id).length||'—'}</td><td>${badge(i.status)}</td><td class="num">${fmtData(i.atualizadoEm)}</td></tr>`
+    :sec==='disciplinas'
     ?`<tr data-act="item" data-id="${esc(i.id)}"><td class="mono"><span class="sw-d" style="background:${esc(corPadrao(String(i.campos?.codigo||'').toUpperCase()))}"></span><b>${esc(i.campos?.codigo||'')}</b></td><td>${esc(i.nome)}</td><td class="muted">${esc(i.pasta||'')}</td><td class="muted">${parceiros().filter(p=>discsParc(p).includes(String(i.campos?.codigo||'').toUpperCase())).map(p=>esc(p.nome)).join(', ')}</td><td>${badge(i.status)}</td></tr>`
     :sec==='parceiros'
     ?`<tr data-act="item" data-id="${esc(i.id)}"><td><b>${esc(i.nome)}</b>${i.campos?.papel?`<div class="muted" style="font-size:12px">${esc(i.campos.papel)}</div>`:''}</td><td>${discsParc(i).map(c=>`<span class="tag-d" title="${esc(discNome(c))}">${esc(c)}</span>`).join(' ')}</td><td>${esc(i.campos?.contato||i.campos?.responsavel||'')}${[i.campos?.telefone,i.campos?.email].filter(Boolean).length?`<div class="muted" style="font-size:12px">${[i.campos?.telefone,i.campos?.email].filter(Boolean).map(esc).join(' · ')}</div>`:''}</td>${(r=>`<td class="num">${r.proj||'—'}</td><td class="num">${r.ab||'—'}${r.atr?` <b class="atras">(${r.atr} atras.)</b>`:''}</td><td class="num">${r.cm||'—'}</td>`)(resumoParc(i.id))}<td>${badge(i.status)}</td></tr>`
@@ -1710,7 +1720,7 @@ function telaItem(h,id){
   <input class="title-input" id="f_nome" data-f="nome" value="${esc(d.nome)}" aria-label="Nome" ${dis}>
   ${d.secao==='projetos'?blocoCapa(d)+painelCronograma(d)+painelProjeto(d):''}
   <div class="meta-row">
-    ${d.secao==='parceiros'?'<span style="flex:1"></span>':''}<label class="fl" for="f_pasta" style="min-width:200px;flex:1${d.secao==='parceiros'?';display:none':''}">${d.secao==='projetos'||d.secao==='disciplinas'?'Grupo':d.secao==='parceiros'?'Disciplina':'Pasta'}<input class="fld" id="f_pasta" data-f="pasta" list="dl_pastas" value="${esc(d.pasta||'')}" placeholder="${({familias:'Portas',projetos:'PR-PROJETOS',templates:'Revit 2027',representacao:'Folhas e carimbos',manuais:'Estrutura do modelo',parceiros:'Instalações elétricas'})[d.secao]||''}" ${dis}><datalist id="dl_pastas">${(d.secao==='parceiros'?[...new Set([...pastas,...DISC_PARC])].sort((a,b)=>a.localeCompare(b,'pt')):pastas).map(p=>`<option value="${esc(p)}">`).join('')}</datalist></label>
+    ${d.secao==='parceiros'?'<span style="flex:1"></span>':''}<label class="fl" for="f_pasta" style="min-width:200px;flex:1${d.secao==='parceiros'?';display:none':''}">${d.secao==='projetos'||d.secao==='disciplinas'?'Grupo':d.secao==='parceiros'?'Disciplina':d.secao==='fornecedores'?'Categoria':'Pasta'}<input class="fld" id="f_pasta" data-f="pasta" list="dl_pastas" value="${esc(d.pasta||'')}" placeholder="${({familias:'Portas',projetos:'PR-PROJETOS',templates:'Revit 2027',representacao:'Folhas e carimbos',manuais:'Estrutura do modelo',parceiros:'Instalações elétricas',fornecedores:'ACM, Tintas, Vidros…'})[d.secao]||''}" ${dis}><datalist id="dl_pastas">${(d.secao==='parceiros'?[...new Set([...pastas,...DISC_PARC])].sort((a,b)=>a.localeCompare(b,'pt')):pastas).map(p=>`<option value="${esc(p)}">`).join('')}</datalist></label>
     <label class="fl" for="f_status" style="min-width:160px">Status<select class="fld" id="f_status" data-f="status" ${dis}>${STATUS[d.secao].map(o=>`<option ${o===d.status?'selected':''}>${o}</option>`).join('')}</select></label>
   </div>
   <section class="sheet"><div class="sheet-h"><h2>Ficha</h2><span class="sp"></span>${S.ro?'':`<button class="btn sm ghost ficha-ed${fe?' on':''}" data-act="ficha-editar" aria-pressed="${fe}" title="${fe?'Concluir a edição da ficha':'Editar a ficha'}">${IC_LAPIS}${fe?'Concluir':'Editar'}</button>`}${S.publico?'':`<button class="btn sm ghost" data-act="schema" data-sec="${d.secao}">Personalizar campos</button>`}</div>
@@ -7100,6 +7110,7 @@ document.addEventListener('click',async ev=>{
   if(a==='pc-local-cm'){await pcLocalCm(b.dataset.eid);return}
   if(a==='ferr-pc-ativo'){try{localStorage.setItem(PC_LS,b.checked?'1':'0')}catch{} render(); toast(b.checked?'Conexão com PC ativada neste navegador':'Conexão com PC desativada neste navegador');return}
   if(a==='ferr-pc-testar'){await copiarOuAbrir('G:\\');return}
+  if(a==='forn-agrupar'){lsSet('fja.forn.agrupar',!lsGet('fja.forn.agrupar',false)); renderMain(); return}
   if(a==='pj-arq'){S.projArq=!S.projArq; lsSet('fja.pj.arq',S.projArq); renderMain(); return}
   if(a.startsWith('mat-')){await matAcao(a,b);return}
   if(a==='ficha-editar'){S.fichaEd=!S.fichaEd; renderMain(); return}
