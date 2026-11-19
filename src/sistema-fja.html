@@ -859,8 +859,7 @@ table.sug-t tr.sug-fim td{color:var(--muted)}
 table.sug-t textarea.fld,table.sug-t input.fld{width:100%;font-size:13px;padding:5px 8px}
 .ferr-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 .ferr-card{cursor:pointer;font:inherit;color:inherit}.ferr-card:hover{border-color:var(--accent)}
-.ferr-par{display:flex;flex-direction:column;gap:6px}.ferr-par>.ferr-card{flex:1}
-.ferr-link{font-size:12.5px;color:var(--accent);padding-left:4px;text-decoration:none}.ferr-link:hover{text-decoration:underline}
+a.ferr-card{text-decoration:none}
 .ferr-card b{font-size:15px}.ferr-st{font-size:12px;color:var(--muted)}.ferr-st.on{color:var(--ok)}
 .pc-testes{display:flex;flex-direction:column;gap:8px}.pc-testes-b{display:flex;gap:8px;flex-wrap:wrap}.pc-testes-b a.btn{text-decoration:none}.pc-testes-b a.off{pointer-events:none;opacity:.5}
 .ferr-pad{display:flex;flex-direction:column;gap:10px;padding:14px 16px}.ferr-pad p{margin:0}
@@ -8923,7 +8922,7 @@ function telaFerr(h,v){
   if(!f){
     h+=`<div class="page"><div class="crumb"><button data-act="grupo" data-g="biblioteca">Biblioteca</button><span>/</span><span>Ferramentas</span></div>
     <h1>Ferramentas</h1><p class="lead">Scripts de suporte ao sistema, instalados nos computadores do escritório.</p>
-    <div class="ferr-lista">${FERRAMENTAS.map(x=>(x.id==='rvext'?`<div class="ferr-par">`:'')+`<button class="card ferr-card" data-act="ferr" data-f="${x.id}"><b>${esc(x.nome)}</b><span class="muted">${esc(x.resumo)}</span>${x.id==='pc'?`<span class="ferr-st ${pcAtivo()?'on':''}">${pcAtivo()?'Ativa neste computador':'Não ativada neste computador'}</span>`:''}</button>`+(x.id==='rvext'?`<a class="ferr-link" href="https://github.com/pyrevitlabs/pyRevit/releases/latest" target="_blank" rel="noopener">Baixar o pyRevit (última versão) ↗</a></div>`:'')).join('')}</div></div>`;
+    <div class="ferr-lista">${FERRAMENTAS.map(x=>`<button class="card ferr-card" data-act="ferr" data-f="${x.id}"><b>${esc(x.nome)}</b><span class="muted">${esc(x.resumo)}</span>${x.id==='pc'?`<span class="ferr-st ${pcAtivo()?'on':''}">${pcAtivo()?'Ativa neste computador':'Não ativada neste computador'}</span>`:''}</button>`+(x.id==='rvext'?`<a class="card ferr-card" href="https://github.com/pyrevitlabs/pyRevit/releases/latest" target="_blank" rel="noopener"><b>pyRevit ↗</b><span class="muted">Baixa a última versão do pyRevit, necessário para a aba Ferramentas FJA (página oficial no GitHub).</span></a>`:'')).join('')}</div></div>`;
     return h;
   }
   const on=pcAtivo();
