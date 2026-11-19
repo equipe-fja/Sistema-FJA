@@ -89,6 +89,17 @@ header.top{display:flex;align-items:center;gap:14px;padding-block:10px;padding-l
 .me-cel{font-size:12.5px}.me-cel b{font-variant-numeric:tabular-nums}
 .me-av{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--warn-bg);color:var(--warn);font-weight:700;font-size:10.5px}
 .me-aj{font-size:10.5px;color:var(--accent-ink);background:var(--accent-weak);border-radius:999px;padding:0 6px}
+.me-l>.me-i{flex-wrap:wrap}
+.me-cot-b{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me-cot-b.on{background:var(--accent-weak);color:var(--accent-ink)}
+.me-cot{width:100%;border-top:1px dashed var(--line);margin-top:4px;padding:8px 4px 2px 30px;display:flex;flex-direction:column;gap:8px}
+.me-cot-g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.me-cot-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.me-cot-n{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:6px}
+.me-cot-l{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.me-cot-l li{display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:8px;align-items:start;font-size:12.5px;border-bottom:1px solid var(--line);padding:5px 0}
+.me-cot-t small{display:block;color:var(--muted);font-size:11px}
+@media (max-width:640px){.me-cot-g,.me-cot-n{grid-template-columns:1fr}.me-cot{padding-left:4px}}
 .ficha-fs:disabled{opacity:1}
 .ficha-ed{display:inline-flex;align-items:center;gap:5px}
 .ficha-ed.on{background:var(--accent-weak);color:var(--accent-ink);border-color:#e6c9c4}
@@ -6067,7 +6078,7 @@ async function salvarEs(){
   const er=knLivre(e.projeto,body.kn,e.id); if(er){toast(er);return false}
   body.desc=String(body.desc||'').trim(); if(!body.desc){toast('A descrição simplificada é obrigatória (é o texto do keynote).');return false}
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
-  {const at=S.espec.get(e.id); if(at) body.materiais=at.materiais??null}
+  {const at=S.espec.get(e.id); if(at){body.materiais=at.materiais??null; if(at.cotacoes) body.cotacoes=at.cotacoes}}
   if(body.item&&nTxt(body.desc)!==nTxt(S.espec.get(e.id)?.desc)) await descAplicarLinha(body);
   try{await espColl().doc(e.id).set(body);S.espec.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;
     toast('Salvo');return true}
@@ -8145,7 +8156,7 @@ function blocoMatEs(e,b){
   const adm=matAdm(), L=matEfetivos(e), aj=matAjustado(e), av=matAvisoEs(e);
   const cand=b?espbMats(b).filter(x=>S.materiais.has(x.id)&&!L.includes(x.id)):[];
   const linha=(id,i)=>{const m=S.materiais.get(id), fo=S.itens.get(m.fornecedor), nota=espbMats(b).find(x=>x.id===id)?.nota||'';
-    return `<li class="me-i"><span class="me-n">${i+1}</span><span class="me-logo">${logoForn(fo)}</span><span class="me-t"><b>${esc(m.nome||'')}</b><span class="muted">${esc(fo?.nome||'')}${m.codigo?' · '+esc(m.codigo):''}</span>${nota?`<em>${esc(nota)}</em>`:''}</span>${m.datasheet?`<a class="btn sm ghost" href="${esc(m.datasheet)}" target="_blank" rel="noopener">Datasheet ↗</a>`:''}${adm?`<span class="me-acts"><button class="icb" data-act="mat-p-sobe" data-i="${i}" title="Subir na ordem"${i?'':' disabled'}>↑</button><button class="icb" data-act="mat-p-desce" data-i="${i}" title="Descer na ordem"${i<L.length-1?'':' disabled'}>↓</button><button class="icb" data-act="mat-p-tira" data-i="${i}" title="Retirar deste projeto">${IC.x}</button></span>`:''}</li>`};
+    return `<li class="me-i"><span class="me-n">${i+1}</span><span class="me-logo">${logoForn(fo)}</span><span class="me-t"><b>${esc(m.nome||'')}</b><span class="muted">${esc(fo?.nome||'')}${m.codigo?' · '+esc(m.codigo):''}</span>${nota?`<em>${esc(nota)}</em>`:''}</span>${m.datasheet?`<a class="btn sm ghost" href="${esc(m.datasheet)}" target="_blank" rel="noopener">Datasheet ↗</a>`:''}${adm?`<span class="me-acts"><button class="icb" data-act="mat-p-sobe" data-i="${i}" title="Subir na ordem"${i?'':' disabled'}>↑</button><button class="icb" data-act="mat-p-desce" data-i="${i}" title="Descer na ordem"${i<L.length-1?'':' disabled'}>↓</button><button class="icb" data-act="mat-p-tira" data-i="${i}" title="Retirar deste projeto">${IC.x}</button></span>`:''}${cotBtn(e,id)}${cotPainel(e,id)}</li>`};
   return `<section class="sheet"><div class="sheet-h"><h2>Materiais neste projeto</h2><span class="hint">${b?(aj?'ajustado neste projeto':'padrão da biblioteca central (os 3 primeiros recomendados)'):'sem item central'}</span><span class="sp"></span>${adm&&aj?'<button class="btn sm ghost" data-act="mat-p-padrao" title="Descartar o ajuste e voltar aos 3 primeiros recomendados do item central">Voltar ao padrão</button>':''}</div><div class="pad">
     ${av?`<div class="me-aviso">${esc(av)}</div>`:''}
     ${L.length?`<ol class="me-l">${L.map(linha).join('')}</ol>`:''}
@@ -8153,6 +8164,31 @@ function blocoMatEs(e,b){
     ${b&&adm?'<p class="muted" style="margin:10px 0 0;font-size:12px">Só entram materiais já vinculados ao item central. Para um material novo, cadastre-o no fornecedor e vincule-o ao item central.</p>':''}
   </div></section>`;
 }
+/* cotação por projeto: preço, prazo de entrega e histórico de contatos de cada material do keynote.
+   Fica no keynote do projeto (espec.cotacoes = {idDoMaterial: {preco, prazo, contatos:[{data,texto,por,porId,em}]}}), nunca na biblioteca. */
+const COT={abertos:new Set()};
+const cotDe=(e,mid)=>(e?.cotacoes&&e.cotacoes[mid])||{};
+function cotBtn(e,mid){
+  const c=cotDe(e,mid), n=(c.contatos||[]).length, ab=COT.abertos.has(mid);
+  const partes=[c.preco,c.prazo&&'prazo '+c.prazo,n&&n+(n===1?' contato':' contatos')].filter(Boolean);
+  return `<button class="btn sm ghost me-cot-b${ab?' on':''}" data-act="mat-c-abrir" data-mid="${esc(mid)}" aria-expanded="${ab}" title="Preço, prazo e contatos neste projeto">${partes.length?esc(partes.join(' · ')):(matAdm()?'Registrar cotação':'Sem cotação')}</button>`;
+}
+function cotPainel(e,mid){
+  if(!COT.abertos.has(mid)) return '';
+  const c=cotDe(e,mid), adm=matAdm(), ro=adm?'':'disabled', L=(c.contatos||[]).map((x,i)=>[x,i]).sort((a,b)=>(b[0].em||0)-(a[0].em||0));
+  return `<div class="me-cot"><div class="me-cot-g"><label class="fl">Preço<input class="fld" data-cot="preco" data-mid="${esc(mid)}" value="${esc(c.preco||'')}" placeholder="Ex.: R$ 189,00/m²" ${ro}></label><label class="fl">Prazo de entrega<input class="fld" data-cot="prazo" data-mid="${esc(mid)}" value="${esc(c.prazo||'')}" placeholder="Ex.: 30 dias" ${ro}></label></div>
+    <div class="me-cot-h">Histórico de contatos</div>
+    ${adm?`<div class="me-cot-n"><input type="date" class="fld" id="cotData_${esc(mid)}" value="${dIso(new Date().toLocaleDateString('pt-BR'))}" aria-label="Data do contato"><input class="fld" id="cotTxt_${esc(mid)}" placeholder="O que foi tratado (com quem, condições, amostra…)" aria-label="O que foi tratado"><button class="btn sm" data-act="mat-c-contato" data-mid="${esc(mid)}">Registrar</button></div>`:''}
+    ${L.length?`<ol class="me-cot-l">${L.map(([x,i])=>`<li><span class="mono">${esc(x.data||'')}</span><span class="me-cot-t">${esc(x.texto||'')}<small>${esc(x.por||'')}</small></span>${adm?`<button class="icb" data-act="mat-c-rm" data-mid="${esc(mid)}" data-i="${i}" title="Excluir este registro">${IC.x}</button>`:''}</li>`).join('')}</ol>`:'<p class="muted" style="margin:2px 0 0;font-size:12px">Nenhum contato registrado.</p>'}
+  </div>`;
+}
+async function cotGravar(mid,patch){
+  const e=S.qdraft, base=S.espec.get(e?.id); if(!e||!base||!matAdm()) return;
+  const todas={...(base.cotacoes||{})}; todas[mid]={...(todas[mid]||{}),...patch,atualizadoEm:Date.now()};
+  try{await espColl().doc(e.id).update({cotacoes:todas,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})}); base.cotacoes=todas; e.cotacoes=todas; renderMain()}
+  catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
+}
+document.addEventListener('change',ev=>{const el=ev.target; if(!el?.dataset?.cot||!el.closest('.me-cot')) return; cotGravar(el.dataset.mid,{[el.dataset.cot]:el.value.trim()})});
 async function matProjGravar(L){
   const e=S.qdraft, base=S.espec.get(e?.id); if(!e||!base||!matAdm()) return;
   const v=L===null?null:[...L];
@@ -8224,6 +8260,11 @@ async function matAcao(a,b){
   else if(a==='mat-excluir'&&dr&&!dr.novo){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
     try{await matSincronizar(dr.id,[]); await matColl().doc(dr.id).delete(); S.materiais.delete(dr.id); MAT.dr=null; matDrawer(); render(); toast('Material excluído')}catch{toast('Não foi possível excluir.')}}
+  else if(a==='mat-c-abrir'){const m=b.dataset.mid; COT.abertos.has(m)?COT.abertos.delete(m):COT.abertos.add(m); renderMain()}
+  else if(a==='mat-c-contato'){const mid=b.dataset.mid, t=String($('cotTxt_'+mid)?.value||'').trim(), d=dBr($('cotData_'+mid)?.value||''); if(!t){toast('Escreva o que foi tratado');$('cotTxt_'+mid)?.focus();return}
+    const eu=AMB==='firebase'?FB()?.perfil():null, L=[...(cotDe(S.espec.get(S.qdraft?.id),mid).contatos||[]),{data:d,texto:t,por:eu?.nome||eu?.email||S.meuNome||'',porId:eu?.uid||me||'',em:Date.now()}];
+    await cotGravar(mid,{contatos:L})}
+  else if(a==='mat-c-rm'){const mid=b.dataset.mid, L=[...(cotDe(S.espec.get(S.qdraft?.id),mid).contatos||[])]; L.splice(+b.dataset.i,1); await cotGravar(mid,{contatos:L})}
   else if(a.startsWith('mat-p-')){ // ajuste dos materiais do keynote no projeto
     const e=S.qdraft; if(!e||!matAdm()) return; const L=matEfetivos(e), i=+b.dataset.i;
     if(a==='mat-p-padrao') return matProjGravar(null);
