@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~12h35 — commit e527398
+- Extensão do Revit 2.29.2 (antes 2.29.1): o painel **Componentes** não fica mais preto depois de reabrir o Revit. A montagem automática na abertura falhava e o botão não montava de novo; agora o botão monta sempre que a moldura não tem o painel, a moldura tem fundo claro e mostra o motivo se a montagem falhar.
+
 ## oficial Firebase — 19/11, ~12h20 — commit e9e6062
 - **Fornecedores e materiais** (etapas 1 a 4):
   - **Biblioteca › Fornecedores** (fabricantes): ficha com descrição, site, siglas que atende, contatos e logomarca, e a lista de materiais do fabricante. Os materiais (nome comercial, código, descrição, datasheet) são vinculados aos itens da biblioteca central que atendem, com uma nota por vínculo.
