@@ -5,6 +5,12 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~13h10 — commit 47949b2
+- Extensão do Revit 2.30.1 (antes 2.30.0): painel **Componentes** com os botões "Carregar família…" e "Localizar seleção" inteiros (estavam cortados) e o ↻ visível; ao trocar de modelo, relê o sistema se os dados tiverem mais de 5 minutos.
+- **Financeiro**: novo galho na árvore (tela inicial em construção) e níveis **Gerente** (administra tudo e vê o Financeiro, mas só exclui o que criou) e **Financeiro** (só o galho Financeiro e Minha conta); regras do banco: coleções fin_* só para Master, Gerente e Financeiro; Administrador só atribui Administrador e Convidado (commit d218e80; só regras, sem alterar dados).
+- **Fornecedores**: campo Categoria, lista agrupável por categoria e lista com ordenar, agrupar e largura de colunas como as outras planilhas (commits 5271792, 724e229).
+- **Materiais**: datasheet vira ícone pequeno com a dica "Datasheet" (commit 208fa89).
+
 ## oficial Firebase — 19/11, ~12h45 — commit fad257c
 - Extensão do Revit 2.30.0 (antes 2.29.2): **projeto do modelo** — todas as ferramentas ligadas ao sistema (painel Componentes, Composições, Diagnóstico, cor da disciplina nas Legendas) reconhecem o projeto do mesmo jeito e gravam a ligação no próprio modelo (vale para a equipe depois de sincronizar). Sem ligação, pistas em ordem: Número do projeto, pasta do caminho (do central nas cópias locais), nome do arquivo, código do cliente, nome do projeto. Escolher ou trocar o projeto na lista grava a ligação. Ver docs/projeto-do-modelo.md.
 - Sistema: a publicação para o Revit passa a listar **todos os projetos** (os sem especificação técnica com semEspec), para o Revit reconhecer qualquer projeto.
