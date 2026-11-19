@@ -5688,7 +5688,7 @@ function abrirPdflPop(btn){
   d.innerHTML=`<div class="pdfl-t">Exportar em PDF</div>
     <div class="pdfl-l"><span>Papel</span>${seg('papel',[['A4','A4'],['A3','A3']])}</div>
     <div class="pdfl-l"><span>Orientação</span>${seg('orient',[['retrato','Retrato'],['paisagem','Paisagem']])}</div>
-    ${S.view?.t==='cro'?'':(pselConferir(),`<div class="pdfl-l"><span>Itens</span><div class="seg pdfl-seg"><button class="${PSEL.usar&&PSEL.ids.size?'':'on'}" data-act="psel-usar" data-v="0">Todos exibidos (${eqFiltrados(S.view.id).length})</button><button class="${PSEL.usar&&PSEL.ids.size?'on':''}" data-act="psel-usar" data-v="1"${PSEL.ids.size?'':' disabled'}>Selecionados (${PSEL.ids.size})</button></div></div><button class="btn sm ghost pdfl-sel" data-act="psel-entrar">Selecionar itens na tabela…</button>`)}
+    ${S.view?.t==='cro'?'':(pselConferir(),`<div class="pdfl-l"><span>Itens</span><div class="seg pdfl-seg"><button class="${PSEL.usar&&PSEL.ids.size?'':'on'}" data-act="psel-usar" data-v="0">Todos exibidos (${eqFiltrados(S.view.id).length})</button><button class="${PSEL.usar&&PSEL.ids.size?'on':''}" data-act="psel-usar" data-v="1">Selecionados${PSEL.ids.size?` (${PSEL.ids.size})`:''}</button></div></div>`)}
     <label class="pdfl-ck"><input type="checkbox" id="pdflCapa"${p.capa?' checked':''}> Incluir capa</label>
     <label class="pdfl-ck"><input type="checkbox" id="pdflGraf"${p.graficos?' checked':''}> ${S.view?.t==='cro'?'Incluir gantt':'Incluir gráficos'}</label>
     <p class="pdfl-n">${S.view?.t==='cro'?'Segue as etapas, as cores e os arquivados exibidos na tela. Sem o gantt, sai a tabela com períodos e marcos.':'Segue os filtros, a ordenação, o agrupamento e as colunas visíveis na tela.'}</p>
@@ -5702,8 +5702,7 @@ async function pdflAcao(a,b){
   if(a==='pdfl-abrir'){abrirPdflPop(b);return}
   if(a==='pdfl-opt'){const p=pdflPref(); p[b.dataset.k]=b.dataset.v; try{localStorage.setItem(PDFL_LS,JSON.stringify(p))}catch{}
     b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); return}
-  if(a==='psel-entrar'){fecharPdflPop(); PSEL.on=true; renderMain(); toast('Clique nas linhas para escolher os itens do PDF'); return}
-  if(a==='psel-usar'){PSEL.usar=b.dataset.v==='1'; b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); return}
+  if(a==='psel-usar'){if(b.dataset.v==='1'&&!PSEL.on){PSEL.on=true; PSEL.usar=true; fecharPdflPop(); renderMain(); toast('Clique nas linhas para escolher os itens do PDF'); return} PSEL.usar=b.dataset.v==='1'; b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); return}
   if(a==='pdfl-gerar'){const p={...pdflPref(),graficos:!!$('pdflGraf')?.checked,capa:!!$('pdflCapa')?.checked}; try{localStorage.setItem(PDFL_LS,JSON.stringify(p))}catch{}
     const t0=b.innerHTML; b.disabled=true; b.textContent='Gerando PDF…';
     try{const {bytes,nome}=await montarPdfLista(S.view.id,{...p,sel:S.view?.t!=='cro'&&PSEL.usar&&PSEL.ids.size?new Set(PSEL.ids):null}), blob=new Blob([bytes],{type:'application/pdf'});
@@ -6986,7 +6985,7 @@ document.addEventListener('click',async ev=>{
   const a=b.dataset.act;
   if(b.dataset.tk&&ev.target.closest('.chev')&&!S.busca.trim()){alternarTk(b);return}
   if(a==='sug'||a.startsWith('sug-')){await sugAcao(a,b);return}
-  if(a.startsWith('pdfl-')||a==='psel-entrar'||a==='psel-usar'){await pdflAcao(a,b);return}
+  if(a.startsWith('pdfl-')||a==='psel-usar'){await pdflAcao(a,b);return}
   if(a==='psel-todos'){for(const e of eqFiltrados(S.view.id)) PSEL.ids.add(e.id); PSEL.usar=true; pselPinta(S.view.id); return}
   if(a==='psel-limpar'){PSEL.ids.clear(); PSEL.usar=false; pselPinta(S.view.id); return}
   if(a==='psel-sair'){PSEL.on=false; renderMain(); if(PSEL.ids.size) toast(`${PSEL.ids.size} ${PSEL.ids.size===1?'item ficou selecionado':'itens ficaram selecionados'} para o PDF`); return}
