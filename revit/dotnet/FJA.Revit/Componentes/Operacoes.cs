@@ -181,6 +181,34 @@ namespace FJA.Revit.Componentes
             return avisos;
         }
 
+        /// <summary>Seta →: envia ao sistema a Descrição do Revit (pedido "editar-item", um por item) e marca o pedido no vínculo
+        /// dos tipos (ficam "aguardando" até o sistema processar). Itens com descrições diferentes entre os tipos ficam de fora.
+        /// Precisa de transação aberta.</summary>
+        public static List<string> LevarDescricao(Document doc, DadosSistema dados, List<TipoInfo> tipos)
+        {
+            var avisos = new List<string>();
+            foreach (var g in tipos.Where(Coleta.PodeLevar).GroupBy(t => t.Item.Txt("id")))
+            {
+                var descs = g.Select(t => (t.Desc ?? "").Trim().ToUpperInvariant()).Distinct().ToList();
+                var item = g.First().Item;
+                if (descs.Count > 1)
+                {
+                    avisos.Add(item.Txt("fja") + ": os tipos têm descrições diferentes no Revit (" + string.Join(" / ", descs) + "); nada enviado.");
+                    continue;
+                }
+                var ped = dados.PedidoDescricao(item, descs[0], doc.Title);
+                dados.GravarPedido(ped);
+                foreach (var t in g)
+                {
+                    if (!(doc.GetElement(t.Id) is FamilySymbol s)) continue;
+                    Vinculo.Gravar(s, item.Txt("fja"), item.Txt("id"), t.Linha?.Txt("id") ?? "", dados.Projeto?.Txt("id") ?? t.Vinc?.Campo("projeto") ?? "",
+                                   ped.Txt("id"), Vinculo.Param(s, BuiltInParameter.KEYNOTE_PARAM), Vinculo.Param(s, BuiltInParameter.ALL_MODEL_DESCRIPTION));
+                }
+                avisos.Add(item.Txt("fja") + ": descrição \"" + descs[0] + "\" enviada ao sistema (" + g.Count() + " tipo(s)).");
+            }
+            return avisos;
+        }
+
         /// <summary>Apaga o vínculo (o tipo fica como estava, só deixa de ser acompanhado).</summary>
         public static void Desligar(Document doc, IEnumerable<TipoInfo> tipos)
         {

@@ -344,12 +344,33 @@ namespace FJA.Revit.Componentes
             cbFiltro.SelectedIndex = 0;
             cbFiltro.SelectionChanged += (s, a) => Desenhar();
             Grid.SetColumn(cbFiltro, 1); g2.Children.Add(cbFiltro);
-            Grid.SetRow(g2, 2); raiz.Children.Add(g2);
+            // barra das setas: ← traz do sistema; → leva ao sistema a Descrição (só tipos já no padrão, alterados no Revit)
+            var linha2 = new StackPanel();
+            linha2.Children.Add(g2);
+            var barra = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            btLimpar = Botao("Limpar", (s, a) => { marcados.Clear(); AtualizarMarcas(); }, false, "Desmarca todos os tipos");
+            btLimpar.Margin = new Thickness(6, 0, 0, 0);
+            DockPanel.SetDock(btLimpar, Dock.Right);
+            barra.Children.Add(btLimpar);
+            btLevar = Botao("→ Para o sistema", (s, a) => LevarAoSistema(Alvo()), false,
+                "Leva ao sistema a Descrição alterada no Revit (só tipos já sincronizados antes, ligados a um item do projeto). Keynote e Type Mark não vão.");
+            btLevar.Margin = new Thickness(6, 0, 0, 0);
+            DockPanel.SetDock(btLevar, Dock.Right);
+            barra.Children.Add(btLevar);
+            btTrazer = Botao("← Do sistema", (s, a) => Sincronizar(Alvo(), marcados.Count > 0 ? "os tipos marcados" : "esta seleção"), false,
+                "Traz do sistema o keynote, o Type Mark e a descrição (o sistema é a referência)");
+            btTrazer.Margin = new Thickness(6, 0, 0, 0);
+            DockPanel.SetDock(btTrazer, Dock.Right);
+            barra.Children.Add(btTrazer);
+            lbMarcados = T("", Suave, 11.5);
+            barra.Children.Add(lbMarcados);
+            linha2.Children.Add(barra);
+            Grid.SetRow(linha2, 2); raiz.Children.Add(linha2);
 
             // 3: árvore
             tv = new TreeView { BorderThickness = new Thickness(1), BorderBrush = TryFindResource("Linha") as Brush ?? B(226, 226, 223), Background = Brushes.White };
             VirtualizingPanel.SetIsVirtualizing(tv, true);
-            tv.SelectedItemChanged += (s, a) => { if (!montando) { selecionado = (tv.SelectedItem as TreeViewItem)?.Tag is No n ? n.Chave : null; MostrarDetalhe(); } };
+            tv.SelectedItemChanged += (s, a) => { if (!montando) { selecionado = (tv.SelectedItem as TreeViewItem)?.Tag is No n ? n.Chave : null; MostrarDetalhe(); AtualizarMarcas(); } };
             Grid.SetRow(tv, 3); raiz.Children.Add(tv);
 
             var div = new GridSplitter { Height = 6, HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.Transparent, ResizeDirection = GridResizeDirection.Rows };
@@ -522,7 +543,10 @@ namespace FJA.Revit.Componentes
                 string[] termos = Texto.NormSistema(tbBusca.Text).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 bool buscando = termos.Length > 0 || cbFiltro.SelectedIndex > 0;
                 var vis = tipos.Where(t => PassaFiltro(t) && PassaBusca(t, termos)).ToList();
+                visiveis_ = new HashSet<long>(vis.Select(t => Coleta.Num(t.Id)));
                 tv.Items.Clear();
+                caixas.Clear();
+                marcados.RemoveWhere(id => !tipos.Any(t => Coleta.Num(t.Id) == id));
                 TreeViewItem achado = null;
                 foreach (var gc in vis.GroupBy(t => t.Categoria).OrderBy(g => g.Key))
                 {
@@ -559,11 +583,24 @@ namespace FJA.Revit.Componentes
             }
             finally { montando = false; }
             MostrarDetalhe();
+            AtualizarMarcas();
         }
 
         TreeViewItem Item(No n, int visiveis)
         {
             var sp = new StackPanel { Orientation = Orientation.Horizontal };
+            // caixa de seleção: as setas ← e → agem nos tipos marcados (família e categoria marcam todos os tipos delas)
+            var cb = new CheckBox { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0), Focusable = false };
+            cb.Click += (s, a) =>
+            {
+                // família e categoria: só os tipos que aparecem na busca e no filtro atuais
+                var lt = n.Nivel == 2 ? n.Tipos : n.Tipos.Where(x => visiveis_.Contains(Coleta.Num(x.Id))).ToList();
+                bool todos = lt.All(t => marcados.Contains(Coleta.Num(t.Id)));
+                foreach (var t in lt) { if (todos) marcados.Remove(Coleta.Num(t.Id)); else marcados.Add(Coleta.Num(t.Id)); }
+                AtualizarMarcas();
+            };
+            caixas.Add(Tuple.Create(cb, n));
+            sp.Children.Add(cb);
             if (n.Nivel == 2)
             {
                 var t = n.Tipos[0];
@@ -595,6 +632,71 @@ namespace FJA.Revit.Componentes
         }
 
         No NoSelecionado() => (tv?.SelectedItem as TreeViewItem)?.Tag as No;
+
+        // ------------------------------------------------------------ marcados e setas
+
+        readonly HashSet<long> marcados = new HashSet<long>();
+        HashSet<long> visiveis_ = new HashSet<long>();
+        readonly List<Tuple<CheckBox, No>> caixas = new List<Tuple<CheckBox, No>>();
+        TextBlock lbMarcados;
+        Button btTrazer, btLevar, btLimpar;
+
+        void AtualizarMarcas()
+        {
+            foreach (var c in caixas)
+            {
+                var lt = c.Item2.Nivel == 2 ? c.Item2.Tipos : c.Item2.Tipos.Where(x => visiveis_.Contains(Coleta.Num(x.Id))).ToList();
+                int m = lt.Count(t => marcados.Contains(Coleta.Num(t.Id)));
+                c.Item1.IsChecked = m == 0 ? false : m == lt.Count ? (bool?)true : null;
+            }
+            if (lbMarcados == null) return;
+            var alvo = Alvo();
+            lbMarcados.Text = marcados.Count > 0 ? marcados.Count + " tipo(s) marcado(s)" : (NoSelecionado() != null ? "Item escolhido na árvore" : "Marque tipos ou escolha um item");
+            int nT = alvo.Count(t => Coleta.Sincronizavel(t.Sit) && t.Item != null), nL = alvo.Count(Coleta.PodeLevar);
+            btTrazer.IsEnabled = nT > 0 && dados != null;
+            btTrazer.Content = "← Do sistema" + (nT > 0 ? " (" + nT + ")" : "");
+            btLevar.IsEnabled = nL > 0 && dados != null;
+            btLevar.Content = "→ Para o sistema" + (nL > 0 ? " (" + nL + ")" : "");
+            btLimpar.Visibility = marcados.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>Tipos em que as setas agem: os marcados; sem marcados, os do item escolhido na árvore.</summary>
+        List<TipoInfo> Alvo() =>
+            marcados.Count > 0 ? tipos.Where(t => marcados.Contains(Coleta.Num(t.Id))).ToList() : (NoSelecionado()?.Tipos ?? new List<TipoInfo>());
+
+        /// <summary>Seta →: a Descrição do Revit vai para o sistema (só tipos já no padrão, alterados no Revit).</summary>
+        void LevarAoSistema(List<TipoInfo> ts)
+        {
+            var alvo = ts.Where(Coleta.PodeLevar).ToList();
+            if (alvo.Count == 0)
+            {
+                Status("→ vale só para tipos já sincronizados (ligados a um item do projeto) cuja Descrição foi alterada no Revit.");
+                return;
+            }
+            Pedir(app =>
+            {
+                var doc = DocAtual(app);
+                var linhas = alvo.GroupBy(t => t.Item.Txt("id")).Take(12).Select(g =>
+                {
+                    var t0 = g.First();
+                    return "• " + t0.Fja + ": \"" + t0.DescSis + "\"  →  \"" + (t0.Desc ?? "").ToUpperInvariant() + "\"" + (g.Count() > 1 ? " (" + g.Count() + " tipos)" : "");
+                }).ToList();
+                var td = new RUI.TaskDialog("Componentes")
+                {
+                    MainInstruction = "Levar ao sistema a descrição de " + alvo.Select(t => t.Item.Txt("id")).Distinct().Count() + " código(s)?",
+                    MainContent = string.Join("\n", linhas),
+                    FooterText = "A descrição é do item da biblioteca central: muda em todos os projetos que usam o código. Keynote e Type Mark não vão (são numeração do sistema). O sistema aplica quando alguém estiver com ele aberto; até lá, os tipos ficam aguardando.",
+                    CommonButtons = RUI.TaskDialogCommonButtons.Yes | RUI.TaskDialogCommonButtons.No,
+                    DefaultButton = RUI.TaskDialogResult.No,
+                };
+                if (td.Show() != RUI.TaskDialogResult.Yes) return;
+                List<string> av = null;
+                Transacao(doc, "Componentes FJA: descrição para o sistema", () => av = Operacoes.LevarDescricao(doc, dados, alvo));
+                sujo = true;
+                Status("Descrição enviada ao sistema (aguardando).");
+                Avisos("Para o sistema", av);
+            });
+        }
 
         // ------------------------------------------------------------ detalhes e ações
 
@@ -691,9 +793,15 @@ namespace FJA.Revit.Componentes
         {
             var wp = new WrapPanel { Margin = new Thickness(0, 6, 0, 4) };
             int nSinc = ts.Count(t => Coleta.Sincronizavel(t.Sit));
+            // seta sugerida em destaque: alterado no Revit (e elegível) → "Para o sistema"; senão "Do sistema"
+            bool sugereLevar = umTipo && Coleta.PodeLevar(ts[0]);
             if (nSinc > 0 && dados != null)
-                wp.Children.Add(Botao(umTipo ? "Sincronizar" : "Sincronizar (" + nSinc + ")", (s, a) => Sincronizar(ts, umTipo ? "este tipo" : "esta seleção"), true,
+                wp.Children.Add(Botao(umTipo ? "← Do sistema" : "← Do sistema (" + nSinc + ")", (s, a) => Sincronizar(ts, umTipo ? "este tipo" : "esta seleção"), !sugereLevar,
                     "Traz para o modelo o keynote, o Type Mark e a descrição do sistema"));
+            int nLev = ts.Count(Coleta.PodeLevar);
+            if (nLev > 0 && dados != null)
+                wp.Children.Add(Botao(umTipo ? "→ Para o sistema" : "→ Para o sistema (" + nLev + ")", (s, a) => LevarAoSistema(ts), sugereLevar || nSinc == 0,
+                    "Leva ao sistema a Descrição alterada no Revit (o código é do item central: muda em todos os projetos)"));
             int ni = ts.Sum(t => t.Instancias.Count);
             if (ni > 0)
                 wp.Children.Add(Botao("Selecionar no modelo", (s, a) => Selecionar(ts), false, ni + " instância(s)"));

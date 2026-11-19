@@ -255,6 +255,26 @@ namespace FJA.Revit.Componentes
         }
 
         /// <summary>Pedido "incluir-no-projeto": o item entra na especificação do projeto com o keynote reservado.</summary>
+        /// <summary>Pedido "editar-item" só com a Descrição (seta → do painel Componentes): o sistema registra a descrição como a
+        /// principal do item central e atualiza a linha do projeto. Sem texto, camadas, categoria ou papel (o sistema só altera
+        /// o que vem no pedido).</summary>
+        public Dictionary<string, object> PedidoDescricao(Dictionary<string, object> item, string desc, string modelo)
+        {
+            return new Dictionary<string, object>
+            {
+                ["fja"] = "pedido",
+                ["formato"] = 1,
+                ["id"] = NovoIdPedido(),
+                ["acao"] = "editar-item",
+                ["criadoEm"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                ["autor"] = Autor(),
+                ["modelo"] = modelo ?? "",
+                ["projeto"] = Projeto == null ? null : new Dictionary<string, object> { ["id"] = Projeto.Txt("id"), ["codigo"] = Projeto.Txt("codigo") },
+                ["reservas"] = new Dictionary<string, object>(),
+                ["item"] = new Dictionary<string, object> { ["id"] = item.Txt("id"), ["desc"] = desc },
+            };
+        }
+
         public Dictionary<string, object> PedidoIncluir(Dictionary<string, object> item, string kn, string modelo)
         {
             return new Dictionary<string, object>

@@ -131,6 +131,8 @@ namespace FJA.Revit.Componentes
             if (kn != "" && t.Kn != kn) t.Difs.Add(new[] { "Keynote", t.Kn, kn });
             if (kn != "" && t.Tm != kn) t.Difs.Add(new[] { "Type Mark", t.Tm, kn });
             if (desc != "" && (t.Desc ?? "").ToUpperInvariant() != desc) t.Difs.Add(new[] { "Descrição", t.Desc, desc });
+            // pedido do Revit ainda não processado (ex.: descrição enviada pela seta →): aguardando o sistema
+            if (!string.IsNullOrEmpty(ped) && dados.Pendentes.Any(p => p.Txt("id") == ped)) { t.Sit = Situacao.Aguardando; return; }
             if (t.Difs.Count == 0) { t.Sit = Situacao.Ok; return; }
             if (v.Campo("_versao") == "2")
             {
@@ -154,6 +156,15 @@ namespace FJA.Revit.Componentes
                 default: return "sem ligação";
             }
         }
+
+        /// <summary>Seta → (Revit para o sistema), decisão da FJA (19/11/2026): só para tipos já no padrão — ligados a um item
+        /// da especificação do projeto e sincronizados antes (vínculo v2) — cuja Descrição foi alterada no Revit depois da
+        /// última sincronização. Só a Descrição vai ao sistema (keynote e Type Mark são numeração do sistema).</summary>
+        public static bool PodeLevar(TipoInfo t) =>
+            t.Sit == Situacao.Revit && t.Item != null && t.Item.Txt("pendente") != "True" &&
+            t.Linha != null && string.IsNullOrEmpty(t.Linha.Txt("pendente")) && t.Vinc?.Campo("_versao") == "2" &&
+            !string.IsNullOrWhiteSpace(t.Desc) && t.Difs.Any(d => d[0] == "Descrição") &&
+            (t.Desc ?? "") != (t.Vinc.Campo("desc") ?? "");
 
         /// <summary>Precisa de Sincronizar (as diferenças e o fora do projeto).</summary>
         public static bool Sincronizavel(Situacao s) => s == Situacao.Desatualizado || s == Situacao.Revit || s == Situacao.Fora;
