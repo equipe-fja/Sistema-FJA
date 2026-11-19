@@ -536,6 +536,11 @@ class Janela(forms.WPFWindow):
             if auto and p["id"] == auto["id"]:
                 sel = i + 1
         self.cbProjeto.SelectedIndex = sel
+        # projeto sempre automático: travado quando reconhecido; sem projeto, a lista serve só para conectar
+        # (trocar uma ligação existente é manutenção: botão Reconectar do painel Componentes)
+        self.cbProjeto.IsEnabled = not sel
+        self.cbProjeto.ToolTip = (u"Projeto reconhecido automaticamente e gravado no modelo. Para trocar (manutenção): Componentes › Reconectar." if sel
+                                  else u"Modelo sem projeto: escolha para conectar (a ligação fica gravada no modelo).")
         self._pronto = True
         self._usar_projeto(d.projetos[sel - 1] if sel else None)
 
@@ -740,6 +745,7 @@ class Janela(forms.WPFWindow):
         erro = F.gravar_projeto_modelo(doc, proj)  # a escolha fica gravada no modelo, para todas as ferramentas
         if erro:
             forms.alert(u"A escolha vale agora, mas não foi gravada no modelo: {}".format(erro), title=u"Projeto do modelo")
+        self.cbProjeto.IsEnabled = proj is None  # conectado: a lista volta a ficar travada
         self._usar_projeto(proj)
 
     def filtro_mudou(self, sender, args):

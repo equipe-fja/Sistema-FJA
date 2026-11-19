@@ -90,7 +90,9 @@ namespace FJA.Revit.Componentes
         bool montando;
 
         // controles
-        ComboBox cbFonte, cbProjeto, cbFiltro;
+        ComboBox cbFonte, cbFiltro;
+        TextBlock lbProjeto;
+        Button btConectar, btReconectar;
         TextBlock lbFonte, lbResumo, lbStatus;
         TextBox tbBusca;
         TreeView tv;
@@ -300,9 +302,20 @@ namespace FJA.Revit.Componentes
             var sp1 = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
             lbFonte = T("", Suave, 11); lbFonte.TextWrapping = TextWrapping.Wrap;
             sp1.Children.Add(lbFonte);
-            cbProjeto = new ComboBox { Margin = new Thickness(0, 4, 0, 4), ToolTip = "Projeto do sistema a que este modelo pertence. A ligação fica gravada no modelo e vale para todas as ferramentas; trocar aqui grava a nova." };
-            cbProjeto.SelectionChanged += ProjetoMudou;
-            sp1.Children.Add(cbProjeto);
+            // projeto do modelo: sempre automático; sem projeto, "Conectar a um projeto…"; trocar é manutenção ("Reconectar…")
+            var gProj = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
+            btConectar = Botao("Conectar a um projeto…", (s, a) => EscolherManual(false), true, "O modelo não foi reconhecido: escolha o projeto do sistema (a ligação fica gravada no modelo)");
+            btConectar.Margin = new Thickness(6, 0, 0, 0);
+            DockPanel.SetDock(btConectar, Dock.Right);
+            gProj.Children.Add(btConectar);
+            btReconectar = Botao("Reconectar…", (s, a) => EscolherManual(true), false, "Manutenção: trocar ou desfazer a ligação deste modelo com o projeto do sistema");
+            btReconectar.Margin = new Thickness(6, 0, 0, 0);
+            btReconectar.Foreground = Suave; btReconectar.FontSize = 11.5; btReconectar.MinHeight = 22; btReconectar.Padding = new Thickness(6, 1, 6, 1);
+            DockPanel.SetDock(btReconectar, Dock.Right);
+            gProj.Children.Add(btReconectar);
+            lbProjeto = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold };
+            gProj.Children.Add(lbProjeto);
+            sp1.Children.Add(gProj);
             var lin = new DockPanel();
             btSincTudo = Botao("Sincronizar tudo", (s, a) => Sincronizar(tipos, "todos os tipos do modelo"), true,
                 "Traz para o modelo o que está no sistema (keynote, Type Mark e descrição) em todos os tipos ligados com diferença");
@@ -364,15 +377,78 @@ namespace FJA.Revit.Componentes
             ev.Raise();
         }
 
-        void ProjetoMudou(object s, SelectionChangedEventArgs a)
+        /// <summary>Conectar (modelo sem projeto) ou Reconectar (manutenção): escolha do projeto numa janela; a ligação
+        /// fica gravada no modelo. No uso normal o projeto é sempre o reconhecido automaticamente.</summary>
+        void EscolherManual(bool reconectar)
         {
-            if (montando || dados == null) return;
-            var proj = (cbProjeto.SelectedItem as ComboBoxItem)?.Tag as Dictionary<string, object>;
+            if (dados == null || docChave == "") return;
+            var atual = dados.Projeto;
+            var j = new Window
+            {
+                Title = reconectar ? "Reconectar o modelo a um projeto" : "Conectar o modelo a um projeto",
+                Width = 460, Height = 520, WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
+                ResizeMode = ResizeMode.CanResize, Background = Background, FontFamily = FontFamily, FontSize = FontSize,
+            };
+            try { j.Owner = Window.GetWindow(this); } catch { }
+            foreach (var d in Resources.MergedDictionaries) j.Resources.MergedDictionaries.Add(d);
+            var raiz = new DockPanel { Margin = new Thickness(14) };
+            var topo = new StackPanel();
+            DockPanel.SetDock(topo, Dock.Top);
+            topo.Children.Add(Paragrafo("Modelo: " + docTitulo, Tinta, 13));
+            if (reconectar)
+                topo.Children.Add(Paragrafo("Manutenção. O modelo está ligado a " + ((atual?.Txt("codigo") ?? "") + " · " + (atual?.Txt("nome") ?? "")).Trim(' ', '·') +
+                    " (" + projetoOrigem + "). Trocar a ligação muda o projeto usado por todas as ferramentas neste modelo e, depois de sincronizar, para a equipe.", Ambar, 12));
+            else
+                topo.Children.Add(Paragrafo("O modelo não foi reconhecido (Número do projeto, pasta, nome do arquivo, código do cliente ou nome). Escolha o projeto: a ligação fica gravada no modelo.", Suave, 12));
+            var busca = new TextBox { MinHeight = 26, Margin = new Thickness(0, 4, 0, 6), ToolTip = "Buscar por código ou nome" };
+            topo.Children.Add(busca);
+            raiz.Children.Add(topo);
+            var rod = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
+            DockPanel.SetDock(rod, Dock.Bottom);
+            raiz.Children.Add(rod);
+            var lista = new ListBox();
+            raiz.Children.Add(lista);
+            void Preencher()
+            {
+                lista.Items.Clear();
+                string[] tm = Texto.NormSistema(busca.Text).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var p in dados.Projetos.OrderBy(p => p.Txt("codigo") ?? ""))
+                {
+                    string rot = ((p.Txt("codigo") ?? "") + " · " + (p.Txt("nome") ?? "")).Trim(' ', '·');
+                    if (!tm.All(Texto.NormSistema(rot + " " + p.Txt("codCliente")).Contains)) continue;
+                    var li = new ListBoxItem { Content = rot + (p.Txt("semEspec") == "True" ? "   (sem especificação)" : ""), Tag = p, Padding = new Thickness(4, 3, 4, 3) };
+                    if (atual != null && p.Txt("id") == atual.Txt("id")) li.FontWeight = FontWeights.SemiBold;
+                    lista.Items.Add(li);
+                }
+            }
+            busca.TextChanged += (s, a) => Preencher();
+            Preencher();
+            Dictionary<string, object> escolhido = null; bool desconectar = false, ok = false;
+            if (reconectar)
+            {
+                var bd = Botao("Desconectar", (s, a) => { desconectar = true; ok = true; j.Close(); }, false, "Apaga a ligação: o modelo fica sem projeto");
+                bd.Margin = new Thickness(0, 0, 18, 0);
+                rod.Children.Add(bd);
+            }
+            rod.Children.Add(Botao("Cancelar", (s, a) => j.Close()));
+            rod.Children.Add(Botao(reconectar ? "Reconectar" : "Conectar", (s, a) =>
+            {
+                escolhido = (lista.SelectedItem as ListBoxItem)?.Tag as Dictionary<string, object>;
+                if (escolhido == null) return;
+                if (reconectar && atual != null && escolhido.Txt("id") == atual.Txt("id")) { j.Close(); return; }
+                ok = true; j.Close();
+            }, true));
+            lista.MouseDoubleClick += (s, a) => { if (lista.SelectedItem != null && !reconectar) { escolhido = (lista.SelectedItem as ListBoxItem)?.Tag as Dictionary<string, object>; ok = escolhido != null; j.Close(); } };
+            j.Content = raiz;
+            busca.Focus();
+            j.ShowDialog();
+            if (!ok) return;
+            var proj = desconectar ? null : escolhido;
             Pedir(app =>
             {
                 var doc = DocAtual(app);
                 string erro = ProjetoDoModelo.GravarAgora(doc, proj);
-                projetoOrigem = (proj == null ? "ligação apagada" : "escolhido no painel") + (erro == "" ? " · gravado no modelo" : " · não gravado (" + erro + ")");
+                projetoOrigem = (proj == null ? "ligação desfeita" : reconectar ? "reconectado no painel" : "conectado no painel") + (erro == "" ? " · gravado no modelo" : " · não gravado (" + erro + ")");
                 try { dados.CarregarProjeto(proj); erroDados = ""; }
                 catch (Exception e) { erroDados = e.Message; try { dados.CarregarProjeto(null); } catch { } }
                 sujo = true;
@@ -419,17 +495,11 @@ namespace FJA.Revit.Componentes
                     : (dadosLidos ? "Sistema não lido: " + erroDados : "Lendo o sistema…");
                 if (erroDados != "" && dados != null) lbFonte.Text += " · " + erroDados;
                 if (docChave != "" && dados != null) lbFonte.Text += Environment.NewLine + "Projeto do modelo: " + projetoOrigem;
-                cbProjeto.Items.Clear();
-                cbProjeto.Items.Add(new ComboBoxItem { Content = "— sem projeto do sistema —", Tag = null });
-                int sel = 0;
-                if (dados != null)
-                    foreach (var p in dados.Projetos.OrderBy(p => p.Txt("codigo") ?? ""))
-                    {
-                        cbProjeto.Items.Add(new ComboBoxItem { Content = ((p.Txt("codigo") ?? "") + " · " + (p.Txt("nome") ?? "")).Trim(' ', '·'), Tag = p });
-                        if (dados.Projeto != null && p.Txt("id") == dados.Projeto.Txt("id")) sel = cbProjeto.Items.Count - 1;
-                    }
-                cbProjeto.SelectedIndex = sel;
-                cbProjeto.IsEnabled = dados != null && docChave != "";
+                var pj = dados?.Projeto;
+                lbProjeto.Text = docChave == "" ? "" : pj != null ? ((pj.Txt("codigo") ?? "") + " · " + (pj.Txt("nome") ?? "")).Trim(' ', '·') : "Sem projeto";
+                lbProjeto.Foreground = pj != null ? Tinta : Ambar;
+                btConectar.Visibility = docChave != "" && dados != null && pj == null ? Visibility.Visible : Visibility.Collapsed;
+                btReconectar.Visibility = docChave != "" && dados != null && pj != null ? Visibility.Visible : Visibility.Collapsed;
 
                 // resumo
                 lbResumo.Inlines.Clear();

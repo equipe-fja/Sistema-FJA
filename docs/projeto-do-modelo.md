@@ -10,11 +10,11 @@ Desde a extensão 2.30.0 (19/11/2026), a pedido da FJA: todas as ferramentas rec
    3. código no início do **nome do arquivo** (`131-MO-0001…`, como antes);
    4. **código do cliente** no caminho, no título ou nas Informações do projeto;
    5. **nome do projeto** (5 letras ou mais) no caminho, no título ou nas Informações do projeto.
-   Achou um projeto: a ferramenta **grava a ligação no modelo** na hora (transação "FJA: projeto do modelo") e avisa de onde veio. Várias possibilidades ou nenhuma: pede para escolher.
-3. **Escolher ou trocar** o projeto na lista (painel Componentes, Composições, Diagnóstico) grava a nova ligação; "(nenhum)" / "— sem projeto do sistema —" apaga.
+   Achou um projeto: a ferramenta **grava a ligação no modelo** na hora (transação "FJA: projeto do modelo") e avisa de onde veio. Várias possibilidades ou nenhuma: fica "Sem projeto", com Conectar.
+3. **Sempre automático** (2.30.2, pedido da FJA): o projeto não se escolhe numa lista. Sem projeto reconhecido, o painel mostra "Sem projeto" e o botão **Conectar a um projeto…**; nas ferramentas em Python a lista só fica liberada nesse caso, para conectar. **Reconectar…** (painel Componentes, botão discreto de manutenção, com aviso) troca ou desfaz uma ligação existente.
 
 ## Onde está
-- C#: `Nucleo/ProjetoDoModelo.cs` (`Ler`, `Gravar`, `GravarAgora`, `Pistas`, `Resolver`). Usado pelo painel Componentes (`EscolherProjeto`, `ProjetoMudou`) e pela cor da disciplina nas Legendas (`Legendas/CorSistema.cs`, só leitura: não grava).
+- C#: `Nucleo/ProjetoDoModelo.cs` (`Ler`, `Gravar`, `GravarAgora`, `Pistas`, `Resolver`). Usado pelo painel Componentes (`EscolherProjeto`, `EscolherManual`) e pela cor da disciplina nas Legendas (`Legendas/CorSistema.cs`, só leitura: não grava).
 - Python: `lib/fja_sistema.py` (`ler_projeto_modelo`, `gravar_projeto_modelo`, `pistas_projeto`, `projeto_do_modelo`), com o mesmo esquema e as mesmas pistas. Usado por Tipos › Composições e Diagnóstico.
 - Sistema: a publicação para o Revit (`rvMontar`) passa a listar **todos os projetos**; os que ainda não têm especificação técnica vêm com `semEspec: true` (não há `projeto-*.json` para eles) e as ferramentas abrem com a especificação vazia.
 
