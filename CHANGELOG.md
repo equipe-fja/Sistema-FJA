@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~11h05 — commit 31934b0
+- **Ficha do item**: os campos abrem travados (só leitura). O botão **Editar** (com lápis), ao lado de "Ficha", libera a edição; **Concluir** trava de novo. Vale para os campos da Ficha; nome, pasta e status continuam editáveis.
+- **PDF**: a explicação do menu vira dica de um "?" ao lado do título "Exportar em PDF". O botão "Selecionar itens na tabela…" saiu: "Selecionados" entra direto no modo de seleção (commits 0d8a610 e e863971).
+
 ## oficial Firebase — 18/11, ~18h35 — commit 65268ef
 - **Listas em PDF**: escolher os itens na própria tabela ("Selecionar itens na tabela…", com clique e Shift nas linhas) e gerar só os selecionados; nova opção de **capa** em papel timbrado (título, projeto, cliente, emissão e quantidade de itens), ligada por padrão.
 - **Comentários**: respostas com histórico, como na RI (bloco Respostas e bloco Histórico na ficha, coluna Respostas na tabela); o histórico registra também as mudanças feitas direto nas células.
