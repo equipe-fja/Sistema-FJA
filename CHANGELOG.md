@@ -5,6 +5,15 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~12h20 — commit e9e6062
+- **Fornecedores e materiais** (etapas 1 a 4):
+  - **Biblioteca › Fornecedores** (fabricantes): ficha com descrição, site, siglas que atende, contatos e logomarca, e a lista de materiais do fabricante. Os materiais (nome comercial, código, descrição, datasheet) são vinculados aos itens da biblioteca central que atendem, com uma nota por vínculo.
+  - **Item da biblioteca central**: lista ordenada de "Materiais recomendados"; os 3 primeiros são o padrão dos projetos.
+  - **Keynote do projeto**: "Materiais neste projeto" herda os 3 primeiros do item central e pode ser ajustado (só entre os vinculados ao item central), com avisos (sem item central, item central sem recomendados, menos de 3). Coluna Materiais na lista da especificação técnica.
+  - **Cotação por projeto**: preço, prazo de entrega e histórico de contatos de cada material, só no keynote do projeto.
+  - **Saídas**: materiais no PDF da especificação técnica (sem preços) e nos arquivos do Revit (o uso na aba Ferramentas FJA fica para a extensão). Sugestões de fornecedores a partir do campo "Fabricante" da biblioteca central, criados só com o clique.
+  - Incluir e alterar fornecedores, materiais, vínculos e cotações: só administradores. Nova coleção `materiais` (entra no backup e no desfazer); nenhum dado existente foi alterado.
+
 ## oficial Firebase — 19/11, ~12h05 — commit ade36cf
 - Extensão do Revit 2.29.1 (antes 2.29.0): **Componentes** abre numa janela, com as mesmas funções, quando o painel encaixável ainda não foi criado (o Revit só cria painéis na abertura; depois do Suíte › Atualizar, até fechar e abrir o Revit). Corrige o erro "The requested dockable pane has not been created yet".
 - **Meu painel**: atalhos para os projetos da pessoa no topo; indicadores menores no fim (commit 837c04c).
