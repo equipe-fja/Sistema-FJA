@@ -183,9 +183,12 @@ namespace FJA.Revit.Componentes
 
         // ------------------------------------------------------------ dados
 
+        DateTime lidoEm = DateTime.MinValue;
+
         void CarregarDados()
         {
             dadosLidos = true;
+            lidoEm = DateTime.Now;
             dados = null; erroDados = "";
             try { dados = DadosSistema.Carregar(op.Dev); }
             catch (Exception e) { erroDados = e.Message; }
@@ -204,6 +207,8 @@ namespace FJA.Revit.Componentes
                 return;
             }
             string k = Chave(doc);
+            // outro modelo e dados do sistema com mais de 5 minutos: relê (o sistema republica a biblioteca a cada alteração)
+            if (k != docChave && dadosLidos && (DateTime.Now - lidoEm).TotalMinutes > 5) CarregarDados();
             if (k != docChave)
             {
                 docChave = k; docTitulo = doc.Title;
@@ -261,7 +266,10 @@ namespace FJA.Revit.Componentes
         Button Botao(string s, RoutedEventHandler clique, bool primario = false, string dica = null)
         {
             var b = new Button { Content = s, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 6, 0), MinHeight = 26 };
-            if (TryFindResource(primario ? "Primario" : "Discreto") is Style st) b.Style = st;
+            // "Discreto" é o estilo dos botões de ícone (largura fixa de 28): só para símbolos; os de texto ficam com o estilo padrão
+            bool icone = !primario && s.Length <= 2;
+            if ((primario || icone) && TryFindResource(primario ? "Primario" : "Discreto") is Style st) b.Style = st;
+            if (icone) { b.FontFamily = new FontFamily("Segoe UI Symbol"); b.FontSize = 15; b.Padding = new Thickness(0); }
             if (dica != null) b.ToolTip = dica;
             b.Click += clique;
             return b;
