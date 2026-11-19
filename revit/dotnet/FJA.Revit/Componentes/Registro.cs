@@ -40,7 +40,8 @@ namespace FJA.Revit.Componentes
             if (DockablePane.PaneIsRegistered(Id)) return "já registrado";
             var moldura = new Border
             {
-                Child = new TextBlock { Text = "Clique em Ferramentas FJA › Tipos › Componentes para abrir o painel.", Margin = new Thickness(12), TextWrapping = TextWrapping.Wrap },
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(246, 246, 245)),   // sem fundo, o Revit mostra preto
+                Child = Aviso("Clique em Ferramentas FJA › Tipos › Componentes para abrir o painel."),
             };
             AppDomain.CurrentDomain.SetData(MOLDURA, moldura);
             app.RegisterDockablePane(Id, "Componentes FJA", new Provedor { Elemento = moldura });
@@ -54,8 +55,19 @@ namespace FJA.Revit.Componentes
             var app = s as UIApplication;
             if (app == null) return;
             app.Idling -= PrimeiroOcioso;
-            try { if (AppDomain.CurrentDomain.GetData(ATUAL) == null) Montar(app); } catch { }
+            try { if (AppDomain.CurrentDomain.GetData(ATUAL) == null) Montar(app); }
+            catch (Exception ex)
+            {
+                if (AppDomain.CurrentDomain.GetData(MOLDURA) is Border m)
+                    m.Child = Aviso("Não foi possível montar o painel na abertura do Revit (" + ex.Message + "). Clique em Ferramentas FJA › Tipos › Componentes para tentar de novo.");
+            }
         }
+
+        static TextBlock Aviso(string texto) => new TextBlock
+        {
+            Text = texto, Margin = new Thickness(12), TextWrapping = TextWrapping.Wrap,
+            Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(94, 94, 92)),
+        };
 
         static void Montar(UIApplication app)
         {
@@ -76,7 +88,9 @@ namespace FJA.Revit.Componentes
             catch { dp = null; }
             if (dp != null)
             {
-                if (!(AppDomain.CurrentDomain.GetData(ATUAL) is PainelComponentes p) || p.EstaVisivel != null)
+                var moldura = (Border)AppDomain.CurrentDomain.GetData(MOLDURA);
+                // monta de novo se a moldura não tem o painel desta DLL (DLL nova, falha na abertura ou painel em janela)
+                if (!(moldura.Child is PainelComponentes p) || p.EstaVisivel != null || !ReferenceEquals(AppDomain.CurrentDomain.GetData(ATUAL), p))
                 {
                     (AppDomain.CurrentDomain.GetData(JANELA) as Window)?.Close();
                     Montar(app);

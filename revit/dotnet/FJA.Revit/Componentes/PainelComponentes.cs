@@ -118,9 +118,10 @@ namespace FJA.Revit.Componentes
         public PainelComponentes(RUI.UIApplication app)
         {
             ev = RUI.ExternalEvent.Create(fila);
-            AppDomain.CurrentDomain.SetData(Registro.ATUAL, this);
             AplicarEstilo();
             Montar();
+            // só vira o painel atual depois de montado (um erro na montagem não deixa um painel "atual" sem conteúdo)
+            AppDomain.CurrentDomain.SetData(Registro.ATUAL, this);
             app.Idling += Ocioso;
             app.ViewActivated += VistaAtivada;
             app.Application.DocumentChanged += DocumentoMudou;
