@@ -85,6 +85,10 @@ header.top{display:flex;align-items:center;gap:14px;padding-block:10px;padding-l
 .me-add{display:flex;gap:8px;align-items:center;margin-top:10px}.me-add .fld{flex:1;min-width:0}
 .me-lk{display:grid;grid-template-columns:1fr auto;gap:4px 6px;align-items:center;border-bottom:1px solid var(--line);padding:6px 0}
 .me-lk>div{grid-column:1/-1;font-size:12.5px}
+.me-aviso{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:7px 10px;font-size:12.5px;margin:0 0 10px}
+.me-cel{font-size:12.5px}.me-cel b{font-variant-numeric:tabular-nums}
+.me-av{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--warn-bg);color:var(--warn);font-weight:700;font-size:10.5px}
+.me-aj{font-size:10.5px;color:var(--accent-ink);background:var(--accent-weak);border-radius:999px;padding:0 6px}
 .ficha-fs:disabled{opacity:1}
 .ficha-ed{display:inline-flex;align-items:center;gap:5px}
 .ficha-ed.on{background:var(--accent-weak);color:var(--accent-ink);border-color:#e6c9c4}
@@ -5907,11 +5911,13 @@ const ES_TCOLS=[
   ['diag','Diagnóstico da descrição',0,e=>diagCelEs(e),''],
   ['texto','Especificação no projeto',1,e=>celEdEs(e,'texto',`<span class="cm-txt et-txt">${esc(e.texto||'')}</span>`),'wide'],
   ['fja','Item central',1,e=>fjaCel(e),'mono'],
+  ['materiais','Materiais',1,e=>matCelEs(e),''],
   ['nbr','Classe NBR 15965',0,e=>`<span class="mono muted">${esc(espbDe(e)?.nbr||'')}</span>`,'mono'],
   ['ferragens','Ferragens',0,e=>celEdEs(e,'ferragens',`<span class="cm-txt">${esc(e.ferragens||'')}</span>`),'wide'],
   ['obs','Observações',0,e=>celEdEs(e,'obs',`<span class="cm-txt">${esc(e.obs||'')}</span>`),'muted wide']
 ];
 const numBr=v=>{const t=String(v??'').trim(); if(!t) return null; const n=+t.replace(/\./g,'').replace(',','.'); return isNaN(n)?null:n};
+(()=>{try{if(localStorage.getItem('fja.es.cols.mat')) return; const r=localStorage.getItem('fja.es.cols'); localStorage.setItem('fja.es.cols.mat','1'); if(!r) return; const L=JSON.parse(r); if(Array.isArray(L)&&!L.includes('materiais')){const i=L.indexOf('fja'); L.splice(i<0?L.length:i+1,0,'materiais'); localStorage.setItem('fja.es.cols',JSON.stringify(L))}}catch{}})();
 iniciarMod({id:'es',lk:'fja.es.',T:ES_TCOLS,padrao:ES_TCOLS.filter(c=>c[2]).map(c=>c[0]),de:id=>espDe(id),mapa:()=>S.espec,coll:()=>espColl(),ord:ordEs,
   num:{kn:null},
   semFiltro:new Set(['texto','desc','obs','ferragens','kn','orig']),grupos:{tabela:'tabela',fja:'item central',tipo:'tipo'},
@@ -5968,6 +5974,7 @@ function telaEspItem(h,v){
       <dl class="et-dl"><dt>Descrição simplificada</dt><dd>${esc(b.desc||'—')}</dd><dt>Classe NBR 15965</dt><dd class="mono">${esc(b.nbr||'—')}</dd><dt>Especificação base</dt><dd class="et-pre">${esc(b.texto||'—')}</dd>${outros.length||usosEspb(b.id).some(x=>x.projeto!==e.projeto)?`<dt>Também usado em</dt><dd>${usosEspb(b.id).filter(x=>x.projeto!==e.projeto).map(x=>{const p=S.itens.get(x.projeto);return `<button class="chip link" data-act="et-abrir" data-id="${esc(x.projeto)}" data-eid="${esc(x.id)}">${esc((p?.campos?.codigo||'?')+' · '+(x.kn||''))}</button>`}).join(' ')||'—'}</dd>`:''}</dl>
       ${S.ro?'':`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn sm" data-act="et-enviar" title="Grava a descrição e a especificação deste projeto como texto base do item central">Enviar este texto ao banco central</button><button class="btn sm ghost" data-act="et-trocar">Vincular a outro item central</button></div>`}</div></section>`}
   else h+=`<section class="sheet"><div class="pad"><p class="muted">Este item não está ligado ao banco central.</p>${S.ro?'':`<button class="btn sm" data-act="et-trocar">Vincular a um item central</button>`}</div></section>`;
+  h+=blocoMatEs(e,b);
   h+=cpProjetoHTML(e,b);
   if(e.origem) h+=`<div class="banner pub eq-origem"><span class="sp">Importado da linha <b>${esc(e.origem.linha)}</b> da aba <b>${esc(e.origem.aba)}</b>.</span>${e.origem.planilha?`<a class="btn sm" href="https://docs.google.com/spreadsheets/d/${esc(e.origem.planilha)}/edit" target="_blank" rel="noopener">Abrir planilha</a>`:''}</div>`;
   h+=`<div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
@@ -6060,6 +6067,7 @@ async function salvarEs(){
   const er=knLivre(e.projeto,body.kn,e.id); if(er){toast(er);return false}
   body.desc=String(body.desc||'').trim(); if(!body.desc){toast('A descrição simplificada é obrigatória (é o texto do keynote).');return false}
   body.atualizadoEm=Date.now(); if(me) body.atualizadoPor=me;
+  {const at=S.espec.get(e.id); if(at) body.materiais=at.materiais??null}
   if(body.item&&nTxt(body.desc)!==nTxt(S.espec.get(e.id)?.desc)) await descAplicarLinha(body);
   try{await espColl().doc(e.id).set(body);S.espec.set(e.id,{...body,id:e.id});S.qdraft={...body,id:e.id};S.dirty=false;
     toast('Salvo');return true}
@@ -8113,6 +8121,44 @@ function blocoMatEspb(bid){
     ${adm?(disp.length?`<div class="me-add"><select class="fld" id="meAdd" aria-label="Material a vincular"><option value="">Vincular um material…</option>${opts}</select><button class="btn sm" data-act="mat-vincular" data-bid="${esc(bid)}">Vincular</button></div>`:`<p class="muted" style="margin:10px 0 0;font-size:12px">${S.materiais.size?'Todos os materiais cadastrados já estão na lista.':'Cadastre materiais em Biblioteca › Fornecedores.'}</p>`):''}
   </div></section>`;
 }
+/* materiais do keynote do projeto: sem ajuste (espec.materiais ausente ou null) valem os 3 primeiros recomendados
+   do item central; com ajuste, a lista própria do projeto, sempre entre os materiais vinculados ao item central */
+const MAT_PADRAO=3;
+const matAjustado=e=>Array.isArray(e?.materiais);
+function matEfetivos(e){
+  const b=espbDe(e), cand=espbMats(b).map(x=>x.id).filter(id=>S.materiais.has(id));
+  if(matAjustado(e)) return e.materiais.filter(id=>cand.includes(id));
+  return cand.slice(0,MAT_PADRAO);
+}
+// avisos: sem item central, item central sem recomendados, menos de 3 materiais
+function matAvisoEs(e){
+  const b=espbDe(e); if(!b) return 'Sem item central: ligue o keynote a um item da biblioteca central para receber materiais.';
+  if(!espbMats(b).filter(x=>S.materiais.has(x.id)).length) return 'O item central ainda não tem materiais recomendados.';
+  const n=matEfetivos(e).length; return n<MAT_PADRAO?`Só ${n} de ${MAT_PADRAO} materiais.`:'';
+}
+function matCelEs(e){
+  const L=matEfetivos(e).map(id=>S.materiais.get(id)), av=matAvisoEs(e);
+  const nomes=L.map(m=>`${S.itens.get(m.fornecedor)?.nome||''} ${m.nome||''}`.trim()).join(' · ');
+  return `<span class="me-cel${av?' av':''}"${av||nomes?` title="${esc([nomes,av].filter(Boolean).join(' — '))}"`:''}>${L.length?`<b>${L.length}</b> ${esc(L.map(m=>S.itens.get(m.fornecedor)?.nome||m.nome||'').join(', '))}`:'—'}${av?' <span class="me-av" aria-label="Atenção">!</span>':''}${matAjustado(e)?' <span class="me-aj">ajustado</span>':''}</span>`;
+}
+function blocoMatEs(e,b){
+  const adm=matAdm(), L=matEfetivos(e), aj=matAjustado(e), av=matAvisoEs(e);
+  const cand=b?espbMats(b).filter(x=>S.materiais.has(x.id)&&!L.includes(x.id)):[];
+  const linha=(id,i)=>{const m=S.materiais.get(id), fo=S.itens.get(m.fornecedor), nota=espbMats(b).find(x=>x.id===id)?.nota||'';
+    return `<li class="me-i"><span class="me-n">${i+1}</span><span class="me-logo">${logoForn(fo)}</span><span class="me-t"><b>${esc(m.nome||'')}</b><span class="muted">${esc(fo?.nome||'')}${m.codigo?' · '+esc(m.codigo):''}</span>${nota?`<em>${esc(nota)}</em>`:''}</span>${m.datasheet?`<a class="btn sm ghost" href="${esc(m.datasheet)}" target="_blank" rel="noopener">Datasheet ↗</a>`:''}${adm?`<span class="me-acts"><button class="icb" data-act="mat-p-sobe" data-i="${i}" title="Subir na ordem"${i?'':' disabled'}>↑</button><button class="icb" data-act="mat-p-desce" data-i="${i}" title="Descer na ordem"${i<L.length-1?'':' disabled'}>↓</button><button class="icb" data-act="mat-p-tira" data-i="${i}" title="Retirar deste projeto">${IC.x}</button></span>`:''}</li>`};
+  return `<section class="sheet"><div class="sheet-h"><h2>Materiais neste projeto</h2><span class="hint">${b?(aj?'ajustado neste projeto':'padrão da biblioteca central (os 3 primeiros recomendados)'):'sem item central'}</span><span class="sp"></span>${adm&&aj?'<button class="btn sm ghost" data-act="mat-p-padrao" title="Descartar o ajuste e voltar aos 3 primeiros recomendados do item central">Voltar ao padrão</button>':''}</div><div class="pad">
+    ${av?`<div class="me-aviso">${esc(av)}</div>`:''}
+    ${L.length?`<ol class="me-l">${L.map(linha).join('')}</ol>`:''}
+    ${adm&&cand.length?`<div class="me-add"><select class="fld" id="mePAdd" aria-label="Material a incluir"><option value="">Incluir outro material recomendado do item central…</option>${cand.map(x=>{const m=S.materiais.get(x.id); return `<option value="${esc(x.id)}">${esc(S.itens.get(m.fornecedor)?.nome||'')} · ${esc(m.nome||'')}</option>`}).join('')}</select><button class="btn sm" data-act="mat-p-incluir">Incluir</button></div>`:''}
+    ${b&&adm?'<p class="muted" style="margin:10px 0 0;font-size:12px">Só entram materiais já vinculados ao item central. Para um material novo, cadastre-o no fornecedor e vincule-o ao item central.</p>':''}
+  </div></section>`;
+}
+async function matProjGravar(L){
+  const e=S.qdraft, base=S.espec.get(e?.id); if(!e||!base||!matAdm()) return;
+  const v=L===null?null:[...L];
+  try{await espColl().doc(e.id).update({materiais:v,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})}); base.materiais=v; e.materiais=v; renderMain()}
+  catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
+}
 async function espbMatsGravar(bid,L){
   const b=S.espb.get(bid); if(!b) return;
   await espbColl().doc(bid).update({materiais:L,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})});
@@ -8178,6 +8224,14 @@ async function matAcao(a,b){
   else if(a==='mat-excluir'&&dr&&!dr.novo){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
     try{await matSincronizar(dr.id,[]); await matColl().doc(dr.id).delete(); S.materiais.delete(dr.id); MAT.dr=null; matDrawer(); render(); toast('Material excluído')}catch{toast('Não foi possível excluir.')}}
+  else if(a.startsWith('mat-p-')){ // ajuste dos materiais do keynote no projeto
+    const e=S.qdraft; if(!e||!matAdm()) return; const L=matEfetivos(e), i=+b.dataset.i;
+    if(a==='mat-p-padrao') return matProjGravar(null);
+    if(a==='mat-p-sobe'&&i>0) [L[i-1],L[i]]=[L[i],L[i-1]];
+    else if(a==='mat-p-desce'&&i<L.length-1) [L[i+1],L[i]]=[L[i],L[i+1]];
+    else if(a==='mat-p-tira') L.splice(i,1);
+    else if(a==='mat-p-incluir'){const id=$('mePAdd')?.value; if(!id){toast('Escolha um material');return} if(!L.includes(id)) L.push(id)}
+    return matProjGravar(L)}
   else if(['mat-sobe','mat-desce','mat-tira','mat-vincular'].includes(a)){
     if(!matAdm()) return; const bid=b.dataset.bid, L=[...espbMats(S.espb.get(bid))], i=+b.dataset.i;
     if(a==='mat-sobe'&&i>0) [L[i-1],L[i]]=[L[i],L[i-1]];
