@@ -5,6 +5,11 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~12h05 — commit ade36cf
+- Extensão do Revit 2.29.1 (antes 2.29.0): **Componentes** abre numa janela, com as mesmas funções, quando o painel encaixável ainda não foi criado (o Revit só cria painéis na abertura; depois do Suíte › Atualizar, até fechar e abrir o Revit). Corrige o erro "The requested dockable pane has not been created yet".
+- **Meu painel**: atalhos para os projetos da pessoa no topo; indicadores menores no fim (commit 837c04c).
+- **Ferramentas**: o link do pyRevit vira um cartão igual aos demais (commit 5724f90).
+
 ## oficial Firebase — 19/11, ~11h45 — commit d8fa2f9
 - Extensão do Revit 2.29.0 (antes 2.28.0): o painel **Componentes** passa a fazer tudo o que a janela antiga fazia — **Carregar família…** (.rfa), **Ligar › Código novo** (sigla da lista ou sigla nova, descrição e especificação; FJ e keynote reservados e confirmados pelo sistema), **Renomear a família como (SIGLA) DESCRIÇÃO** e **Localizar seleção** (mostra na árvore o tipo do elemento selecionado). O botão **Novo componente** (janela em Python) foi retirado. Ver docs/revit-componentes.md.
 
