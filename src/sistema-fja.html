@@ -8889,7 +8889,11 @@ function rvMontar(){
       if(t==='sistema'){o.rvCat=b.rvCat||siglaEt(sigB(b))?.rvCat||''; o.papel=cpPapel(b); o.camadas=cpCamadas(b).map(c=>({funcao:c.fn,funcaoRevit:fnRv(c.fn),material:c.mat||'',esp:+c.esp||0})); o.espTotal=cpTotal(b)}
       else if(t==='elemento'&&b.rvCat) o.rvCat=b.rvCat;
       return o}),
-    projetos:projs.map(i=>({id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||'',arquivo:rvNomeProj(i)})),
+    /* todos os projetos, para o Revit reconhecer o projeto do modelo (ver docs/projeto-do-modelo.md); os sem especificação
+       técnica vêm com semEspec (não há arquivo projeto-*.json para eles) */
+    projetos:[...S.itens.values()].filter(i=>i.secao==='projetos').sort((a,b)=>rvCod(a).localeCompare(rvCod(b),'pt',{numeric:true}))
+      .map(i=>espDe(i.id).length?{id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||'',arquivo:rvNomeProj(i)}
+        :{id:i.id,codigo:rvCod(i),codCliente:i.campos?.codCliente||'',nome:i.nome||'',semEspec:true}),
     /* cores das disciplinas por projeto (todos os projetos com disciplinas), para as legendas do Revit */
     coresProjetos:[...S.itens.values()].filter(i=>i.secao==='projetos'&&discsProj(i.id).length).sort((a,b)=>rvCod(a).localeCompare(rvCod(b),'pt',{numeric:true}))
       .map(i=>({id:i.id,codigo:rvCod(i),nome:i.nome||'',disciplinas:discsProj(i.id).filter(l=>l.cod).map(l=>({cod:l.cod,sigla:siglaP(i.id,l.cod),cor:corDisc(i,l)}))}))};

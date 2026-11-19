@@ -85,15 +85,9 @@ namespace FJA.Revit.Legendas
                 return Tuple.Create<byte[], string>(null, "o sistema ainda não publicou as cores dos projetos (" + rotulo + ")");
             var lista = bib.Lista("coresProjetos").OfType<Dictionary<string, object>>().ToList();
             string titulo = doc.Title ?? "";
-            var m = Regex.Match(titulo, @"^\s*([A-Za-z0-9]+)[-_ ]");
-            string cod = m.Success ? m.Groups[1].Value : "";
-            var proj = lista.FirstOrDefault(p => cod != "" && p.Txt("codigo") == cod);
-            if (proj == null)
-            {
-                string tit = Texto.NormSistema(titulo);
-                proj = lista.FirstOrDefault(p => { string n = Texto.NormSistema(p.Txt("nome")); return n.Length >= 5 && tit.Contains(n); });
-            }
-            if (proj == null) return Tuple.Create<byte[], string>(null, "não achei no sistema o projeto do arquivo '" + titulo + "'");
+            // projeto do modelo: a ligação gravada no modelo ou as pistas (Nucleo/ProjetoDoModelo), como nas demais ferramentas
+            var proj = ProjetoDoModelo.Resolver(doc, lista, out string origemProj, out _, out _);
+            if (proj == null) return Tuple.Create<byte[], string>(null, "projeto do modelo '" + titulo + "': " + origemProj);
             string nomeP = ((proj.Txt("codigo") ?? "") + " " + (proj.Txt("nome") ?? "")).Trim();
             string dsc = (disciplina ?? "").ToUpperInvariant();
             foreach (var l in proj.Lista("disciplinas").OfType<Dictionary<string, object>>())

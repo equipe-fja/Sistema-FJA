@@ -85,7 +85,6 @@ namespace FJA.Revit.Componentes
         bool dadosLidos, sujo = true;
         string docChave = "", docTitulo = "";
         List<TipoInfo> tipos = new List<TipoInfo>();
-        readonly Dictionary<string, string> projetoEscolhido = new Dictionary<string, string>();   // documento → id do projeto escolhido à mão
         readonly HashSet<string> fechados = new HashSet<string>(), abertos = new HashSet<string>();
         string selecionado;
         bool montando;
@@ -208,20 +207,27 @@ namespace FJA.Revit.Componentes
             if (k != docChave)
             {
                 docChave = k; docTitulo = doc.Title;
-                EscolherProjeto();
+                EscolherProjeto(doc);
             }
             tipos = Coleta.Tipos(doc, dados);
             Desenhar();
             Status(tipos.Count + " tipos de " + tipos.Select(t => t.Familia).Distinct().Count() + " famílias · " + doc.Title);
         }
 
-        void EscolherProjeto()
+        string projetoOrigem = "";
+
+        /// <summary>Projeto do modelo (Nucleo/ProjetoDoModelo): o gravado no modelo ou, sem ele, o reconhecido por uma pista
+        /// segura — nesse caso a ligação é gravada no modelo na hora (vale para as outras ferramentas e para a equipe).</summary>
+        void EscolherProjeto(DB.Document doc)
         {
             if (dados == null) return;
-            Dictionary<string, object> proj = null;
-            if (projetoEscolhido.TryGetValue(docChave, out var pid))
-                proj = dados.Projetos.FirstOrDefault(p => p.Txt("id") == pid);
-            if (proj == null && !projetoEscolhido.ContainsKey(docChave)) proj = dados.ProjetoDoDocumento(docTitulo);
+            var proj = ProjetoDoModelo.Resolver(doc, dados.Projetos, out string origem, out bool gravado, out _);
+            projetoOrigem = origem;
+            if (proj != null && !gravado)
+            {
+                string erro = ProjetoDoModelo.GravarAgora(doc, proj);
+                projetoOrigem += erro == "" ? " · ligação gravada no modelo" : " · ligação não gravada (" + erro + ")";
+            }
             try { dados.CarregarProjeto(proj); }
             catch (Exception e) { erroDados = e.Message; try { dados.CarregarProjeto(null); } catch { } }
         }
@@ -286,7 +292,7 @@ namespace FJA.Revit.Componentes
             var sp1 = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
             lbFonte = T("", Suave, 11); lbFonte.TextWrapping = TextWrapping.Wrap;
             sp1.Children.Add(lbFonte);
-            cbProjeto = new ComboBox { Margin = new Thickness(0, 4, 0, 4), ToolTip = "Projeto do sistema a que este modelo pertence (pelo código no nome do arquivo; dá para trocar)" };
+            cbProjeto = new ComboBox { Margin = new Thickness(0, 4, 0, 4), ToolTip = "Projeto do sistema a que este modelo pertence. A ligação fica gravada no modelo e vale para todas as ferramentas; trocar aqui grava a nova." };
             cbProjeto.SelectionChanged += ProjetoMudou;
             sp1.Children.Add(cbProjeto);
             var lin = new DockPanel();
@@ -354,11 +360,15 @@ namespace FJA.Revit.Componentes
         {
             if (montando || dados == null) return;
             var proj = (cbProjeto.SelectedItem as ComboBoxItem)?.Tag as Dictionary<string, object>;
-            projetoEscolhido[docChave] = proj?.Txt("id") ?? "";
-            try { dados.CarregarProjeto(proj); erroDados = ""; }
-            catch (Exception e) { erroDados = e.Message; try { dados.CarregarProjeto(null); } catch { } }
-            sujo = true;
-            Pedir(_ => { });
+            Pedir(app =>
+            {
+                var doc = DocAtual(app);
+                string erro = ProjetoDoModelo.GravarAgora(doc, proj);
+                projetoOrigem = (proj == null ? "ligação apagada" : "escolhido no painel") + (erro == "" ? " · gravado no modelo" : " · não gravado (" + erro + ")");
+                try { dados.CarregarProjeto(proj); erroDados = ""; }
+                catch (Exception e) { erroDados = e.Message; try { dados.CarregarProjeto(null); } catch { } }
+                sujo = true;
+            });
         }
 
         // ------------------------------------------------------------ árvore
@@ -400,6 +410,7 @@ namespace FJA.Revit.Componentes
                 lbFonte.Text = dados != null ? dados.Rotulo + (dados.GeradoEm != "" ? " · publicado em " + dados.GeradoEm : "")
                     : (dadosLidos ? "Sistema não lido: " + erroDados : "Lendo o sistema…");
                 if (erroDados != "" && dados != null) lbFonte.Text += " · " + erroDados;
+                if (docChave != "" && dados != null) lbFonte.Text += Environment.NewLine + "Projeto do modelo: " + projetoOrigem;
                 cbProjeto.Items.Clear();
                 cbProjeto.Items.Add(new ComboBoxItem { Content = "— sem projeto do sistema —", Tag = null });
                 int sel = 0;

@@ -165,6 +165,12 @@ namespace FJA.Revit.Componentes
             string arquivo = proj?.Txt("arquivo");
             string nome = proj == null ? "" : Path.GetFileNameWithoutExtension(string.IsNullOrEmpty(arquivo) ? "projeto-" + proj.Txt("codigo") + ".json" : arquivo);
             Dictionary<string, object> dados = null;
+            if (proj != null && proj.Txt("semEspec") == "True")
+            {
+                // projeto ainda sem especificação técnica: o sistema não publica o arquivo do projeto
+                try { Pendentes = Nuvem ? Nucleo.Nuvem.PedidosPendentes() : LerPendentes(PastaPedidos); } catch { Pendentes = new List<Dictionary<string, object>>(); }
+                return;
+            }
             if (Nuvem)
             {
                 try { Pendentes = Nucleo.Nuvem.PedidosPendentes(); } catch { Pendentes = new List<Dictionary<string, object>>(); }

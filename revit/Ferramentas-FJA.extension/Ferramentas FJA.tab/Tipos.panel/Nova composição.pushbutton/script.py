@@ -525,7 +525,8 @@ class Janela(forms.WPFWindow):
         self.txtFonte.Text = u"Modelo: {} · {} · publicado em {} · {} composições".format(doc.Title,
             d.rotulo, (d.geradoEm or u"")[:16].replace("T", " "),
             len(d.composicoes()))
-        auto = d.projeto_do_documento(doc.Title)
+        auto, origem = F.projeto_do_modelo(doc, d)
+        self.txtFonte.Text += u" · projeto do modelo: " + origem
         self._pronto = False
         self.cbProjeto.Items.Clear()
         self.cbProjeto.Items.Add(u"(nenhum)")
@@ -735,7 +736,11 @@ class Janela(forms.WPFWindow):
         if not self._pronto or self.dados is None:
             return
         i = self.cbProjeto.SelectedIndex
-        self._usar_projeto(self.dados.projetos[i - 1] if i > 0 else None)
+        proj = self.dados.projetos[i - 1] if i > 0 else None
+        erro = F.gravar_projeto_modelo(doc, proj)  # a escolha fica gravada no modelo, para todas as ferramentas
+        if erro:
+            forms.alert(u"A escolha vale agora, mas não foi gravada no modelo: {}".format(erro), title=u"Projeto do modelo")
+        self._usar_projeto(proj)
 
     def filtro_mudou(self, sender, args):
         if self._pronto:

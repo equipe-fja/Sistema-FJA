@@ -146,6 +146,10 @@ class Dados(object):
         self.projeto = proj
         self.espec, self.porItem = [], {}
         nome = os.path.splitext(proj.get("arquivo") or ("projeto-" + proj["codigo"] + ".json"))[0] if proj else u""
+        if proj and proj.get("semEspec"):
+            # projeto ainda sem especificação técnica: o sistema não publica o arquivo do projeto
+            self.pendentes = N.pedidos_pendentes() if self.nuvem else ler_pendentes(self.pastaPedidos)
+            return
         if self.nuvem:
             self.pendentes = N.pedidos_pendentes()
             if not proj:
@@ -229,6 +233,174 @@ class Dados(object):
             k = u"%s.%02d" % (sigla, n)
             if k not in usados:
                 return k
+
+
+# ------------------------------------------------------------------ projeto do modelo
+# A mesma regra da biblioteca C# (Nucleo/ProjetoDoModelo.cs; ver docs/projeto-do-modelo.md): a ligação gravada no
+# modelo (DataStorage, esquema FJA_ProjetoModelo) ou, sem ela, a primeira pista que aponta para um único projeto.
+SCHEMA_PROJETO = System.Guid("5e1b7c3a-2d84-4f69-9a1e-7c40b2d8f613")
+CAMPOS_PROJETO = ("id", "codigo", "nome", "gravadoEm", "gravadoPor")
+
+
+def _esquema_projeto():
+    sc = Schema.Lookup(SCHEMA_PROJETO)
+    if sc is not None:
+        return sc
+    sb = SchemaBuilder(SCHEMA_PROJETO)
+    sb.SetSchemaName("FJA_ProjetoModelo")
+    sb.SetReadAccessLevel(AccessLevel.Public)
+    sb.SetWriteAccessLevel(AccessLevel.Public)
+    sb.SetDocumentation("Projeto do Sistema FJA a que o modelo pertence")
+    for c in CAMPOS_PROJETO:
+        sb.AddSimpleField(c, System.String)
+    return sb.Finish()
+
+
+def _armazem_projeto(doc):
+    sc = Schema.Lookup(SCHEMA_PROJETO)
+    if sc is None:
+        return None, None
+    for ds in DB.FilteredElementCollector(doc).OfClass(DB.ExtensibleStorage.DataStorage):
+        try:
+            e = ds.GetEntity(sc)
+            if e is not None and e.IsValid():
+                return ds, e
+        except Exception:
+            pass
+    return None, None
+
+
+def ler_projeto_modelo(doc):
+    """Ligação gravada no modelo: dict com id, codigo, nome, gravadoEm, gravadoPor — ou None."""
+    _, e = _armazem_projeto(doc)
+    if e is None:
+        return None
+    v = dict((c, e.Get[System.String](c) or u"") for c in CAMPOS_PROJETO)
+    return v if (v["id"] or v["codigo"]) else None
+
+
+def gravar_projeto_modelo(doc, proj):
+    """Grava (ou, com proj None, apaga) a ligação; abre a própria transação se preciso. Devolve u"" ou o motivo."""
+    try:
+        if doc.IsReadOnly:
+            return u"modelo somente leitura"
+
+        def _gravar():
+            ds, _ = _armazem_projeto(doc)
+            if proj is None:
+                if ds is not None:
+                    doc.Delete(ds.Id)
+                return
+            if ds is None:
+                ds = DB.ExtensibleStorage.DataStorage.Create(doc)
+            ent = Entity(_esquema_projeto())
+            vals = {"id": proj.get("id"), "codigo": proj.get("codigo"), "nome": proj.get("nome"),
+                    "gravadoEm": time.strftime("%Y-%m-%dT%H:%M:%S"), "gravadoPor": autor()}
+            for c in CAMPOS_PROJETO:
+                ent.Set[System.String](c, u"{}".format(vals.get(c) or u""))
+            ds.SetEntity(ent)
+
+        if doc.IsModifiable:
+            _gravar()
+            return u""
+        t = DB.Transaction(doc, u"FJA: projeto do modelo")
+        t.Start()
+        try:
+            _gravar()
+            t.Commit()
+        except Exception:
+            t.RollBack()
+            raise
+        return u""
+    except Exception as e:
+        return u"{}".format(e)
+
+
+def caminho_modelo(doc):
+    """Caminho do arquivo; nas cópias locais de modelos compartilhados, o do central."""
+    try:
+        if doc.IsWorkshared:
+            mp = doc.GetWorksharingCentralModelPath()
+            if mp is not None:
+                c = DB.ModelPathUtils.ConvertModelPathToUserVisiblePath(mp)
+                if c:
+                    return c
+    except Exception:
+        pass
+    return doc.PathName or u""
+
+
+def _codigo_inicio(s):
+    m = re.match(r"^\s*([A-Za-z0-9]+)\s*[-_ .]", s or u"")
+    return m.group(1) if m else u""
+
+
+def _mesmo(a, b):
+    a, b = (a or u"").strip(), (b or u"").strip()
+    return bool(a) and bool(b) and a.upper() == b.upper()
+
+
+def pistas_projeto(doc, projetos):
+    """[(origem, [projetos])] na ordem: Número do projeto, pasta do caminho, nome do arquivo, código do cliente, nome."""
+    res = []
+
+    def add(origem, ps):
+        l = []
+        for p in ps:
+            if p not in l:
+                l.append(p)
+        if l:
+            res.append((origem, l))
+
+    num = nome_info = cliente = u""
+    try:
+        pi = doc.ProjectInformation
+        if pi is not None:
+            num, nome_info, cliente = pi.Number or u"", pi.Name or u"", pi.ClientName or u""
+    except Exception:
+        pass
+    if num.strip():
+        c0 = _codigo_inicio(num + u" ")
+        add(u"Número do projeto ({})".format(num.strip()),
+            [p for p in projetos if _mesmo(p.get("codigo"), num) or _mesmo(p.get("codigo"), c0) or _mesmo(p.get("codCliente"), num)])
+    caminho = caminho_modelo(doc)
+    partes = [x for x in re.split(r"[\\/]", caminho) if x]
+    arquivo = os.path.splitext(partes[-1])[0] if partes else (doc.Title or u"")
+    for parte in reversed(partes[:-1]):
+        c = _codigo_inicio(parte + u" ")
+        ps = [p for p in projetos if c and _mesmo(p.get("codigo"), c)]
+        if ps:
+            add(u"pasta \"{}\"".format(parte), ps)
+            break
+    for nome in (arquivo, doc.Title or u""):
+        c = _codigo_inicio(nome)
+        if c:
+            add(u"nome do arquivo", [p for p in projetos if _mesmo(p.get("codigo"), c)])
+    texto = _norm(u" ".join([caminho, doc.Title or u"", nome_info, cliente]))
+    add(u"código do cliente", [p for p in projetos if len(_norm(p.get("codCliente"))) >= 3
+                                and (u" " + _norm(p.get("codCliente")) + u" ") in (u" " + texto + u" ")])
+    add(u"nome do projeto", [p for p in projetos if len(_norm(p.get("nome"))) >= 5 and _norm(p.get("nome")) in texto])
+    return res
+
+
+def projeto_do_modelo(doc, dados, gravar=True):
+    """(projeto ou None, origem). Sem ligação gravada, usa a primeira pista que aponta para um único projeto e, com
+    gravar=True, grava a ligação no modelo (vale para as outras ferramentas e para a equipe)."""
+    projetos = dados.projetos if dados is not None else []
+    lig = ler_projeto_modelo(doc)
+    if lig:
+        p = next((x for x in projetos if lig["id"] and x.get("id") == lig["id"]), None) or \
+            next((x for x in projetos if _mesmo(x.get("codigo"), lig["codigo"])), None)
+        if p is None:
+            return None, u"gravado no modelo: {} {} — não está entre os projetos publicados nesta fonte".format(lig["codigo"], lig["nome"]).strip()
+        return p, u"gravado no modelo" + (u" por " + lig["gravadoPor"] if lig.get("gravadoPor") else u"")
+    for origem, ps in pistas_projeto(doc, projetos):
+        if len(ps) == 1:
+            if gravar:
+                erro = gravar_projeto_modelo(doc, ps[0])
+                origem += u" · ligação gravada no modelo" if not erro else u" · ligação não gravada ({})".format(erro)
+            return ps[0], origem
+    return None, u"não reconhecido: escolha o projeto"
 
 
 # ------------------------------------------------------------------ pedidos ao sistema
