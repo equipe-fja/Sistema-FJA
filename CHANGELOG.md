@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~12h45 — commit fad257c
+- Extensão do Revit 2.30.0 (antes 2.29.2): **projeto do modelo** — todas as ferramentas ligadas ao sistema (painel Componentes, Composições, Diagnóstico, cor da disciplina nas Legendas) reconhecem o projeto do mesmo jeito e gravam a ligação no próprio modelo (vale para a equipe depois de sincronizar). Sem ligação, pistas em ordem: Número do projeto, pasta do caminho (do central nas cópias locais), nome do arquivo, código do cliente, nome do projeto. Escolher ou trocar o projeto na lista grava a ligação. Ver docs/projeto-do-modelo.md.
+- Sistema: a publicação para o Revit passa a listar **todos os projetos** (os sem especificação técnica com semEspec), para o Revit reconhecer qualquer projeto.
+
 ## oficial Firebase — 19/11, ~12h25 — commit e527398
 - Extensão do Revit 2.29.2 (antes 2.29.1): o painel **Componentes** não fica mais preto depois de reabrir o Revit. A montagem automática na abertura falhava e o botão não montava de novo; agora o botão monta sempre que a moldura não tem o painel, a moldura tem fundo claro e mostra o motivo se a montagem falhar.
 
