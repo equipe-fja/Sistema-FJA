@@ -1,7 +1,0 @@
-title:
-  pt_br: "Novo componente"
-  en_us: "Novo componente"
-tooltip:
-  pt_br: "Carrega uma família (.rfa) no modelo ligada a um código da biblioteca central do Sistema FJA (elemento/família): identifica a categoria, deixa escolher um código existente ou criar um novo, grava Keynote, Type Mark, Descrição e vínculo em todos os tipos e pode renomear a família como (SIGLA) DESCRIÇÃO."
-  en_us: "Carrega uma família (.rfa) no modelo ligada a um código da biblioteca central do Sistema FJA."
-author: "Ferramentas FJA"

@@ -1,6 +1,6 @@
 # Tipos › Componentes (painel encaixável)
 
-Painel em C# desde a extensão 2.28.0 (19/11/2026), a pedido da FJA: no lugar da janela em Python que trabalhava uma família por vez, uma árvore com todas as famílias carregáveis do modelo, aberta ao lado do modelo (em aba com Propriedades).
+Painel em C# desde a extensão 2.28.0 (19/11/2026), a pedido da FJA: no lugar da janela em Python que trabalhava uma família por vez (retirada em 2.29.0), uma árvore com todas as famílias carregáveis do modelo, aberta ao lado do modelo (em aba com Propriedades).
 
 ## Decisões da FJA (19/11/2026)
 - À esquerda (no painel), uma **árvore Categoria › Família › Tipo** com as famílias carregáveis pertinentes à conexão com o Sistema FJA; **todas as famílias exibidas por padrão**.
@@ -33,5 +33,9 @@ Painel em C# desde a extensão 2.28.0 (19/11/2026), a pedido da FJA: no lugar da
 - `Componentes/Registro.cs`: o `startup.py` chama `fja_dotnet.registrar_paineis` → `Entrada.RegistrarPaineis` → `RegisterDockablePane` com uma **moldura** fixa (Border) guardada no AppDomain. O conteúdo (`PainelComponentes`) é montado no primeiro momento ocioso e, quando a DLL muda (Suíte › Atualizar), o botão monta o conteúdo novo dentro da mesma moldura, sem reiniciar o Revit. O painel antigo deixa de responder aos eventos (cada um confere se ainda é o atual).
 - `Componentes/Sistema.cs` (`DadosSistema`, porte de `Dados` do `fja_sistema.py`), `Nucleo/Nuvem.cs` (banco: `revitPub`, pedidos pendentes, envio de pedido), `Componentes/Vinculo.cs` (mesmos GUIDs e campos do Python), `Componentes/Coleta.cs` (tipos e diagnóstico), `Componentes/Operacoes.cs` (ligar, sincronizar, desligar).
 
-## Ainda na janela antiga (Tipos › Novo componente, Python)
-- Carregar uma família nova (.rfa) e **código novo** (pedido `novo-item`, com sigla nova). Próximo passo: trazer para o painel e retirar o botão antigo.
+## Carregar família, código novo e localizar (2.29.0, 19/11/2026)
+Com isto o painel faz tudo o que a janela antiga em Python fazia, e o botão **Novo componente** foi retirado.
+- **Carregar família…** (no alto): escolhe o .rfa, carrega no modelo (se já existir, recarrega sem sobrescrever os valores dos parâmetros) e deixa a família escolhida e aberta na árvore, para ligar os tipos.
+- **Localizar seleção**: mostra na árvore o tipo do elemento selecionado no modelo (substitui o "Selecionar no modelo" da janela antiga).
+- **Ligar › Código novo**: sigla (da lista ou **+ Nova sigla…**, com 3 letras e o nome da tabela), descrição e especificação opcional. Reserva o próximo `FJ.SIGLA.NNNN` e o próximo keynote da sigla no projeto e envia o pedido `novo-item` (com `siglaNova` quando a sigla também é nova); os tipos ficam azuis (aguardando) até o sistema processar. Códigos novos ainda pendentes aparecem na lista de códigos existentes, para ligar outros tipos ao mesmo código.
+- **Renomear a família como (SIGLA) DESCRIÇÃO** (padrão ligado, por pessoa), ao ligar uma família ou um tipo; não troca se já existir outra família com esse nome.

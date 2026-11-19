@@ -46,7 +46,8 @@ namespace FJA.Revit.Componentes
 
         /// <summary>Liga os tipos ao item da biblioteca. Item fora da especificação do projeto: reserva o próximo keynote
         /// da sigla e envia o pedido "incluir-no-projeto".</summary>
-        public static List<string> Ligar(Document doc, DadosSistema dados, List<TipoInfo> tipos, Dictionary<string, object> item, bool renomear)
+        public static List<string> Ligar(Document doc, DadosSistema dados, List<TipoInfo> tipos, Dictionary<string, object> item, bool renomear,
+                                         bool renomearFamilia)
         {
             var avisos = new List<string>();
             if (dados.Projeto == null)
@@ -72,7 +73,76 @@ namespace FJA.Revit.Componentes
                 if (!(doc.GetElement(t.Id) is FamilySymbol s)) continue;
                 Gravar(doc, s, t, item, itemProjeto, dados.Projeto.Txt("id"), pedido, kn, desc, renomear, rep, avisos);
             }
+            if (renomearFamilia) RenomearFamilia(doc, tipos, item.Txt("sigla"), desc, avisos);
             return avisos;
+        }
+
+        /// <summary>Código novo na biblioteca (pedido "novo-item", com FJ e keynote reservados; o sistema confirma) e
+        /// ligação dos tipos a ele. siglaNova: {sigla, nome, tipo} quando a sigla também é nova.</summary>
+        public static List<string> LigarNovo(Document doc, DadosSistema dados, List<TipoInfo> tipos, string sigla, string desc, string texto,
+                                             Dictionary<string, object> siglaNova, bool renomear, bool renomearFamilia)
+        {
+            if (dados.Projeto == null)
+                throw new InvalidOperationException("O modelo não está ligado a um projeto do sistema: escolha o projeto no alto do painel.");
+            sigla = (sigla ?? "").Trim().ToUpperInvariant();
+            desc = (desc ?? "").Trim().ToUpperInvariant();
+            if (sigla == "") throw new InvalidOperationException("Escolha a sigla do código novo.");
+            if (desc == "") throw new InvalidOperationException("Informe a descrição do código novo.");
+            string pid = DadosSistema.NovoIdPedido();
+            var item = new Dictionary<string, object>
+            {
+                ["id"] = "pedido:" + pid, ["pedido"] = pid, ["pendente"] = true, ["fja"] = dados.ProxFja(sigla, null), ["sigla"] = sigla,
+                ["tipo"] = "elemento", ["desc"] = desc, ["texto"] = (texto ?? "").Trim(), ["rvCat"] = tipos.FirstOrDefault()?.Categoria ?? "",
+                ["siglaNova"] = siglaNova,
+            };
+            string kn = dados.ProxKn(sigla, null);
+            dados.GravarPedido(dados.PedidoNovoItem(pid, item, kn, doc.Title));
+            var avisos = new List<string> { "Código novo " + item.Txt("fja") + " (" + desc + "), no projeto como " + kn + ": pedido enviado ao sistema, que confirma o código e o keynote." };
+            if (siglaNova != null) dados.Bib.Lista("siglas").Add(siglaNova);   // disponível para os próximos códigos novos
+            if (siglaNova != null) avisos.Add("Sigla nova " + sigla + " (" + siglaNova.Txt("nome") + "): o sistema cadastra antes de criar o item.");
+            bool rep = tipos.Count > 1;
+            foreach (var t in tipos)
+            {
+                if (!(doc.GetElement(t.Id) is FamilySymbol s)) continue;
+                Gravar(doc, s, t, item, "", dados.Projeto.Txt("id"), pid, kn, desc, renomear, rep, avisos);
+            }
+            if (renomearFamilia) RenomearFamilia(doc, tipos, sigla, desc, avisos);
+            return avisos;
+        }
+
+        /// <summary>Família como "(SIGLA) DESCRIÇÃO" (todas as famílias dos tipos; normalmente uma só).</summary>
+        static void RenomearFamilia(Document doc, List<TipoInfo> tipos, string sigla, string desc, List<string> avisos)
+        {
+            string nome = Vinculo.LimparNome("(" + (sigla ?? "").ToUpperInvariant() + ") " + (desc ?? "").ToUpperInvariant());
+            if (string.IsNullOrEmpty(sigla) || nome.Length < 5) return;
+            var fams = tipos.Select(t => (doc.GetElement(t.Id) as FamilySymbol)?.Family).Where(f => f != null)
+                .GroupBy(f => Coleta.Num(f.Id)).Select(g => g.First()).ToList();
+            if (fams.Count != 1) { if (fams.Count > 1) avisos.Add("Tipos de famílias diferentes: os nomes das famílias não foram trocados."); return; }
+            var fam = fams[0];
+            if (fam.Name == nome) return;
+            bool existe = new FilteredElementCollector(doc).OfClass(typeof(Family)).Any(f => f.Name == nome && f.Id != fam.Id);
+            if (existe) { avisos.Add("Já existe uma família chamada '" + nome + "': o nome não foi trocado."); return; }
+            try { fam.Name = nome; }
+            catch (Exception e) { avisos.Add("Não foi possível renomear a família: " + e.Message); }
+        }
+
+        sealed class OpcoesCarga : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues) { overwriteParameterValues = false; return true; }
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            {
+                source = FamilySource.Family; overwriteParameterValues = false; return true;
+            }
+        }
+
+        /// <summary>Carrega o .rfa (se já existir, recarrega sem sobrescrever os valores dos parâmetros). Devolve a família.</summary>
+        public static Family CarregarFamilia(Document doc, string caminho, out bool jaExistia)
+        {
+            string nome = System.IO.Path.GetFileNameWithoutExtension(caminho);
+            jaExistia = new FilteredElementCollector(doc).OfClass(typeof(Family)).Any(f => f.Name == nome);
+            doc.LoadFamily(caminho, new OpcoesCarga(), out Family fam);
+            return fam ?? new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>().FirstOrDefault(f => f.Name == nome)
+                ?? throw new InvalidOperationException("Não foi possível carregar a família " + nome + ".");
         }
 
         /// <summary>Traz para o Revit o que está no sistema (o sistema é a referência). Tipos ligados a itens fora da

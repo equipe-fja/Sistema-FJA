@@ -70,9 +70,81 @@ namespace FJA.Revit.Componentes
                 .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
         }
 
-        /// <summary>Itens de elemento/família (siglas do tipo elemento).</summary>
+        /// <summary>Itens de elemento/família (siglas do tipo elemento), mais os códigos novos pedidos pelo Revit que o
+        /// sistema ainda não processou (provisórios, id "pedido:&lt;id&gt;").</summary>
         public IEnumerable<Dictionary<string, object>> Elementos() =>
-            Bib.Lista("itens").OfType<Dictionary<string, object>>().Where(x => x.Txt("tipo") == "elemento");
+            Bib.Lista("itens").OfType<Dictionary<string, object>>().Where(x => x.Txt("tipo") == "elemento")
+                .Concat(ItensPendentes().Where(x => x.Txt("tipo") == "elemento"));
+
+        /// <summary>Itens provisórios dos pedidos "novo-item" ainda não processados (como item_do_pedido do Python).</summary>
+        public List<Dictionary<string, object>> ItensPendentes()
+        {
+            var feitos = new HashSet<string>(Bib.Lista("itens").OfType<Dictionary<string, object>>().Select(x => x.Txt("pedido")).Where(x => !string.IsNullOrEmpty(x)));
+            var r = new List<Dictionary<string, object>>();
+            foreach (var p in Pendentes)
+            {
+                if (p.Txt("acao") != "novo-item" || feitos.Contains(p.Txt("id"))) continue;
+                var i = p.Obj("item");
+                r.Add(new Dictionary<string, object>
+                {
+                    ["id"] = "pedido:" + p.Txt("id"), ["pedido"] = p.Txt("id"), ["pendente"] = true,
+                    ["fja"] = p.Obj("reservas").Txt("fja") ?? "", ["sigla"] = i.Txt("sigla") ?? "", ["tipo"] = i.Txt("tipo") ?? "elemento",
+                    ["desc"] = i.Txt("desc") ?? "", ["texto"] = i.Txt("texto") ?? "", ["rvCat"] = i.Txt("rvCat") ?? "",
+                });
+            }
+            return r;
+        }
+
+        /// <summary>Siglas de elemento/família da biblioteca (com as novas criadas nesta sessão), em ordem.</summary>
+        public List<Dictionary<string, object>> SiglasElemento() =>
+            Bib.Lista("siglas").OfType<Dictionary<string, object>>().Where(s => s.Txt("tipo") == "elemento")
+                .OrderBy(s => s.Txt("sigla") ?? "").ToList();
+
+        public bool SiglaExiste(string sg) =>
+            Bib.Lista("siglas").OfType<Dictionary<string, object>>().Any(s => string.Equals(s.Txt("sigla"), sg, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>Próximo código FJ.&lt;SIGLA&gt;.NNNN (numeração de cada sigla), contando a biblioteca, os pedidos pendentes
+        /// e as reservas deste lote.</summary>
+        public string ProxFja(string sigla, ICollection<string> tambem)
+        {
+            string sg = (sigla ?? "").ToUpperInvariant();
+            var rx = new Regex(@"^FJ\." + Regex.Escape(sg) + @"\.(\d+)$");
+            int n = 0;
+            IEnumerable<string> todos = Bib.Lista("itens").OfType<Dictionary<string, object>>().Select(x => x.Txt("fja"))
+                .Concat(Pendentes.Select(p => p.Obj("reservas").Txt("fja"))).Concat(tambem ?? new List<string>());
+            foreach (var f in todos)
+            {
+                var m = rx.Match(f ?? "");
+                if (m.Success) n = Math.Max(n, int.Parse(m.Groups[1].Value));
+            }
+            return "FJ." + sg + "." + (n + 1).ToString("0000");
+        }
+
+        /// <summary>Pedido "novo-item": item de elemento/família novo na biblioteca, já incluído no projeto com o keynote
+        /// reservado. siglaNova: {sigla, nome, tipo} quando a sigla também é nova (o sistema cadastra antes).</summary>
+        public Dictionary<string, object> PedidoNovoItem(string id, Dictionary<string, object> item, string kn, string modelo)
+        {
+            var it = new Dictionary<string, object>
+            {
+                ["sigla"] = item.Txt("sigla"), ["tipo"] = "elemento", ["rvCat"] = item.Txt("rvCat") ?? "", ["papel"] = "",
+                ["desc"] = item.Txt("desc") ?? "", ["texto"] = item.Txt("texto") ?? "", ["fabricante"] = "", ["nbr"] = "",
+                ["camadas"] = new List<object>(),
+            };
+            if (item.TryGetValue("siglaNova", out var sn) && sn != null) it["siglaNova"] = sn;
+            return new Dictionary<string, object>
+            {
+                ["fja"] = "pedido",
+                ["formato"] = 1,
+                ["id"] = id,
+                ["acao"] = "novo-item",
+                ["criadoEm"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                ["autor"] = Autor(),
+                ["modelo"] = modelo ?? "",
+                ["projeto"] = Projeto == null ? null : new Dictionary<string, object> { ["id"] = Projeto.Txt("id"), ["codigo"] = Projeto.Txt("codigo") },
+                ["reservas"] = new Dictionary<string, object> { ["kn"] = kn, ["fja"] = item.Txt("fja") },
+                ["item"] = it,
+            };
+        }
 
         /// <summary>'131-MO-0001-R00' → projeto 131; senão, projeto cujo nome aparece no título do arquivo.</summary>
         public Dictionary<string, object> ProjetoDoDocumento(string titulo)

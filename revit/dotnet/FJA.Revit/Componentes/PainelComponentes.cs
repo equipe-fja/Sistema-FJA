@@ -39,7 +39,7 @@ namespace FJA.Revit.Componentes
     /// <summary>Preferências da pessoa: %APPDATA%\FJA\componentes.json.</summary>
     sealed class OpcoesComponentes
     {
-        public bool Dev, Renomear;
+        public bool Dev, Renomear, RenomearFamilia = true;
         static string Arq => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FJA", "componentes.json");
         public static OpcoesComponentes Carregar()
         {
@@ -50,6 +50,7 @@ namespace FJA.Revit.Componentes
                 var d = Json.LerObjeto(File.ReadAllText(Arq, Encoding.UTF8));
                 o.Dev = d.Txt("fonte") == "dev";
                 o.Renomear = d.Txt("renomear") == "True";
+                o.RenomearFamilia = d.Txt("renomearFamilia") != "False";
             }
             catch { }
             return o;
@@ -59,7 +60,7 @@ namespace FJA.Revit.Componentes
             try
             {
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Arq));
-                File.WriteAllText(Arq, Json.Gravar(new Dictionary<string, object> { ["fonte"] = Dev ? "dev" : "oficial", ["renomear"] = Renomear }), Encoding.UTF8);
+                File.WriteAllText(Arq, Json.Gravar(new Dictionary<string, object> { ["fonte"] = Dev ? "dev" : "oficial", ["renomear"] = Renomear, ["renomearFamilia"] = RenomearFamilia }), Encoding.UTF8);
             }
             catch { }
         }
@@ -292,6 +293,10 @@ namespace FJA.Revit.Componentes
             lbResumo = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
             lin.Children.Add(lbResumo);
             sp1.Children.Add(lin);
+            var wpAc = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            wpAc.Children.Add(Botao("Carregar família…", (s, a) => CarregarRfa(), false, "Carrega uma família (.rfa) no modelo; depois, ligue os tipos a um código"));
+            wpAc.Children.Add(Botao("Localizar seleção", (s, a) => Localizar(), false, "Mostra na árvore o tipo do elemento selecionado no modelo"));
+            sp1.Children.Add(wpAc);
             Grid.SetRow(sp1, 1); raiz.Children.Add(sp1);
 
             // 2: busca e filtro
@@ -452,6 +457,7 @@ namespace FJA.Revit.Componentes
                 {
                     for (var p = achado.Parent as TreeViewItem; p != null; p = p.Parent as TreeViewItem) p.IsExpanded = true;
                     achado.IsSelected = true;
+                    achado.BringIntoView();
                 }
                 else selecionado = null;
                 if (vis.Count == 0)
@@ -635,16 +641,80 @@ namespace FJA.Revit.Componentes
             }
             busca.TextChanged += (s, a) => Preencher();
             Preencher();
-            sp.Children.Add(busca);
-            sp.Children.Add(lista);
-            var ren = new CheckBox { Content = "Renomear os tipos como KEYNOTE - DESCRIÇÃO", IsChecked = op.Renomear, Margin = new Thickness(0, 0, 0, 6) };
+            var spExist = new StackPanel();
+            spExist.Children.Add(busca);
+            spExist.Children.Add(lista);
+
+            // código novo: sigla (ou sigla nova), descrição e especificação
+            var spNovo = new StackPanel { Visibility = Visibility.Collapsed };
+            var cbSig = new ComboBox { Margin = new Thickness(0, 0, 0, 4) };
+            foreach (var sg in dados.SiglasElemento())
+                cbSig.Items.Add(new ComboBoxItem { Content = sg.Txt("sigla") + " · " + (sg.Txt("nome") ?? ""), Tag = sg });
+            cbSig.Items.Add(new ComboBoxItem { Content = "+ Nova sigla…", Tag = "nova" });
+            if (m.Success)
+                foreach (ComboBoxItem ci in cbSig.Items)
+                    if ((ci.Tag as Dictionary<string, object>)?.Txt("sigla") == m.Groups[1].Value.ToUpperInvariant()) cbSig.SelectedItem = ci;
+            var gSig = new Grid { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 4) };
+            gSig.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+            gSig.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var tbSig = new TextBox { MaxLength = 3, MinHeight = 24, CharacterCasing = CharacterCasing.Upper, ToolTip = "Sigla nova (3 letras)", Margin = new Thickness(0, 0, 4, 0) };
+            var tbSigNome = new TextBox { MinHeight = 24, ToolTip = "Nome da tabela da sigla nova (ex.: Portas de madeira)" };
+            Grid.SetColumn(tbSigNome, 1);
+            gSig.Children.Add(tbSig); gSig.Children.Add(tbSigNome);
+            cbSig.SelectionChanged += (s, a) => gSig.Visibility = (cbSig.SelectedItem as ComboBoxItem)?.Tag as string == "nova" ? Visibility.Visible : Visibility.Collapsed;
+            var tbDesc = new TextBox { MinHeight = 24, Margin = new Thickness(0, 0, 0, 4), CharacterCasing = CharacterCasing.Upper, ToolTip = "Descrição do código novo" };
+            var tbTexto = new TextBox { MinHeight = 44, Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, ToolTip = "Especificação (texto-base; opcional)" };
+            spNovo.Children.Add(T("Sigla", Suave, 11)); spNovo.Children.Add(cbSig); spNovo.Children.Add(gSig);
+            spNovo.Children.Add(T("Descrição", Suave, 11)); spNovo.Children.Add(tbDesc);
+            spNovo.Children.Add(T("Especificação (opcional)", Suave, 11)); spNovo.Children.Add(tbTexto);
+            spNovo.Children.Add(Paragrafo("O código (FJ) e o keynote são reservados agora e confirmados pelo sistema quando alguém estiver com ele aberto.", Suave, 11));
+
+            var modo = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            var rbEx = new RadioButton { Content = "Código existente", IsChecked = true, Margin = new Thickness(0, 0, 14, 0) };
+            var rbNovo = new RadioButton { Content = "Código novo" };
+            RoutedEventHandler trocar = (s, a) =>
+            {
+                bool novo = rbNovo.IsChecked == true;
+                spExist.Visibility = novo ? Visibility.Collapsed : Visibility.Visible;
+                spNovo.Visibility = novo ? Visibility.Visible : Visibility.Collapsed;
+            };
+            rbEx.Checked += trocar; rbNovo.Checked += trocar;
+            modo.Children.Add(rbEx); modo.Children.Add(rbNovo);
+            sp.Children.Add(modo);
+            sp.Children.Add(spExist);
+            sp.Children.Add(spNovo);
+
+            var ren = new CheckBox { Content = "Renomear os tipos como KEYNOTE - DESCRIÇÃO", IsChecked = op.Renomear, Margin = new Thickness(0, 0, 0, 4) };
             ren.Click += (s, a) => { op.Renomear = ren.IsChecked == true; op.Gravar(); };
             sp.Children.Add(ren);
+            bool umaFamilia = ts.Select(t => t.Familia).Distinct().Count() == 1;
+            var renFam = new CheckBox { Content = "Renomear a família como (SIGLA) DESCRIÇÃO", IsChecked = op.RenomearFamilia, Margin = new Thickness(0, 0, 0, 6), IsEnabled = umaFamilia };
+            renFam.Click += (s, a) => { op.RenomearFamilia = renFam.IsChecked == true; op.Gravar(); };
+            sp.Children.Add(renFam);
             var bt = Botao("Ligar", (s, a) =>
             {
+                bool rf = umaFamilia && renFam.IsChecked == true, rt = ren.IsChecked == true;
+                if (rbNovo.IsChecked == true)
+                {
+                    var tag = (cbSig.SelectedItem as ComboBoxItem)?.Tag;
+                    string sigla; Dictionary<string, object> nova = null;
+                    if (tag as string == "nova")
+                    {
+                        sigla = System.Text.RegularExpressions.Regex.Replace(tbSig.Text ?? "", "[^A-Za-z]", "").ToUpperInvariant();
+                        if (sigla.Length != 3) { Status("A sigla de elemento/família tem 3 letras."); return; }
+                        if (dados.SiglaExiste(sigla)) { Status("A sigla " + sigla + " já existe: escolha na lista."); return; }
+                        if ((tbSigNome.Text ?? "").Trim() == "") { Status("Informe o nome da tabela da sigla nova."); return; }
+                        nova = new Dictionary<string, object> { ["sigla"] = sigla, ["nome"] = tbSigNome.Text.Trim(), ["tipo"] = "elemento" };
+                    }
+                    else sigla = (tag as Dictionary<string, object>)?.Txt("sigla");
+                    if (string.IsNullOrEmpty(sigla)) { Status("Escolha a sigla do código novo."); return; }
+                    if ((tbDesc.Text ?? "").Trim() == "") { Status("Informe a descrição do código novo."); return; }
+                    LigarNovo(ts, sigla, tbDesc.Text, tbTexto.Text, nova, rt, rf);
+                    return;
+                }
                 var item = (lista.SelectedItem as ListBoxItem)?.Tag as Dictionary<string, object>;
                 if (item == null) { Status("Escolha um código na lista."); return; }
-                Ligar(ts, item, ren.IsChecked == true);
+                Ligar(ts, item, rt, rf);
             }, true);
             bt.HorizontalAlignment = HorizontalAlignment.Left;
             sp.Children.Add(bt);
@@ -679,13 +749,13 @@ namespace FJA.Revit.Componentes
             td.Show();
         }
 
-        void Ligar(List<TipoInfo> ts, Dictionary<string, object> item, bool renomear)
+        void Ligar(List<TipoInfo> ts, Dictionary<string, object> item, bool renomear, bool renomearFamilia)
         {
             Pedir(app =>
             {
                 var doc = DocAtual(app);
                 List<string> av = null;
-                Transacao(doc, "Componentes FJA: ligar a " + item.Txt("fja"), () => av = Operacoes.Ligar(doc, dados, ts, item, renomear));
+                Transacao(doc, "Componentes FJA: ligar a " + item.Txt("fja"), () => av = Operacoes.Ligar(doc, dados, ts, item, renomear, renomearFamilia));
                 sujo = true;
                 Status(ts.Count + " tipo(s) ligado(s) a " + item.Txt("fja") + ".");
                 Avisos("Ligado a " + item.Txt("fja"), av);
@@ -720,6 +790,62 @@ namespace FJA.Revit.Componentes
                 sujo = true;
                 Status(alvo.Count + " tipo(s) sincronizado(s).");
                 Avisos("Sincronização concluída", av);
+            });
+        }
+
+        void LigarNovo(List<TipoInfo> ts, string sigla, string desc, string texto, Dictionary<string, object> siglaNova, bool renomear, bool renomearFamilia)
+        {
+            Pedir(app =>
+            {
+                var doc = DocAtual(app);
+                List<string> av = null;
+                Transacao(doc, "Componentes FJA: código novo " + sigla, () =>
+                    av = Operacoes.LigarNovo(doc, dados, ts, sigla, desc, texto, siglaNova, renomear, renomearFamilia));
+                sujo = true;
+                Status(ts.Count + " tipo(s) ligado(s) a um código novo de " + sigla + " (aguardando o sistema).");
+                Avisos("Código novo", av);
+            });
+        }
+
+        void CarregarRfa()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Família do Revit (*.rfa)|*.rfa", Title = "Carregar família no modelo" };
+            if (dlg.ShowDialog() != true) return;
+            string caminho = dlg.FileName;
+            Pedir(app =>
+            {
+                var doc = DocAtual(app);
+                DB.Family fam = null; bool ja = false;
+                Transacao(doc, "Componentes FJA: carregar " + System.IO.Path.GetFileName(caminho), () => fam = Operacoes.CarregarFamilia(doc, caminho, out ja));
+                string cat = fam.FamilyCategory?.Name ?? "";
+                tbBusca.Text = ""; cbFiltro.SelectedIndex = 0;   // antes de escolher o nó: limpar redesenha a árvore
+                selecionado = "f|" + cat + "|" + fam.Name;
+                fechados.Remove("c|" + cat);
+                abertos.Add(selecionado);
+                sujo = true;
+                Status((ja ? "Família recarregada: " : "Família carregada: ") + fam.Name + " (" + fam.GetFamilySymbolIds().Count + " tipo(s)). Ligue os tipos a um código.");
+            });
+        }
+
+        void Localizar()
+        {
+            Pedir(app =>
+            {
+                var ui = app.ActiveUIDocument;
+                if (ui == null) return;
+                DB.ElementId tipo = null;
+                foreach (var id in ui.Selection.GetElementIds())
+                {
+                    var e = ui.Document.GetElement(id);
+                    if (e is DB.FamilySymbol fs) { tipo = fs.Id; break; }
+                    if (e is DB.FamilyInstance fi) { tipo = fi.GetTypeId(); break; }
+                }
+                if (tipo == null) { Status("Selecione no modelo um elemento de família carregável."); return; }
+                if (Chave(ui.Document) != docChave) sujo = true;
+                tbBusca.Text = ""; cbFiltro.SelectedIndex = 0;   // antes de escolher o nó: limpar redesenha a árvore
+                selecionado = "t|" + Coleta.Num(tipo);
+                if (!sujo) Desenhar();
+                if (selecionado == null && !sujo) Status("O tipo do elemento selecionado não está na árvore (família de anotação, detalhe ou in-place).");
             });
         }
 
