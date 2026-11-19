@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 19/11, ~11h45 — commit d8fa2f9
+- Extensão do Revit 2.29.0 (antes 2.28.0): o painel **Componentes** passa a fazer tudo o que a janela antiga fazia — **Carregar família…** (.rfa), **Ligar › Código novo** (sigla da lista ou sigla nova, descrição e especificação; FJ e keynote reservados e confirmados pelo sistema), **Renomear a família como (SIGLA) DESCRIÇÃO** e **Localizar seleção** (mostra na árvore o tipo do elemento selecionado). O botão **Novo componente** (janela em Python) foi retirado. Ver docs/revit-componentes.md.
+
 ## oficial Firebase — 19/11, ~11h35 — commit ca0d5e6
 - Extensão do Revit 2.28.0 (antes 2.27.0): **Tipos › Componentes** vira um **painel encaixável** em C# (em aba com Propriedades): árvore Categoria › Família › Tipo de todas as famílias carregáveis do modelo, com busca, filtro e cor pela situação no Sistema FJA (verde = ligado a um keynote do projeto e igual ao sistema; âmbar = com diferença; azul = aguardando; vermelho = código inexistente; cinza = sem ligação). Detalhes do nó, **Ligar a um código** (tipo ou família), **Sincronizar** (nó ou tudo; o sistema é a referência), Selecionar no modelo e Desligar. A janela antiga continua como **Novo componente** (carregar .rfa e código novo). Painel novo: fechar e abrir o Revit depois de atualizar. Ver docs/revit-componentes.md.
 
