@@ -1093,6 +1093,22 @@ body.cro-arr,body.cro-arr *{cursor:grabbing!important}
 .pn-card .n{font-family:var(--f-display);font-size:26px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
 .pn-card .k{font-size:12.5px;color:var(--muted)}.pn-card .al{font-size:11.5px;color:var(--accent,#8E1B1B);font-weight:600}
 .pn-card.zero .n{color:var(--faint)}
+.pn-cards.mini{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:22px 0 4px}
+.pn-cards.mini .pn-card{padding:8px 10px;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+.pn-cards.mini .pn-card .n{font-size:17px}
+.pn-cards.mini .pn-card .k{font-size:11.5px;flex:1;min-width:0}
+.pn-cards.mini .pn-card .al{font-size:11px;width:100%}
+.pn-atalhos{margin:2px 0 18px}
+.pn-at-h{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin:0 0 8px}
+.pn-at-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.pn-at{display:flex;align-items:center;gap:10px;min-width:0;padding:6px 10px 6px 6px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font:inherit;color:var(--ink);cursor:pointer;text-align:left}
+.pn-at:hover{border-color:var(--accent);background:var(--accent-weak)}
+.pn-at-ic{flex:none;width:40px;height:40px;border-radius:7px;overflow:hidden;background:var(--off-bg);display:flex;align-items:center;justify-content:center}
+.pn-at-ic img{width:100%;height:100%;object-fit:cover;display:block}
+.pn-at-ini{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.pn-at-t{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.pn-at-t .mono{font-size:10.5px;color:var(--muted)}
+.pn-at-t b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pn-filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 14px}
 .pn-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
 @media (max-width:1000px){.pn-grid{grid-template-columns:1fr}}
@@ -1509,6 +1525,21 @@ function pnLigado(resp,eu){
   const nm=semAc(eu.nome||'').toLowerCase().trim(), pr=nm.split(/\s+/)[0]||'';
   return (nm.length>2&&r.includes(nm))||(pr.length>2&&new RegExp('\\b'+pr.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(r));
 }
+function pnMeusProjetos(eu){
+  const todos=itensDe('projetos').filter(pnAberto);
+  if(S.convidado) return todos;
+  return todos.filter(p=>partsDe(p).includes(eu.id)||(eu.empresa&&empresasProj(p).includes(eu.empresa))||rfiDe(p.id).some(r=>pnRequerente(r,eu)||pnReqMim(r,eu)));
+}
+// atalhos no topo do painel: capa do projeto como ícone (quando houver), senão o início do código
+function pnAtalhosHTML(eu){
+  let ps=pnMeusProjetos(eu), todos=false;
+  if(!ps.length&&!S.convidado){ps=itensDe('projetos').filter(pnAberto); todos=true}
+  if(!ps.length) return '';
+  ps.sort(ordena);
+  const ic=p=>{const c=S.convidado?null:capaDe(p), ini=esc(String(p.campos?.codigo||p.nome||'?').trim().slice(0,3));
+    return c?`<img src="${esc(urlThumb(c))}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=&quot;pn-at-ini&quot;>${ini}</span>'">`:`<span class="pn-at-ini">${ini}</span>`};
+  return `<section class="pn-atalhos" aria-label="Atalhos para os projetos"><div class="pn-at-h">${todos?'Projetos em andamento':'Seus projetos'}</div><div class="pn-at-l">${ps.map(p=>`<button class="pn-at" data-act="${S.convidado?'rfi':'item'}" data-id="${esc(p.id)}" title="${esc((p.campos?.codigo?p.campos.codigo+' ':'')+(p.nome||''))}"><span class="pn-at-ic">${ic(p)}</span><span class="pn-at-t">${p.campos?.codigo?`<span class="mono">${esc(p.campos.codigo)}</span>`:''}<b>${esc(p.nome||'')}</b></span></button>`).join('')}</div></section>`;
+}
 function pnProjetos(eu){
   if(PN.escopo==null) PN.escopo=lsGet('fja.pn.escopo','meus');
   const todos=itensDe('projetos').filter(pnAberto);
@@ -1555,13 +1586,10 @@ function telaPainel(h){
   const card=(n,k,al)=>`<div class="pn-card${n?'':' zero'}"><span class="n">${n}</span><span class="k">${k}</span>${al?`<span class="al">${al}</span>`:''}</div>`;
   const projOps=pnProjetos(eu).sort(ordena);
   const pri=String(eu.nome||'').trim().split(/\s+/)[0]||'';
-  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1>
+  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1>${pnAtalhosHTML(eu)}
   <div class="pn-filtros">${conv?'':`<label class="fl" style="flex-direction:row;align-items:center;gap:6px">Projetos <select class="fld sm" id="pnEscopo" style="width:auto"><option value="meus"${PN.escopo!=='todos'?' selected':''}>Em que estou envolvido</option><option value="todos"${PN.escopo==='todos'?' selected':''}>Todos em andamento</option></select></label>`}
     <select class="fld sm" id="pnProj" aria-label="Projeto" style="width:auto;max-width:380px"><option value="">Todos os projetos (${projOps.length})</option>${projOps.map(p=>`<option value="${esc(p.id)}"${PN.proj===p.id?' selected':''}>${esc(d.nomeP(p.id))}</option>`).join('')}</select>
     </div>
-  <div class="pn-cards">${card(d.riMinhas.length,'RIs aguardando a sua resposta',venc?`${venc} com prazo vencendo ou vencido`:'')}${card(d.riAguardo.length,'RIs em que você é o requerente, aguardando resposta','')}
-    ${conv?'':card(d.pds.length,'Pendências que citam você',atr?`${atr} atrasada${atr>1?'s':''}`:'')+card(d.cms.length,'Comentários em aberto que citam você','')}
-    ${card(novos,'Novidades desde a sua última visita','')}</div>
   <div class="pn-grid"><div>
     ${lista('RIs aguardando a sua resposta',d.riMinhas.map(riIt),'Nenhuma RI aguardando você.')}
     ${lista('RIs em que você é o requerente, aguardando resposta',d.riAguardo.map(riAgIt),'Nenhuma RI em aberto com você como requerente.')}
@@ -1574,7 +1602,11 @@ function telaPainel(h){
       if(k!==dia){dia=k; o+=`<div class="pn-dia">${k===hj?'Hoje':k===on?'Ontem':dd.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'})}</div>`}
       o+=item({...x,novo:x.em>PN.vistoAnt,dir:dd.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})})} return o})():'<p class="note" style="padding:8px 14px 12px">Nada novo nos últimos 14 dias.</p>'}
     </section>
-  </div></div></div>`;
+  </div></div>
+  <div class="pn-cards mini">${card(d.riMinhas.length,'RIs aguardando a sua resposta',venc?`${venc} com prazo vencendo ou vencido`:'')}${card(d.riAguardo.length,'RIs em que você é o requerente, aguardando resposta','')}
+    ${conv?'':card(d.pds.length,'Pendências que citam você',atr?`${atr} atrasada${atr>1?'s':''}`:'')+card(d.cms.length,'Comentários em aberto que citam você','')}
+    ${card(novos,'Novidades desde a sua última visita','')}</div>
+  </div>`;
   return h;
 }
 function telaHome(h){
