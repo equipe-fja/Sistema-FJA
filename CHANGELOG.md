@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 23/11, ~12h15 — commit 6cb4975
+- Extensão do Revit 2.34.0 (antes 2.33.0): **Pranchas › Exportar** com escolha de **conjunto de folhas** (sheet set: mostra e marca as folhas dele), opção **Criar pasta nova** na pasta de destino com o nome **AA-MM-DD + descrição** (ex.: 26-02-02 EMISSÃO FINAL EXECUTIVO - ARQUITETURA - 1ª PARTE; descrição lembrada por projeto) e janela sem textos explicativos.
+
 ## oficial Firebase — 23/11, ~12h05 — commit d488001
 - Extensão do Revit 2.33.0 (antes 2.32.0): painel novo **Pranchas › Exportar** (C#) — PDF e DWG das pranchas ao mesmo tempo, um arquivo por prancha, na pasta escolhida (lembrada por projeto), com o nome do campo "Prancha" do carimbo (ex.: 128-AP-ARQ-DT-A002-R00); DWG pela configuração **FJA TRUE COLOR** (padrão do Revit, True Color, sem referências externas), criada no projeto se não existir. Painel novo: fechar e abrir o Revit depois de atualizar. Ver docs/exportar-pranchas.md.
 
