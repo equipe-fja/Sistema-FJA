@@ -638,6 +638,16 @@ body.rd-mod #eqTabela tr[data-act="rd-abrir"]{cursor:copy}
 .ata-st{flex:1;font-weight:600;font-size:15px;border-color:transparent;background:transparent}.ata-st:hover{border-color:var(--line)}
 .ata-stt.st-enc{color:#a23a33}.ata-stt.st-warn{color:#9a6a00}.ata-stt.st-at{color:#1f7a4d}.ata-stt.st-info{color:#2a5f9e}
 .ata-lista tr[data-act]{cursor:pointer}
+.ata-imgs{display:flex;flex-wrap:wrap;gap:10px;padding:10px 16px 2px}
+.ata-img{position:relative;width:132px;height:96px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--off-bg)}
+.ata-img .th{display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.ata-img img{width:100%;height:100%;object-fit:cover;display:block}
+.ata-img .rm{position:absolute;top:4px;right:4px;width:22px;height:22px;display:none;align-items:center;justify-content:center;padding:0;border:0;border-radius:6px;background:rgba(0,0,0,.6);color:#fff;cursor:pointer}
+.ata-img:hover .rm,.ata-img .rm:focus-visible{display:inline-flex}
+.ata-img .rm svg{width:12px;height:12px}
+.ata-sec-pe{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ata-img-st{font-size:12px;color:var(--muted)}
+.ata-sec.sobre{outline:2px dashed var(--accent);outline-offset:-2px}
 .rd-lk{display:inline-block;font:600 9.5px/1 var(--mono,monospace);padding:3px 4px;border-radius:3px;margin-right:6px;vertical-align:1px;background:#eef1f4;color:#4b5866;letter-spacing:.03em}
 .rd-lk.st-at{background:#e4f1e8;color:#1f7a4d}.rd-lk.st-enc{background:#f9e5e3;color:#a23a33}.rd-lk.st-warn{background:#fbf1d9;color:#8a6000}.rd-lk.st-info{background:#e5eef9;color:#2a5f9e}
 .pp-linha{margin:-4px 0 16px;font-size:12.5px}.pp-linha>div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pp-linha .mono{font-size:12px}
@@ -4150,14 +4160,37 @@ function telaAtaItem(h,v){
   </tbody></table></div><datalist id="dlAtaEmp">${[...new Set(['FJA',...parceiros().map(p=>p.nome)])].map(n=>`<option value="${esc(n)}">`).join('')}</datalist></section>
   <datalist id="dlAtaResp">${resps.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
   (a.secoes||[]).forEach((s,si)=>{const L=LETRA(si);
-    h+=`<section class="sheet ata-sec"><div class="sheet-h"><span class="ata-letra">${L}</span><input class="fld ata-st" data-as="${si}" value="${esc(s.titulo||'')}" placeholder="Título do tópico (ex.: Kick-off, Próximos passos)" ${ro}>${S.ro?'':`<button class="icb" data-act="ata-sec-mv" data-s="${si}" data-d="-1" title="Subir tópico" ${si?'':'disabled'}>↑</button><button class="icb" data-act="ata-sec-mv" data-s="${si}" data-d="1" title="Descer tópico" ${si<a.secoes.length-1?'':'disabled'}>↓</button><button class="icb del" data-act="ata-sec-rm" data-s="${si}" title="Excluir tópico">${IC.trash}</button>`}</div>
+    h+=`<section class="sheet ata-sec" data-s="${si}"><div class="sheet-h"><span class="ata-letra">${L}</span><input class="fld ata-st" data-as="${si}" value="${esc(s.titulo||'')}" placeholder="Título do tópico (ex.: Kick-off, Próximos passos)" ${ro}>${S.ro?'':`<button class="icb" data-act="ata-sec-mv" data-s="${si}" data-d="-1" title="Subir tópico" ${si?'':'disabled'}>↑</button><button class="icb" data-act="ata-sec-mv" data-s="${si}" data-d="1" title="Descer tópico" ${si<a.secoes.length-1?'':'disabled'}>↓</button><button class="icb del" data-act="ata-sec-rm" data-s="${si}" title="Excluir tópico">${IC.trash}</button>`}</div>
     <div class="tablewrap"><table class="list ata-t ata-it"><thead><tr><th style="width:52px">Item</th><th>Descrição</th><th style="width:150px">Resp.</th><th style="width:130px">Status</th><th style="width:70px"></th></tr></thead><tbody>
     ${(s.itens||[]).map((x,i)=>`<tr><td class="mono"><b>${L}${i+1}</b></td><td><textarea class="fld ata-c ata-tx" rows="${Math.max(1,Math.ceil(String(x.texto||'').length/95)+String(x.texto||'').split('\n').length-1)}" data-ai="${si}.${i}" data-k="texto" ${ro} placeholder="Descreva o item discutido…">${esc(x.texto||'')}</textarea></td><td><input class="fld ata-c" list="dlAtaResp" data-ai="${si}.${i}" data-k="resp" value="${esc(x.resp||'')}" ${ro}></td><td><select class="fld ata-c ata-stt st-${TOM_ATA[x.status]||'off'}" data-ai="${si}.${i}" data-k="status" ${ro}>${ST_ATA.map(o=>`<option${o===(x.status||'-')?' selected':''}>${o}</option>`).join('')}</select></td><td class="r nowrap">${S.ro?'':`<button class="icb" data-act="ata-it-mv" data-ai="${si}.${i}" data-d="-1" title="Subir" ${i?'':'disabled'}>↑</button><button class="icb del" data-act="ata-it-rm" data-ai="${si}.${i}" title="Excluir item">${IC.x}</button>`}</td></tr>`).join('')}
-    </tbody></table></div>${S.ro?'':`<div class="pad" style="padding-top:6px"><button class="btn sm ghost" data-act="ata-it-add" data-s="${si}">${IC.plus}Item ${L}${(s.itens||[]).length+1}</button></div>`}</section>`});
+    </tbody></table></div>${ataImgsHTML(s,si)}${S.ro?'':`<div class="pad ata-sec-pe" style="padding-top:6px"><button class="btn sm ghost" data-act="ata-it-add" data-s="${si}">${IC.plus}Item ${L}${(s.itens||[]).length+1}</button><label class="btn sm ghost" title="Adicionar imagens ao tópico ${L}. Também dá para colar um print (Ctrl+V) com o cursor no tópico, ou arrastar as imagens para cá.">${IC.plus}Imagem<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden data-ata-img="${si}"></label><span class="ata-img-st" id="ataImgSt${si}" aria-live="polite"></span></div>`}</section>`});
   if(!S.ro) h+=`<div class="esp-bar"><button class="btn" data-act="ata-sec-add">${IC.plus}Tópico ${LETRA((a.secoes||[]).length)}</button><button class="btn ghost" data-act="ata-pend-ant" title="Cria um tópico com os itens Pendentes/Iniciados da ata anterior">Trazer pendências da ata anterior</button><span style="flex:1"></span><button class="btn danger sm" data-act="ata-del">${IC.trash}Excluir ata</button></div>`;
   h+=`<div class="foot-meta">${a.atualizadoEm?`Atualizado em ${fmtData(a.atualizadoEm)} · salvo automaticamente`:''}</div></div>`;
   return h;
 }
+/* imagens dos tópicos: s.imagens=[{prev,thumb,nome,tipo,tamanho}] — miniaturas na tela; clique abre no visualizador; saem no PDF */
+function ataImgsHTML(s,si){const L=s.imagens||[]; if(!L.length) return '';
+  return `<div class="ata-imgs">${L.map((m,i)=>`<div class="ata-img"><button class="th" data-act="ata-img-ver" data-s="${si}" data-i="${i}" aria-label="Abrir ${esc(m.nome||'imagem')}" title="${esc(m.nome||'')}"><img src="${esc(urlThumb(m))}" alt="" loading="lazy"></button>${S.ro?'':`<button class="rm" data-act="ata-img-rm" data-s="${si}" data-i="${i}" aria-label="Remover ${esc(m.nome||'imagem')}" title="Remover imagem">${IC.x}</button>`}</div>`).join('')}</div>`}
+async function ataImgAdd(si,files){
+  const a=ataAtual(); if(!a||S.ro) return; const sec=a.secoes?.[si]; if(!sec) return;
+  const ok=[...files].filter(x=>/^image\/(png|jpeg|gif|webp)$/.test(x.type)); if(!ok.length){toast('Escolha imagens PNG, JPG, GIF ou WebP');return}
+  const st=t=>{const e=$('ataImgSt'+si); if(e) e.textContent=t};
+  const novos=[]; for(let i=0;i<ok.length;i++){st(`Enviando ${i+1} de ${ok.length}…`);
+    try{const r=assets?await subirPrevia(ok[i],1600):await imagemEmbutida(ok[i]); novos.push({prev:r.prev,thumb:r.thumb,nome:r.nome||ok[i].name,tipo:r.tipo||ok[i].type,tamanho:r.tamanho||ok[i].size})}
+    catch(e){toast(e?.code==='quota_or_state'?'O espaço de arquivos do sistema está cheio':`Não foi possível enviar “${ok[i].name}”`)}}
+  st(''); if(!novos.length) return;
+  (sec.imagens=sec.imagens||[]).push(...novos); ataMudou(true); toast(novos.length>1?novos.length+' imagens adicionadas':'Imagem adicionada');
+}
+const nomePrint=(f,i,n)=>{if(f.name&&f.name!=='image.png') return f; const t=new Date(), p=v=>String(v).padStart(2,'0');
+  return new File([f],`print-${t.toISOString().slice(0,10)}-${p(t.getHours())}${p(t.getMinutes())}${p(t.getSeconds())}${n>1?'-'+(i+1):''}.${(f.type.split('/')[1]||'png').replace('jpeg','jpg')}`,{type:f.type})};
+document.addEventListener('change',ev=>{const t=ev.target; if(t.dataset?.ataImg==null) return; const fs=[...(t.files||[])]; t.value=''; if(fs.length) ataImgAdd(+t.dataset.ataImg,fs)});
+// Ctrl+V com imagem (print) com o cursor num tópico: entra nas imagens desse tópico
+document.addEventListener('paste',ev=>{const sec=ev.target.closest?.('#ataEd .ata-sec'); if(!sec||S.ro) return;
+  const fs=[...(ev.clipboardData?.items||[])].filter(x=>x.kind==='file'&&/^image\//.test(x.type)).map(x=>x.getAsFile()).filter(Boolean); if(!fs.length) return;
+  ev.preventDefault(); ataImgAdd(+sec.dataset.s,fs.map((f,i)=>nomePrint(f,i,fs.length)))});
+document.addEventListener('dragover',ev=>{const sec=ev.target.closest?.('#ataEd .ata-sec'); if(!sec||S.ro||![...(ev.dataTransfer?.types||[])].includes('Files')) return; ev.preventDefault(); sec.classList.add('sobre')});
+document.addEventListener('dragleave',ev=>{const sec=ev.target.closest?.('#ataEd .ata-sec'); if(sec&&!sec.contains(ev.relatedTarget)) sec.classList.remove('sobre')});
+document.addEventListener('drop',ev=>{const sec=ev.target.closest?.('#ataEd .ata-sec'); if(!sec||S.ro) return; const fs=[...(ev.dataTransfer?.files||[])]; if(!fs.length) return; ev.preventDefault(); sec.classList.remove('sobre'); ataImgAdd(+sec.dataset.s,fs)});
 /* edição: grava sozinho 700 ms depois da última alteração */
 function ataAtual(){const id=$('ataEd')?.dataset.eid; return id?S.atas.get(id):null}
 function ataMudou(rerender){const a=ataAtual(); if(!a||S.ro) return; a.atualizadoEm=Date.now(); ATA.pend=a.id; clearTimeout(ATA.timer); ATA.timer=setTimeout(ataGravar,700); if(rerender) renderMain()}
@@ -4187,6 +4220,9 @@ async function ataAcao(a0,b){
   else if(a0==='ata-sec-rm'){const s=a.secoes[+b.dataset.s]; if((s.itens||[]).some(x=>String(x.texto||'').trim())&&!await confirmar(`Excluir o tópico ${LETRA(+b.dataset.s)} e os ${s.itens.length} itens dele?`,{ok:'Excluir',perigo:true})) return; a.secoes.splice(+b.dataset.s,1); ataMudou(true)}
   else if(a0==='ata-sec-mv'){const i=+b.dataset.s, j=i+(+b.dataset.d); if(j<0||j>=a.secoes.length) return; [a.secoes[i],a.secoes[j]]=[a.secoes[j],a.secoes[i]]; ataMudou(true)}
   else if(a0==='ata-it-add'){const s=a.secoes[+b.dataset.s]; (s.itens=s.itens||[]).push({texto:'',resp:'',status:'-'}); ataMudou(true); foco(`[data-ai="${b.dataset.s}.${s.itens.length-1}"][data-k="texto"]`)}
+  else if(a0==='ata-img-ver'){const L=a.secoes[+b.dataset.s]?.imagens||[]; abrirViewer(L.map(m=>({...m})),+b.dataset.i)}
+  else if(a0==='ata-img-rm'){const L=a.secoes[+b.dataset.s]?.imagens||[], m=L[+b.dataset.i]; if(!m) return; if(!await confirmar(`Remover a imagem “${m.nome||'imagem'}” do tópico ${LETRA(+b.dataset.s)}?`,{ok:'Remover',perigo:true})) return;
+    L.splice(+b.dataset.i,1); ataMudou(true); for(const x of idsDe(m)){try{await assets?.delete(x)}catch{}}}
   else if(a0==='ata-it-rm'){const [s,i]=b.dataset.ai.split('.').map(Number); a.secoes[s].itens.splice(i,1); ataMudou(true)}
   else if(a0==='ata-it-mv'){const [s,i]=b.dataset.ai.split('.').map(Number), j=i+(+b.dataset.d), L=a.secoes[s].itens; if(j<0||j>=L.length) return; [L[i],L[j]]=[L[j],L[i]]; ataMudou(true)}
   else if(a0==='ata-pend-ant'){const ant=atasDe(a.projeto).find(x=>x.id!==a.id&&(+x.num||0)<(+a.num||0)); if(!ant){toast('Não há ata anterior');return}
@@ -4265,10 +4301,16 @@ async function montarPdfAta(a){
   const P=(a.participantes||[]).filter(p=>p.nome||p.empresa);
   tabela([{t:'nome'},{t:'empresa',w:130},{t:'função',w:150}],P.map(p=>[p.nome,p.empresa,p.funcao]),{titulo:{t:'participantes',s:8.5}});
   y+=8; {const t='AS INFORMAÇÕES DESTE DOCUMENTO SÃO PROPRIEDADE DA FJ.ARQUITETURA, SENDO PROIBIDA A UTILIZAÇÃO SEM AUTORIZAÇÃO PRÉVIA.'; const w=F.widthOfTextAtSize(safe(t),5.8); T(t,MG+(CW-w)/2,y,5.8,F,C.mut); y-=20}
-  const SS=a.secoes||[];
+  const SS=a.secoes||[], imgsTopico=[];
+  // embute as imagens dos tópicos antes (é assíncrono) e desenha depois de cada tabela
+  const IMGS=new Map(); for(const [si,s] of SS.entries()) for(const [i,m] of (s.imagens||[]).entries()){try{const b=await bytesBlob(m.prev);let im;try{im=await doc.embedJpg(b)}catch{im=await doc.embedPng(b)} IMGS.set(si+'.'+i,im)}catch{}}
+  const desenhaImgs=si=>{const L=(SS[si].imagens||[]).map((m,i)=>IMGS.get(si+'.'+i)).filter(Boolean); if(!L.length) return; const gap=12, cw=(CW-gap)/2, MAXH=230;
+    y+=6; for(let k=0;k<L.length;k+=2){const par=L.slice(k,k+2).map(im=>{const e=Math.min(cw/im.width,MAXH/im.height);return {im,w:im.width*e,h:im.height*e}}), rh=Math.max(...par.map(p=>p.h));
+      if(y-rh<BOT) nova(); par.forEach((p,j)=>{const x=MG+j*(cw+gap)+(cw-p.w)/2; pg.drawImage(p.im,{x,y:y-p.h,width:p.w,height:p.h}); pg.drawRectangle({x,y:y-p.h,width:p.w,height:p.h,borderColor:C.line,borderWidth:.5})}); y-=rh+gap}
+    y-=8};
   tabela([{t:'item',w:46},{t:'descrição'}],SS.map((s,i)=>[LETRA(i),s.titulo||'']),{titulo:{t:'SUMÁRIO',s:8.5,ind:12}});
   SS.forEach((s,si)=>{const Lt=LETRA(si), its=(s.itens||[]).filter(x=>String(x.texto||'').trim());
-    tabela([{t:'item',w:46},{t:'descrição'},{t:'resp.',w:70},{t:'status',w:66}],its.map((x,i)=>[Lt+(i+1),x.texto,x.resp||'-',x.status||'-']),{titulo:{t:`${Lt}.    ${s.titulo||''}`,s:9,ind:12},boldPrim:true})});
+    tabela([{t:'item',w:46},{t:'descrição'},{t:'resp.',w:70},{t:'status',w:66}],its.map((x,i)=>[Lt+(i+1),x.texto,x.resp||'-',x.status||'-']),{titulo:{t:`${Lt}.    ${s.titulo||''}`,s:9,ind:12},boldPrim:true}); desenhaImgs(si)});
   pags.forEach((p,i)=>{p.drawText('FILIPE ',{x:MG,y:40,size:6.5,font:F,color:C.faint}); const w1=F.widthOfTextAtSize('FILIPE ',6.5); p.drawText('JACOPUCCI ',{x:MG+w1,y:40,size:6.5,font:FB,color:C.faint}); p.drawText('ARQUITETURA',{x:MG+w1+FB.widthOfTextAtSize('JACOPUCCI ',6.5),y:40,size:6.5,font:F,color:C.faint});
     p.drawText('www.fj.arq.br',{x:MG,y:31,size:6.5,font:F,color:C.faint}); const t=`${i+1}/${pags.length}`; p.drawText(t,{x:W-MG-F.widthOfTextAtSize(t,8),y:31,size:8,font:F,color:C.mut})});
   const nome=nomeArqAta(a,it); doc.setTitle(nome); doc.setAuthor('Filipe Jacopucci Arquitetura'); doc.setCreator('Sistema FJA');
