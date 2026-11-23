@@ -32,7 +32,10 @@ namespace FJA.Revit.Comandos
             var marcadas = new HashSet<ElementId>(uidoc.Selection.GetElementIds().Where(id => doc.GetElement(id) is ViewSheet));
             if (marcadas.Count == 0 && doc.ActiveView is ViewSheet ativa) marcadas.Add(ativa.Id);
 
-            var linhas = folhas.Select(f => NomeArquivo.Montar(doc, f))
+            // regra do nome: a gravada no modelo, senão o padrão FJA (com Trecho opcional)
+            var regraModelo = RegraNome.DoModelo(doc);
+            var regra = (regraModelo ?? RegraNome.Padrao()).Copia();
+            var linhas = folhas.Select(f => NomeArquivo.Montar(doc, f, regra))
                 .OrderBy(l => l.Numero, Comparer<string>.Create(CompararNumero)).ToList();
             foreach (var l in linhas) l.Incluir = marcadas.Contains(l.Folha.Id);
 
@@ -49,14 +52,23 @@ namespace FJA.Revit.Comandos
 
             var o = OpcoesExportar.Carregar();
             string chave = OpcoesExportar.Chave(doc);
-            var j = new JanelaExportar(linhas, o, Exportacao.ConfiguracoesDwg(doc), chave, conjuntos);
+            var j = new JanelaExportar(linhas, o, Exportacao.ConfiguracoesDwg(doc), chave, conjuntos,
+                regra, NomeArquivo.Disponiveis(doc, folhas), r => { foreach (var l in linhas) NomeArquivo.Aplicar(doc, l, r); });
             new System.Windows.Interop.WindowInteropHelper(j) { Owner = app.MainWindowHandle };
             j.ShowDialog();
             if (!j.Confirmado) return Result.Cancelled;
             o.Gravar();
 
+            // a regra mudou: grava no modelo, para a equipe toda exportar com os mesmos nomes
+            string avisoRegra = null;
+            if (!regra.Igual(regraModelo ?? RegraNome.Padrao()))
+            {
+                try { regra.Gravar(doc); avisoRegra = "Regra do nome gravada no modelo."; }
+                catch (Exception e) { avisoRegra = "A regra do nome não foi gravada no modelo (" + e.Message + "); vale só para esta exportação."; }
+            }
+
             var sel = linhas.Where(l => l.Incluir && l.Valida).ToList();
-            var res = new ResultadoExportar();
+            var res = new ResultadoExportar { AvisoRegra = avisoRegra };
             var dwg = o.Dwg ? Exportacao.OpcoesDwg(doc, o.ConfigDwg, res) : null;
             var pdf = o.Pdf ? Exportacao.OpcoesPdf(o.Cor) : null;
 
@@ -122,6 +134,7 @@ namespace FJA.Revit.Comandos
             var txt = new List<string> { "Pasta: " + pasta };
             if (r.Pulados > 0) txt.Add(r.Pulados + " arquivo(s) já existiam e foram mantidos (opção Pular).");
             if (r.AvisoConfig != null) txt.Add(r.AvisoConfig);
+            if (r.AvisoRegra != null) txt.Add(r.AvisoRegra);
             if (r.Erros.Count > 0) txt.Add("\nErros:\n• " + string.Join("\n• ", r.Erros.Take(20)) + (r.Erros.Count > 20 ? "\n… e mais " + (r.Erros.Count - 20) : ""));
             td.MainContent = string.Join("\n", txt);
             td.Show();

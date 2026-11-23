@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.ExtensibleStorage;
 using FJA.Revit.Nucleo;
 
 namespace FJA.Revit.Pranchas
@@ -19,40 +20,185 @@ namespace FJA.Revit.Pranchas
         public bool Valida => Faltam.Count == 0 && !string.IsNullOrEmpty(Arquivo);
     }
 
+    /// <summary>Uma parte do nome: o parâmetro e se pode faltar (vazio = sai do nome, sem bloquear a prancha).</summary>
+    public sealed class ParteNome
+    {
+        public string Param;
+        public bool Opcional;
+        public ParteNome Copia() => new ParteNome { Param = Param, Opcional = Opcional };
+    }
+
     /// <summary>
-    /// Nome do arquivo = o campo "Prancha" do carimbo da FJA: Project Number - Etapa (sigla) - Disciplina (abreviação)
-    /// - Tipo de documento - Sheet Number - Current Revision (ex.: 128-AP-ARQ-DT-A002-R00). Cada parâmetro é lido na
-    /// folha e, se não estiver nela, nas informações do projeto.
+    /// Regra do nome do arquivo = a composição do campo "Prancha" do carimbo. Padrão FJA: Project Number - Etapa (sigla)
+    /// - Disciplina (abreviação) - Tipo de documento - [Trecho] - Sheet Number - Current Revision (Trecho opcional:
+    /// 131-LE-ARQ-DT-HUB-H002-R00; sem Trecho, 128-AP-ARQ-DT-A002-R00). Cada projeto pode ter a sua, gravada no
+    /// modelo (DataStorage FJA_ExportarPranchas).
+    /// </summary>
+    public sealed class RegraNome
+    {
+        public List<ParteNome> Partes = new List<ParteNome>();
+        public string Sep = "-";
+
+        static readonly Guid GUID = new Guid("6f1d2b7e-3c84-4a51-9e0b-5d7c2a1f8e43");
+        const string CAMPO = "regra";
+
+        public static RegraNome Padrao()
+        {
+            var r = new RegraNome();
+            foreach (var p in new[] { NomeArquivo.ProjectNumber, NomeArquivo.Etapa, NomeArquivo.Disciplina, NomeArquivo.Tipo })
+                r.Partes.Add(new ParteNome { Param = p });
+            r.Partes.Add(new ParteNome { Param = NomeArquivo.Trecho, Opcional = true });
+            r.Partes.Add(new ParteNome { Param = NomeArquivo.SheetNumber });
+            r.Partes.Add(new ParteNome { Param = NomeArquivo.CurrentRevision });
+            return r;
+        }
+
+        public RegraNome Copia() => new RegraNome { Sep = Sep, Partes = Partes.Select(p => p.Copia()).ToList() };
+
+        public string ParaJson()
+        {
+            return Json.Gravar(new Dictionary<string, object>
+            {
+                ["sep"] = Sep,
+                ["partes"] = Partes.Select(p => (object)new Dictionary<string, object> { ["p"] = p.Param, ["o"] = p.Opcional }).ToList(),
+            });
+        }
+
+        public static RegraNome DeJson(string s)
+        {
+            var d = Json.LerObjeto(s);
+            var r = new RegraNome { Sep = d.Txt("sep") ?? "-" };
+            foreach (var x in d.Lista("partes") ?? new List<object>())
+                if (x is Dictionary<string, object> pd && !string.IsNullOrWhiteSpace(pd.Txt("p")))
+                    r.Partes.Add(new ParteNome { Param = pd.Txt("p"), Opcional = string.Equals(pd.Txt("o"), "true", StringComparison.OrdinalIgnoreCase) });
+            return r.Partes.Count > 0 ? r : null;
+        }
+
+        public bool Igual(RegraNome o) => o != null && o.ParaJson() == ParaJson();
+
+        static DataStorage Armazem(Document doc)
+        {
+            var sc = Schema.Lookup(GUID);
+            if (sc == null) return null;
+            foreach (DataStorage ds in new FilteredElementCollector(doc).OfClass(typeof(DataStorage)))
+                try { var e = ds.GetEntity(sc); if (e != null && e.IsValid()) return ds; } catch { }
+            return null;
+        }
+
+        /// <summary>Regra gravada no modelo; null se o projeto ainda não tem uma (usa o padrão).</summary>
+        public static RegraNome DoModelo(Document doc)
+        {
+            try
+            {
+                var ds = Armazem(doc);
+                return ds == null ? null : DeJson(ds.GetEntity(Schema.Lookup(GUID)).Get<string>(CAMPO) ?? "");
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Grava a regra no modelo (numa transação própria).</summary>
+        public void Gravar(Document doc)
+        {
+            using (var t = new Transaction(doc, "Regra do nome das pranchas (FJA)"))
+            {
+                t.Start();
+                var sc = Schema.Lookup(GUID);
+                if (sc == null)
+                {
+                    var sb = new SchemaBuilder(GUID);
+                    sb.SetSchemaName("FJA_ExportarPranchas");
+                    sb.SetReadAccessLevel(AccessLevel.Public);
+                    sb.SetWriteAccessLevel(AccessLevel.Public);
+                    sb.SetDocumentation("Regra do nome dos arquivos (Ferramentas FJA > Pranchas > Exportar)");
+                    sb.AddSimpleField(CAMPO, typeof(string));
+                    sc = sb.Finish();
+                }
+                var ds = Armazem(doc) ?? DataStorage.Create(doc);
+                var e = new Entity(sc);
+                e.Set(CAMPO, ParaJson());
+                ds.SetEntity(e);
+                t.Commit();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Monta o nome do arquivo de uma folha pela regra. Project Number, Sheet Number e Current Revision vêm dos
+    /// parâmetros internos do Revit; os demais, pelo nome, na folha e, se não estiverem nela, nas informações do projeto.
     /// </summary>
     public static class NomeArquivo
     {
+        public const string ProjectNumber = "Project Number";
+        public const string SheetNumber = "Sheet Number";
+        public const string CurrentRevision = "Current Revision";
         public const string Etapa = "Etapa (sigla)";
         public const string Disciplina = "Disciplina (abreviação)";
         public const string Tipo = "Tipo de documento";
+        public const string Trecho = "Trecho";
 
-        public static LinhaPrancha Montar(Document doc, ViewSheet f)
+        public static LinhaPrancha Montar(Document doc, ViewSheet f, RegraNome regra)
         {
             var l = new LinhaPrancha { Folha = f, Numero = f.SheetNumber, NomeFolha = f.Name };
-            var pi = doc.ProjectInformation;
-            string proj = Txt(f.get_Parameter(BuiltInParameter.PROJECT_NUMBER)) ?? Txt(pi?.get_Parameter(BuiltInParameter.PROJECT_NUMBER));
-            string etapa = Param(f, pi, Etapa), disc = Param(f, pi, Disciplina), tipo = Param(f, pi, Tipo);
-            string rev = Txt(f.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION));
-            l.Disciplina = disc ?? "";
-            var partes = new List<string>();
-            void Add(string v, string nome) { if (string.IsNullOrWhiteSpace(v)) l.Faltam.Add(nome); else partes.Add(v.Trim()); }
-            Add(proj, "Project Number");
-            Add(etapa, Etapa);
-            Add(disc, Disciplina);
-            Add(tipo, Tipo);
-            Add(f.SheetNumber, "Sheet Number");
-            Add(rev, "Current Revision");
-            l.Arquivo = Limpar(string.Join("-", partes));
+            l.Disciplina = Valor(doc, f, Disciplina) ?? "";
+            Aplicar(doc, l, regra);
             return l;
         }
 
-        static string Param(Element folha, Element pi, string nome)
+        /// <summary>(Re)calcula o nome e o que falta de uma linha pela regra.</summary>
+        public static void Aplicar(Document doc, LinhaPrancha l, RegraNome regra)
         {
-            return Txt(folha.LookupParameter(nome)) ?? Txt(pi?.LookupParameter(nome));
+            l.Faltam.Clear();
+            var partes = new List<string>();
+            foreach (var p in regra.Partes)
+            {
+                string v = Valor(doc, l.Folha, p.Param);
+                if (!string.IsNullOrWhiteSpace(v)) partes.Add(v.Trim());
+                else if (!p.Opcional) l.Faltam.Add(p.Param);
+            }
+            l.Arquivo = Limpar(string.Join(regra.Sep ?? "", partes));
+        }
+
+        public static string Valor(Document doc, ViewSheet f, string nome)
+        {
+            var pi = doc.ProjectInformation;
+            switch (Chave(nome))
+            {
+                case "PROJECT NUMBER": case "NUMERO DO PROJETO":
+                    return Txt(pi?.get_Parameter(BuiltInParameter.PROJECT_NUMBER));
+                case "SHEET NUMBER": case "NUMERO DA FOLHA":
+                    return f.SheetNumber;
+                case "CURRENT REVISION": case "REVISAO ATUAL":
+                    return Txt(f.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION));
+            }
+            return Txt(f.LookupParameter(nome)) ?? Txt(pi?.LookupParameter(nome));
+        }
+
+        static string Chave(string s) => Cotagem.Regras.SemAcento(s ?? "").Trim().ToUpperInvariant();
+
+        /// <summary>Parâmetros que podem entrar no nome: os três internos e os de texto/número criados no projeto
+        /// (compartilhados ou de projeto) nas folhas e nas informações do projeto.</summary>
+        public static List<string> Disponiveis(Document doc, IEnumerable<ViewSheet> folhas)
+        {
+            var r = new SortedSet<string>(StringComparer.CurrentCultureIgnoreCase);
+            void De(Element e)
+            {
+                if (e == null) return;
+                foreach (Parameter p in e.Parameters)
+                {
+                    try
+                    {
+                        if (p.IsShared || (p.Definition is InternalDefinition idf && idf.BuiltInParameter == BuiltInParameter.INVALID))
+                            if (p.StorageType == StorageType.String || p.StorageType == StorageType.Integer || p.StorageType == StorageType.Double)
+                                r.Add(p.Definition.Name);
+                    }
+                    catch { }
+                }
+            }
+            foreach (var f in folhas.Take(30)) De(f);
+            De(doc.ProjectInformation);
+            var l = new List<string> { ProjectNumber, SheetNumber, CurrentRevision };
+            l.AddRange(r.Where(n => !l.Contains(n)));
+            return l;
         }
 
         static string Txt(Parameter p)
@@ -145,7 +291,7 @@ namespace FJA.Revit.Pranchas
     {
         public int Pdfs, Dwgs, Pulados;
         public List<string> Erros = new List<string>();
-        public string AvisoConfig;
+        public string AvisoConfig, AvisoRegra;
         public bool Cancelado;
     }
 

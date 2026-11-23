@@ -65,6 +65,11 @@ namespace FJA.Revit.Pranchas
         readonly List<string> configs;
         readonly string chave;
         readonly List<KeyValuePair<string, HashSet<int>>> conjuntos;
+        readonly RegraNome regra;
+        readonly List<string> disponiveis;
+        readonly Action<RegraNome> recalcular;
+        readonly List<TextBlock> arqs = new List<TextBlock>();
+        StackPanel spRegra;
         public bool Confirmado { get; private set; }
         /// <summary>Pasta final da exportação (a de destino, ou a pasta nova dentro dela).</summary>
         public string Pasta { get; private set; }
@@ -80,9 +85,11 @@ namespace FJA.Revit.Pranchas
         Button btExportar;
 
         public JanelaExportar(List<LinhaPrancha> linhas, OpcoesExportar o, List<string> configs, string chave,
-                              List<KeyValuePair<string, HashSet<int>>> conjuntos)
+                              List<KeyValuePair<string, HashSet<int>>> conjuntos,
+                              RegraNome regra, List<string> disponiveis, Action<RegraNome> recalcular)
         {
             this.linhas = linhas; this.o = o; this.configs = configs; this.chave = chave; this.conjuntos = conjuntos;
+            this.regra = regra; this.disponiveis = disponiveis; this.recalcular = recalcular;
             Title = "Exportar pranchas";
             Width = 1000; Height = 620; MinWidth = 820; MinHeight = 420;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -175,7 +182,6 @@ namespace FJA.Revit.Pranchas
             string[] cab = { "", "Número", "Folha", "Arquivo" };
             for (int c = 0; c < cab.Length; c++) { var tb = Celula(cab[c], true); WGrid.SetColumn(tb, c); g.Children.Add(tb); }
 
-            var repetidos = new HashSet<string>(linhas.Where(l => l.Valida).GroupBy(l => l.Arquivo, StringComparer.OrdinalIgnoreCase).Where(x => x.Count() > 1).Select(x => x.Key), StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < linhas.Count; i++)
             {
                 var l = linhas[i];
@@ -183,10 +189,8 @@ namespace FJA.Revit.Pranchas
                 var ck = new CheckBox { IsChecked = l.Incluir && l.Valida, IsEnabled = l.Valida, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
                 var num = Celula(l.Numero);
                 var nome = Celula(l.NomeFolha);
-                var arq = Celula(l.Valida ? l.Arquivo : "falta: " + string.Join(", ", l.Faltam));
-                if (!l.Valida) { arq.Foreground = new SolidColorBrush(WColor.FromRgb(176, 58, 46)); arq.ToolTip = "Preencha na folha (ou nas informações do projeto): " + string.Join(", ", l.Faltam); }
-                else if (repetidos.Contains(l.Arquivo)) { arq.Foreground = new SolidColorBrush(WColor.FromRgb(176, 110, 20)); arq.ToolTip = l.Arquivo + " — mesmo nome de outra prancha: a segunda substitui a primeira"; }
-                else arq.FontFamily = new FontFamily("Consolas");
+                var arq = Celula("");
+                arqs.Add(arq);
                 int idx = i;
                 ck.Checked += (s, a) => { linhas[idx].Incluir = true; Validar(); };
                 ck.Unchecked += (s, a) => { linhas[idx].Incluir = false; Validar(); };
@@ -198,11 +202,20 @@ namespace FJA.Revit.Pranchas
             dp.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = g });
             cLista.Child = dp;
             raiz.Children.Add(cLista);
+            PintarNomes();
 
             // ---- opções
             var cOp = Estilo.Cartao(this);
             var sp = new StackPanel { Margin = new Thickness(12) };
-            sp.Children.Add(new TextBlock { Text = "Exportar", FontWeight = FontWeights.SemiBold });
+
+            // regra do nome do arquivo (= campo "Prancha" do carimbo), gravada no modelo
+            sp.Children.Add(new TextBlock { Text = "Nome do arquivo", FontWeight = FontWeights.SemiBold });
+            spRegra = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+            sp.Children.Add(spRegra);
+            MontarRegra();
+
+            var tit = new TextBlock { Text = "Exportar", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 16, 0, 0) };
+            sp.Children.Add(tit);
 
             ckPdf = new CheckBox { Content = "PDF (um arquivo por prancha)", IsChecked = o.Pdf, Margin = new Thickness(0, 10, 0, 0) };
             ckPdf.Checked += (s, a) => Validar(); ckPdf.Unchecked += (s, a) => Validar();
@@ -277,6 +290,86 @@ namespace FJA.Revit.Pranchas
             rod.Children.Add(txErro);
             WGrid.SetRow(rod, 1); WGrid.SetColumnSpan(rod, 3);
             raiz.Children.Add(rod);
+        }
+
+        /// <summary>Texto e cor da coluna Arquivo (falta parâmetro = vermelho; nome repetido = laranja) e caixas habilitadas.</summary>
+        void PintarNomes()
+        {
+            var repetidos = new HashSet<string>(linhas.Where(l => l.Valida).GroupBy(l => l.Arquivo, StringComparer.OrdinalIgnoreCase)
+                .Where(x => x.Count() > 1).Select(x => x.Key), StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < linhas.Count; i++)
+            {
+                var l = linhas[i]; var arq = arqs[i];
+                arq.Text = l.Valida ? l.Arquivo : "falta: " + string.Join(", ", l.Faltam);
+                arq.FontFamily = l.Valida ? new FontFamily("Consolas") : FontFamily;
+                if (!l.Valida) { arq.Foreground = new SolidColorBrush(WColor.FromRgb(176, 58, 46)); arq.ToolTip = "Vazio na folha e nas informações do projeto: " + string.Join(", ", l.Faltam); }
+                else if (repetidos.Contains(l.Arquivo)) { arq.Foreground = new SolidColorBrush(WColor.FromRgb(176, 110, 20)); arq.ToolTip = l.Arquivo + " — mesmo nome de outra prancha"; }
+                else { arq.Foreground = P("Tinta", 30, 30, 28); arq.ToolTip = l.Arquivo; }
+                cks[i].IsEnabled = l.Valida;
+                if (!l.Valida) cks[i].IsChecked = false;
+            }
+        }
+
+        /// <summary>Editor da regra: uma linha por parâmetro (opcional, subir, descer, tirar), "+ parâmetro", separador e padrão.</summary>
+        void MontarRegra()
+        {
+            spRegra.Children.Clear();
+            for (int i = 0; i < regra.Partes.Count; i++)
+            {
+                var p = regra.Partes[i]; int k = i;
+                var lin = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
+                Button Mini(string t, string dica, Action ac, bool ativo = true)
+                {
+                    var b = new Button { Content = t, Width = 22, Height = 22, Padding = new Thickness(0), Margin = new Thickness(2, 0, 0, 0), ToolTip = dica, IsEnabled = ativo, FontSize = 11 };
+                    if (TryFindResource("Discreto") is Style st) b.Style = st;
+                    b.Click += (s, a) => ac();
+                    return b;
+                }
+                var bx = Mini("✕", "Tirar do nome", () => { regra.Partes.RemoveAt(k); MudouRegra(); }, regra.Partes.Count > 1);
+                var bd = Mini("↓", "Descer", () => { var t = regra.Partes[k]; regra.Partes.RemoveAt(k); regra.Partes.Insert(k + 1, t); MudouRegra(); }, k < regra.Partes.Count - 1);
+                var bs = Mini("↑", "Subir", () => { var t = regra.Partes[k]; regra.Partes.RemoveAt(k); regra.Partes.Insert(k - 1, t); MudouRegra(); }, k > 0);
+                var ck = new CheckBox { Content = "opc.", IsChecked = p.Opcional, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 2, 0), FontSize = 11.5, ToolTip = "Opcional: se estiver vazio, sai do nome" };
+                ck.Checked += (s, a) => { regra.Partes[k].Opcional = true; MudouRegra(false); };
+                ck.Unchecked += (s, a) => { regra.Partes[k].Opcional = false; MudouRegra(false); };
+                foreach (var e in new UIElement[] { bx, bd, bs, ck }) { DockPanel.SetDock(e, Dock.Right); lin.Children.Add(e); }
+                lin.Children.Add(new TextBlock { Text = p.Param, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = p.Param });
+                spRegra.Children.Add(lin);
+            }
+
+            var rod = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+            var btPadrao = Estilo.Botao(this, "Padrão", "Discreto");
+            btPadrao.Padding = new Thickness(8, 2, 8, 2);
+            btPadrao.ToolTip = "Padrão FJA: Project Number - Etapa - Disciplina - Tipo de documento - Trecho (opc.) - Sheet Number - Current Revision";
+            btPadrao.Click += (s, a) => { var pd = RegraNome.Padrao(); regra.Partes = pd.Partes; regra.Sep = pd.Sep; MudouRegra(); };
+            DockPanel.SetDock(btPadrao, Dock.Right);
+            rod.Children.Add(btPadrao);
+            var txSep = new TextBox { Text = regra.Sep, Width = 30, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Separador", HorizontalContentAlignment = HorizontalAlignment.Center };
+            txSep.TextChanged += (s, a) => { regra.Sep = txSep.Text ?? ""; MudouRegra(false); };
+            DockPanel.SetDock(txSep, Dock.Left);
+            rod.Children.Add(txSep);
+            var cbAdd = new ComboBox { ToolTip = "Acrescentar parâmetro (da folha ou das informações do projeto)" };
+            cbAdd.Items.Add("+ parâmetro");
+            foreach (var n in disponiveis.Where(n => !regra.Partes.Any(x => string.Equals(x.Param, n, StringComparison.OrdinalIgnoreCase)))) cbAdd.Items.Add(n);
+            cbAdd.SelectedIndex = 0;
+            cbAdd.SelectionChanged += (s, a) =>
+            {
+                if (cbAdd.SelectedIndex <= 0) return;
+                string n = cbAdd.SelectedItem as string;
+                // entra antes do Sheet Number (onde costumam ficar os parâmetros extras, como Trecho), senão no fim
+                int pos = regra.Partes.FindIndex(x => x.Param == NomeArquivo.SheetNumber);
+                regra.Partes.Insert(pos >= 0 ? pos : regra.Partes.Count, new ParteNome { Param = n });
+                Dispatcher.BeginInvoke(new Action(() => MudouRegra()));
+            };
+            rod.Children.Add(cbAdd);
+            spRegra.Children.Add(rod);
+        }
+
+        void MudouRegra(bool remontar = true)
+        {
+            if (remontar) Dispatcher.BeginInvoke(new Action(MontarRegra));
+            recalcular(regra);
+            PintarNomes();
+            Validar();
         }
 
         void Filtrar()
