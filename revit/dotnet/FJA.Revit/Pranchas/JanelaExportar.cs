@@ -64,20 +64,25 @@ namespace FJA.Revit.Pranchas
         readonly OpcoesExportar o;
         readonly List<string> configs;
         readonly string chave;
+        readonly List<KeyValuePair<string, HashSet<int>>> conjuntos;
         public bool Confirmado { get; private set; }
+        /// <summary>Pasta final da exportação (a de destino, ou a pasta nova dentro dela).</summary>
         public string Pasta { get; private set; }
+        /// <summary>Nome da pasta nova (AA-MM-DD descrição), ou null.</summary>
+        public string PastaNova { get; private set; }
 
         readonly List<CheckBox> cks = new List<CheckBox>();
         readonly List<UIElement[]> celulas = new List<UIElement[]>();
-        TextBox txFiltro, txPasta;
-        ComboBox cbDisc, cbCor, cbConfig, cbExiste;
-        CheckBox ckPdf, ckDwg, ckSub, ckAbrir;
-        TextBlock txErro, txConta;
+        TextBox txFiltro, txPasta, txDescricao;
+        ComboBox cbDisc, cbConjunto, cbCor, cbConfig, cbExiste;
+        CheckBox ckPdf, ckDwg, ckSub, ckAbrir, ckNova;
+        TextBlock txErro, txConta, txNomeNova;
         Button btExportar;
 
-        public JanelaExportar(List<LinhaPrancha> linhas, OpcoesExportar o, List<string> configs, string chave)
+        public JanelaExportar(List<LinhaPrancha> linhas, OpcoesExportar o, List<string> configs, string chave,
+                              List<KeyValuePair<string, HashSet<int>>> conjuntos)
         {
-            this.linhas = linhas; this.o = o; this.configs = configs; this.chave = chave;
+            this.linhas = linhas; this.o = o; this.configs = configs; this.chave = chave; this.conjuntos = conjuntos;
             Title = "Exportar pranchas";
             Width = 1000; Height = 620; MinWidth = 820; MinHeight = 420;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -130,16 +135,29 @@ namespace FJA.Revit.Pranchas
             pb.Children.Add(btTodas); pb.Children.Add(btNenhuma);
             DockPanel.SetDock(pb, Dock.Right);
             topo.Children.Add(pb);
-            txFiltro = new TextBox { Width = 180, VerticalAlignment = VerticalAlignment.Center, ToolTip = "Filtrar pelo número, nome da folha ou nome do arquivo" };
+            cbConjunto = new ComboBox { Width = 200, VerticalAlignment = VerticalAlignment.Center, ToolTip = "Conjunto de folhas (sheet set)" };
+            cbConjunto.Items.Add("Todas as folhas");
+            foreach (var c in conjuntos) cbConjunto.Items.Add(c.Key);
+            cbConjunto.SelectedIndex = 0;
+            cbConjunto.SelectionChanged += (s, a) =>
+            {
+                // escolher um conjunto: mostra só as folhas dele, todas marcadas
+                if (cbConjunto.SelectedIndex > 0)
+                {
+                    var idx = conjuntos[cbConjunto.SelectedIndex - 1].Value;
+                    for (int i = 0; i < cks.Count; i++) cks[i].IsChecked = idx.Contains(i) && linhas[i].Valida;
+                }
+                Filtrar();
+            };
+            txFiltro = new TextBox { Width = 150, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Filtrar pelo número, nome da folha ou nome do arquivo" };
             txFiltro.TextChanged += (s, a) => Filtrar();
-            cbDisc = new ComboBox { Width = 110, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Disciplina (abreviação)" };
+            cbDisc = new ComboBox { Width = 90, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Disciplina (abreviação)" };
             cbDisc.Items.Add("Todas");
             foreach (var d in linhas.Select(l => l.Disciplina).Where(x => x != "").Distinct().OrderBy(x => x)) cbDisc.Items.Add(d);
             cbDisc.SelectedIndex = 0;
             cbDisc.SelectionChanged += (s, a) => Filtrar();
             var pf = new StackPanel { Orientation = Orientation.Horizontal };
-            pf.Children.Add(new TextBlock { Text = "Filtrar", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
-            pf.Children.Add(txFiltro); pf.Children.Add(cbDisc);
+            pf.Children.Add(cbConjunto); pf.Children.Add(txFiltro); pf.Children.Add(cbDisc);
             topo.Children.Add(pf);
             DockPanel.SetDock(topo, Dock.Top);
             dp.Children.Add(topo);
@@ -205,9 +223,6 @@ namespace FJA.Revit.Pranchas
             cbConfig.SelectedIndex = sel >= 0 ? sel : nomes.IndexOf(Exportacao.ConfigFJA);
             cbConfig.Tag = nomes;
             sp.Children.Add(cbConfig);
-            var nt = Nota(Exportacao.ConfigFJA + ": opções padrão do Revit, cores True Color (RGB) e sem referências externas.");
-            nt.Margin = new Thickness(20, 4, 0, 0);
-            sp.Children.Add(nt);
 
             sp.Children.Add(Rotulo("Pasta de destino"));
             var pp = new DockPanel();
@@ -220,6 +235,18 @@ namespace FJA.Revit.Pranchas
             txPasta.TextChanged += (s, a) => Validar();
             pp.Children.Add(txPasta);
             sp.Children.Add(pp);
+            ckNova = new CheckBox { Content = "Criar pasta nova", IsChecked = o.NovaPasta, Margin = new Thickness(0, 8, 0, 0) };
+            ckNova.Checked += (s, a) => Validar(); ckNova.Unchecked += (s, a) => Validar();
+            sp.Children.Add(ckNova);
+            txDescricao = new TextBox
+            {
+                Text = o.Descricoes.TryGetValue(chave, out var dv) ? Convert.ToString(dv) : "",
+                Margin = new Thickness(20, 4, 0, 0), ToolTip = "Descrição, ex.: EMISSÃO FINAL EXECUTIVO - ARQUITETURA - 1ª PARTE",
+            };
+            txDescricao.TextChanged += (s, a) => Validar();
+            sp.Children.Add(txDescricao);
+            txNomeNova = new TextBlock { Margin = new Thickness(20, 4, 0, 0), FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Foreground = P("Suave", 94, 94, 92) };
+            sp.Children.Add(txNomeNova);
             ckSub = new CheckBox { Content = "Separar em subpastas PDF e DWG", IsChecked = o.Subpastas, Margin = new Thickness(0, 6, 0, 0) };
             sp.Children.Add(ckSub);
 
@@ -231,7 +258,6 @@ namespace FJA.Revit.Pranchas
 
             ckAbrir = new CheckBox { Content = "Abrir a pasta ao terminar", IsChecked = o.AbrirPasta, Margin = new Thickness(0, 12, 0, 0) };
             sp.Children.Add(ckAbrir);
-            sp.Children.Add(Nota("\nNome do arquivo = campo \"Prancha\" do carimbo: Project Number - Etapa (sigla) - Disciplina (abreviação) - Tipo de documento - Sheet Number - Current Revision."));
             cOp.Child = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
             WGrid.SetColumn(cOp, 2);
             raiz.Children.Add(cOp);
@@ -258,10 +284,11 @@ namespace FJA.Revit.Pranchas
             if (txFiltro == null || cbDisc == null) return;
             string f = (txFiltro.Text ?? "").Trim();
             string d = cbDisc.SelectedIndex > 0 ? cbDisc.SelectedItem as string : null;
+            var conj = cbConjunto != null && cbConjunto.SelectedIndex > 0 ? conjuntos[cbConjunto.SelectedIndex - 1].Value : null;
             for (int i = 0; i < linhas.Count; i++)
             {
                 var l = linhas[i];
-                bool ok = (d == null || l.Disciplina == d) &&
+                bool ok = (conj == null || conj.Contains(i)) && (d == null || l.Disciplina == d) &&
                           (f == "" || (l.Numero + " " + l.NomeFolha + " " + l.Arquivo).IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0);
                 foreach (var e in celulas[i]) e.Visibility = ok ? Visibility.Visible : Visibility.Collapsed;
             }
@@ -283,12 +310,20 @@ namespace FJA.Revit.Pranchas
             int inval = linhas.Count(l => !l.Valida);
             if (txConta != null)
                 txConta.Text = n + (n == 1 ? " prancha marcada" : " pranchas marcadas") + " de " + linhas.Count +
-                               (inval > 0 ? " · " + inval + " sem nome completo (parâmetros vazios), não exportáveis" : "");
+                               (inval > 0 ? " · " + inval + " sem nome completo" : "");
+            bool nova = ckNova != null && ckNova.IsChecked == true;
+            if (txDescricao != null) txDescricao.IsEnabled = nova;
+            if (txNomeNova != null)
+            {
+                txNomeNova.Visibility = nova ? Visibility.Visible : Visibility.Collapsed;
+                txNomeNova.Text = NomeArquivo.PastaEmissao(txDescricao.Text);
+            }
             string erro = "";
             if (n == 0) erro = "Marque ao menos uma prancha.";
             else if (ckPdf.IsChecked != true && ckDwg.IsChecked != true) erro = "Escolha PDF, DWG ou os dois.";
             else if (string.IsNullOrWhiteSpace(txPasta.Text)) erro = "Escolha a pasta de destino.";
             else if (!Path.IsPathRooted(txPasta.Text.Trim())) erro = "A pasta de destino precisa ser um caminho completo.";
+            else if (nova && string.IsNullOrWhiteSpace(txDescricao.Text)) erro = "Escreva a descrição da pasta nova.";
             txErro.Text = erro;
             btExportar.IsEnabled = erro == "";
             btExportar.Content = n > 0 ? "Exportar " + n : "Exportar";
@@ -296,7 +331,12 @@ namespace FJA.Revit.Pranchas
 
         void Confirmar()
         {
-            Pasta = txPasta.Text.Trim();
+            string baseP = txPasta.Text.Trim();
+            o.Pastas[chave] = baseP;
+            o.NovaPasta = ckNova.IsChecked == true;
+            if (!string.IsNullOrWhiteSpace(txDescricao.Text)) o.Descricoes[chave] = txDescricao.Text.Trim();
+            PastaNova = o.NovaPasta ? NomeArquivo.PastaEmissao(txDescricao.Text) : null;
+            Pasta = PastaNova != null ? Path.Combine(baseP, PastaNova) : baseP;
             o.Pdf = ckPdf.IsChecked == true;
             o.Dwg = ckDwg.IsChecked == true;
             o.Cor = (CorPdf)Math.Max(0, cbCor.SelectedIndex);
@@ -305,7 +345,6 @@ namespace FJA.Revit.Pranchas
             o.Subpastas = ckSub.IsChecked == true;
             o.Substituir = cbExiste.SelectedIndex == 0;
             o.AbrirPasta = ckAbrir.IsChecked == true;
-            o.Pastas[chave] = Pasta;
             Confirmado = true;
             Close();
         }

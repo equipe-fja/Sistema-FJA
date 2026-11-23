@@ -11,13 +11,16 @@ Exporta as pranchas em **PDF e DWG ao mesmo tempo**, um arquivo por prancha, par
 
 ## Como funciona
 - **Lista:** todas as folhas do projeto (menos os espaços reservados), em ordem de número (A2 antes de A10), com o nome do arquivo ao lado. Vêm marcadas as folhas selecionadas no navegador de projeto; sem seleção, a folha ativa. Filtro por texto (número, nome da folha ou do arquivo) e por disciplina; "Marcar as visíveis" e "Desmarcar todas".
+- **Conjuntos de folhas (2.34.0):** lista dos sheet sets do projeto; escolher um mostra só as folhas dele, todas marcadas ("Todas as folhas" volta a mostrar tudo sem mudar as marcas).
 - **Parâmetros:** Project Number nas informações do projeto; Etapa (sigla), Disciplina (abreviação) e Tipo de documento na folha ou, se não estiverem nela, nas informações do projeto; Sheet Number e Current Revision da folha. Folha com algum parâmetro vazio aparece em vermelho com o que falta e não pode ser marcada. Nomes repetidos entre folhas aparecem em laranja (a segunda substitui a primeira). Caracteres que o Windows não aceita viram "_".
 - **PDF:** exportação nativa do Revit (`PDFExportOptions`), uma chamada por folha (`Combine` + `FileName`), papel do tamanho da folha, zoom 100 %, sem limites de recorte, caixas de escopo, planos de referência e marcas de vista sem referência. Cor: colorido (padrão), tons de cinza ou preto.
 - **DWG:** `Document.Export(pasta, nome, [folha], opções)` com a configuração escolhida (padrão FJA TRUE COLOR: `ExportColorMode.TrueColorPerView`, `MergedViews = true`). Outra configuração do projeto pode ser escolhida na lista.
 - **Pasta:** escolhida na hora e lembrada **por projeto** (caminho do modelo central, ou do arquivo). Opção de subpastas `PDF\` e `DWG\`.
+- **Pasta nova (2.34.0):** opção "Criar pasta nova" dentro da pasta de destino, com o nome **AA-MM-DD + descrição** (data de hoje), no modelo das emissões da FJA: `26-02-02 EMISSÃO FINAL EXECUTIVO - ARQUITETURA - 1ª PARTE`. A descrição é lembrada por projeto; se a pasta já existir, é usada.
 - **Arquivo que já existe:** substituir (padrão; apaga e exporta de novo — se estiver aberto em outro programa, vai para os erros) ou pular.
 - **Progresso:** janela com a prancha atual e Cancelar (para depois da prancha em andamento). No fim, relatório com quantos PDFs e DWGs saíram, pulados, configuração criada e erros; abre a pasta (opção).
-- **Preferências por pessoa:** `%APPDATA%\FJA\exportar-pranchas.json` (PDF/DWG, cor, configuração, subpastas, substituir, abrir a pasta e as pastas por projeto).
+- **Preferências por pessoa:** `%APPDATA%\FJA\exportar-pranchas.json` (PDF/DWG, cor, configuração, subpastas, substituir, abrir a pasta, pasta nova, e as pastas e descrições por projeto).
+- **Janela sem textos explicativos** (pedido da FJA, 2.34.0): só os controles; detalhes nas dicas (tooltips).
 
 ## Próximas etapas (a combinar)
 - Revisões anteriores da mesma prancha na pasta (ex.: `…-R00` quando sai a `R01`): avisar e mover para `_SUPERADOS`.

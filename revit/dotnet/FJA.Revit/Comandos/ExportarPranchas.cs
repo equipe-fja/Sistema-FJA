@@ -36,9 +36,20 @@ namespace FJA.Revit.Comandos
                 .OrderBy(l => l.Numero, Comparer<string>.Create(CompararNumero)).ToList();
             foreach (var l in linhas) l.Incluir = marcadas.Contains(l.Folha.Id);
 
+            // conjuntos de folhas (sheet sets) do projeto: nome → índices das linhas
+            var conjuntos = new List<KeyValuePair<string, HashSet<int>>>();
+            var porId = new Dictionary<ElementId, int>();
+            for (int i = 0; i < linhas.Count; i++) porId[linhas[i].Folha.Id] = i;
+            foreach (var vs in new FilteredElementCollector(doc).OfClass(typeof(ViewSheetSet)).Cast<ViewSheetSet>().OrderBy(s => s.Name))
+            {
+                var idx = new HashSet<int>();
+                try { foreach (View v in vs.Views) if (v is ViewSheet && porId.TryGetValue(v.Id, out int k)) idx.Add(k); } catch { }
+                if (idx.Count > 0) conjuntos.Add(new KeyValuePair<string, HashSet<int>>(vs.Name, idx));
+            }
+
             var o = OpcoesExportar.Carregar();
             string chave = OpcoesExportar.Chave(doc);
-            var j = new JanelaExportar(linhas, o, Exportacao.ConfiguracoesDwg(doc), chave);
+            var j = new JanelaExportar(linhas, o, Exportacao.ConfiguracoesDwg(doc), chave, conjuntos);
             new System.Windows.Interop.WindowInteropHelper(j) { Owner = app.MainWindowHandle };
             j.ShowDialog();
             if (!j.Confirmado) return Result.Cancelled;
@@ -48,6 +59,12 @@ namespace FJA.Revit.Comandos
             var res = new ResultadoExportar();
             var dwg = o.Dwg ? Exportacao.OpcoesDwg(doc, o.ConfigDwg, res) : null;
             var pdf = o.Pdf ? Exportacao.OpcoesPdf(o.Cor) : null;
+
+            if (j.PastaNova != null)
+            {
+                try { System.IO.Directory.CreateDirectory(j.Pasta); }
+                catch (Exception e) { TaskDialog.Show(Titulo, "Não foi possível criar a pasta:\n" + j.Pasta + "\n\n" + e.Message); return Result.Failed; }
+            }
 
             var prog = new JanelaProgresso(sel.Count);
             new System.Windows.Interop.WindowInteropHelper(prog) { Owner = app.MainWindowHandle };

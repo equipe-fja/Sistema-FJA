@@ -62,6 +62,11 @@ namespace FJA.Revit.Pranchas
             return string.IsNullOrWhiteSpace(s) ? null : s;
         }
 
+        /// <summary>Nome da pasta de uma emissão: data de hoje (AA-MM-DD) + espaço + descrição, ex.:
+        /// "26-02-02 EMISSÃO FINAL EXECUTIVO - ARQUITETURA - 1ª PARTE".</summary>
+        public static string PastaEmissao(string descricao) =>
+            Limpar(DateTime.Now.ToString("yy-MM-dd", CultureInfo.InvariantCulture) + " " + (descricao ?? "").Trim());
+
         /// <summary>Tira os caracteres que o Windows não aceita em nome de arquivo.</summary>
         public static string Limpar(string s)
         {
@@ -77,10 +82,11 @@ namespace FJA.Revit.Pranchas
     /// <summary>Preferências da pessoa (%APPDATA%\FJA\exportar-pranchas.json); a pasta é lembrada por projeto.</summary>
     public sealed class OpcoesExportar
     {
-        public bool Pdf = true, Dwg = true, Subpastas, Substituir = true, AbrirPasta = true;
+        public bool Pdf = true, Dwg = true, Subpastas, Substituir = true, AbrirPasta = true, NovaPasta;
         public CorPdf Cor = CorPdf.Colorido;
         public string ConfigDwg = Exportacao.ConfigFJA;
         public Dictionary<string, object> Pastas = new Dictionary<string, object>();
+        public Dictionary<string, object> Descricoes = new Dictionary<string, object>();   // última descrição da pasta nova, por projeto
 
         static string Arquivo => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FJA", "exportar-pranchas.json");
 
@@ -93,7 +99,8 @@ namespace FJA.Revit.Pranchas
                 var d = Json.LerObjeto(File.ReadAllText(Arquivo, Encoding.UTF8));
                 bool B(string k, bool padrao) { var t = d.Txt(k); return t == null ? padrao : t.Equals("true", StringComparison.OrdinalIgnoreCase) || t == "1"; }
                 o.Pdf = B("pdf", true); o.Dwg = B("dwg", true); o.Subpastas = B("subpastas", false);
-                o.Substituir = B("substituir", true); o.AbrirPasta = B("abrirPasta", true);
+                o.Substituir = B("substituir", true); o.AbrirPasta = B("abrirPasta", true); o.NovaPasta = B("novaPasta", false);
+                o.Descricoes = d.Obj("descricoes") ?? new Dictionary<string, object>();
                 if (Enum.TryParse(d.Txt("cor") ?? "", true, out CorPdf c)) o.Cor = c;
                 o.ConfigDwg = d.Txt("configDwg") ?? Exportacao.ConfigFJA;
                 o.Pastas = d.Obj("pastas") ?? new Dictionary<string, object>();
@@ -111,6 +118,7 @@ namespace FJA.Revit.Pranchas
                 {
                     ["pdf"] = Pdf, ["dwg"] = Dwg, ["subpastas"] = Subpastas, ["substituir"] = Substituir, ["abrirPasta"] = AbrirPasta,
                     ["cor"] = Cor.ToString(), ["configDwg"] = ConfigDwg, ["pastas"] = Pastas,
+                    ["novaPasta"] = NovaPasta, ["descricoes"] = Descricoes,
                 }), Encoding.UTF8);
             }
             catch { }
