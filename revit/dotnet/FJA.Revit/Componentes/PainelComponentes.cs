@@ -149,10 +149,10 @@ namespace FJA.Revit.Componentes
             if (EstaVisivel != null) visivel = EstaVisivel();
             else try { visivel = app.GetDockablePane(Registro.Id).IsShown(); } catch { visivel = false; }
             if (!visivel) return;
+            if (!dadosLidos) { if (!lendo) LerSistemaEmSegundoPlano(); return; }   // a leitura termina e marca "sujo" de novo
             sujo = false;
             try
             {
-                if (!dadosLidos) CarregarDados();
                 Recarregar(app);
             }
             catch (Exception ex) { Status("Erro ao ler: " + ex.Message); }
@@ -187,16 +187,6 @@ namespace FJA.Revit.Componentes
 
         DateTime lidoEm = DateTime.MinValue;
 
-        void CarregarDados()
-        {
-            dadosLidos = true;
-            lidoEm = DateTime.Now;
-            dados = null; erroDados = "";
-            try { dados = DadosSistema.Carregar(op.Dev); }
-            catch (Exception e) { erroDados = e.Message; }
-            docChave = "";   // força escolher o projeto de novo
-        }
-
         /// <summary>Lê o modelo ativo (no contexto da API) e redesenha.</summary>
         void Recarregar(RUI.UIApplication app)
         {
@@ -210,7 +200,7 @@ namespace FJA.Revit.Componentes
             }
             string k = Chave(doc);
             // outro modelo e dados do sistema com mais de 5 minutos: relê (o sistema republica a biblioteca a cada alteração)
-            if (k != docChave && dadosLidos && (DateTime.Now - lidoEm).TotalMinutes > 5) CarregarDados();
+            if (k != docChave && dadosLidos && !lendo && (DateTime.Now - lidoEm).TotalMinutes > 5) LerSistemaEmSegundoPlano();
             if (k != docChave)
             {
                 docChave = k; docTitulo = doc.Title;
@@ -265,6 +255,58 @@ namespace FJA.Revit.Componentes
             return t;
         }
 
+        TextBlock txtAtu;
+        bool lendo, pararGiro;
+
+        static System.Windows.Shapes.Path Icone(string dados) => new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse(dados), Stroke = Suave, StrokeThickness = 1.5, Width = 16, Height = 16, Stretch = Stretch.Uniform,
+            StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+        };
+
+        Button BotaoIcone(UIElement conteudo, RoutedEventHandler clique, string dica)
+        {
+            var b = new Button { Content = conteudo, ToolTip = dica, Margin = new Thickness(2, 0, 0, 0), MinHeight = 28, Width = 28, Padding = new Thickness(0) };
+            if (TryFindResource("Discreto") is Style st) b.Style = st;
+            b.Click += clique;
+            return b;
+        }
+
+        void Girar(bool on)
+        {
+            if (!(txtAtu?.RenderTransform is RotateTransform rt)) return;
+            if (on) rt.BeginAnimation(RotateTransform.AngleProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 360, TimeSpan.FromSeconds(0.9))
+            { RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+            else { rt.BeginAnimation(RotateTransform.AngleProperty, null); rt.Angle = 0; }
+        }
+
+        void Reler()
+        {
+            if (lendo) return;
+            LerSistemaEmSegundoPlano();
+        }
+
+        /// <summary>Lê o sistema (rede) fora da linha da interface, com o ↻ girando; ao terminar, relê o modelo (no contexto da
+        /// API, pelo ExternalEvent) e para o giro.</summary>
+        void LerSistemaEmSegundoPlano()
+        {
+            lendo = true;
+            Girar(true);
+            bool dev = op.Dev;
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                DadosSistema d = null; string erro = "";
+                try { d = DadosSistema.Carregar(dev); } catch (Exception e) { erro = e.Message; }
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    dados = d; erroDados = erro; dadosLidos = true; lidoEm = DateTime.Now;
+                    docChave = "";   // escolhe o projeto de novo com os dados novos
+                    sujo = true; pararGiro = true;
+                    Pedir(_ => { });
+                }));
+            });
+        }
+
         Button Botao(string s, RoutedEventHandler clique, bool primario = false, string dica = null)
         {
             var b = new Button { Content = s, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 6, 0), MinHeight = 26 };
@@ -285,14 +327,29 @@ namespace FJA.Revit.Componentes
 
             // 0: título, fonte e atualizar
             var cab = new DockPanel { Margin = new Thickness(0, 0, 0, 6), LastChildFill = true };
-            var btAtu = Botao("↻", (s, a) => { dadosLidos = false; sujo = true; Pedir(_ => { }); }, false, "Ler de novo o sistema e o modelo");
-            btAtu.Margin = new Thickness(6, 0, 0, 0);
+            // ↻ gira enquanto o sistema e o modelo são relidos
+            txtAtu = new TextBlock
+            {
+                Text = "↻", FontFamily = new FontFamily("Segoe UI Symbol"), FontSize = 15, Foreground = Suave,
+                RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform(0),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            };
+            var btAtu = BotaoIcone(txtAtu, (s, a) => Reler(), "Ler de novo o sistema e o modelo");
             DockPanel.SetDock(btAtu, Dock.Right);
             cab.Children.Add(btAtu);
-            cbFonte = new ComboBox { Width = 132, ToolTip = "De onde vêm os dados do sistema" };
+            // ícones: localizar a seleção do modelo na árvore e carregar uma família (.rfa)
+            var btLoc = BotaoIcone(Icone("M11,2 L11,6 M11,16 L11,20 M2,11 L6,11 M16,11 L20,11 M15,11 A4,4 0 1 1 7,11 A4,4 0 1 1 15,11 Z"),
+                (s, a) => Localizar(), "Localizar seleção: mostra na árvore o tipo do elemento selecionado no modelo");
+            DockPanel.SetDock(btLoc, Dock.Right);
+            cab.Children.Add(btLoc);
+            var btRfa = BotaoIcone(Icone("M2,6 L8,6 L10,8 L20,8 L20,18 L2,18 Z M11,10.5 L11,15.5 M8.5,13 L13.5,13"),
+                (s, a) => CarregarRfa(), "Carregar família (.rfa) no modelo");
+            DockPanel.SetDock(btRfa, Dock.Right);
+            cab.Children.Add(btRfa);
+            cbFonte = new ComboBox { Width = 120, Margin = new Thickness(0, 0, 4, 0), ToolTip = "De onde vêm os dados do sistema" };
             cbFonte.Items.Add("Oficial"); cbFonte.Items.Add("Desenvolvimento");
             cbFonte.SelectedIndex = op.Dev ? 1 : 0;
-            cbFonte.SelectionChanged += (s, a) => { op.Dev = cbFonte.SelectedIndex == 1; op.Gravar(); dadosLidos = false; sujo = true; Pedir(_ => { }); };
+            cbFonte.SelectionChanged += (s, a) => { op.Dev = cbFonte.SelectedIndex == 1; op.Gravar(); Reler(); };
             DockPanel.SetDock(cbFonte, Dock.Right);
             cab.Children.Add(cbFonte);
             cab.Children.Add(T("Componentes", Tinta, 15, true));
@@ -323,12 +380,9 @@ namespace FJA.Revit.Componentes
             DockPanel.SetDock(btSincTudo, Dock.Right);
             lin.Children.Add(btSincTudo);
             lbResumo = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+            lbResumo.ToolTip = Legenda();   // o que cada cor quer dizer
             lin.Children.Add(lbResumo);
             sp1.Children.Add(lin);
-            var wpAc = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
-            wpAc.Children.Add(Botao("Carregar família…", (s, a) => CarregarRfa(), false, "Carrega uma família (.rfa) no modelo; depois, ligue os tipos a um código"));
-            wpAc.Children.Add(Botao("Localizar seleção", (s, a) => Localizar(), false, "Mostra na árvore o tipo do elemento selecionado no modelo"));
-            sp1.Children.Add(wpAc);
             Grid.SetRow(sp1, 1); raiz.Children.Add(sp1);
 
             // 2: busca e filtro
@@ -394,7 +448,19 @@ namespace FJA.Revit.Componentes
 
         void Pedir(Action<RUI.UIApplication> a)
         {
-            fila.Pedir(app => { a(app); if (sujo) { sujo = false; if (!dadosLidos) CarregarDados(); Recarregar(app); } });
+            fila.Pedir(app =>
+            {
+                try
+                {
+                    a(app);
+                    if (sujo)
+                    {
+                        if (!dadosLidos) { if (!lendo) LerSistemaEmSegundoPlano(); }
+                        else { sujo = false; Recarregar(app); }
+                    }
+                }
+                finally { if (pararGiro) { pararGiro = false; lendo = false; Girar(false); } }
+            });
             ev.Raise();
         }
 
@@ -512,10 +578,12 @@ namespace FJA.Revit.Componentes
             try
             {
                 // projeto e fonte
-                lbFonte.Text = dados != null ? dados.Rotulo + (dados.GeradoEm != "" ? " · publicado em " + dados.GeradoEm : "")
-                    : (dadosLidos ? "Sistema não lido: " + erroDados : "Lendo o sistema…");
-                if (erroDados != "" && dados != null) lbFonte.Text += " · " + erroDados;
-                if (docChave != "" && dados != null) lbFonte.Text += Environment.NewLine + "Projeto do modelo: " + projetoOrigem;
+                // fonte e origem do projeto ficam nas dicas; o texto só aparece para erro ou leitura
+                cbFonte.ToolTip = dados != null ? dados.Rotulo + (dados.GeradoEm != "" ? " · publicado em " + dados.GeradoEm : "") : "De onde vêm os dados do sistema";
+                lbFonte.Text = dados == null ? (dadosLidos ? "Sistema não lido: " + erroDados : "Lendo o sistema…") : erroDados;
+                lbFonte.Visibility = lbFonte.Text == "" ? Visibility.Collapsed : Visibility.Visible;
+                lbFonte.Foreground = dados == null && dadosLidos || erroDados != "" ? Vermelho : Suave;
+                lbProjeto.ToolTip = "Projeto do modelo: " + projetoOrigem;
                 var pj = dados?.Projeto;
                 lbProjeto.Text = docChave == "" ? "" : pj != null ? ((pj.Txt("codigo") ?? "") + " · " + (pj.Txt("nome") ?? "")).Trim(' ', '·') : "Sem projeto";
                 lbProjeto.Foreground = pj != null ? Tinta : Ambar;
@@ -651,7 +719,7 @@ namespace FJA.Revit.Componentes
             }
             if (lbMarcados == null) return;
             var alvo = Alvo();
-            lbMarcados.Text = marcados.Count > 0 ? marcados.Count + " tipo(s) marcado(s)" : (NoSelecionado() != null ? "Item escolhido na árvore" : "Marque tipos ou escolha um item");
+            lbMarcados.Text = marcados.Count > 0 ? marcados.Count + " marcado(s)" : "";
             int nT = alvo.Count(t => Coleta.Sincronizavel(t.Sit) && t.Item != null), nL = alvo.Count(Coleta.PodeLevar);
             btTrazer.IsEnabled = nT > 0 && dados != null;
             btTrazer.Content = "← Do sistema" + (nT > 0 ? " (" + nT + ")" : "");
@@ -707,8 +775,6 @@ namespace FJA.Revit.Componentes
             var n = NoSelecionado();
             if (n == null)
             {
-                spDet.Children.Add(Paragrafo("Escolha uma categoria, família ou tipo na árvore.", Suave));
-                spDet.Children.Add(Legenda());
                 return;
             }
             if (n.Nivel == 2) DetalheTipo(n.Tipos[0]);
@@ -757,6 +823,8 @@ namespace FJA.Revit.Componentes
         {
             spDet.Children.Add(Paragrafo(t.Familia + " : " + t.Nome, Tinta, 13.5));
             var sit = Paragrafo("● " + Coleta.Rotulo(t.Sit), Cor(t.Sit)); sit.FontWeight = FontWeights.SemiBold;
+            if (t.Sit == Situacao.Fora) sit.ToolTip = "O item não está na especificação do projeto. ← Do sistema inclui o item no projeto com o próximo keynote da sigla (o sistema confirma).";
+            if (t.Sit == Situacao.Revit) sit.ToolTip = "Os valores foram alterados no Revit depois da última sincronização. ← Do sistema devolve os do sistema; → Para o sistema leva a Descrição.";
             spDet.Children.Add(sit);
             spDet.Children.Add(Linha("Categoria", t.Categoria));
             spDet.Children.Add(Linha("Instâncias", t.Instancias.Count.ToString()));
@@ -766,10 +834,8 @@ namespace FJA.Revit.Componentes
             if (t.Ligado)
             {
                 spDet.Children.Add(Linha("Código", t.Fja + (t.Item != null ? " · " + (t.Item.Txt("desc") ?? "") : "")));
-                if (t.Sit == Situacao.Fora) spDet.Children.Add(Paragrafo("O item não está na especificação do projeto. Sincronizar inclui o item no projeto com o próximo keynote da sigla (o sistema confirma).", Ambar, 11.5));
                 foreach (var d in t.Difs)
                     spDet.Children.Add(Linha(d[0], (string.IsNullOrEmpty(d[1]) ? "(vazio)" : d[1]) + "  →  " + d[2], Ambar));
-                if (t.Sit == Situacao.Revit) spDet.Children.Add(Paragrafo("Os valores foram alterados no Revit depois da última sincronização. Sincronizar devolve os do sistema.", Ambar, 11.5));
             }
             Acoes(new List<TipoInfo> { t }, true);
             if (dados != null) BlocoLigar(new List<TipoInfo> { t }, t.Familia);
@@ -816,8 +882,9 @@ namespace FJA.Revit.Componentes
                 BorderBrush = TryFindResource("Linha") as Brush ?? B(226, 226, 223), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6) };
             var sp = new StackPanel();
             cart.Child = sp;
-            sp.Children.Add(T(ts.Count == 1 ? "Ligar a um código do sistema" : "Ligar os " + ts.Count + " tipos a um código", Tinta, 0, true));
-            sp.Children.Add(Paragrafo("Itens de elemento/família da biblioteca central. O código fica no Keynote e no Type Mark; fora da especificação do projeto, entra com o próximo keynote da sigla.", Suave, 11));
+            var titLig = T(ts.Count == 1 ? "Ligar a um código do sistema" : "Ligar os " + ts.Count + " tipos a um código", Tinta, 0, true);
+            titLig.ToolTip = "Itens de elemento/família da biblioteca central. O código fica no Keynote e no Type Mark; fora da especificação do projeto, entra com o próximo keynote da sigla. No código novo, o FJ e o keynote são reservados agora e confirmados pelo sistema.";
+            sp.Children.Add(titLig);
             var busca = new TextBox { MinHeight = 24, Margin = new Thickness(0, 0, 0, 4), ToolTip = "Buscar por código FJ, sigla, keynote ou descrição" };
             var lista = new ListBox { Height = 150, Margin = new Thickness(0, 0, 0, 6) };
             // sugestão: a sigla entre parênteses no nome da família, ex.: "(ESQ) JANELA…"
@@ -869,7 +936,6 @@ namespace FJA.Revit.Componentes
             spNovo.Children.Add(T("Sigla", Suave, 11)); spNovo.Children.Add(cbSig); spNovo.Children.Add(gSig);
             spNovo.Children.Add(T("Descrição", Suave, 11)); spNovo.Children.Add(tbDesc);
             spNovo.Children.Add(T("Especificação (opcional)", Suave, 11)); spNovo.Children.Add(tbTexto);
-            spNovo.Children.Add(Paragrafo("O código (FJ) e o keynote são reservados agora e confirmados pelo sistema quando alguém estiver com ele aberto.", Suave, 11));
 
             var modo = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
             var rbEx = new RadioButton { Content = "Código existente", IsChecked = true, Margin = new Thickness(0, 0, 14, 0) };
