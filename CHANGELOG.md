@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 23/11, ~11h25 — commit 42870ac
+- Extensão do Revit 2.32.0 (antes 2.31.2): **Sincronizar tudo** com prévia na árvore — mostra só os tipos afetados, ← azul (recebe do sistema) e → roxo (envia ao sistema a Descrição alterada no Revit, só tipos já no padrão), com barra temporária de **OK** e **Cancelar** e a opção de renomear. Ver docs/revit-componentes.md.
+
 ## oficial Firebase — 23/11, ~11h10 — commit c4760e2
 - Extensão do Revit 2.31.2 (antes 2.31.1): painel **Componentes** com ícones também para **Sincronizar tudo** (seta descendo do sistema para o modelo; âmbar quando há diferenças, contagem na dica) e **Reconectar** (elo, manutenção); todo ícone com dica.
 
