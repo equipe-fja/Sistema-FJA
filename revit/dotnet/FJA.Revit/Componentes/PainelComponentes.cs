@@ -101,6 +101,7 @@ namespace FJA.Revit.Componentes
 
         static readonly Brush Verde = B(46, 115, 64), Ambar = B(138, 93, 5), Vermelho = B(179, 38, 30), Azul = B(47, 95, 138),
                               Cinza = B(143, 143, 140), Suave = B(94, 94, 92), Tinta = B(29, 29, 29);
+        static readonly Brush Roxo = B(121, 86, 169);   // prévia: → envia ao sistema (← recebe = Azul)
         static Brush B(byte r, byte g, byte b) { var x = new SolidColorBrush(WColor.FromRgb(r, g, b)); x.Freeze(); return x; }
 
         public static Brush Cor(Situacao s)
@@ -377,7 +378,7 @@ namespace FJA.Revit.Componentes
             var lin = new DockPanel();
             // ícone: seta descendo do sistema para o modelo (o sistema é a referência), em todos os tipos com diferença
             btSincTudo = BotaoIcone(Icone("M11,2 L11,13 M7,9 L11,13 L15,9 M3,14 L3,19 L19,19 L19,14"),
-                (s, a) => Sincronizar(tipos, "todos os tipos do modelo"), "Sincronizar tudo");
+                (s, a) => EntrarPrevia(), "Sincronizar tudo");
             btSincTudo.Margin = new Thickness(6, 0, 0, 0);
             DockPanel.SetDock(btSincTudo, Dock.Right);
             lin.Children.Add(btSincTudo);
@@ -421,6 +422,31 @@ namespace FJA.Revit.Componentes
             lbMarcados = T("", Suave, 11.5);
             barra.Children.Add(lbMarcados);
             linha2.Children.Add(barra);
+            barraSetas = barra;
+            // barra temporária da prévia do Sincronizar tudo: contagens, renomear, OK e Cancelar
+            barraPrevia = new Border
+            {
+                Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 6), Padding = new Thickness(8, 6, 8, 6),
+                Background = B(247, 236, 234), BorderBrush = B(142, 27, 27), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+            };
+            var bp = new DockPanel();
+            var btOk = Botao("OK", (s, a) => ConfirmarPrevia(), true, "Grava: ← recebe do sistema; → envia a Descrição ao sistema");
+            btOk.Margin = new Thickness(6, 0, 0, 0);
+            DockPanel.SetDock(btOk, Dock.Right);
+            bp.Children.Add(btOk);
+            var btCan = Botao("Cancelar", (s, a) => SairPrevia(), false, "Volta sem gravar nada");
+            btCan.Margin = new Thickness(6, 0, 0, 0);
+            DockPanel.SetDock(btCan, Dock.Right);
+            bp.Children.Add(btCan);
+            var spInfo = new StackPanel();
+            lbPrevia = new TextBlock { TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+            lbPrevia.ToolTip = "← recebe do sistema: Keynote, Type Mark e Descrição do sistema (o sistema é a referência).\n→ envia ao sistema: a Descrição alterada no Revit (só tipos já no padrão); a descrição é do item central e muda em todos os projetos que usam o código. O tipo fica aguardando até o sistema aplicar.";
+            spInfo.Children.Add(lbPrevia);
+            ckRenPrevia = new CheckBox { Content = "Renomear os tipos como KEYNOTE - DESCRIÇÃO", IsChecked = op.Renomear, Margin = new Thickness(0, 4, 0, 0), FontSize = 11.5 };
+            spInfo.Children.Add(ckRenPrevia);
+            bp.Children.Add(spInfo);
+            barraPrevia.Child = bp;
+            linha2.Children.Add(barraPrevia);
             Grid.SetRow(linha2, 2); raiz.Children.Add(linha2);
 
             // 3: árvore
@@ -615,8 +641,10 @@ namespace FJA.Revit.Componentes
 
                 // árvore
                 string[] termos = Texto.NormSistema(tbBusca.Text).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                bool buscando = termos.Length > 0 || cbFiltro.SelectedIndex > 0;
-                var vis = tipos.Where(t => PassaFiltro(t) && PassaBusca(t, termos)).ToList();
+                bool buscando = termos.Length > 0 || cbFiltro.SelectedIndex > 0 || previa != null;
+                // prévia do Sincronizar tudo: só os tipos afetados, tudo aberto
+                var vis = previa != null ? tipos.Where(t => previa.ContainsKey(Coleta.Num(t.Id))).ToList()
+                    : tipos.Where(t => PassaFiltro(t) && PassaBusca(t, termos)).ToList();
                 visiveis_ = new HashSet<long>(vis.Select(t => Coleta.Num(t.Id)));
                 tv.Items.Clear();
                 caixas.Clear();
@@ -631,7 +659,7 @@ namespace FJA.Revit.Componentes
                     {
                         var nf = new No { Chave = "f|" + gc.Key + "|" + gf.Key, Titulo = gf.Key, Nivel = 1, Tipos = tipos.Where(t => t.Categoria == gc.Key && t.Familia == gf.Key).ToList() };
                         var iff = Item(nf, gf.Count());
-                        iff.IsExpanded = buscando && termos.Length > 0 || abertos.Contains(nf.Chave);
+                        iff.IsExpanded = buscando && (termos.Length > 0 || previa != null) || abertos.Contains(nf.Chave);
                         foreach (var t in gf.OrderBy(t => t.Nome))
                         {
                             var nt = new No { Chave = "t|" + Coleta.Num(t.Id), Titulo = t.Nome, Nivel = 2, Tipos = new List<TipoInfo> { t } };
@@ -675,7 +703,20 @@ namespace FJA.Revit.Componentes
             };
             caixas.Add(Tuple.Create(cb, n));
             sp.Children.Add(cb);
-            if (n.Nivel == 2)
+            if (previa != null) cb.Visibility = Visibility.Collapsed;
+            if (n.Nivel == 2 && previa != null && previa.TryGetValue(Coleta.Num(n.Tipos[0].Id), out int dir))
+            {
+                // prévia: ← recebe do sistema (azul), → envia ao sistema (roxo)
+                var tp = n.Tipos[0];
+                var cor = dir == 2 ? Roxo : Azul;
+                sp.Children.Add(T(dir == 2 ? "→ " : "← ", cor, 13, true));
+                sp.Children.Add(T(tp.Nome, cor, 0, true));
+                string o = dir == 2 ? "Descrição → sistema" : string.Join(", ", tp.Difs.Select(d => d[0])) + (tp.Sit == Situacao.Fora ? "entra no projeto" : "");
+                if (o != "") sp.Children.Add(T("   " + o, Cinza, 11));
+                sp.ToolTip = dir == 2 ? "Envia ao sistema a Descrição \"" + (tp.Desc ?? "").ToUpperInvariant() + "\" (" + tp.Fja + ")"
+                    : "Recebe do sistema: " + string.Join("; ", tp.Difs.Select(d => d[0] + " → " + d[2])) + (tp.Sit == Situacao.Fora ? " (item entra na especificação do projeto)" : "");
+            }
+            else if (n.Nivel == 2)
             {
                 var t = n.Tipos[0];
                 sp.Children.Add(new Ellipse { Width = 8, Height = 8, Fill = Cor(t.Sit), Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center });
@@ -686,6 +727,13 @@ namespace FJA.Revit.Componentes
                 if (t.Instancias.Count == 0) extra += (extra != "" ? " · " : "") + "sem instâncias";
                 if (extra != "") sp.Children.Add(T("   " + extra, Cinza, 11));
                 sp.ToolTip = Coleta.Rotulo(t.Sit) + (t.Fja != "" ? " · " + t.Fja : "");
+            }
+            else if (previa != null)
+            {
+                int rec = n.Tipos.Count(t => previa.TryGetValue(Coleta.Num(t.Id), out int d) && d == 1), env = n.Tipos.Count(t => previa.TryGetValue(Coleta.Num(t.Id), out int d) && d == 2);
+                sp.Children.Add(T(n.Titulo, Tinta, n.Nivel == 0 ? 13 : 0, n.Nivel == 0));
+                if (rec > 0) sp.Children.Add(T("   ← " + rec, Azul, 11, true));
+                if (env > 0) sp.Children.Add(T("   → " + env, Roxo, 11, true));
             }
             else
             {
@@ -769,6 +817,76 @@ namespace FJA.Revit.Componentes
                 sujo = true;
                 Status("Descrição enviada ao sistema (aguardando).");
                 Avisos("Para o sistema", av);
+            });
+        }
+
+        // ------------------------------------------------------------ prévia do Sincronizar tudo
+
+        /// <summary>Tipo → sentido na prévia: 1 = ← recebe do sistema, 2 = → envia a Descrição ao sistema. null fora da prévia.</summary>
+        Dictionary<long, int> previa;
+        DockPanel barraSetas;
+        Border barraPrevia;
+        TextBlock lbPrevia;
+        CheckBox ckRenPrevia;
+
+        /// <summary>Sincronizar tudo: antes de gravar, a árvore mostra só os tipos afetados — ← azul recebe do sistema,
+        /// → roxo envia a Descrição ao sistema (regra da seta →) — e aparecem OK e Cancelar.</summary>
+        void EntrarPrevia()
+        {
+            if (dados == null) return;
+            var p = new Dictionary<long, int>();
+            foreach (var t in tipos)
+            {
+                if (Coleta.PodeLevar(t)) p[Coleta.Num(t.Id)] = 2;
+                else if (Coleta.Sincronizavel(t.Sit) && t.Item != null) p[Coleta.Num(t.Id)] = 1;
+            }
+            if (p.Count == 0) { Status("Nada a sincronizar."); return; }
+            previa = p;
+            int rec = p.Values.Count(v => v == 1), env = p.Values.Count(v => v == 2);
+            lbPrevia.Inlines.Clear();
+            lbPrevia.Inlines.Add(new System.Windows.Documents.Run("Sincronizar tudo:  "));
+            if (rec > 0) lbPrevia.Inlines.Add(new System.Windows.Documents.Run("← " + rec + " recebe(m) do sistema   ") { Foreground = Azul });
+            if (env > 0) lbPrevia.Inlines.Add(new System.Windows.Documents.Run("→ " + env + " envia(m) ao sistema") { Foreground = Roxo });
+            ckRenPrevia.IsChecked = op.Renomear;
+            ModoPrevia(true);
+            Desenhar();
+        }
+
+        void ModoPrevia(bool on)
+        {
+            barraPrevia.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            barraSetas.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+            foreach (var c in new Control[] { tbBusca, cbFiltro, cbFonte, btSincTudo }) c.IsEnabled = !on;
+        }
+
+        void SairPrevia()
+        {
+            previa = null;
+            ModoPrevia(false);
+            Desenhar();
+        }
+
+        void ConfirmarPrevia()
+        {
+            if (previa == null) return;
+            var p = previa;
+            var rec = tipos.Where(t => p.TryGetValue(Coleta.Num(t.Id), out int d) && d == 1).ToList();
+            var env = tipos.Where(t => p.TryGetValue(Coleta.Num(t.Id), out int d) && d == 2).ToList();
+            bool renomear = ckRenPrevia.IsChecked == true;
+            op.Renomear = renomear; op.Gravar();
+            SairPrevia();
+            Pedir(app =>
+            {
+                var doc = DocAtual(app);
+                var av = new List<string>();
+                Transacao(doc, "Componentes FJA: sincronizar tudo", () =>
+                {
+                    if (rec.Count > 0) av.AddRange(Operacoes.Sincronizar(doc, dados, rec, renomear));
+                    if (env.Count > 0) av.AddRange(Operacoes.LevarDescricao(doc, dados, env));
+                });
+                sujo = true;
+                Status(rec.Count + " tipo(s) receberam do sistema; " + env.Count + " enviaram a Descrição ao sistema.");
+                Avisos("Sincronizar tudo", av);
             });
         }
 
@@ -863,6 +981,7 @@ namespace FJA.Revit.Componentes
 
         void Acoes(List<TipoInfo> ts, bool umTipo)
         {
+            if (previa != null) return;   // na prévia do Sincronizar tudo, só OK ou Cancelar
             var wp = new WrapPanel { Margin = new Thickness(0, 6, 0, 4) };
             int nSinc = ts.Count(t => Coleta.Sincronizavel(t.Sit));
             // seta sugerida em destaque: alterado no Revit (e elegível) → "Para o sistema"; senão "Do sistema"
@@ -884,6 +1003,7 @@ namespace FJA.Revit.Componentes
 
         void BlocoLigar(List<TipoInfo> ts, string familia)
         {
+            if (previa != null) return;
             var cart = new Border { Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(10), Background = Brushes.White,
                 BorderBrush = TryFindResource("Linha") as Brush ?? B(226, 226, 223), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6) };
             var sp = new StackPanel();

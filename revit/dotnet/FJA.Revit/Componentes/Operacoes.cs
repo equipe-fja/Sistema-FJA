@@ -201,6 +201,8 @@ namespace FJA.Revit.Componentes
                 foreach (var t in g)
                 {
                     if (!(doc.GetElement(t.Id) is FamilySymbol s)) continue;
+                    // keynote e Type Mark são numeração do sistema: voltam aos do sistema, se alterados no Revit
+                    if (!string.IsNullOrEmpty(t.KnSis)) { Vinculo.Definir(s, BuiltInParameter.ALL_MODEL_TYPE_MARK, t.KnSis); Vinculo.Definir(s, BuiltInParameter.KEYNOTE_PARAM, t.KnSis); }
                     Vinculo.Gravar(s, item.Txt("fja"), item.Txt("id"), t.Linha?.Txt("id") ?? "", dados.Projeto?.Txt("id") ?? t.Vinc?.Campo("projeto") ?? "",
                                    ped.Txt("id"), Vinculo.Param(s, BuiltInParameter.KEYNOTE_PARAM), Vinculo.Param(s, BuiltInParameter.ALL_MODEL_DESCRIPTION));
                 }

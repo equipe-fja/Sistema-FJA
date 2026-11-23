@@ -50,3 +50,11 @@ Pedido da FJA: trazer do sistema ou levar ao sistema, nos tipos escolhidos.
 - **Carregar família** (pasta com +) e **Localizar seleção** (mira) viram ícones no cabeçalho, ao lado do ↻ (a explicação fica na dica). Em 2.31.2, também **Sincronizar tudo** (seta descendo do sistema para o modelo; âmbar quando há diferenças, contagem na dica) e **Reconectar** (elo, manutenção). Todo ícone tem dica.
 - Textos explicativos saem do painel e viram dicas: fonte e data de publicação (na lista Oficial/Desenvolvimento), origem do projeto (no nome do projeto), legenda das cores (no resumo), regras do Ligar (no título do bloco), avisos de "fora da especificação" e "alterado no Revit" (na situação do tipo). Ficam visíveis só os erros.
 - **↻ gira** enquanto o sistema e o modelo são relidos. A leitura do sistema (rede) passou para segundo plano — a interface não congela e a animação aparece —; ao terminar, o modelo é relido pelo ExternalEvent e o giro para. A leitura automática (primeira abertura, troca de fonte e troca de modelo com dados de mais de 5 minutos) usa o mesmo caminho.
+
+## Sincronizar tudo com prévia na árvore (2.32.0, 23/11/2026)
+Pedido da FJA. O ícone **Sincronizar tudo** não grava direto:
+1. A árvore passa a mostrar **só os tipos afetados**, tudo aberto, com o sentido de cada um:
+   - **← azul — recebe do sistema** (Keynote, Type Mark e Descrição; o sistema é a referência): o sistema mudou, item fora da especificação (entra no projeto) ou Keynote/Type Mark alterados no Revit;
+   - **→ roxo — envia ao sistema** a Descrição alterada no Revit (regra da seta →: só tipos já no padrão). O Keynote e o Type Mark desses tipos voltam aos do sistema.
+   Ao lado de cada tipo, o que muda; família e categoria mostram "← n" e "→ m"; a dica do tipo detalha os valores.
+2. Uma barra temporária mostra as contagens, a opção **Renomear os tipos** e os botões **OK** (grava os dois sentidos numa transação) e **Cancelar** (volta sem gravar). Durante a prévia, busca, filtro, fonte, setas e ações dos detalhes ficam desativados.
