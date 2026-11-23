@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 23/11, ~12h30 — commit 83e8bcb
+- Extensão do Revit 2.35.0 (antes 2.34.0): **Pranchas › Exportar** com **regra do nome** editável na janela (acrescentar parâmetro da folha ou do projeto, reordenar, tirar, marcar como opcional, separador), gravada no modelo para a equipe toda; o padrão FJA passa a incluir o **Trecho** como opcional antes do Sheet Number (ex.: 131-LE-ARQ-DT-HUB-H002-R00; sem Trecho, como antes).
+
 ## oficial Firebase — 23/11, ~12h15 — commit 6cb4975
 - Extensão do Revit 2.34.0 (antes 2.33.0): **Pranchas › Exportar** com escolha de **conjunto de folhas** (sheet set: mostra e marca as folhas dele), opção **Criar pasta nova** na pasta de destino com o nome **AA-MM-DD + descrição** (ex.: 26-02-02 EMISSÃO FINAL EXECUTIVO - ARQUITETURA - 1ª PARTE; descrição lembrada por projeto) e janela sem textos explicativos.
 
