@@ -10,27 +10,27 @@ using FJA.Revit.Nucleo;
 
 namespace FJA.Revit.Pranchas
 {
-    /// <summary>Uma prancha na janela: a folha, o nome do arquivo montado e o que faltou para montá-lo.</summary>
+    /// <summary>Uma prancha na janela: a folha, o nome do arquivo montado e os parâmetros da regra que estão em branco.</summary>
     public sealed class LinhaPrancha
     {
         public ViewSheet Folha;
         public string Numero, NomeFolha, Disciplina, Arquivo;
+        /// <summary>Parâmetros da regra em branco nesta folha (saem do nome; aviso antes de exportar).</summary>
         public List<string> Faltam = new List<string>();
         public bool Incluir;
-        public bool Valida => Faltam.Count == 0 && !string.IsNullOrEmpty(Arquivo);
+        public bool Valida => !string.IsNullOrEmpty(Arquivo);
     }
 
-    /// <summary>Uma parte do nome: o parâmetro e se pode faltar (vazio = sai do nome, sem bloquear a prancha).</summary>
+    /// <summary>Uma parte do nome: o parâmetro (em branco na folha = sai do nome).</summary>
     public sealed class ParteNome
     {
         public string Param;
-        public bool Opcional;
-        public ParteNome Copia() => new ParteNome { Param = Param, Opcional = Opcional };
+        public ParteNome Copia() => new ParteNome { Param = Param };
     }
 
     /// <summary>
     /// Regra do nome do arquivo = a composição do campo "Prancha" do carimbo. Padrão FJA: Project Number - Etapa (sigla)
-    /// - Disciplina (abreviação) - Tipo de documento - [Trecho] - Sheet Number - Current Revision (Trecho opcional:
+    /// - Disciplina (abreviação) - Tipo de documento - Trecho - Sheet Number - Current Revision (parâmetro em branco sai:
     /// 131-LE-ARQ-DT-HUB-H002-R00; sem Trecho, 128-AP-ARQ-DT-A002-R00). Cada projeto pode ter a sua, gravada no
     /// modelo (DataStorage FJA_ExportarPranchas).
     /// </summary>
@@ -47,7 +47,7 @@ namespace FJA.Revit.Pranchas
             var r = new RegraNome();
             foreach (var p in new[] { NomeArquivo.ProjectNumber, NomeArquivo.Etapa, NomeArquivo.Disciplina, NomeArquivo.Tipo })
                 r.Partes.Add(new ParteNome { Param = p });
-            r.Partes.Add(new ParteNome { Param = NomeArquivo.Trecho, Opcional = true });
+            r.Partes.Add(new ParteNome { Param = NomeArquivo.Trecho });
             r.Partes.Add(new ParteNome { Param = NomeArquivo.SheetNumber });
             r.Partes.Add(new ParteNome { Param = NomeArquivo.CurrentRevision });
             return r;
@@ -60,7 +60,7 @@ namespace FJA.Revit.Pranchas
             return Json.Gravar(new Dictionary<string, object>
             {
                 ["sep"] = Sep,
-                ["partes"] = Partes.Select(p => (object)new Dictionary<string, object> { ["p"] = p.Param, ["o"] = p.Opcional }).ToList(),
+                ["partes"] = Partes.Select(p => (object)new Dictionary<string, object> { ["p"] = p.Param }).ToList(),
             });
         }
 
@@ -70,7 +70,7 @@ namespace FJA.Revit.Pranchas
             var r = new RegraNome { Sep = d.Txt("sep") ?? "-" };
             foreach (var x in d.Lista("partes") ?? new List<object>())
                 if (x is Dictionary<string, object> pd && !string.IsNullOrWhiteSpace(pd.Txt("p")))
-                    r.Partes.Add(new ParteNome { Param = pd.Txt("p"), Opcional = string.Equals(pd.Txt("o"), "true", StringComparison.OrdinalIgnoreCase) });
+                    r.Partes.Add(new ParteNome { Param = pd.Txt("p") });
             return r.Partes.Count > 0 ? r : null;
         }
 
@@ -152,8 +152,9 @@ namespace FJA.Revit.Pranchas
             foreach (var p in regra.Partes)
             {
                 string v = Valor(doc, l.Folha, p.Param);
+                // todos os parâmetros são opcionais (decisão da FJA, 23/11/2026): em branco sai do nome e é avisado ao exportar
                 if (!string.IsNullOrWhiteSpace(v)) partes.Add(v.Trim());
-                else if (!p.Opcional) l.Faltam.Add(p.Param);
+                else l.Faltam.Add(p.Param);
             }
             l.Arquivo = Limpar(string.Join(regra.Sep ?? "", partes));
         }

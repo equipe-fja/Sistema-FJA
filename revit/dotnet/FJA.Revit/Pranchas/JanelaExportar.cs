@@ -300,46 +300,68 @@ namespace FJA.Revit.Pranchas
             for (int i = 0; i < linhas.Count; i++)
             {
                 var l = linhas[i]; var arq = arqs[i];
-                arq.Text = l.Valida ? l.Arquivo : "falta: " + string.Join(", ", l.Faltam);
-                arq.FontFamily = l.Valida ? new FontFamily("Consolas") : FontFamily;
-                if (!l.Valida) { arq.Foreground = new SolidColorBrush(WColor.FromRgb(176, 58, 46)); arq.ToolTip = "Vazio na folha e nas informações do projeto: " + string.Join(", ", l.Faltam); }
-                else if (repetidos.Contains(l.Arquivo)) { arq.Foreground = new SolidColorBrush(WColor.FromRgb(176, 110, 20)); arq.ToolTip = l.Arquivo + " — mesmo nome de outra prancha"; }
-                else { arq.Foreground = P("Tinta", 30, 30, 28); arq.ToolTip = l.Arquivo; }
+                arq.Text = l.Valida ? l.Arquivo : "(nome vazio)";
+                arq.FontFamily = new FontFamily("Consolas");
+                string dica = l.Faltam.Count > 0 ? "\nEm branco: " + string.Join(", ", l.Faltam) : "";
+                if (l.Valida && repetidos.Contains(l.Arquivo)) { arq.Foreground = new SolidColorBrush(WColor.FromRgb(176, 110, 20)); arq.ToolTip = l.Arquivo + " — mesmo nome de outra prancha" + dica; }
+                else { arq.Foreground = l.Valida ? P("Tinta", 30, 30, 28) : P("Fraco", 143, 143, 140); arq.ToolTip = (l.Arquivo ?? "") + dica; }
                 cks[i].IsEnabled = l.Valida;
                 if (!l.Valida) cks[i].IsChecked = false;
             }
         }
 
-        /// <summary>Editor da regra: uma linha por parâmetro (opcional, subir, descer, tirar), "+ parâmetro", separador e padrão.</summary>
+        const string FORMATO_PARTE = "FJA.ParteNome";
+
+        /// <summary>Editor da regra: uma linha por parâmetro (arrastar pela linha para reordenar, ✕ para tirar),
+        /// "+ parâmetro", separador e padrão.</summary>
         void MontarRegra()
         {
             spRegra.Children.Clear();
+            var realce = new SolidColorBrush(WColor.FromArgb(40, 142, 27, 27));
             for (int i = 0; i < regra.Partes.Count; i++)
             {
                 var p = regra.Partes[i]; int k = i;
-                var lin = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
-                Button Mini(string t, string dica, Action ac, bool ativo = true)
-                {
-                    var b = new Button { Content = t, Width = 22, Height = 22, Padding = new Thickness(0), Margin = new Thickness(2, 0, 0, 0), ToolTip = dica, IsEnabled = ativo, FontSize = 11 };
-                    if (TryFindResource("Discreto") is Style st) b.Style = st;
-                    b.Click += (s, a) => ac();
-                    return b;
-                }
-                var bx = Mini("✕", "Tirar do nome", () => { regra.Partes.RemoveAt(k); MudouRegra(); }, regra.Partes.Count > 1);
-                var bd = Mini("↓", "Descer", () => { var t = regra.Partes[k]; regra.Partes.RemoveAt(k); regra.Partes.Insert(k + 1, t); MudouRegra(); }, k < regra.Partes.Count - 1);
-                var bs = Mini("↑", "Subir", () => { var t = regra.Partes[k]; regra.Partes.RemoveAt(k); regra.Partes.Insert(k - 1, t); MudouRegra(); }, k > 0);
-                var ck = new CheckBox { Content = "opc.", IsChecked = p.Opcional, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 2, 0), FontSize = 11.5, ToolTip = "Opcional: se estiver vazio, sai do nome" };
-                ck.Checked += (s, a) => { regra.Partes[k].Opcional = true; MudouRegra(false); };
-                ck.Unchecked += (s, a) => { regra.Partes[k].Opcional = false; MudouRegra(false); };
-                foreach (var e in new UIElement[] { bx, bd, bs, ck }) { DockPanel.SetDock(e, Dock.Right); lin.Children.Add(e); }
+                var lin = new DockPanel { Margin = new Thickness(0, 1, 0, 1), Background = Brushes.Transparent, AllowDrop = true, Cursor = Cursors.SizeAll };
+                var bx = new Button { Content = "✕", Width = 22, Height = 22, Padding = new Thickness(0), ToolTip = "Tirar do nome", IsEnabled = regra.Partes.Count > 1, FontSize = 11, Cursor = Cursors.Arrow };
+                if (TryFindResource("Discreto") is Style st) bx.Style = st;
+                bx.Click += (s, a) => { regra.Partes.RemoveAt(k); MudouRegra(); };
+                DockPanel.SetDock(bx, Dock.Right);
+                lin.Children.Add(bx);
+                var alca = new TextBlock { Text = "⋮⋮", Foreground = P("Fraco", 143, 143, 140), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+                DockPanel.SetDock(alca, Dock.Left);
+                lin.Children.Add(alca);
                 lin.Children.Add(new TextBlock { Text = p.Param, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = p.Param });
+
+                // arrastar: começa depois de mover alguns pixels com o botão apertado (fora do ✕)
+                Point? ini = null;
+                lin.PreviewMouseLeftButtonDown += (s, a) => { ini = a.OriginalSource is DependencyObject d && EmBotao(d) ? (Point?)null : a.GetPosition(spRegra); };
+                lin.PreviewMouseMove += (s, a) =>
+                {
+                    if (ini == null || a.LeftButton != MouseButtonState.Pressed) return;
+                    var v = a.GetPosition(spRegra) - ini.Value;
+                    if (Math.Abs(v.Y) < 4 && Math.Abs(v.X) < 4) return;
+                    ini = null;
+                    DragDrop.DoDragDrop(lin, new DataObject(FORMATO_PARTE, k), DragDropEffects.Move);
+                };
+                lin.PreviewMouseLeftButtonUp += (s, a) => ini = null;
+                lin.DragEnter += (s, a) => { if (a.Data.GetDataPresent(FORMATO_PARTE)) lin.Background = realce; };
+                lin.DragLeave += (s, a) => lin.Background = Brushes.Transparent;
+                lin.Drop += (s, a) =>
+                {
+                    lin.Background = Brushes.Transparent;
+                    if (!(a.Data.GetData(FORMATO_PARTE) is int de) || de == k) return;
+                    var t = regra.Partes[de];
+                    regra.Partes.RemoveAt(de);
+                    regra.Partes.Insert(k, t);   // solta no lugar da linha de destino
+                    MudouRegra();
+                };
                 spRegra.Children.Add(lin);
             }
 
             var rod = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
             var btPadrao = Estilo.Botao(this, "Padrão", "Discreto");
             btPadrao.Padding = new Thickness(8, 2, 8, 2);
-            btPadrao.ToolTip = "Padrão FJA: Project Number - Etapa - Disciplina - Tipo de documento - Trecho (opc.) - Sheet Number - Current Revision";
+            btPadrao.ToolTip = "Padrão FJA: Project Number - Etapa - Disciplina - Tipo de documento - Trecho - Sheet Number - Current Revision";
             btPadrao.Click += (s, a) => { var pd = RegraNome.Padrao(); regra.Partes = pd.Partes; regra.Sep = pd.Sep; MudouRegra(); };
             DockPanel.SetDock(btPadrao, Dock.Right);
             rod.Children.Add(btPadrao);
@@ -362,6 +384,13 @@ namespace FJA.Revit.Pranchas
             };
             rod.Children.Add(cbAdd);
             spRegra.Children.Add(rod);
+        }
+
+        static bool EmBotao(DependencyObject d)
+        {
+            for (; d != null; d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+                if (d is Button) return true;
+            return false;
         }
 
         void MudouRegra(bool remontar = true)
@@ -403,7 +432,7 @@ namespace FJA.Revit.Pranchas
             int inval = linhas.Count(l => !l.Valida);
             if (txConta != null)
                 txConta.Text = n + (n == 1 ? " prancha marcada" : " pranchas marcadas") + " de " + linhas.Count +
-                               (inval > 0 ? " · " + inval + " sem nome completo" : "");
+                               (inval > 0 ? " · " + inval + " sem nome" : "");
             bool nova = ckNova != null && ckNova.IsChecked == true;
             if (txDescricao != null) txDescricao.IsEnabled = nova;
             if (txNomeNova != null)
@@ -424,6 +453,17 @@ namespace FJA.Revit.Pranchas
 
         void Confirmar()
         {
+            // parâmetros em branco: saem do nome; avisa antes de exportar
+            var brancos = linhas.Where(l => l.Incluir && l.Valida && l.Faltam.Count > 0).ToList();
+            if (brancos.Count > 0)
+            {
+                var txt = string.Join("\n", brancos.Take(15).Select(l => l.Numero + ": " + string.Join(", ", l.Faltam) + "  →  " + l.Arquivo));
+                if (brancos.Count > 15) txt += "\n… e mais " + (brancos.Count - 15);
+                var r = MessageBox.Show(this,
+                    (brancos.Count == 1 ? "1 prancha tem" : brancos.Count + " pranchas têm") + " parâmetros em branco (ficam fora do nome):\n\n" + txt + "\n\nExportar assim mesmo?",
+                    "Exportar pranchas", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+                if (r != MessageBoxResult.Yes) return;
+            }
             string baseP = txPasta.Text.Trim();
             o.Pastas[chave] = baseP;
             o.NovaPasta = ckNova.IsChecked == true;
