@@ -365,17 +365,19 @@ namespace FJA.Revit.Componentes
             btConectar.Margin = new Thickness(6, 0, 0, 0);
             DockPanel.SetDock(btConectar, Dock.Right);
             gProj.Children.Add(btConectar);
-            btReconectar = Botao("Reconectar…", (s, a) => EscolherManual(true), false, "Manutenção: trocar ou desfazer a ligação deste modelo com o projeto do sistema");
+            // ícone de elo: manutenção (trocar ou desfazer a ligação com o projeto)
+            btReconectar = BotaoIcone(Icone("M10,14 L14,10 M8.5,11.5 L6.5,13.5 A3,3 0 0 0 10.5,17.5 L12.5,15.5 M11.5,8.5 L13.5,6.5 A3,3 0 0 1 17.5,10.5 L15.5,12.5"),
+                (s, a) => EscolherManual(true), "Reconectar (manutenção): trocar ou desfazer a ligação deste modelo com o projeto do sistema");
             btReconectar.Margin = new Thickness(6, 0, 0, 0);
-            btReconectar.Foreground = Suave; btReconectar.FontSize = 11.5; btReconectar.MinHeight = 22; btReconectar.Padding = new Thickness(6, 1, 6, 1);
             DockPanel.SetDock(btReconectar, Dock.Right);
             gProj.Children.Add(btReconectar);
             lbProjeto = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold };
             gProj.Children.Add(lbProjeto);
             sp1.Children.Add(gProj);
             var lin = new DockPanel();
-            btSincTudo = Botao("Sincronizar tudo", (s, a) => Sincronizar(tipos, "todos os tipos do modelo"), true,
-                "Traz para o modelo o que está no sistema (keynote, Type Mark e descrição) em todos os tipos ligados com diferença");
+            // ícone: seta descendo do sistema para o modelo (o sistema é a referência), em todos os tipos com diferença
+            btSincTudo = BotaoIcone(Icone("M11,2 L11,13 M7,9 L11,13 L15,9 M3,14 L3,19 L19,19 L19,14"),
+                (s, a) => Sincronizar(tipos, "todos os tipos do modelo"), "Sincronizar tudo");
             btSincTudo.Margin = new Thickness(6, 0, 0, 0);
             DockPanel.SetDock(btSincTudo, Dock.Right);
             lin.Children.Add(btSincTudo);
@@ -605,7 +607,11 @@ namespace FJA.Revit.Componentes
                 Conta(Cinza, tipos.Count(t => t.Sit == Situacao.Sem), "sem ligação");
                 int nSinc = tipos.Count(t => Coleta.Sincronizavel(t.Sit));
                 btSincTudo.IsEnabled = nSinc > 0 && dados != null;
-                btSincTudo.Content = nSinc > 0 ? "Sincronizar tudo (" + nSinc + ")" : "Sincronizar tudo";
+                btSincTudo.ToolTip = nSinc > 0
+                    ? "Sincronizar tudo (" + nSinc + " tipo(s) com diferença): traz do sistema o keynote, o Type Mark e a descrição (o sistema é a referência)"
+                    : "Sincronizar tudo: nenhum tipo com diferença";
+                ToolTipService.SetShowOnDisabled(btSincTudo, true);
+                if (btSincTudo.Content is System.Windows.Shapes.Path ps) ps.Stroke = nSinc > 0 ? Ambar : Cinza;
 
                 // árvore
                 string[] termos = Texto.NormSistema(tbBusca.Text).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
