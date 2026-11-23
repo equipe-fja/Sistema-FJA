@@ -62,6 +62,7 @@ Não migrar só por migrar: legendas, Renomear e utilitários pequenos podem fic
 | Símbolos e Detalhes › Família do desenho | `FamiliaDoDesenho` (`Detalhes/*.cs`; ver `docs/familia-do-desenho.md`) | 2.15.0 (12/11/2026) |
 | Links › Copiar do link, Verificar alterações, Reconectar | `CopiarDoLink`, `VerificarAlteracoes`, `Reconectar` (`Links/*.cs`; ver `docs/revit-links.md`) | 2.16.0 (12/11/2026; migrados do Python a pedido da FJA, com o módulo Encaminhamentos) |
 | Cotagem › Cotar vistas | `CotarVistas` (`Cotagem/*.cs`; ver `docs/cotagem.md`) | 2.18.0 (13/11/2026); fachada 2.20.0 |
+| Pranchas › Exportar | `ExportarPranchas` (`Pranchas/*.cs`; ver `docs/exportar-pranchas.md`) | 2.33.0 (23/11/2026) |
 | Grids, Níveis e Cortes › Trocar lado | `TrocarLadoIndicacao` (`Cotagem/JanelaTrocarLado.cs`; ver `docs/cotagem.md`) | 2.19.0 (13/11/2026); janela 2.21.0; painel próprio 2.25.0 |
 | Grids, Níveis e Cortes › Estender/Alinhar | `EstenderAlinhar` (ver `docs/grids-niveis-cortes.md`) | 2.25.0 (13/11/2026) |
 | Tipos › Componentes (painel encaixável) | `ComponentesPainel` (`Componentes/*.cs`; registro do painel em `Entrada.RegistrarPaineis`, chamado pelo `startup.py`; ver `docs/revit-componentes.md`) | 2.28.0 (19/11/2026; migrado do Python a pedido da FJA: painel encaixável); .rfa, código novo e janela antiga retirada em 2.29.0 |

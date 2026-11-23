@@ -1,0 +1,6 @@
+title:
+  pt_br: "Exportar"
+  en_us: "Exportar"
+tooltip:
+  pt_br: "Exporta as pranchas em PDF e DWG ao mesmo tempo, um arquivo por prancha, para a pasta escolhida. O nome do arquivo é o do campo Prancha do carimbo (Project Number - Etapa - Disciplina - Tipo de documento - Sheet Number - Current Revision, ex.: 128-AP-ARQ-DT-A002-R00). DWG pela configuração FJA TRUE COLOR, criada no projeto se não existir."
+  en_us: "Exporta as pranchas em PDF e DWG ao mesmo tempo, um arquivo por prancha, para a pasta escolhida. O nome do arquivo é o do campo Prancha do carimbo (Project Number - Etapa - Disciplina - Tipo de documento - Sheet Number - Current Revision, ex.: 128-AP-ARQ-DT-A002-R00). DWG pela configuração FJA TRUE COLOR, criada no projeto se não existir."
