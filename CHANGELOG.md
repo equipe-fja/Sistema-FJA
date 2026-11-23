@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 23/11, ~12h05 — commit d488001
+- Extensão do Revit 2.33.0 (antes 2.32.0): painel novo **Pranchas › Exportar** (C#) — PDF e DWG das pranchas ao mesmo tempo, um arquivo por prancha, na pasta escolhida (lembrada por projeto), com o nome do campo "Prancha" do carimbo (ex.: 128-AP-ARQ-DT-A002-R00); DWG pela configuração **FJA TRUE COLOR** (padrão do Revit, True Color, sem referências externas), criada no projeto se não existir. Painel novo: fechar e abrir o Revit depois de atualizar. Ver docs/exportar-pranchas.md.
+
 ## oficial Firebase — 23/11, ~11h25 — commit 42870ac
 - Extensão do Revit 2.32.0 (antes 2.31.2): **Sincronizar tudo** com prévia na árvore — mostra só os tipos afetados, ← azul (recebe do sistema) e → roxo (envia ao sistema a Descrição alterada no Revit, só tipos já no padrão), com barra temporária de **OK** e **Cancelar** e a opção de renomear. Ver docs/revit-componentes.md.
 
