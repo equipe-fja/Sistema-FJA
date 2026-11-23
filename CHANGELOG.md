@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 23/11, ~18h59 — commit bebc110
+- **Atas de reunião**: cada item aceita **imagens** (ícone na linha do item, Ctrl+V com o cursor no item ou arrastar para a linha), com **miniatura** na descrição e visualizador ao clicar; no PDF da ata as imagens saem logo abaixo da linha do item, duas por linha. O Google Doc exportado continua só com o texto.
+
 ## oficial Firebase — 23/11, ~12h35 — commit 10d23a7
 - Extensão do Revit 2.36.0 (antes 2.35.0): **Pranchas › Exportar** — a ordem dos parâmetros da regra do nome muda **arrastando**; **todos os parâmetros são opcionais** (em branco sai do nome, nenhuma prancha fica bloqueada) e o aviso de parâmetros em branco aparece só ao clicar em Exportar, com a lista das pranchas e o nome que vai sair.
 
