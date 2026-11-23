@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 23/11, ~11h00 — commit ebfeb54
+- Extensão do Revit 2.31.1 (antes 2.31.0): painel **Componentes** com ícones de **Carregar família** e **Localizar seleção** no cabeçalho; o **↻ gira** enquanto o sistema e o modelo são relidos (a leitura do sistema passou para segundo plano, sem congelar o painel); textos explicativos viraram dicas (só os erros ficam visíveis).
+
 ## oficial Firebase — 19/11, ~14h15 — commit 53d174a
 - Extensão do Revit 2.31.0 (antes 2.30.2): painel **Componentes** com caixas de seleção nos tipos, famílias e categorias e as setas **← Do sistema** (sincroniza os escolhidos) e **→ Para o sistema** (leva ao sistema a Descrição alterada no Revit, só em tipos já no padrão — ligados a um item do projeto e sincronizados antes; keynote e Type Mark não vão; o tipo fica aguardando até o sistema aplicar). Ver docs/revit-componentes.md.
 
