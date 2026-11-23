@@ -5,6 +5,9 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 23/11, ~11h10 — commit c4760e2
+- Extensão do Revit 2.31.2 (antes 2.31.1): painel **Componentes** com ícones também para **Sincronizar tudo** (seta descendo do sistema para o modelo; âmbar quando há diferenças, contagem na dica) e **Reconectar** (elo, manutenção); todo ícone com dica.
+
 ## oficial Firebase — 23/11, ~11h00 — commit ebfeb54
 - Extensão do Revit 2.31.1 (antes 2.31.0): painel **Componentes** com ícones de **Carregar família** e **Localizar seleção** no cabeçalho; o **↻ gira** enquanto o sistema e o modelo são relidos (a leitura do sistema passou para segundo plano, sem congelar o painel); textos explicativos viraram dicas (só os erros ficam visíveis).
 
