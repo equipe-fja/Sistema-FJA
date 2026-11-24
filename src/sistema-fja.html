@@ -4235,6 +4235,16 @@ document.addEventListener('paste',ev=>{const sec=ev.target.closest?.('#ataEd tr[
 document.addEventListener('dragover',ev=>{const sec=ev.target.closest?.('#ataEd tr[data-ri]'); if(!sec||S.ro||![...(ev.dataTransfer?.types||[])].includes('Files')) return; ev.preventDefault(); sec.classList.add('sobre')});
 document.addEventListener('dragleave',ev=>{const sec=ev.target.closest?.('#ataEd tr[data-ri]'); if(sec&&!sec.contains(ev.relatedTarget)) sec.classList.remove('sobre')});
 document.addEventListener('drop',ev=>{const sec=ev.target.closest?.('#ataEd tr[data-ri]'); if(!sec||S.ro) return; const fs=[...(ev.dataTransfer?.files||[])]; if(!fs.length) return; ev.preventDefault(); sec.classList.remove('sobre'); ataImgAdd(sec.dataset.ri,fs)});
+/* imagens que saem da ata (×, item, tópico ou ata excluídos): o arquivo não é apagado na hora, porque o Ctrl+Z pode trazer o item de volta.
+   Fica numa fila neste navegador e é apagado na próxima abertura do sistema, se nenhuma ata usar mais a imagem. */
+const ataImgsDe=a=>(a?.secoes||[]).flatMap(s=>[...(s.imagens||[]),...(s.itens||[]).flatMap(x=>x.imagens||[])]);
+const ATA_LIXO='fja.ataLixo', ataLixoLer=()=>{const L=lsGet(ATA_LIXO,[]); return Array.isArray(L)?L:[]};
+ATA.lixoAnt=ataLixoLer(); // só o que ficou de sessões anteriores (o desfazer não passa de uma sessão)
+function ataLixo(imgs){const ids=(imgs||[]).flatMap(idsDe); if(ids.length) lsSet(ATA_LIXO,[...new Set([...ataLixoLer(),...ids])])}
+async function ataLixoLimpar(){const ant=ATA.lixoAnt||[]; ATA.lixoAnt=[]; if(!ant.length||!assets||S.ro) return;
+  const usados=new Set([...S.atas.values()].flatMap(a=>ataImgsDe(a).flatMap(idsDe)));
+  for(const x of ant) if(!usados.has(x)){try{await assets.delete(x)}catch{}}
+  lsSet(ATA_LIXO,ataLixoLer().filter(x=>!ant.includes(x)))}
 /* edição: grava sozinho 700 ms depois da última alteração */
 function ataAtual(){const id=$('ataEd')?.dataset.eid; return id?S.atas.get(id):null}
 function ataMudou(rerender){const a=ataAtual(); if(!a||S.ro) return; a.atualizadoEm=Date.now(); ATA.pend=a.id; clearTimeout(ATA.timer); ATA.timer=setTimeout(ataGravar,700); if(rerender) renderMain()}
@@ -4261,20 +4271,24 @@ async function ataAcao(a0,b){
   else if(a0==='ata-part-ant'){const ant=atasDe(a.projeto).find(x=>x.id!==a.id&&(+x.num||0)<(+a.num||0))||atasDe(a.projeto).find(x=>x.id!==a.id); if(!ant){toast('Não há ata anterior');return}
     const tem=new Set((a.participantes||[]).map(p=>nrm(p.nome))); (ant.participantes||[]).forEach(p=>{if(!tem.has(nrm(p.nome))) (a.participantes=a.participantes||[]).push({...p})}); ataMudou(true); toast('Participantes da ata '+numAta(ant.num)+' copiados')}
   else if(a0==='ata-sec-add'){(a.secoes=a.secoes||[]).push({titulo:'',itens:[{texto:'',resp:'',status:'-'}]}); ataMudou(true); foco(`[data-as="${a.secoes.length-1}"]`)}
-  else if(a0==='ata-sec-rm'){const s=a.secoes[+b.dataset.s]; if((s.itens||[]).some(x=>String(x.texto||'').trim())&&!await confirmar(`Excluir o tópico ${LETRA(+b.dataset.s)} e os ${s.itens.length} itens dele?`,{ok:'Excluir',perigo:true})) return; a.secoes.splice(+b.dataset.s,1); ataMudou(true)}
+  else if(a0==='ata-sec-rm'){const s=a.secoes[+b.dataset.s], im=ataImgsDe({secoes:[s]}), n=(s.itens||[]).length;
+    if(((s.itens||[]).some(x=>String(x.texto||'').trim())||im.length)&&!await confirmar(`Excluir o tópico ${LETRA(+b.dataset.s)} e ${n>1?'os '+n+' itens':'o item'} dele${im.length?` (com ${im.length} ${im.length>1?'imagens':'imagem'})`:''}?`,{ok:'Excluir',perigo:true})) return;
+    a.secoes.splice(+b.dataset.s,1); ataMudou(true); ataLixo(im)}
   else if(a0==='ata-sec-mv'){const i=+b.dataset.s, j=i+(+b.dataset.d); if(j<0||j>=a.secoes.length) return; [a.secoes[i],a.secoes[j]]=[a.secoes[j],a.secoes[i]]; ataMudou(true)}
   else if(a0==='ata-it-add'){const s=a.secoes[+b.dataset.s]; (s.itens=s.itens||[]).push({texto:'',resp:'',status:'-'}); ataMudou(true); foco(`[data-ai="${b.dataset.s}.${s.itens.length-1}"][data-k="texto"]`)}
   else if(a0==='ata-img-ver'){const [si,ii]=b.dataset.ai.split('.').map(Number), L=a.secoes[si]?.itens?.[ii]?.imagens||[]; abrirViewer(L.map(m=>({...m})),+b.dataset.i)}
   else if(a0==='ata-img-rm'){const [si,ii]=b.dataset.ai.split('.').map(Number), L=a.secoes[si]?.itens?.[ii]?.imagens||[], m=L[+b.dataset.i]; if(!m) return; if(!await confirmar(`Remover a imagem “${m.nome||'imagem'}” do item ${LETRA(si)}${ii+1}?`,{ok:'Remover',perigo:true})) return;
-    L.splice(+b.dataset.i,1); ataMudou(true); for(const x of idsDe(m)){try{await assets?.delete(x)}catch{}}}
-  else if(a0==='ata-it-rm'){const [s,i]=b.dataset.ai.split('.').map(Number); a.secoes[s].itens.splice(i,1); ataMudou(true)}
+    L.splice(+b.dataset.i,1); ataMudou(true); ataLixo([m])}
+  else if(a0==='ata-it-rm'){const [s,i]=b.dataset.ai.split('.').map(Number), im=a.secoes[s].itens[i]?.imagens||[];
+    if(im.length&&!await confirmar(`Excluir o item ${LETRA(s)}${i+1} e ${im.length>1?'as '+im.length+' imagens':'a imagem'} dele?`,{ok:'Excluir',perigo:true})) return;
+    a.secoes[s].itens.splice(i,1); ataMudou(true); ataLixo(im)}
   else if(a0==='ata-it-mv'){const [s,i]=b.dataset.ai.split('.').map(Number), j=i+(+b.dataset.d), L=a.secoes[s].itens; if(j<0||j>=L.length) return; [L[i],L[j]]=[L[j],L[i]]; ataMudou(true)}
   else if(a0==='ata-pend-ant'){const ant=atasDe(a.projeto).find(x=>x.id!==a.id&&(+x.num||0)<(+a.num||0)); if(!ant){toast('Não há ata anterior');return}
     const its=[]; (ant.secoes||[]).forEach((s,si)=>(s.itens||[]).forEach((x,i)=>{if(x.status==='Pendente'||x.status==='Iniciado') its.push({texto:x.texto,resp:x.resp,status:x.status,origem:`Ata ${numAta(ant.num)} · ${LETRA(si)}${i+1}`})}));
     if(!its.length){toast('A ata '+numAta(ant.num)+' não tem itens pendentes');return}
     (a.secoes=a.secoes||[]).push({titulo:`Pendências da ata ${numAta(ant.num)}`,itens:its}); ataMudou(true); toast(`${its.length} pendência${its.length>1?'s':''} trazida${its.length>1?'s':''} da ata ${numAta(ant.num)}`)}
   else if(a0==='ata-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir ata'}},4000);return}
-    if(!podeExcluir(a)) return avisoExcluir();try{await ataColl().doc(a.id).delete(); S.atas.delete(a.id); toast('Ata excluída'); ir({t:'atas',id:a.projeto})}catch{toast('Não foi possível excluir')}}
+    if(!podeExcluir(a)) return avisoExcluir();try{await ataColl().doc(a.id).delete(); S.atas.delete(a.id); ataLixo(ataImgsDe(a)); toast('Ata excluída'); ir({t:'atas',id:a.projeto})}catch{toast('Não foi possível excluir')}}
   else if(a0==='ata-pdf'){const t0=b.innerHTML; b.disabled=true; b.textContent='Gerando…';
     try{const {bytes,nome}=await montarPdfAta(a), blob=new Blob([bytes],{type:'application/pdf'});
       if(downloads){const r=await downloads.save({filename:nome+'.pdf',data:blob});toast(r?.status==='saved'?'PDF salvo':'PDF gerado')}
@@ -4289,6 +4303,8 @@ function htmlAta(a){
   const th=(t,w)=>`<td style="${lab}background:${cz};padding:4px 6px;border-bottom:${ln};${w?`width:${w};`:''}">${t}</td>`;
   const td=(t,x='')=>`<td style="${txt}padding:5px 6px;border-bottom:${ln};vertical-align:top;${x}">${esc(t||'').replace(/\n/g,'<br>')}</td>`;
   const tab=(c)=>`<table style="border-collapse:collapse;width:100%;margin:0 0 4pt 0">${c}</table>`;
+  const tdIm=x=>{const n=(x.imagens||[]).length, t=esc(String(x.texto||'').trim()).replace(/\n/g,'<br>'); // as imagens ainda não vão para o Doc: o item avisa que estão no PDF
+    return `<td style="${txt}padding:5px 6px;border-bottom:${ln};vertical-align:top;text-align:justify;">${t}${n?`${t?'<br>':''}<span style="color:#777777;font-style:italic;font-size:9pt">[${n} ${n>1?'imagens':'imagem'} no PDF]</span>`:''}</td>`};
   const sub=t=>`<p style="${F}font-size:10pt;color:#333333;margin:14pt 0 4pt 0">${t}</p>`;
   let h=`<html><head><meta charset="utf-8"></head><body style="${F}">`;
   h+=`<p style="${F}font-size:7.5pt;color:#777777;text-align:right;margin:0">${esc(cod)} | GESTÃO | <b>ATA REUNIÃO</b></p>`;
@@ -4301,7 +4317,7 @@ function htmlAta(a){
   const S2=(a.secoes||[]);
   h+=sub('SUMÁRIO')+tab(`<tr>${th('item','50px')}${th('descrição')}</tr>${S2.map((s,i)=>`<tr>${td(LETRA(i))}${td(s.titulo)}</tr>`).join('')}`);
   S2.forEach((s,si)=>{const L=LETRA(si);
-    h+=sub(`<b>${L}.</b>&nbsp;&nbsp;${esc(s.titulo||'')}`)+tab(`<tr>${th('item','50px')}${th('descrição')}${th('resp.','90px')}${th('status','80px')}</tr>${(s.itens||[]).filter(x=>String(x.texto||'').trim()).map((x,i)=>`<tr>${td(L+(i+1),'font-weight:bold;')}${td(x.texto,'text-align:justify;')}${td(x.resp||'-')}${td(x.status||'-')}</tr>`).join('')}`)});
+    h+=sub(`<b>${L}.</b>&nbsp;&nbsp;${esc(s.titulo||'')}`)+tab(`<tr>${th('item','50px')}${th('descrição')}${th('resp.','90px')}${th('status','80px')}</tr>${(s.itens||[]).filter(x=>String(x.texto||'').trim()||x.imagens?.length).map((x,i)=>`<tr>${td(L+(i+1),'font-weight:bold;')}${tdIm(x)}${td(x.resp||'-')}${td(x.status||'-')}</tr>`).join('')}`)});
   h+=`<p style="${F}font-size:7pt;color:#999999;margin:24pt 0 0 0;letter-spacing:2px">FILIPE <b>JACOPUCCI</b> ARQUITETURA</p><p style="${F}font-size:7pt;color:#999999;margin:0">www.fj.arq.br</p></body></html>`;
   return h;
 }
@@ -10076,6 +10092,7 @@ async function modoPublico(){
     const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.projeto) m.set(d.id,{...structuredClone(v),id:d.id})}
     if(ATA.pend&&S.atas.get(ATA.pend)) m.set(ATA.pend,S.atas.get(ATA.pend)); // edição local ainda não gravada
     const ed=document.activeElement?.closest?.('#ataEd'); S.atas=m;
+    if(!ATA.limpou){ATA.limpou=true; setTimeout(ataLixoLimpar,5000)}
     if(S.carregado){if(ed||S.dirty) renderTree(); else render()}
   },()=>{});
   rdColl().onSnapshot(snap=>{
