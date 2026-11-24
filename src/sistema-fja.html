@@ -4530,9 +4530,8 @@ async function emRetro(pid){
   if(S.ro) return; if(!mcp){toast('Sem conexão com o Google Drive.');return}
   const it=S.itens.get(pid); let res=null;
   const ini=it?.emisPasta?.caminho||String(it?.campos?.pasta_servidor||'').replace(/[\\/]+$/,'')||'G:\\';
-  if(pcAtivo()) res=await pcResolver(await escolherNoPC({tipo:'pasta',inicio:ini,titulo:'Escolha a pasta da emissão (AA-MM-DD …) ou a pasta que contém as emissões'}));
-  else{const u=await pedirLink(); if(!u) return; const m=/folders\/([a-zA-Z0-9_-]{10,})/.exec(u)||/^([a-zA-Z0-9_-]{20,})$/.exec(u.trim()); if(!m){toast('Link de pasta do Drive inválido');return}
-    try{const r=await mcp.callTool(GD,'get_file_metadata',{fileId:m[1]},{cache:false}); res={id:m[1],pasta:true,caminho:r?.payload?.title||m[1]}}catch(e){toast(msgMcp(e).replace(/Google Sheets/g,'Google Drive'));return}}
+  // sempre pelo Explorer (Conexão com PC), a pedido da FJA (24/11/2026)
+  res=await pcResolver(await escolherNoPC({tipo:'pasta',inicio:ini,titulo:'Escolha a pasta da emissão (AA-MM-DD …) ou a pasta que contém as emissões'}));
   if(!res) return; if(!res.pasta){toast('Escolha uma pasta.');return}
   const nomeRes=String(res.caminho||'').split('\\').pop();
   let cands;
