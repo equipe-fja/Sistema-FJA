@@ -5,6 +5,11 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 24/11, ~16h30 — commit 6ec6c59
+- **Cronograma**: um item pode **começar após o fim de outro** (campo "Começa após" na ficha, "Novo item após este" no botão direito da barra e "Item após este" na ficha). Quando o item anterior muda de data, os atrelados acompanham em cascata, sem mudar a duração. Arrastar o item atrelado define uma folga em dias, e no Detalhado uma seta liga os dois itens.
+- **Relação de documentos**: **Ctrl+D** duplica o documento selecionado (ou vários). Cada cópia recebe o próximo número de item do mesmo grupo (disciplina, fase e bloco) e a emissão na data do dia, com status Emitido. Também disponível no botão direito ("Duplicar").
+- **Atas de reunião**: as imagens dos itens ganham uma coluna própria, **Imagens**, entre Item e Descrição, com as miniaturas e o botão de adicionar; no PDF elas saem na coluna "imagens".
+
 ## oficial Firebase — 23/11, ~15h59 — commit bebc110
 - **Atas de reunião**: cada item aceita **imagens** (ícone na linha do item, Ctrl+V com o cursor no item ou arrastar para a linha), com **miniatura** na descrição e visualizador ao clicar; no PDF da ata as imagens saem logo abaixo da linha do item, duas por linha. O Google Doc exportado continua só com o texto.
 
