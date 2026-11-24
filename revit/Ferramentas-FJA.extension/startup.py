@@ -31,6 +31,27 @@ def _ocioso(sender, args):
         suite_no_fim()
     except Exception:
         pass
+    # informa ao Sistema FJA a versão instalada (aviso de atualização na página inicial); em segundo plano
+    try:
+        from System.Threading import Thread, ThreadStart
+        t = Thread(ThreadStart(_registrar_versao))
+        t.IsBackground = True
+        t.Start()
+    except Exception:
+        pass
+
+
+def _registrar_versao():
+    try:
+        import fja_nuvem
+        import fja_suite
+        try:
+            rv = __revit__.Application.VersionNumber  # noqa: F821
+        except Exception:
+            rv = u""
+        fja_nuvem.registrar_versao(fja_suite.versao_local(), rv)
+    except Exception:
+        pass
 
 
 try:

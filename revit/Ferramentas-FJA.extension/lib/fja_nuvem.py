@@ -12,6 +12,7 @@ Só .NET (WebClient) e json: funciona no IronPython 2.7/3.4 do pyRevit.
 import io
 import json
 import os
+import re
 import time
 
 import System
@@ -209,6 +210,24 @@ def pedidos_pendentes():
             except Exception:
                 pass
     return res
+
+
+def registrar_versao(versao, revit=u""):
+    """Grava em revitVersoes/<e-mail>__<computador> a versão da suíte instalada neste computador.
+    A página inicial do sistema avisa a pessoa quando a versão publicada for mais nova.
+    Sem login guardado não faz nada (não abre janela). Devolve True se gravou."""
+    c = _ler_cfg()
+    if not c.get("refresh"):
+        return False
+    email = (c.get("email") or u"").strip().lower()
+    pc = u"{}".format(System.Environment.MachineName)
+    did = re.sub(u"[^A-Za-z0-9_.-]", u"_", email + u"__" + pc)
+    corpo = json.dumps({"fields": {"email": _para(email), "computador": _para(pc),
+                                   "usuarioWindows": _para(u"{}".format(System.Environment.UserName)),
+                                   "versao": _para(u"{}".format(versao)), "revit": _para(u"{}".format(revit or u"")),
+                                   "em": _para(int(time.time() * 1000))}}, ensure_ascii=False)
+    _http("PATCH", BASE + "revitVersoes/" + did, corpo, token=token())
+    return True
 
 
 def enviar_pedido(pedido):
