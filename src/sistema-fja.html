@@ -1663,6 +1663,7 @@ function pnDados(){
 const pnRotulo=()=>{const n=String(rfiEuNome()||'').trim(); return n&&!n.includes('@')?n:'Meu painel'};
 function pnContagem(){try{if(AMB==='firebase'&&!FB()?.perfil()) return 0; const d=pnDados(); return d.riMinhas.length+d.pds.length}catch{return 0}}
 function telaPainel(h){
+  if(!S.convidado) avisosCarregar();
   if(PN.vistoAnt==null){PN.vistoAnt=lsGet('fja.pn.visto',0)||0; lsSet('fja.pn.visto',Date.now())}
   const d=pnDados(), {eu}=d, conv=S.convidado;
   const item=(x)=>`<button class="pn-i" data-act="pn-abrir" data-t="${x.t}" data-id="${esc(x.id)}" data-eid="${esc(x.eid)}">${x.novo?'<span class="pn-novo" title="Novo desde a sua última visita"></span>':''}<span class="pn-tag">${esc(x.tag)}</span><span class="pn-tx"><div class="pn-t">${esc(x.tit)}</div><div class="pn-s">${esc(x.proj)}${x.sub?' · '+esc(x.sub):''}</div></span>${x.dir?`<span class="pn-d${x.al?' al':''}">${esc(x.dir)}</span>`:''}</button>`;
@@ -1675,7 +1676,7 @@ function telaPainel(h){
   const card=(n,k,al)=>`<div class="pn-card${n?'':' zero'}"><span class="n">${n}</span><span class="k">${k}</span>${al?`<span class="al">${al}</span>`:''}</div>`;
   const projOps=pnProjetos(eu).sort(ordena);
   const pri=String(eu.nome||'').trim().split(/\s+/)[0]||'';
-  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1>${pnAtalhosHTML(eu)}
+  h+=`<div class="page"><h1>${pri&&!pri.includes('@')?'Olá, '+esc(pri):'Olá'}</h1>${pnAtalhosHTML(eu)}${conv?'':avisosHTML()}
   <div class="pn-filtros">${conv?'':`<label class="fl" style="flex-direction:row;align-items:center;gap:6px">Projetos <select class="fld sm" id="pnEscopo" style="width:auto"><option value="meus"${PN.escopo!=='todos'?' selected':''}>Em que estou envolvido</option><option value="todos"${PN.escopo==='todos'?' selected':''}>Todos em andamento</option></select></label>`}
     <select class="fld sm" id="pnProj" aria-label="Projeto" style="width:auto;max-width:380px"><option value="">Todos os projetos (${projOps.length})</option>${projOps.map(p=>`<option value="${esc(p.id)}"${PN.proj===p.id?' selected':''}>${esc(d.nomeP(p.id))}</option>`).join('')}</select>
     </div>
@@ -9762,7 +9763,7 @@ async function avisosCarregar(){
     try{const g=await f.collection('revitPub').doc('extensao-versao').get(); AVS.pub=g.exists?g.data().versao||null:null}catch{}
     AVS.rv=email?(await f.collection('revitVersoes').where('email','==',email).get()).docs.map(d=>({...d.data(),id:d.id})):[];
   }catch(e){console.warn('avisos',e)}
-  finally{AVS.carregando=false; AVS.em=Date.now(); if(S.view?.t==='home'&&!S.dirty) renderMain()}
+  finally{AVS.carregando=false; AVS.em=Date.now(); if((S.view?.t==='home'||S.view?.t==='painel')&&!S.dirty) renderMain()}
 }
 function avisosHTML(){
   const L=[], pub=AVS.pub||EXT_REVIT?.versao||'';
