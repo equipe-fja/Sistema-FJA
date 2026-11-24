@@ -32,7 +32,7 @@ Registro das emissões de arquivos de cada projeto (Projeto › Emissões). Deci
 1. Shim do Drive (`firebase/google.html`): envio em partes (`FJA_GOOGLE.enviar`), `copy_file`, `move_file`; coleção `emis` ligada ao sistema (tempo real, backup, regras). ✔
 2. Lista (planilha com filtros) e ficha (tela dividida). ✔
 3. Emitir: pasta datada, envio dos arquivos, prévia com aviso PDF/DWG. ✔ (aviso vale para documentos da RD; memoriais sem DWG: preencher a Extensão na RD só com PDF)
-4. Pasta compartilhada e SUBSTITUÍDOS.
+4. Pasta compartilhada e SUBSTITUÍDOS. ✔ (só na versão Firebase; na dev do Claude aparece o aviso)
 5. Envolvidos do projeto e "Enviar ao cadastro geral".
 6. RD: atualização ao emitir, histórico de revisões, Conexão com PC v7 (abrir pasta com arquivos selecionados).
 

@@ -671,7 +671,7 @@ body.rd-mod #eqTabela tr[data-act="rd-abrir"]{cursor:copy}
 .cq-ext{font:600 15px/1 var(--mono,monospace);color:#8a8a86;border:1px solid #d9d8d4;border-radius:6px;padding:10px 12px;background:#fff}
 .cq-inf{display:flex;flex-direction:column;gap:3px;padding:10px 12px 12px;font-size:13px}.cq-inf .st-cm{align-self:flex-start;margin-top:4px}.cq-d{font-size:11.5px;color:var(--muted)}
 .cq-drop{padding:12px 14px 14px;border-radius:0 0 10px 10px}.cq-drop.sobre{background:color-mix(in srgb,var(--accent,#8e1b1b) 6%,transparent);outline:2px dashed var(--accent,#8e1b1b);outline-offset:-6px}
-.em-dest{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0 6px}.em-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;background:var(--bg2,#f6f6f4)}.em-chip .lk{padding:0 2px;line-height:0}.em-chip svg{width:12px;height:12px}.em-prog{display:grid;grid-template-columns:minmax(0,1fr) 160px auto;gap:10px;align-items:center;padding:6px 2px;font-size:12.5px}.em-pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.em-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.em-bar i{display:block;height:100%;background:#1baf7a;transition:width .3s}.em-pct{font-size:11.5px;white-space:nowrap}.em-dest-sel{width:auto;min-width:220px;max-width:100%}
+.em-dest{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0 6px}.em-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;background:var(--bg2,#f6f6f4)}.em-chip .lk{padding:0 2px;line-height:0}.em-chip svg{width:12px;height:12px}.em-prog{display:grid;grid-template-columns:minmax(0,1fr) 160px auto;gap:10px;align-items:center;padding:6px 2px;font-size:12.5px}.em-pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.em-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.em-bar i{display:block;height:100%;background:#1baf7a;transition:width .3s}.em-pct{font-size:11.5px;white-space:nowrap}.em-comp{display:flex;flex-direction:column;gap:6px;font-size:13px}.em-chk{display:flex;gap:8px;align-items:center;cursor:pointer}.banner.warn{background:#fdf3d6;border-color:#eda100}.em-dest-sel{width:auto;min-width:220px;max-width:100%}
 .cq-arqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .cq-a{display:flex;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px;align-items:center;min-width:0}
 .cq-ath{width:72px;height:56px;flex:none;border-radius:5px;overflow:hidden;background:#f4f3f1;display:flex;align-items:center;justify-content:center}.cq-ath img{width:100%;height:100%;object-fit:cover}.cq-ath .cq-ext{font-size:11px;padding:6px}
@@ -4534,6 +4534,7 @@ function telaEmItem(h,v){
     <div class="em-dest">${D.map((d,i)=>`<span class="em-chip" title="${esc([d.empresa,d.email].filter(Boolean).join(' · '))}">${esc(d.nome)}${S.ro?'':`<button class="lk" data-act="em-dest-rm" data-i="${i}" title="Tirar ${esc(d.nome)}" aria-label="Tirar ${esc(d.nome)}">${IC.x}</button>`}</span>`).join('')||(S.ro?'<span class="muted">Nenhum</span>':'')}
     ${S.ro?'':`<select class="fld em-dest-sel" id="emDestSel" aria-label="Adicionar destinatário"><option value="">+ Adicionar destinatário…</option>${ops.map(d=>`<option value="${esc(d.nome)}">${esc(d.nome)}${d.empresa?' · '+esc(d.empresa):''}</option>`).join('')}</select>`}</div></section>
   ${emArqsHTML(e)}
+  ${emCompartHTML(e)}
   ${S.ro?'':`<div class="esp-bar"><span style="flex:1"></span><button class="btn danger sm" data-act="em-del">${IC.trash}Excluir emissão</button>${!e.status||e.status==='Rascunho'?`<button class="btn pri sm" data-act="em-emitir">Emitir</button>`:''}</div>`}
   <div class="foot-meta">${e.atualizadoEm?`Atualizado em ${fmtData(e.atualizadoEm)} · salvo automaticamente`:''}</div></div>`;
   return h;
@@ -4544,6 +4545,7 @@ async function emGravar(){const id=EM.pend; EM.pend=null; const e=S.emis.get(id)
 document.addEventListener('input',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||!t.dataset.em||S.ro) return; const e=emAtual(); if(!e) return;
   e[t.dataset.em]=t.type==='date'?dBr(t.value):t.value; emMudou(false)});
 document.addEventListener('change',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||S.ro) return; const e=emAtual(); if(!e) return;
+  if(t.id==='emCompUsar'){if(e.compart) e.compart.usar=t.checked; emMudou(false); return}
   if(t.id==='emFile'){if(t.files?.length) emAdicionar(e,[...t.files]); t.value=''; return}
   if(t.id==='emDestSel'){const n=t.value; if(!n) return; const d=envolvidosEm(e.projeto).find(x=>x.nome===n)||{nome:n}; (e.destinatarios=e.destinatarios||[]).push({nome:d.nome,...(d.empresa?{empresa:d.empresa}:{}),...(d.email?{email:d.email}:{})}); emMudou(true); return}
   if(t.dataset.em==='data'||t.dataset.em==='descricao'){if(t.dataset.em==='descricao'&&!t.value.trim()){toast('A descrição é obrigatória.'); return} emMudou(true); emRenomearPasta(e)}});
@@ -4555,6 +4557,8 @@ async function emAcao(a0,b){
   const e=emAtual(); if(!e||S.ro) return;
   if(a0==='em-dest-rm'){e.destinatarios.splice(+b.dataset.i,1); emMudou(true); return}
   if(a0==='em-emitir'){await emEmitir(e); return}
+  if(a0==='em-recopiar'){await emRecopiar(e); return}
+  if(a0==='em-compart-esta'){await emEscolherCompart(e); return}
   if(a0==='em-arq-rm'){const i=(e.arquivos||[]).findIndex(a=>a.nome===b.dataset.n), a=e.arquivos?.[i]; if(!a) return; const ras=!e.status||e.status==='Rascunho';
     if(!await confirmar(`Remover "${a.nome}" da emissão?${a.driveId?(ras?'\n\nO arquivo vai para a lixeira do Drive.':'\n\nA emissão já foi feita: o arquivo continua na pasta do Drive.'):''}`,{ok:'Remover',perigo:true})) return;
     e.arquivos.splice(i,1); emMudou(true); if(ras&&a.driveId&&mcp) mcp.callTool(GD,'trash_file',{fileId:a.driveId},{cache:false}).catch(()=>toast('Não foi possível mandar o arquivo para a lixeira do Drive')); return}
@@ -4584,7 +4588,7 @@ async function emRenomearPasta(e){
 }
 const emPinta=e=>{if(emAtual()?.id===e.id) renderMain()};
 function emProg(n){const p=EM.prog.get(n), el=document.querySelector(`[data-prog="${CSS.escape(n)}"]`); if(!p||!el) return;
-  const pc=p.t?Math.floor(p.n/p.t*100):0; el.querySelector('i').style.width=pc+'%'; el.querySelector('.em-pct').textContent=pc+'% · '+tamTxt(p.n)+' de '+tamTxt(p.t)}
+  const pc=p.t?Math.floor(p.n/p.t*100):0; el.querySelector('i').style.width=pc+'%'; el.querySelector('.em-pct').textContent=pc+'% · '+(tamTxt(p.n)||'0 MB')+' de '+tamTxt(p.t)}
 async function emAdicionar(e,files){
   if(S.ro||!files.length) return;
   if(e.status&&e.status!=='Rascunho'&&!await confirmar(`${numEm(e.num)} já foi emitida. Acrescentar ${files.length>1?'os arquivos':'o arquivo'} mesmo assim?`,{ok:'Acrescentar'})) return;
@@ -4621,7 +4625,7 @@ function emArqsHTML(e){
   return `<section class="sheet"><div class="sheet-h"><h2>Arquivos</h2><span class="hint">${A.length}</span>${ro?'':`<span style="flex:1"></span><label class="btn sm">${IC.plus}Adicionar arquivos<input type="file" multiple id="emFile" hidden></label>`}</div>
   <div class="cq-drop${ro?'':' on'}" id="emDrop">
   ${A.length?`<div class="tablewrap"><table class="list em-arqs"><thead><tr><th>Arquivo</th><th>Rev.</th><th>Tipo</th><th class="r">Tamanho</th><th>Relação de documentos</th><th></th></tr></thead><tbody>${A.map(lin).join('')}</tbody></table></div>`:''}
-  ${P.map(([n,p])=>{const pc=p.t?Math.floor(p.n/p.t*100):0; return `<div class="em-prog" data-prog="${esc(n)}"><span class="mono em-pn">${esc(n)}</span><span class="em-bar"><i style="width:${pc}%"></i></span><span class="em-pct muted">${pc}% · ${tamTxt(p.n)} de ${tamTxt(p.t)}</span></div>`}).join('')}
+  ${P.map(([n,p])=>{const pc=p.t?Math.floor(p.n/p.t*100):0; return `<div class="em-prog" data-prog="${esc(n)}"><span class="mono em-pn">${esc(n)}</span><span class="em-bar"><i style="width:${pc}%"></i></span><span class="em-pct muted">${pc}% · ${tamTxt(p.n)||'0 MB'} de ${tamTxt(p.t)}</span></div>`}).join('')}
   ${ro?(A.length?'':'<p class="muted">Nenhum arquivo.</p>'):`<p class="cq-dica">Arraste os arquivos para cá (também do Explorer, direto do G:). ${window.FJA_GOOGLE?.enviar?'Sem limite de tamanho.':'Limite de 25 MB por arquivo nesta versão.'} Os arquivos vão para a pasta <b class="mono">${esc(e.pasta?.nome||pastaEm(e))}</b>.</p>`}
   </div></section>`;
 }
@@ -4637,14 +4641,100 @@ function emAvisosPdfDwg(e){
   }
   return out;
 }
+/* pasta compartilhada: cópia dos arquivos emitidos; revisões anteriores vão para SUBSTITUÍDOS (regras em docs/emissoes.md) */
+const SUBST='SUBSTITUÍDOS';
+const temMover=()=>!!window.FJA_GOOGLE?.enviar; // copy_file/move_file só existem na versão Firebase
+async function listarPastaDrive(id,pastas){
+  const out=[]; let pt='';
+  do{const r=await mcp.callTool(GD,'search_files',{query:`parentId = '${id}' and trashed = false and mimeType ${pastas?'=':'!='} '${PASTA_MIME}'`,pageSize:1000,...(pt?{pageToken:pt}:{}),excludeContentSnippets:true},{cache:false});
+    out.push(...(r?.payload?.files||[]).filter(f=>!f.trashed)); pt=r?.payload?.nextPageToken||''}while(pt);
+  return out;
+}
+// grupos da emissão (um por documento: nome sem revisão e sem extensão) e o que fazer na pasta compartilhada
+async function emPlanoCompart(e,so){
+  const dest=e.compart; if(!dest?.id) return null;
+  const G=new Map();
+  for(const a of e.arquivos||[]){if(!a.driveId) continue; const p=partesArqEm(a.nome), k=p.base.toUpperCase(); if(so&&!so.has(k)) continue;
+    if(!G.has(k)) G.set(k,{k,rev:p.rev,arqs:[]}); const g=G.get(k); g.arqs.push(a); if(revNum(p.rev)>revNum(g.rev)) g.rev=p.rev}
+  const lista=await listarPastaDrive(dest.id,false), plano={copiar:[],mover:[],conferir:[]};
+  for(const g of G.values()){
+    const nomes=new Set(g.arqs.map(a=>a.nome.toLowerCase())), mov=[], maior=[];
+    for(const f of lista){const p=partesArqEm(f.title); if(p.base.toUpperCase()!==g.k) continue;
+      if(g.rev){const rf=revNum(p.rev); if(rf>revNum(g.rev)) maior.push(f); else if(rf<revNum(g.rev)||nomes.has(f.title.toLowerCase())) mov.push(f)}
+      else if(nomes.has(f.title.toLowerCase())) mov.push(f)}
+    if(maior.length){plano.conferir.push({doc:g.k,nome:g.arqs[0].nome,motivo:`a pasta compartilhada tem ${[...new Set(maior.map(f=>partesArqEm(f.title).rev))].join(', ')} e a emissão é ${g.rev}`});continue}
+    plano.mover.push(...mov); plano.copiar.push(...g.arqs);
+  }
+  return plano;
+}
+const nomeLivre=(nome,usados)=>{if(!usados.has(nome.toLowerCase())) return nome; const m=/^(.*?)(\.[^.]*)?$/.exec(nome); for(let i=2;;i++){const n=`${m[1]} (${i})${m[2]||''}`; if(!usados.has(n.toLowerCase())) return n}};
+async function emExecutarCompart(e,plano,msg){
+  const dest=e.compart, res={copiados:[],substituidos:[]};
+  if(plano.mover.length){
+    msg('Preparando SUBSTITUÍDOS…');
+    let sub=(await listarPastaDrive(dest.id,true)).find(f=>f.title.toUpperCase()===SUBST);
+    if(!sub){const r=await mcp.callTool(GD,'create_file',{title:SUBST,contentMimeType:'application/vnd.google-apps.folder',parentId:dest.id},{cache:false}); sub=r?.payload; if(!sub?.id) throw {message:'O Drive não criou a pasta SUBSTITUÍDOS.'}}
+    const usados=new Set((await listarPastaDrive(sub.id,false)).map(f=>f.title.toLowerCase()));
+    for(const f of plano.mover){msg('Movendo '+f.title+'…'); const n=nomeLivre(f.title,usados); usados.add(n.toLowerCase());
+      await mcp.callTool(GD,'move_file',{fileId:f.id,addParents:sub.id,removeParents:dest.id,...(n!==f.title?{title:n}:{})},{cache:false}); res.substituidos.push({nome:f.title,...(n!==f.title?{para:n}:{})})}
+  }
+  for(const a of plano.copiar){msg('Copiando '+a.nome+'…'); const r=await mcp.callTool(GD,'copy_file',{fileId:a.driveId,parentId:dest.id,title:a.nome},{cache:false}); if(!r?.payload?.id) throw {message:'O Drive não copiou '+a.nome}; res.copiados.push(a.nome)}
+  msg(''); return res;
+}
+const txtPlano=p=>!p?'':`\n\nPasta compartilhada:\n• copiar ${p.copiar.length} arquivo${p.copiar.length===1?'':'s'}`+
+  (p.mover.length?`\n• para ${SUBST}: ${p.mover.map(f=>f.title).join(', ')}`:'')+
+  (p.conferir.length?`\n• NÃO copiar (conferir e resolver manualmente):\n${p.conferir.map(c=>'   – '+c.doc+': '+c.motivo).join('\n')}`:'');
+function emCompartHTML(e){
+  const c=e.compart, it=S.itens.get(e.projeto), ras=!e.status||e.status==='Rascunho', ro=S.ro;
+  if(!temMover()) return c?.id?`<section class="sheet"><div class="sheet-h"><h2>Pasta compartilhada</h2></div><p class="muted">A cópia para a pasta compartilhada só funciona na homologação e na oficial.</p></section>`:'';
+  let h=`<section class="sheet"><div class="sheet-h"><h2>Pasta compartilhada</h2><span class="hint">opcional</span></div><div class="em-comp">`;
+  if(ras){
+    h+=`<label class="em-chk"><input type="checkbox" id="emCompUsar" ${c?.id&&c.usar!==false?'checked':''} ${ro||!c?.id?'disabled':''}> Duplicar os arquivos para a pasta compartilhada ao emitir</label>
+    <div>${c?.id?`<span class="mono ferr-cam-p">${esc(c.caminho||c.id)}</span>`:'<span class="muted">Nenhuma pasta escolhida.</span>'} ${ro?'':`<button class="btn sm ghost" data-act="em-compart-esta">${c?.id?'Trocar':'Escolher pasta'}</button>`}${it?.emisCompart&&c?.id&&c.id!==it.emisCompart.id?' <span class="muted">(diferente da pasta padrão do projeto)</span>':''}</div>
+    <p class="cq-dica" style="text-align:left">Ao emitir, os arquivos são copiados para lá. Revisões anteriores do mesmo documento (em qualquer extensão) vão para a subpasta ${SUBST}. Se lá houver revisão maior que a emitida, aquele documento não é copiado e a emissão fica para conferir.</p>`;
+  }else if(c?.em){
+    h+=`<div><span class="mono ferr-cam-p">${esc(c.caminho||c.id)}</span>${c.url?` <a class="icb sm" href="${esc(c.url)}" target="_blank" rel="noopener" title="Abrir no Google Drive">${IC.ext}</a>`:''}</div>
+    <p style="margin:6px 0 0">${c.copiados?.length||0} copiado${c.copiados?.length===1?'':'s'} em ${esc(fmtData(c.em))}${c.substituidos?.length?` · ${c.substituidos.length} para ${SUBST}: <span class="mono" style="font-size:12px">${esc(c.substituidos.map(s=>s.para?s.nome+' → '+s.para:s.nome).join(', '))}</span>`:''}</p>
+    ${c.conferir?.length?`<div class="banner warn" style="margin-top:8px"><span class="sp"><b>Conferir:</b> ${c.conferir.map(x=>`<span class="mono">${esc(x.doc)}</span>: ${esc(x.motivo)}`).join('<br>')}<br><span class="muted">Resolva manualmente na pasta compartilhada e clique em Copiar de novo.</span></span>${ro?'':`<button class="btn sm" data-act="em-recopiar">Copiar de novo</button>`}</div>`:''}`;
+  }else h+=`<p class="muted">Não duplicada para a pasta compartilhada.</p>`;
+  return h+`</div></section>`;
+}
 async function emEmitir(e){
   if(!String(e.descricao||'').trim()||!e.data){toast('Preencha a data e a descrição.');return}
   if(EM.subindo){toast('Aguarde o fim dos envios.');return}
-  const A=e.arquivos||[], av=emAvisosPdfDwg(e);
-  let txt=`Emitir ${numEm(e.num)} · ${e.data}\n${e.descricao}\n\n${A.length?A.length+' arquivo'+(A.length>1?'s':''):'Sem arquivos'}${destEm(e).length?'\nPara: '+destEm(e).join(', '):''}`;
+  const A=e.arquivos||[], av=emAvisosPdfDwg(e), msg=t=>{const m=$('emMsg'); if(m) m.textContent=t};
+  const usar=temMover()&&e.compart?.id&&e.compart.usar!==false&&A.length;
+  let plano=null; if(usar){msg('Lendo a pasta compartilhada…'); try{plano=await emPlanoCompart(e)}catch(x){msg(''); toast('Não foi possível ler a pasta compartilhada: '+(x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive')));return} msg('')}
+  let txt=`Emitir ${numEm(e.num)} · ${e.data}\n${e.descricao}\n\n${A.length?A.length+' arquivo'+(A.length>1?'s':''):'Sem arquivos'}${destEm(e).length?'\nPara: '+destEm(e).join(', '):''}`+txtPlano(plano);
   if(av.length) txt+=`\n\nAtenção, pranchas sem PDF ou sem DWG:\n${av.map(x=>'• '+x).join('\n')}`;
   if(!await confirmar(txt,{ok:av.length?'Emitir mesmo assim':'Emitir'})) return;
-  e.status='Emitida'; e.emitidaEm=Date.now(); if(me) e.emitidaPor=me; emMudou(true); toast(numEm(e.num)+' emitida');
+  if(plano){
+    try{const r=await emExecutarCompart(e,plano,msg); e.compart={...e.compart,em:Date.now(),...(me?{por:me}:{}),copiados:r.copiados,substituidos:r.substituidos,conferir:plano.conferir}}
+    catch(x){console.error(x); msg(''); toast('A cópia para a pasta compartilhada parou: '+(x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive'))+'. A emissão continua como rascunho.'); return}
+  }
+  e.status=plano?.conferir.length?'Conferir':'Emitida'; e.emitidaEm=Date.now(); if(me) e.emitidaPor=me; emMudou(true);
+  toast(numEm(e.num)+(e.status==='Conferir'?' emitida: há documentos a conferir na pasta compartilhada':' emitida'));
+}
+async function emRecopiar(e){
+  const c=e.compart; if(!c?.conferir?.length) return; const msg=t=>{const m=$('emMsg'); if(m) m.textContent=t};
+  let plano; try{msg('Lendo a pasta compartilhada…'); plano=await emPlanoCompart(e,new Set(c.conferir.map(x=>x.doc)))}catch(x){msg(''); toast('Não foi possível ler a pasta compartilhada');return}
+  msg(''); if(!await confirmar(`Copiar de novo os documentos pendentes de ${numEm(e.num)}?`+txtPlano(plano),{ok:'Copiar'})) return;
+  try{const r=await emExecutarCompart(e,plano,msg);
+    e.compart={...c,copiados:[...(c.copiados||[]),...r.copiados],substituidos:[...(c.substituidos||[]),...r.substituidos],conferir:plano.conferir,em:Date.now()};
+    e.status=plano.conferir.length?'Conferir':'Emitida'; emMudou(true); toast(plano.conferir.length?'Ainda há documentos a conferir':'Pasta compartilhada em dia')}
+  catch(x){console.error(x); msg(''); toast('A cópia parou: '+(x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive')))}
+}
+// pasta compartilhada só desta emissão (não muda a pasta padrão do projeto, a não ser que o projeto ainda não tenha)
+async function emEscolherCompart(e){
+  if(!mcp){toast('Sem conexão com o Google Drive.');return}
+  const it=S.itens.get(e.projeto); let res=null; const ini=e.compart?.caminho||it?.emisCompart?.caminho||String(it?.campos?.pasta_servidor||'').replace(/[\\/]+$/,'')||'G:\\';
+  if(pcAtivo()) res=await pcResolver(await escolherNoPC({tipo:'pasta',inicio:ini,titulo:'Escolha a pasta compartilhada desta emissão'}));
+  else{const u=await pedirLink(); if(!u) return; const m=/folders\/([a-zA-Z0-9_-]{10,})/.exec(u)||/^([a-zA-Z0-9_-]{20,})$/.exec(u.trim()); if(!m){toast('Link de pasta do Drive inválido');return}
+    try{const r=await mcp.callTool(GD,'get_file_metadata',{fileId:m[1]},{cache:false}); const f=r?.payload||{}; res={id:m[1],pasta:true,caminho:f.title||m[1],url:f.viewUrl||''}}catch(x){toast(msgMcp(x).replace(/Google Sheets/g,'Google Drive'));return}}
+  if(!res) return; if(!res.pasta){toast('Escolha uma pasta.');return}
+  const info={id:res.id,caminho:res.caminho||'',url:res.url||`https://drive.google.com/drive/folders/${res.id}`};
+  e.compart={...info,usar:true}; emMudou(true);
+  if(it&&!it.emisCompart){try{await coll().doc(it.id).update({emisCompart:info}); it.emisCompart=info; toast('Também ficou como a pasta compartilhada padrão do projeto')}catch{}}
 }
 /* ---------- croquis do projeto ---------- */
 const croqColl=()=>db.collection('croq');
