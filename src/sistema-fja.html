@@ -4291,16 +4291,23 @@ async function montarPdfAta(a){
   T(numAta(a.num),bx+62,by+4,20,F); pg.drawLine({start:{x:bx+122,y:by-4},end:{x:bx+122,y:by+26},thickness:.8,color:C.ink});
   T(revAta(a.rev),bx+128,by+4,20,F); pg.drawLine({start:{x:W-MG,y:by-4},end:{x:W-MG,y:by+26},thickness:.8,color:C.ink});
   y-=16;
-  const fs=9.2, lh=12, pad=4;
+  const fs=9.2, lh=12, pad=4, IMH=120, IGAP=5;
   function tabela(cols,linhas,{titulo,cab=true,boldPrim=false,fsz=fs,apos}={}){
     if(titulo){if(y-50<BOT){nova()} T(titulo.t,MG+(titulo.ind||0),y,titulo.s||9,titulo.f||F,C.ink); if(titulo.lead) T(titulo.lead,MG,y,titulo.s||9,FB,C.ink); y-=8}
     const ws=cols.map(c=>c.w?c.w:0), fixo=ws.reduce((a,b)=>a+b,0), nf=ws.filter(w=>!w).length; const W2=ws.map(w=>w||(CW-fixo)/nf);
     const cabec=()=>{if(!cab) return; pg.drawRectangle({x:MG,y:y-15,width:CW,height:15,color:C.cz}); let x=MG; cols.forEach((c,j)=>{T(c.t,x+pad,y-10.5,6.8,F,C.mut);x+=W2[j]}); y-=15};
     cabec();
-    for(const r of linhas){const ls=r.map((v,j)=>wrap(v,fsz,W2[j]-2*pad,(boldPrim&&j===0)?FB:F)), rh=Math.max(...ls.map(l=>l.length))*lh+2*pad;
-      if(y-rh<BOT){nova();cabec()}
-      let x=MG; ls.forEach((l,j)=>{l.forEach((s,n)=>T(s,x+pad,y-pad-fsz+1-n*lh,fsz,(boldPrim&&j===0)?FB:F,C.ink));x+=W2[j]});
-      y-=rh; if(apos) apos(linhas.indexOf(r),cabec); pg.drawLine({start:{x:MG,y},end:{x:MG+CW,y},thickness:.5,color:C.line})}
+    for(const r of linhas){const ls=r.map((v,j)=>v?.imgs?[]:wrap(v,fsz,W2[j]-2*pad,(boldPrim&&j===0)?FB:F)), th=Math.max(1,...ls.map(l=>l.length))*lh+2*pad;
+      const ims=r.map((v,j)=>v?.imgs?v.imgs.map(im=>{const e=Math.min((W2[j]-2*pad)/im.width,IMH/im.height,1);return {im,w:im.width*e,h:im.height*e}}):null);
+      const rh=Math.max(th,...ims.map(L=>L?.length?L.reduce((a,p)=>a+p.h,0)+(L.length-1)*IGAP+2*pad:0));
+      const util=H-104-15-BOT, i1=ims.find(L=>L?.length)?.[0], need=rh>util/2?Math.max(th,(i1?.h||0)+2*pad):rh; // linha alta (muitas imagens) começa onde está e continua na página seguinte
+      if(y-need<BOT){nova();cabec()}
+      const y0=y; let x=MG; ls.forEach((l,j)=>{l.forEach((t,n)=>T(t,x+pad,y0-pad-fsz+1-n*lh,fsz,(boldPrim&&j===0)?FB:F,C.ink));x+=W2[j]});
+      let fim=y0-th, quebrou=false; x=MG;
+      ims.forEach((L,j)=>{if(L?.length){let yy=y0-pad; for(const p of L){if(yy-p.h<BOT){nova();cabec();yy=y-pad;quebrou=true}
+        const xx=x+pad+(W2[j]-2*pad-p.w)/2; pg.drawImage(p.im,{x:xx,y:yy-p.h,width:p.w,height:p.h}); pg.drawRectangle({x:xx,y:yy-p.h,width:p.w,height:p.h,borderColor:C.line,borderWidth:.5}); yy-=p.h+IGAP}
+        const fi=yy+IGAP-pad; fim=quebrou?fi:Math.min(fim,fi)} x+=W2[j]});
+      y=fim; if(apos) apos(linhas.indexOf(r),cabec); pg.drawLine({start:{x:MG,y},end:{x:MG+CW,y},thickness:.5,color:C.line})}
     y-=14;
   }
   tabela([{t:'revisão',w:60},{t:'data',w:80},{t:'hora/local'},{t:'responsável',w:130}],[[revAta(a.rev).slice(1),a.data||'',[a.hora,a.local].filter(Boolean).join(' / '),a.responsavel||'']],{titulo:{t:'índice de revisões',s:8.5},fsz:8});
@@ -4308,15 +4315,12 @@ async function montarPdfAta(a){
   tabela([{t:'nome'},{t:'empresa',w:130},{t:'função',w:150}],P.map(p=>[p.nome,p.empresa,p.funcao]),{titulo:{t:'participantes',s:8.5}});
   y+=8; {const t='AS INFORMAÇÕES DESTE DOCUMENTO SÃO PROPRIEDADE DA FJ.ARQUITETURA, SENDO PROIBIDA A UTILIZAÇÃO SEM AUTORIZAÇÃO PRÉVIA.'; const w=F.widthOfTextAtSize(safe(t),5.8); T(t,MG+(CW-w)/2,y,5.8,F,C.mut); y-=20}
   const SS=a.secoes||[];
-  // embute antes as imagens dos itens (é assíncrono); cada item desenha as suas logo abaixo da própria linha
+  // embute antes as imagens dos itens (é assíncrono); elas saem na coluna "imagens", entre item e descrição (só se a ata tiver alguma imagem)
   const IMGS=new Map(); for(const s of SS) for(const x of (s.itens||[])) for(const m of (x.imagens||[])){try{const b=await bytesBlob(m.prev);let im;try{im=await doc.embedJpg(b)}catch{im=await doc.embedPng(b)} IMGS.set(m,im)}catch{}}
-  const desenhaImgs=(x,cabec)=>{const L=(x.imagens||[]).map(m=>IMGS.get(m)).filter(Boolean); if(!L.length) return; const x0=MG+46+pad, aw=CW-46-2*pad, gap=10, cw=(aw-gap)/2, MAXH=190;
-    for(let k=0;k<L.length;k+=2){const par=L.slice(k,k+2).map(im=>{const e=Math.min(cw/im.width,MAXH/im.height,1);return {im,w:im.width*e,h:im.height*e}}), rh=Math.max(...par.map(p=>p.h));
-      if(y-rh-pad<BOT){nova();cabec()} par.forEach((p,j)=>{const xx=x0+j*(cw+gap); pg.drawImage(p.im,{x:xx,y:y-p.h,width:p.w,height:p.h}); pg.drawRectangle({x:xx,y:y-p.h,width:p.w,height:p.h,borderColor:C.line,borderWidth:.5})}); y-=rh+gap}
-    y-=pad};
   tabela([{t:'item',w:46},{t:'descrição'}],SS.map((s,i)=>[LETRA(i),s.titulo||'']),{titulo:{t:'SUMÁRIO',s:8.5,ind:12}});
+  const comImg=IMGS.size>0, imgsDe=x=>({imgs:(x.imagens||[]).map(m=>IMGS.get(m)).filter(Boolean)});
   SS.forEach((s,si)=>{const Lt=LETRA(si), its=(s.itens||[]).filter(x=>String(x.texto||'').trim()||x.imagens?.length);
-    tabela([{t:'item',w:46},{t:'descrição'},{t:'resp.',w:70},{t:'status',w:66}],its.map((x,i)=>[Lt+(i+1),x.texto,x.resp||'-',x.status||'-']),{titulo:{t:`${Lt}.    ${s.titulo||''}`,s:9,ind:12},boldPrim:true,apos:(i,cabec)=>desenhaImgs(its[i],cabec)})});
+    tabela([{t:'item',w:46},...(comImg?[{t:'imagens',w:92}]:[]),{t:'descrição'},{t:'resp.',w:70},{t:'status',w:66}],its.map((x,i)=>[Lt+(i+1),...(comImg?[imgsDe(x)]:[]),x.texto,x.resp||'-',x.status||'-']),{titulo:{t:`${Lt}.    ${s.titulo||''}`,s:9,ind:12},boldPrim:true})});
   pags.forEach((p,i)=>{p.drawText('FILIPE ',{x:MG,y:40,size:6.5,font:F,color:C.faint}); const w1=F.widthOfTextAtSize('FILIPE ',6.5); p.drawText('JACOPUCCI ',{x:MG+w1,y:40,size:6.5,font:FB,color:C.faint}); p.drawText('ARQUITETURA',{x:MG+w1+FB.widthOfTextAtSize('JACOPUCCI ',6.5),y:40,size:6.5,font:F,color:C.faint});
     p.drawText('www.fj.arq.br',{x:MG,y:31,size:6.5,font:F,color:C.faint}); const t=`${i+1}/${pags.length}`; p.drawText(t,{x:W-MG-F.widthOfTextAtSize(t,8),y:31,size:8,font:F,color:C.mut})});
   const nome=nomeArqAta(a,it); doc.setTitle(nome); doc.setAuthor('Filipe Jacopucci Arquitetura'); doc.setCreator('Sistema FJA');
