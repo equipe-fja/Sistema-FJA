@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 24/11, ~18h40 — commit 83df833
+- Emissões: "Pastas existentes" abre sempre o Explorer (Conexão com PC), sem pedir link do Drive.
+- Ficha da emissão: sem o link "Pasta no Drive"; "Copiar pasta no G:" vira ícone de pasta com a dica "Abrir local dos arquivos".
+
 ## oficial Firebase — 24/11, ~18h20 — commit 19488d9
 - Emissões vindas do Revit (Pranchas › Exportar, suíte 2.38.0): ao abrir a ficha e antes de emitir, o sistema localiza a pasta no Google Drive pelo caminho do G: e liga os arquivos pelo nome; arquivo que ainda não sincronizou é avisado no Emitir.
 - Pasta compartilhada **por disciplina**: ao emitir, cada arquivo vai para a subpasta com o nome completo da disciplina (ex.: ARQUITETURA, criada se não existir), com SUBSTITUÍDOS e a conferência de revisão dentro dela; arquivo sem disciplina fica na raiz, com aviso na prévia. Vale para todas as emissões.
