@@ -1,9 +1,10 @@
 name: Firebase · publicar
-# push na main      -> homologação (sistema-fja-homolog)
+# homologação (sistema-fja-homolog): só sob demanda (decisão da FJA, 24/11/2026, para poupar minutos do Actions):
+#   gh workflow run firebase-publicar.yml --ref main   (ou Actions › Firebase · publicar › Run workflow, branch main)
 # push na oficial   -> oficial (sistema-fja)   [git push origin main:oficial, só quando a FJA pede]
 on:
   push:
-    branches: [main, oficial]
+    branches: [oficial]
   workflow_dispatch:
 concurrency: firebase-publicar-${{ github.ref_name }}
 permissions: {contents: write}

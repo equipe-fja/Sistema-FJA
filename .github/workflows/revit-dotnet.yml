@@ -2,7 +2,7 @@ name: Revit · compilar biblioteca C#
 # Compila revit/dotnet/FJA.Revit para o Revit 2024 (.NET Framework 4.8) e para o Revit 2027 (.NET 10)
 # e grava as DLLs em revit/Ferramentas-FJA.extension/bin/R2024 e bin/R2027, com commit na mesma branch.
 # Roda quando o código C# muda ou quando a versão da extensão (extension.json) muda — a DLL leva a mesma versão.
-# Na main, depois do commit, dispara de novo a publicação da homologação (o commit feito aqui não dispara sozinho).
+# A homologação não é republicada aqui: só sob demanda (ver firebase-publicar.yml).
 on:
   push:
     paths:
@@ -48,7 +48,3 @@ jobs:
             sleep 5
           done
           echo "mudou=1" >> "$GITHUB_OUTPUT"
-      - name: Publicar a homologação com as DLLs novas (só na main)
-        if: steps.commit.outputs.mudou == '1' && github.ref_name == 'main'
-        env: {GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"}
-        run: gh workflow run firebase-publicar.yml --ref main

@@ -11,7 +11,7 @@ Desde a extensão 2.5.0 (09/11/2026) a suíte tem uma parte em C#, ao lado dos s
 | Peça | Onde |
 |---|---|
 | Código C# | `revit/dotnet/FJA.Revit/` (`Entrada.cs`, `Nucleo/ComandoFJA.cs`, `Comandos/*.cs`) |
-| Compilação | GitHub Actions `revit-dotnet.yml` (Windows, .NET 10 SDK). Roda quando muda `revit/dotnet/**` ou a versão em `extension.json`. Compila **R2024** (net48, Revit 2024) e **R2027** (net10.0-windows, Revit 2027) com a versão da extensão e grava `FJA.Revit.dll` + `.pdb` em `revit/Ferramentas-FJA.extension/bin/R2024` e `bin/R2027`, com commit automático na mesma branch. Na `main`, depois do commit, dispara de novo a publicação da homologação. |
+| Compilação | GitHub Actions `revit-dotnet.yml` (Windows, .NET 10 SDK). Roda quando muda `revit/dotnet/**` ou a versão em `extension.json`. Compila **R2024** (net48, Revit 2024) e **R2027** (net10.0-windows, Revit 2027) com a versão da extensão e grava `FJA.Revit.dll` + `.pdb` em `revit/Ferramentas-FJA.extension/bin/R2024` e `bin/R2027`, com commit automático na mesma branch. A homologação não é republicada (desde 24/11/2026 só é publicada sob demanda). |
 | Referências do Revit | pacotes NuGet `Nice3point.Revit.Api.RevitAPI/RevitAPIUI` (`$(RevitVersion).*`), só para compilar |
 | Carregador | `lib/fja_dotnet.py`: escolhe a pasta pela versão do Revit (≤2024 → R2024; ≥2027 → R2027; 2025/2026 sem suporte) e carrega a DLL **pela memória** (`Assembly.Load(bytes, pdb)`), com cache no AppDomain por caminho + tamanho + data |
 | Botão de teste | Suíte › **Sobre**: versão da extensão e da DLL, Revit, .NET, forma de carregamento, comandos C# disponíveis; avisa se a DLL e a extensão estiverem em versões diferentes |
