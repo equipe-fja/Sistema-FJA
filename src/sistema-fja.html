@@ -4499,7 +4499,7 @@ iniciarMod({id:'em',lk:'fja.em.',T:EM_TCOLS,padrao:EM_TCOLS.filter(c=>c[2]).map(
     destinatarios:{ops:()=>{const u=[...new Set(emisDe(S.view.id).flatMap(destEm))].sort((a,b)=>a.localeCompare(b,'pt'));return [...u.map(n=>[n,n]),['∅','(sem destinatário)']]},ok:(o,e)=>o==='∅'?!destEm(e).length:destEm(e).includes(o),rot:o=>o==='∅'?'(sem destinatário)':o}},
   busca:e=>[numEm(e.num),e.data,e.descricao,e.obs,...destEm(e),...discsEm(e).flatMap(c=>[siglaP(e.projeto,c),discNome(c)]),...(e.arquivos||[]).map(a=>a.nome)].join(' '),
   abrir:'em-abrir',nenhum:'Nenhuma emissão corresponde aos filtros.',
-  vazio:pid=>`<div class="esp-vazio"><h2>Nenhuma emissão registrada</h2><p>Registre aqui cada emissão de arquivos do projeto: data, descrição, destinatários e os arquivos emitidos. Cada emissão ganha uma pasta com a data e a descrição, e pode ser duplicada para a pasta compartilhada com o cliente ou os parceiros, que fica só com a revisão vigente.</p>${S.ro?'':`<button class="btn pri" data-act="em-novo" data-id="${esc(pid)}">${IC.plus}Nova emissão</button>`}</div>`});
+  vazio:pid=>`<div class="esp-vazio"><h2>Nenhuma emissão registrada</h2><p>Registre aqui cada emissão de arquivos do projeto: data, descrição, destinatários e os arquivos emitidos. Cada emissão ganha uma pasta com a data e a descrição, e pode ser duplicada para a pasta compartilhada com o cliente ou os parceiros, que fica só com a revisão vigente.</p>${S.ro?'':`<button class="btn pri" data-act="em-novo" data-id="${esc(pid)}">${IC.plus}Nova emissão</button> <button class="btn ghost" data-act="em-retro" data-id="${esc(pid)}">${IC.pasta}Pastas existentes</button>`}</div>`});
 function telaEm(h,v){
   const it=S.itens.get(v.id); if(!it) return h+`<div class="page"><h1>Projeto não encontrado</h1></div>`;
   const nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome, todos=emisDe(v.id);
@@ -4507,7 +4507,7 @@ function telaEm(h,v){
   <h1>Emissões</h1>${pastaProjLinha(it,'emisPasta','Pasta das emissões','em-pasta')}${pastaProjLinha(it,'emisCompart','Pasta compartilhada (padrão)','em-compart').replace('não definida — escolha ao salvar o primeiro arquivo','não definida (opcional)')}`;
   h+=`<div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="eqBusca" type="search" placeholder="Buscar por descrição, destinatário, arquivo…" aria-label="Buscar emissões" value="${esc(MS().busca||'')}"></div>
     <span class="muted eq-count" id="eqCount">${(()=>{const n=eqFiltrados(it.id).length,t=todos.length;const q=k=>k===1?'1 emissão':k+' emissões'; return n===t?q(t):n+' de '+q(t)})()}</span><button class="btn sm ghost" id="eqLimpar" data-act="eq-limpar" ${temFiltroEq()?'':'hidden'}>Limpar filtros</button>
-    ${S.ro?'':`<button class="btn pri" data-act="em-novo" data-id="${esc(it.id)}">${IC.plus}Nova emissão</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
+    ${S.ro?'':`<button class="btn ghost" data-act="em-retro" data-id="${esc(it.id)}" title="Registrar emissões antigas a partir de pastas existentes (AA-MM-DD descrição)">${IC.pasta}Pastas existentes</button><button class="btn pri" data-act="em-novo" data-id="${esc(it.id)}">${IC.plus}Nova emissão</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
   return h+`<section class="sheet" id="eqTabela">${eqTabelaHTML(it.id)}</section></div>`;
 }
 async function novaEm(pid){
@@ -4519,6 +4519,77 @@ async function novaEm(pid){
   const body={projeto:pid,num:n,data:new Date().toLocaleDateString('pt-BR'),descricao:String(desc).trim(),status:'Rascunho',destinatarios:[],obs:'',arquivos:[],
     ...(it?.emisCompart?{compart:{...it.emisCompart,usar:true}}:{}),criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
   try{await emisColl().doc(id).set(body); const e={...body,id}; S.emis.set(id,e); lembrarRolagemLista(); ir({t:'emisi',id:pid,eid:id}); return e}catch{toast('Não foi possível criar a emissão');return null}
+}
+/* emissões retroativas (decisão da FJA, 24/11/2026): a partir de pastas existentes "AA-MM-DD …". Entram como Emitidas na
+   data da pasta, sem copiar para a compartilhada; os arquivos da pasta (e das subpastas imediatas, como PDF/DWG, menos
+   SUBSTITUÍDOS) já ligados ao Drive. Opção "Atualizar a RD": só onde a emissão for mais recente que a RD. */
+const RX_PASTA_EM=/^(\d{2})-(\d{2})-(\d{2})\s+(.+)$/;
+function partesPastaEm(nome){const m=RX_PASTA_EM.exec(String(nome||'').trim()); if(!m) return null;
+  const desc=m[4].replace(/^EMISS[ÃA]O\s*-\s*/i,'').trim(); return {data:`${m[3]}/${m[2]}/20${m[1]}`,descricao:desc||m[4].trim()}}
+async function emRetro(pid){
+  if(S.ro) return; if(!mcp){toast('Sem conexão com o Google Drive.');return}
+  const it=S.itens.get(pid); let res=null;
+  const ini=it?.emisPasta?.caminho||String(it?.campos?.pasta_servidor||'').replace(/[\\/]+$/,'')||'G:\\';
+  if(pcAtivo()) res=await pcResolver(await escolherNoPC({tipo:'pasta',inicio:ini,titulo:'Escolha a pasta da emissão (AA-MM-DD …) ou a pasta que contém as emissões'}));
+  else{const u=await pedirLink(); if(!u) return; const m=/folders\/([a-zA-Z0-9_-]{10,})/.exec(u)||/^([a-zA-Z0-9_-]{20,})$/.exec(u.trim()); if(!m){toast('Link de pasta do Drive inválido');return}
+    try{const r=await mcp.callTool(GD,'get_file_metadata',{fileId:m[1]},{cache:false}); res={id:m[1],pasta:true,caminho:r?.payload?.title||m[1]}}catch(e){toast(msgMcp(e).replace(/Google Sheets/g,'Google Drive'));return}}
+  if(!res) return; if(!res.pasta){toast('Escolha uma pasta.');return}
+  const nomeRes=String(res.caminho||'').split('\\').pop();
+  let cands;
+  try{
+    if(partesPastaEm(nomeRes)) cands=[{id:res.id,title:nomeRes,caminho:res.caminho}];
+    else{toast('Lendo as pastas…'); cands=(await listarPastaDrive(res.id,true)).filter(f=>partesPastaEm(f.title)).map(f=>({id:f.id,title:f.title,caminho:res.caminho&&res.caminho.includes('\\')?res.caminho+'\\'+f.title:''}))
+      .sort((a,b)=>a.title.localeCompare(b.title))}
+  }catch(x){toast('Não foi possível ler a pasta no Google Drive');return}
+  if(!cands.length){toast('Nenhuma pasta no formato "AA-MM-DD descrição" ali.');return}
+  const ja=new Set(emisDe(pid).map(e=>e.pasta?.id).filter(Boolean));
+  const esc1=await emRetroEscolher(cands,ja); if(!esc1) return;
+  let n=0;
+  for(const c of esc1.pastas){
+    try{toast('Registrando '+c.title+'…'); const e=await emRetroCriar(pid,c,esc1.rd); if(e) n++}
+    catch(x){console.error(x); toast('Não foi possível registrar '+c.title+': '+(x?.message||'erro'))}
+  }
+  if(n){toast(n+(n>1?' emissões retroativas registradas':' emissão retroativa registrada')); render()}
+}
+// janela: pastas datadas para marcar (as já ligadas a uma emissão ficam desmarcadas) e a opção de atualizar a RD
+function emRetroEscolher(cands,ja){
+  return new Promise(res=>{
+    $('retroModal')?.remove();
+    const d=document.createElement('div'); d.id='retroModal'; d.className='pc-modal';
+    d.innerHTML=`<form class="pc-caixa" id="retroForm" role="dialog" aria-modal="true" aria-labelledby="retroT" style="max-width:640px"><h2 id="retroT">Emissões de pastas existentes</h2>
+      <div style="max-height:46vh;overflow:auto;margin:6px 0 10px">${cands.map((c,i)=>{const p=partesPastaEm(c.title), j=ja.has(c.id);
+        return `<label class="em-chk" style="display:flex;gap:8px;align-items:baseline;padding:3px 0"><input type="checkbox" data-i="${i}" ${j?'':'checked'}><span class="mono" style="font-size:12.5px">${esc(c.title)}</span>${j?'<span class="muted" style="font-size:12px">(já registrada)</span>':''}<span class="muted" style="font-size:12px;margin-left:auto">${esc(p.data)}</span></label>`}).join('')}</div>
+      <label class="em-chk"><input type="checkbox" id="retroRd"> Atualizar a RD (só onde esta emissão for mais recente)</label>
+      <div class="pc-acts" style="gap:8px"><button type="button" class="btn ghost" id="retroNao">Cancelar</button><button type="submit" class="btn pri" id="retroSim">Registrar</button></div></form>`;
+    document.body.appendChild(d);
+    const fim=v=>{d.remove(); document.removeEventListener('keydown',tec,true); res(v)};
+    const tec=ev=>{if(ev.key==='Escape'){ev.stopPropagation();fim(null)}};
+    document.addEventListener('keydown',tec,true);
+    $('retroNao').onclick=()=>fim(null);
+    $('retroForm').onsubmit=ev=>{ev.preventDefault(); const p=[...d.querySelectorAll('input[data-i]:checked')].map(x=>cands[+x.dataset.i]);
+      if(!p.length){toast('Marque ao menos uma pasta.');return} fim({pastas:p,rd:$('retroRd').checked})};
+  });
+}
+async function emRetroCriar(pid,c,atualizarRd){
+  const pp=partesPastaEm(c.title); if(!pp) return null;
+  // arquivos: os da pasta e os das subpastas imediatas (ex.: PDF, DWG), menos SUBSTITUÍDOS
+  const fs=[...await listarPastaDrive(c.id,false)];
+  for(const s of await listarPastaDrive(c.id,true)) if(nrm(s.title)!==nrm(SUBST)) fs.push(...await listarPastaDrive(s.id,false));
+  const arquivos=fs.map(f=>{const p=partesArqEm(f.title); return {nome:f.title,base:p.base,rev:p.rev,ext:p.ext,tamanho:+(f.fileSize||f.size||0)||0,mime:f.mimeType||'',driveId:f.id}});
+  let n=emisDe(pid).reduce((m,e)=>Math.max(m,+e.num||0),0)+1; while(S.emis.has(`${pid}__em${String(n).padStart(3,'0')}`)) n++;
+  const id=`${pid}__em${String(n).padStart(3,'0')}`, dn=dataNum(pp.data), quando=dn?new Date(Math.floor(dn/10000),Math.floor(dn/100)%100-1,dn%100,12).getTime():Date.now();
+  const e={projeto:pid,num:n,data:pp.data,descricao:pp.descricao,status:'Emitida',destinatarios:[],obs:'',arquivos,
+    pasta:{id:c.id,nome:c.title,url:`https://drive.google.com/drive/folders/${c.id}`,...(c.caminho?{caminho:c.caminho}:{})},
+    retroativa:true,emitidaEm:quando,criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me,emitidaPor:me}:{})};
+  e.disciplinas=discsDetectadas(e);
+  // liga cada arquivo ao documento da RD (histórico); com a opção, atualiza a RD onde esta emissão é mais recente
+  for(const a of e.arquivos){const d=rdEm(pid,a.nome); if(d) a.rdoc=d.id}
+  if(atualizarRd){
+    const P=emPlanoRd(e).filter(x=>{const d=x.d, rr=revNum(x.rev), rd=revNum(d.revisao);
+      return rr>rd||(rr===rd&&(!dataNum(d.emissao)||dataNum(e.data)>dataNum(d.emissao)))});
+    await emAtualizarRd(e,P);
+  }
+  await emisColl().doc(id).set(e); S.emis.set(id,{...e,id}); return e;
 }
 // lista de quem pode receber: envolvidos do projeto (parceiros das disciplinas, equipe, responsáveis) + cadastrados só no projeto
 const envolvidosEm=pid=>{const it=S.itens.get(pid), m=new Map();
@@ -4560,6 +4631,7 @@ document.addEventListener('change',ev=>{const t=ev.target; if(!t.closest?.('#emE
   if(t.dataset.em==='data'||t.dataset.em==='descricao'){if(t.dataset.em==='descricao'&&!t.value.trim()){toast('A descrição é obrigatória.'); return} emMudou(true); emRenomearPasta(e)}});
 async function emAcao(a0,b){
   if(a0==='em-novo'){novaEm(b.dataset.id);return}
+  if(a0==='em-retro'){emRetro(b.dataset.id);return}
   if(a0==='em-abrir'){fecharMenuLinha(); lembrarRolagemLista(); ir({t:'emisi',id:b.dataset.id,eid:b.dataset.eid});return}
   if(a0==='em-pasta'){escolherPastaProj(b.dataset.id,'emisPasta','Escolha a pasta onde ficarão as emissões do projeto (cada emissão ganha uma subpasta datada)','');return}
   if(a0==='em-compart'){escolherPastaProj(b.dataset.id,'emisCompart','Escolha a pasta compartilhada (a que o cliente ou os parceiros veem)','');return}
