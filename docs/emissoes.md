@@ -40,10 +40,13 @@ Registro das emissões de arquivos de cada projeto (Projeto › Emissões). Deci
 Decisões da FJA em 24/11/2026:
 - O **Exportar pranchas** da suíte do Revit passa a registrar a emissão no sistema, com **destinatários e disciplina escolhidos na própria janela do Revit**.
 - O Revit grava a emissão como **Rascunho** (nova ou uma em Rascunho do projeto). O **Emitir** (pasta compartilhada, SUBSTITUÍDOS, RD) continua no sistema.
+- O registro só acontece com a opção **"Registrar emissão no sistema"** marcada (o Exportar também serve para conferência e impressão interna).
+- **Pasta da emissão = a pasta usada naquela exportação** (a escolhida, com ou sem a pasta nova datada); varia caso a caso e cada emissão guarda a sua (`pasta.caminho` no G:). Não há pasta de emissões fixa para as exportações do Revit.
+- **Só a pasta compartilhada é fixa** no projeto (`emisCompart`), e ela tem **subpastas por disciplina**: ao emitir, cada arquivo vai para a subpasta da sua disciplina (SUBSTITUÍDOS e conferência de revisão dentro dela) — mudança no `emPlanoCompart`/`emExecutarCompart`.
 
 Como vai funcionar (proposta técnica):
 - Acesso direto ao Firestore pelo login da equipe que a suíte já guarda (`%APPDATA%\FJA\nuvem.json`; `Nucleo/Nuvem.cs`). As regras já permitem à equipe ler `itens`/`rdoc`/`pend` e criar/atualizar `emis`.
-- Projeto pelo `ProjetoDoModelo`. Pasta: `emisPasta.caminho` (G:) + `AA-MM-DD EMISSÃO - Descrição` (mesma regra de `pastaEm`); o Exportar passa a usar esse padrão.
+- Projeto pelo `ProjetoDoModelo`. Pasta: a da exportação; a pasta nova datada do Exportar passa a seguir o padrão do sistema, `AA-MM-DD EMISSÃO - Descrição` (regra de `pastaEm`). O sistema localiza a pasta no Drive pelo caminho do G: (`idPorDescida`/`idPorCaminho`, os mesmos da Conexão com PC).
 - Destinatários: a mesma composição de `envolvidos(pid)`/`envolvidosEm(pid)` (parceiros das disciplinas do projeto, equipe interna, responsáveis de pendências, envolvidos do projeto), reproduzida em C#. "+ Novo" fica para depois.
 - Disciplina: sugerida pela Disciplina das pranchas marcadas; grava `disciplinas` (códigos) e `discAuto:false` quando escolhida.
 - Arquivos: `arquivos[]` com nome, base, rev, ext e tamanho; **sem `driveId`** (o Revit grava no G:). O sistema completa os IDs pelo nome ao abrir a emissão (mudança no sistema web).
