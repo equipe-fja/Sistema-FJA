@@ -134,5 +134,146 @@ namespace FJA.Revit.Nucleo
             };
             Http("POST", BASE + "revitPedidos?documentId=" + Uri.EscapeDataString(pedido.Txt("id")), Json.Gravar(corpo), tk);
         }
+
+        // ------------------------------------------------------------ documentos do banco (emissões, 2.38.0)
+
+        /// <summary>uid de quem está logado (o "user_id" do token), para criadoPor/atualizadoPor.</summary>
+        public static string Uid()
+        {
+            try
+            {
+                string tk = Token();
+                if (tk == null) return "";
+                var partes = tk.Split('.');
+                string p = partes[1].Replace('-', '+').Replace('_', '/');
+                p = p.PadRight(p.Length + (4 - p.Length % 4) % 4, '=');
+                var d = Json.LerObjeto(Encoding.UTF8.GetString(Convert.FromBase64String(p)));
+                return d.Txt("user_id") ?? d.Txt("sub") ?? "";
+            }
+            catch { return ""; }
+        }
+
+        static string Exigir() => Token() ?? throw new InvalidOperationException("sem login no sistema neste computador");
+
+        /// <summary>Documento <colecao>/<id> como objeto comum (null se não existe).</summary>
+        public static Dictionary<string, object> Documento(string colecao, string id)
+        {
+            try
+            {
+                var d = Json.LerObjeto(Http("GET", BASE + colecao + "/" + Uri.EscapeDataString(id), null, Exigir()));
+                var r = Fs.Campos(d.Obj("fields"));
+                r["id"] = id;
+                return r;
+            }
+            catch (WebException e) when (NaoAchou(e)) { return null; }
+        }
+
+        /// <summary>Documentos da coleção com campo == valor (texto).</summary>
+        public static List<Dictionary<string, object>> Consulta(string colecao, string campo, string valor)
+        {
+            var q = new Dictionary<string, object>
+            {
+                ["structuredQuery"] = new Dictionary<string, object>
+                {
+                    ["from"] = new List<object> { new Dictionary<string, object> { ["collectionId"] = colecao } },
+                    ["where"] = new Dictionary<string, object>
+                    {
+                        ["fieldFilter"] = new Dictionary<string, object>
+                        {
+                            ["field"] = new Dictionary<string, object> { ["fieldPath"] = campo },
+                            ["op"] = "EQUAL",
+                            ["value"] = V(valor),
+                        },
+                    },
+                },
+            };
+            var res = new List<Dictionary<string, object>>();
+            var r = Json.Ler(Http("POST", BASE.TrimEnd('/') + ":runQuery", Json.Gravar(q), Exigir())) as List<object>;
+            foreach (var x in r ?? new List<object>())
+            {
+                var doc = (x as Dictionary<string, object>)?.Obj("document");
+                if (doc == null || doc.Count == 0) continue;
+                var c = Fs.Campos(doc.Obj("fields"));
+                string nome = doc.Txt("name") ?? "";
+                c["id"] = nome.Substring(nome.LastIndexOf('/') + 1);
+                res.Add(c);
+            }
+            return res;
+        }
+
+        /// <summary>Cria <colecao>/<id>; false se o id já existe (não sobrescreve).</summary>
+        public static bool Criar(string colecao, string id, Dictionary<string, object> dados)
+        {
+            try
+            {
+                Http("POST", BASE + colecao + "?documentId=" + Uri.EscapeDataString(id),
+                     Json.Gravar(new Dictionary<string, object> { ["fields"] = Fs.Mapa(dados) }), Exigir());
+                return true;
+            }
+            catch (WebException e) when (e.Response is HttpWebResponse h && (int)h.StatusCode == 409) { return false; }
+        }
+
+        /// <summary>Atualiza só os campos dados de <colecao>/<id> (o documento precisa existir).</summary>
+        public static void Atualizar(string colecao, string id, Dictionary<string, object> campos)
+        {
+            var mask = string.Join("&", campos.Keys.Select(k => "updateMask.fieldPaths=" + Uri.EscapeDataString(k)));
+            Http("PATCH", BASE + colecao + "/" + Uri.EscapeDataString(id) + "?currentDocument.exists=true&" + mask,
+                 Json.Gravar(new Dictionary<string, object> { ["fields"] = Fs.Mapa(campos) }), Exigir());
+        }
+    }
+
+    /// <summary>Conversão entre os valores tipados do Firestore (REST) e objetos comuns (texto, número, bool, lista, dicionário).</summary>
+    public static class Fs
+    {
+        public static Dictionary<string, object> Campos(Dictionary<string, object> fields)
+        {
+            var r = new Dictionary<string, object>();
+            foreach (var kv in fields ?? new Dictionary<string, object>()) r[kv.Key] = Valor(kv.Value as Dictionary<string, object>);
+            return r;
+        }
+
+        public static object Valor(Dictionary<string, object> v)
+        {
+            if (v == null) return null;
+            if (v.ContainsKey("stringValue")) return Convert.ToString(v["stringValue"]);
+            if (v.ContainsKey("integerValue")) return long.TryParse(Convert.ToString(v["integerValue"]), out long n) ? n : 0L;
+            if (v.ContainsKey("doubleValue")) return Convert.ToDouble(v["doubleValue"], System.Globalization.CultureInfo.InvariantCulture);
+            if (v.ContainsKey("booleanValue")) return v["booleanValue"] is bool b ? b : string.Equals(Convert.ToString(v["booleanValue"]), "true", StringComparison.OrdinalIgnoreCase);
+            if (v.ContainsKey("timestampValue")) return Convert.ToString(v["timestampValue"]);
+            if (v.ContainsKey("mapValue")) return Campos((v["mapValue"] as Dictionary<string, object>)?.Obj("fields"));
+            if (v.ContainsKey("arrayValue"))
+            {
+                var l = new List<object>();
+                foreach (var x in (v["arrayValue"] as Dictionary<string, object>)?.Lista("values") ?? new List<object>()) l.Add(Valor(x as Dictionary<string, object>));
+                return l;
+            }
+            return null;
+        }
+
+        public static Dictionary<string, object> Mapa(Dictionary<string, object> d)
+        {
+            var r = new Dictionary<string, object>();
+            foreach (var kv in d) r[kv.Key] = Tipado(kv.Value);
+            return r;
+        }
+
+        public static Dictionary<string, object> Tipado(object v)
+        {
+            switch (v)
+            {
+                case null: return new Dictionary<string, object> { ["nullValue"] = null };
+                case string s: return new Dictionary<string, object> { ["stringValue"] = s };
+                case bool b: return new Dictionary<string, object> { ["booleanValue"] = b };
+                case int i: return new Dictionary<string, object> { ["integerValue"] = i.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+                case long n: return new Dictionary<string, object> { ["integerValue"] = n.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+                case double x: return new Dictionary<string, object> { ["doubleValue"] = x };
+                case Dictionary<string, object> m: return new Dictionary<string, object> { ["mapValue"] = new Dictionary<string, object> { ["fields"] = Mapa(m) } };
+                case System.Collections.IEnumerable e:
+                    var l = new List<object>();
+                    foreach (var x in e) l.Add(Tipado(x));
+                    return new Dictionary<string, object> { ["arrayValue"] = new Dictionary<string, object> { ["values"] = l } };
+                default: return new Dictionary<string, object> { ["stringValue"] = Convert.ToString(v, System.Globalization.CultureInfo.InvariantCulture) };
+            }
+        }
     }
 }

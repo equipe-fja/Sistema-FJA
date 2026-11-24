@@ -211,8 +211,13 @@ namespace FJA.Revit.Pranchas
 
         /// <summary>Nome da pasta de uma emissão: data de hoje (AA-MM-DD) + espaço + descrição, ex.:
         /// "26-02-02 EMISSÃO FINAL EXECUTIVO - ARQUITETURA - 1ª PARTE".</summary>
-        public static string PastaEmissao(string descricao) =>
-            Limpar(DateTime.Now.ToString("yy-MM-dd", CultureInfo.InvariantCulture) + " " + (descricao ?? "").Trim());
+        public static string PastaEmissao(string descricao)
+        {
+            // padrão do sistema (pastaEm): "AA-MM-DD EMISSÃO - Descrição"; se a descrição já começa com "EMISSÃO", não repete
+            string d = (descricao ?? "").Trim();
+            bool jaTem = Cotagem.Regras.SemAcento(d).ToUpperInvariant().StartsWith("EMISSAO");
+            return Limpar(DateTime.Now.ToString("yy-MM-dd", CultureInfo.InvariantCulture) + (jaTem ? " " : " EMISSÃO - ") + d);
+        }
 
         /// <summary>Tira os caracteres que o Windows não aceita em nome de arquivo.</summary>
         public static string Limpar(string s)
@@ -292,7 +297,9 @@ namespace FJA.Revit.Pranchas
     {
         public int Pdfs, Dwgs, Pulados;
         public List<string> Erros = new List<string>();
-        public string AvisoConfig, AvisoRegra;
+        public string AvisoConfig, AvisoRegra, Emissao;
+        /// <summary>Arquivos gerados (caminho completo), para a emissão no sistema.</summary>
+        public List<string> Arquivos = new List<string>();
         public bool Cancelado;
     }
 
@@ -374,7 +381,7 @@ namespace FJA.Revit.Pranchas
                     try
                     {
                         pdf.FileName = l.Arquivo;
-                        if (doc.Export(dir, ids, pdf) && File.Exists(arq)) res.Pdfs++;
+                        if (doc.Export(dir, ids, pdf) && File.Exists(arq)) { res.Pdfs++; res.Arquivos.Add(arq); }
                         else res.Erros.Add(l.Arquivo + ".pdf: o Revit não gerou o arquivo");
                     }
                     catch (Exception e) { res.Erros.Add(l.Arquivo + ".pdf: " + e.Message); }
@@ -388,7 +395,7 @@ namespace FJA.Revit.Pranchas
                 {
                     try
                     {
-                        if (doc.Export(dir, l.Arquivo, ids, dwg) && File.Exists(arq)) res.Dwgs++;
+                        if (doc.Export(dir, l.Arquivo, ids, dwg) && File.Exists(arq)) { res.Dwgs++; res.Arquivos.Add(arq); }
                         else res.Erros.Add(l.Arquivo + ".dwg: o Revit não gerou o arquivo");
                     }
                     catch (Exception e) { res.Erros.Add(l.Arquivo + ".dwg: " + e.Message); }

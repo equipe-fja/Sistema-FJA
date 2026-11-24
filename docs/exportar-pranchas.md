@@ -24,6 +24,7 @@ Exporta as pranchas em **PDF e DWG ao mesmo tempo**, um arquivo por prancha, par
 - **Progresso:** janela com a prancha atual e Cancelar (para depois da prancha em andamento). No fim, relatório com quantos PDFs e DWGs saíram, pulados, configuração criada e erros; abre a pasta (opção).
 - **Preferências por pessoa:** `%APPDATA%\FJA\exportar-pranchas.json` (PDF/DWG, cor, configuração, subpastas, substituir, abrir a pasta, pasta nova, e as pastas e descrições por projeto).
 - **Janela sem textos explicativos** (pedido da FJA, 2.34.0): só os controles; detalhes nas dicas (tooltips).
+- **Registrar emissão no sistema (2.38.0):** opção desmarcada por padrão. Marcada, lê o projeto do modelo no sistema e mostra: emissão (Nova ou uma em Rascunho), disciplinas do projeto (já marcadas as das pranchas marcadas) e destinatários (envolvidos do projeto). A descrição da pasta nova vale também para a emissão. A pasta nova passa a ser `AA-MM-DD EMISSÃO - Descrição`. Depois de exportar, grava a emissão em Rascunho com a pasta e os arquivos; o Emitir é no sistema. Detalhes em `docs/emissoes.md`.
 
 ## Próximas etapas (a combinar)
 - Revisões anteriores da mesma prancha na pasta (ex.: `…-R00` quando sai a `R01`): avisar e mover para `_SUPERADOS`.

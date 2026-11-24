@@ -68,6 +68,17 @@ namespace FJA.Revit.Pranchas
         readonly RegraNome regra;
         readonly List<string> disponiveis;
         readonly Action<RegraNome> recalcular;
+        readonly Func<DadosEmissao> carregarEm;
+        /// <summary>Dados do projeto no sistema (lidos ao marcar "Registrar emissão no sistema").</summary>
+        public DadosEmissao DadosEm { get; private set; }
+        /// <summary>O que gravar no sistema (null ou Registrar = false: nada).</summary>
+        public PedidoEm Emissao { get; private set; }
+        CheckBox ckReg;
+        StackPanel spEm;
+        ComboBox cbEm;
+        TextBlock txEmStatus;
+        readonly List<KeyValuePair<CheckBox, DiscEm>> ckDiscs = new List<KeyValuePair<CheckBox, DiscEm>>();
+        readonly List<KeyValuePair<CheckBox, DestEm>> ckDests = new List<KeyValuePair<CheckBox, DestEm>>();
         readonly List<TextBlock> arqs = new List<TextBlock>();
         StackPanel spRegra;
         public bool Confirmado { get; private set; }
@@ -86,8 +97,9 @@ namespace FJA.Revit.Pranchas
 
         public JanelaExportar(List<LinhaPrancha> linhas, OpcoesExportar o, List<string> configs, string chave,
                               List<KeyValuePair<string, HashSet<int>>> conjuntos,
-                              RegraNome regra, List<string> disponiveis, Action<RegraNome> recalcular)
+                              RegraNome regra, List<string> disponiveis, Action<RegraNome> recalcular, Func<DadosEmissao> carregarEm)
         {
+            this.carregarEm = carregarEm;
             this.linhas = linhas; this.o = o; this.configs = configs; this.chave = chave; this.conjuntos = conjuntos;
             this.regra = regra; this.disponiveis = disponiveis; this.recalcular = recalcular;
             Title = "Exportar pranchas";
@@ -263,6 +275,14 @@ namespace FJA.Revit.Pranchas
             ckSub = new CheckBox { Content = "Separar em subpastas PDF e DWG", IsChecked = o.Subpastas, Margin = new Thickness(0, 6, 0, 0) };
             sp.Children.Add(ckSub);
 
+            // emissão no sistema (Projeto › Emissões): só com a opção marcada
+            ckReg = new CheckBox { Content = "Registrar emissão no sistema", IsChecked = false, Margin = new Thickness(0, 14, 0, 0) };
+            ckReg.Checked += (s, a) => AbrirEmissao();
+            ckReg.Unchecked += (s, a) => { spEm.Visibility = Visibility.Collapsed; Validar(); };
+            sp.Children.Add(ckReg);
+            spEm = new StackPanel { Margin = new Thickness(20, 4, 0, 0), Visibility = Visibility.Collapsed };
+            sp.Children.Add(spEm);
+
             sp.Children.Add(Rotulo("Se o arquivo já existir"));
             cbExiste = new ComboBox();
             cbExiste.Items.Add("Substituir"); cbExiste.Items.Add("Pular (manter o que está na pasta)");
@@ -393,6 +413,57 @@ namespace FJA.Revit.Pranchas
             return false;
         }
 
+        /// <summary>Marcou "Registrar emissão no sistema": lê o sistema (uma vez) e monta emissão, disciplinas e destinatários.</summary>
+        void AbrirEmissao()
+        {
+            spEm.Visibility = Visibility.Visible;
+            if (DadosEm == null)
+            {
+                var cur = Cursor; Cursor = Cursors.Wait;
+                try { DadosEm = carregarEm(); } finally { Cursor = cur; }
+                spEm.Children.Clear();
+                txEmStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Foreground = P("Suave", 94, 94, 92) };
+                spEm.Children.Add(txEmStatus);
+                if (!DadosEm.Ok) { txEmStatus.Text = DadosEm.Erro; txEmStatus.Foreground = new SolidColorBrush(WColor.FromRgb(176, 58, 46)); Validar(); return; }
+                txEmStatus.Text = DadosEm.NomeProjeto;
+
+                cbEm = new ComboBox { Margin = new Thickness(0, 4, 0, 0) };
+                cbEm.Items.Add("Nova emissão");
+                foreach (var r in DadosEm.Rascunhos) cbEm.Items.Add(r);
+                cbEm.SelectedIndex = 0;
+                cbEm.SelectionChanged += (s, a) =>
+                {
+                    if (cbEm.SelectedItem is RascunhoEm r && txDescricao != null) txDescricao.Text = r.Descricao;
+                    Validar();
+                };
+                spEm.Children.Add(cbEm);
+
+                // disciplinas: as do projeto, já marcadas as das pranchas marcadas (parâmetro Disciplina da folha)
+                spEm.Children.Add(Rotulo("Disciplinas"));
+                var detect = new HashSet<string>(linhas.Where(l => l.Incluir).Select(l => DadosEm.Resolver(l.Disciplina)).Where(c => c != null));
+                var wp = new WrapPanel();
+                foreach (var d in DadosEm.Disciplinas.Where(x => x.DoProjeto || detect.Contains(x.Cod)))
+                {
+                    var ck = new CheckBox { Content = d.Sigla, IsChecked = detect.Contains(d.Cod), Margin = new Thickness(0, 2, 10, 2), ToolTip = d.Nome };
+                    ckDiscs.Add(new KeyValuePair<CheckBox, DiscEm>(ck, d));
+                    wp.Children.Add(ck);
+                }
+                spEm.Children.Add(wp);
+
+                spEm.Children.Add(Rotulo("Destinatários"));
+                var spD = new StackPanel();
+                foreach (var d in DadosEm.Envolvidos)
+                {
+                    var ck = new CheckBox { Content = d.Nome, Margin = new Thickness(0, 2, 0, 2), ToolTip = string.Join(" · ", new[] { d.Empresa, d.Email }.Where(x => !string.IsNullOrEmpty(x))) };
+                    if (string.IsNullOrEmpty(ck.ToolTip as string)) ck.ToolTip = null;
+                    ckDests.Add(new KeyValuePair<CheckBox, DestEm>(ck, d));
+                    spD.Children.Add(ck);
+                }
+                spEm.Children.Add(new ScrollViewer { Content = spD, MaxHeight = 160, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+            }
+            Validar();
+        }
+
         void MudouRegra(bool remontar = true)
         {
             if (remontar) Dispatcher.BeginInvoke(new Action(MontarRegra));
@@ -434,7 +505,8 @@ namespace FJA.Revit.Pranchas
                 txConta.Text = n + (n == 1 ? " prancha marcada" : " pranchas marcadas") + " de " + linhas.Count +
                                (inval > 0 ? " · " + inval + " sem nome" : "");
             bool nova = ckNova != null && ckNova.IsChecked == true;
-            if (txDescricao != null) txDescricao.IsEnabled = nova;
+            bool reg = ckReg != null && ckReg.IsChecked == true;
+            if (txDescricao != null) txDescricao.IsEnabled = nova || reg;
             if (txNomeNova != null)
             {
                 txNomeNova.Visibility = nova ? Visibility.Visible : Visibility.Collapsed;
@@ -446,6 +518,8 @@ namespace FJA.Revit.Pranchas
             else if (string.IsNullOrWhiteSpace(txPasta.Text)) erro = "Escolha a pasta de destino.";
             else if (!Path.IsPathRooted(txPasta.Text.Trim())) erro = "A pasta de destino precisa ser um caminho completo.";
             else if (nova && string.IsNullOrWhiteSpace(txDescricao.Text)) erro = "Escreva a descrição da pasta nova.";
+            else if (reg && DadosEm != null && !DadosEm.Ok) erro = "Sistema: " + DadosEm.Erro + ".";
+            else if (reg && string.IsNullOrWhiteSpace(txDescricao.Text)) erro = "Escreva a descrição da emissão.";
             txErro.Text = erro;
             btExportar.IsEnabled = erro == "";
             btExportar.Content = n > 0 ? "Exportar " + n : "Exportar";
@@ -470,6 +544,15 @@ namespace FJA.Revit.Pranchas
             if (!string.IsNullOrWhiteSpace(txDescricao.Text)) o.Descricoes[chave] = txDescricao.Text.Trim();
             PastaNova = o.NovaPasta ? NomeArquivo.PastaEmissao(txDescricao.Text) : null;
             Pasta = PastaNova != null ? Path.Combine(baseP, PastaNova) : baseP;
+            if (ckReg.IsChecked == true && DadosEm != null && DadosEm.Ok)
+                Emissao = new PedidoEm
+                {
+                    Registrar = true,
+                    Rascunho = cbEm?.SelectedItem as RascunhoEm,
+                    Descricao = txDescricao.Text.Trim(),
+                    Disciplinas = ckDiscs.Where(k => k.Key.IsChecked == true).Select(k => k.Value.Cod).ToList(),
+                    Destinatarios = ckDests.Where(k => k.Key.IsChecked == true).Select(k => k.Value).ToList(),
+                };
             o.Pdf = ckPdf.IsChecked == true;
             o.Dwg = ckDwg.IsChecked == true;
             o.Cor = (CorPdf)Math.Max(0, cbCor.SelectedIndex);

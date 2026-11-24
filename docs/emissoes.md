@@ -36,7 +36,11 @@ Registro das emissões de arquivos de cada projeto (Projeto › Emissões). Deci
 5. Envolvidos do projeto e "Enviar ao cadastro geral". ✔ (envolvidos do projeto também aparecem nas atas e pendências; parceiro novo = empresa, ou o nome quando não há empresa; se o parceiro já existe, a pessoa entra na equipe dele)
 6. RD: atualização ao emitir, histórico de revisões, Conexão com PC v7 (abrir pasta com arquivos selecionados). ✔ (contador verde ao lado da revisão na RD e seção na ficha do documento; a versão do vigia é marcada por navegador em Ferramentas › Conexão com PC)
 
-## Integração com o Revit (Pranchas › Exportar) — em definição
+## Integração com o Revit (Pranchas › Exportar)
+**Etapa 1 — suíte 2.38.0 (24/11/2026), na oficial:** opção "Registrar emissão no sistema" no Exportar pranchas (`Pranchas/Emissao.cs`, `Nucleo/Nuvem.cs`: `Documento`, `Consulta`, `Criar`, `Atualizar`, `Uid`, conversor `Fs`). Ao marcar, lê o sistema (projeto do modelo, disciplinas, envolvidos, Rascunhos); depois da exportação grava a emissão (`origem: 'revit'`, `pasta: {caminho, nome}` sem id, `arquivos[]` sem `driveId`, `disciplinas` + `discAuto:false`, `destinatarios`, `compart` padrão do projeto). Escolhendo um Rascunho, acrescenta os arquivos (mesmo nome substitui), une destinatários e disciplinas e só define a pasta se ela ainda não existir (senão avisa). A pasta nova do Exportar segue `AA-MM-DD EMISSÃO - Descrição` (sem repetir "EMISSÃO" se a descrição já começa com ela). Grava sempre no banco da **oficial** (o login da suíte é dela).
+**Etapa 2 — sistema web (pendente):** ao abrir uma emissão com `origem:'revit'` sem ids, localizar a pasta pelo caminho do G: e ligar os arquivos pelo nome; Emitir nas subpastas por disciplina da compartilhada. Até lá, essas emissões aparecem no sistema, mas o Emitir não acha os arquivos.
+
+Decisões e proposta técnica:
 Decisões da FJA em 24/11/2026:
 - O **Exportar pranchas** da suíte do Revit passa a registrar a emissão no sistema, com **destinatários e disciplina escolhidos na própria janela do Revit**.
 - O Revit grava a emissão como **Rascunho** (nova ou uma em Rascunho do projeto). O **Emitir** (pasta compartilhada, SUBSTITUÍDOS, RD) continua no sistema.

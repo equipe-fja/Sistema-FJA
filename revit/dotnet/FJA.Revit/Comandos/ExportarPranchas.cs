@@ -53,7 +53,8 @@ namespace FJA.Revit.Comandos
             var o = OpcoesExportar.Carregar();
             string chave = OpcoesExportar.Chave(doc);
             var j = new JanelaExportar(linhas, o, Exportacao.ConfiguracoesDwg(doc), chave, conjuntos,
-                regra, NomeArquivo.Disponiveis(doc, folhas), r => { foreach (var l in linhas) NomeArquivo.Aplicar(doc, l, r); });
+                regra, NomeArquivo.Disponiveis(doc, folhas), r => { foreach (var l in linhas) NomeArquivo.Aplicar(doc, l, r); },
+                () => DadosEmissao.Carregar(doc));
             new System.Windows.Interop.WindowInteropHelper(j) { Owner = app.MainWindowHandle };
             j.ShowDialog();
             if (!j.Confirmado) return Result.Cancelled;
@@ -92,6 +93,17 @@ namespace FJA.Revit.Comandos
                 prog.Passo(sel.Count, "Concluído");
             }
             finally { prog.Close(); }
+
+            // emissão no sistema (só com a opção marcada): Rascunho com a pasta desta exportação e os arquivos gerados
+            if (j.Emissao != null && j.Emissao.Registrar && j.DadosEm != null && j.DadosEm.Ok)
+            {
+                if (res.Arquivos.Count == 0) res.Emissao = "Nenhum arquivo gerado: a emissão não foi registrada no sistema.";
+                else
+                {
+                    try { res.Emissao = j.DadosEm.Gravar(j.Emissao, j.Pasta, res.Arquivos); }
+                    catch (Exception e) { res.Emissao = "A emissão NÃO foi registrada no sistema: " + e.Message; }
+                }
+            }
 
             Relatorio(res, sel.Count, j.Pasta, o);
             return Result.Succeeded;
@@ -135,6 +147,7 @@ namespace FJA.Revit.Comandos
             if (r.Pulados > 0) txt.Add(r.Pulados + " arquivo(s) já existiam e foram mantidos (opção Pular).");
             if (r.AvisoConfig != null) txt.Add(r.AvisoConfig);
             if (r.AvisoRegra != null) txt.Add(r.AvisoRegra);
+            if (r.Emissao != null) txt.Add("\n" + r.Emissao);
             if (r.Erros.Count > 0) txt.Add("\nErros:\n• " + string.Join("\n• ", r.Erros.Take(20)) + (r.Erros.Count > 20 ? "\n… e mais " + (r.Erros.Count - 20) : ""));
             td.MainContent = string.Join("\n", txt);
             td.Show();
