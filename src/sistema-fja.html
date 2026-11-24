@@ -4297,13 +4297,18 @@ async function ataAcao(a0,b){
   else if(a0==='ata-exportar'){exportarAta(a,b)}
 }
 /* ---- documento: HTML (vira Google Doc no Drive) ---- */
-function htmlAta(a){
+// imagens do Google Doc: reduzidas (até 600 px, JPEG) e embutidas no HTML; acima de ~4 MB no total, as demais ficam só no PDF
+async function ataImgsDoc(a){const M=new Map(); let tot=0;
+  for(const m of ataImgsDe(a)){try{const bm=await createImageBitmap(new Blob([await bytesBlob(m.prev)])), e=Math.min(1,600/bm.width,600/bm.height), c=document.createElement('canvas'); c.width=Math.max(1,Math.round(bm.width*e)); c.height=Math.max(1,Math.round(bm.height*e)); const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(bm,0,0,c.width,c.height); const u=c.toDataURL('image/jpeg',.8); if(tot+u.length>4e6) break; tot+=u.length; M.set(m,{u,w:c.width,h:c.height})}catch{}}
+  return M}
+function htmlAta(a,IM){
   const it=S.itens.get(a.projeto), cod=codEmissao(it), nomeE=nomeEmissao(it).replace(new RegExp('^'+cod.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*'),'');
   const F="font-family:Calibri,Arial,sans-serif;", cz='#f2f2f2', ln='1px solid #d9d9d9', lab=`${F}font-size:7.5pt;color:#555555;`, txt=`${F}font-size:10.5pt;color:#1a1a1a;`;
   const th=(t,w)=>`<td style="${lab}background:${cz};padding:4px 6px;border-bottom:${ln};${w?`width:${w};`:''}">${t}</td>`;
   const td=(t,x='')=>`<td style="${txt}padding:5px 6px;border-bottom:${ln};vertical-align:top;${x}">${esc(t||'').replace(/\n/g,'<br>')}</td>`;
   const tab=(c)=>`<table style="border-collapse:collapse;width:100%;margin:0 0 4pt 0">${c}</table>`;
-  const tdIm=x=>{const n=(x.imagens||[]).length, t=esc(String(x.texto||'').trim()).replace(/\n/g,'<br>'); // as imagens ainda não vão para o Doc: o item avisa que estão no PDF
+  const comImg=!!IM?.size, tdImgs=x=>`<td style="${txt}padding:5px 6px;border-bottom:${ln};vertical-align:top;">${(x.imagens||[]).map(m=>IM.get(m)).filter(Boolean).map(p=>{const e=Math.min(1,110/p.w,150/p.h);return `<img src="${p.u}" width="${Math.round(p.w*e)}" height="${Math.round(p.h*e)}" alt="" style="display:block;margin:0 0 4px 0">`}).join('')}</td>`;
+  const tdIm=x=>{const n=(x.imagens||[]).filter(m=>!IM?.has(m)).length, t=esc(String(x.texto||'').trim()).replace(/\n/g,'<br>'); // imagens que não foram para o Doc: o item avisa que estão no PDF
     return `<td style="${txt}padding:5px 6px;border-bottom:${ln};vertical-align:top;text-align:justify;">${t}${n?`${t?'<br>':''}<span style="color:#777777;font-style:italic;font-size:9pt">[${n} ${n>1?'imagens':'imagem'} no PDF]</span>`:''}</td>`};
   const sub=t=>`<p style="${F}font-size:10pt;color:#333333;margin:14pt 0 4pt 0">${t}</p>`;
   let h=`<html><head><meta charset="utf-8"></head><body style="${F}">`;
@@ -4317,7 +4322,7 @@ function htmlAta(a){
   const S2=(a.secoes||[]);
   h+=sub('SUMÁRIO')+tab(`<tr>${th('item','50px')}${th('descrição')}</tr>${S2.map((s,i)=>`<tr>${td(LETRA(i))}${td(s.titulo)}</tr>`).join('')}`);
   S2.forEach((s,si)=>{const L=LETRA(si);
-    h+=sub(`<b>${L}.</b>&nbsp;&nbsp;${esc(s.titulo||'')}`)+tab(`<tr>${th('item','50px')}${th('descrição')}${th('resp.','90px')}${th('status','80px')}</tr>${(s.itens||[]).filter(x=>String(x.texto||'').trim()||x.imagens?.length).map((x,i)=>`<tr>${td(L+(i+1),'font-weight:bold;')}${tdIm(x)}${td(x.resp||'-')}${td(x.status||'-')}</tr>`).join('')}`)});
+    h+=sub(`<b>${L}.</b>&nbsp;&nbsp;${esc(s.titulo||'')}`)+tab(`<tr>${th('item','50px')}${comImg?th('imagens','120px'):''}${th('descrição')}${th('resp.','90px')}${th('status','80px')}</tr>${(s.itens||[]).filter(x=>String(x.texto||'').trim()||x.imagens?.length).map((x,i)=>`<tr>${td(L+(i+1),'font-weight:bold;')}${comImg?tdImgs(x):''}${tdIm(x)}${td(x.resp||'-')}${td(x.status||'-')}</tr>`).join('')}`)});
   h+=`<p style="${F}font-size:7pt;color:#999999;margin:24pt 0 0 0;letter-spacing:2px">FILIPE <b>JACOPUCCI</b> ARQUITETURA</p><p style="${F}font-size:7pt;color:#999999;margin:0">www.fj.arq.br</p></body></html>`;
   return h;
 }
@@ -4392,12 +4397,15 @@ async function exportarAta(a,b){
     msg('Criando a pasta…');
     const rp=await mcp.callTool(GD,'create_file',{title:np,contentMimeType:'application/vnd.google-apps.folder',parentId:pasta.id},{cache:false}); const fp=rp?.payload||{}, pastaId=fp.id||fp.file?.id; if(!pastaId) throw {message:'O Drive não criou a pasta.'};
     msg('Criando o documento…');
-    const rd=await mcp.callTool(GD,'create_file',{title:nome,contentMimeType:'text/html',textContent:htmlAta(a),parentId:pastaId},{cache:false}); const fd=rd?.payload||{}, docId=fd.id||fd.file?.id;
+    let IM=null; if(ataImgsDe(a).length){msg('Preparando as imagens…'); try{IM=await ataImgsDoc(a)}catch{}} msg('Criando o documento…');
+    const criaDoc=html=>mcp.callTool(GD,'create_file',{title:nome,contentMimeType:'text/html',textContent:html,parentId:pastaId},{cache:false});
+    let rd, semImg=false; try{rd=await criaDoc(htmlAta(a,IM))}catch(e){if(!IM?.size) throw e; console.warn('Doc com imagens recusado; tentando sem elas',e); semImg=true; IM=null; rd=await criaDoc(htmlAta(a))} // se o Drive recusar o Doc com imagens, ele sai sem elas
+    const fd=rd?.payload||{}, docId=fd.id||fd.file?.id;
     msg('Gerando o PDF…');
     const {bytes}=await montarPdfAta(a);
     const rf=await mcp.callTool(GD,'create_file',{title:nome+'.pdf',contentMimeType:'application/pdf',base64Content:b64(bytes),disableConversionToGoogleType:true,parentId:pastaId},{cache:false}); const ff=rf?.payload||{}, pdfId=ff.id||ff.file?.id;
-    const ex={em:Date.now(),pastaId,pastaUrl:`https://drive.google.com/drive/folders/${pastaId}`,caminho:(pasta.caminho||'')+'\\'+np,docId:docId||'',docUrl:docId?`https://docs.google.com/document/d/${docId}/edit`:'',pdfId:pdfId||'',...(me?{por:me}:{})};
-    a.export=ex; await ataColl().doc(a.id).update({export:ex}); renderMain(); toast('Ata exportada para '+np);
+    const ex={em:Date.now(),pastaId,pastaUrl:`https://drive.google.com/drive/folders/${pastaId}`,caminho:(pasta.caminho||'')+'\\'+np,docId:docId||'',docUrl:docId?`https://docs.google.com/document/d/${docId}/edit`:'',pdfId:pdfId||'',docImgs:IM?.size||0,...(me?{por:me}:{})};
+    a.export=ex; await ataColl().doc(a.id).update({export:ex}); renderMain(); toast('Ata exportada para '+np+(semImg?' (o documento saiu sem as imagens; elas estão no PDF)':''));
   }catch(e){console.error(e); msg(''); toast(e?.message&&!e.code?e.message:msgMcp(e).replace(/Google Sheets/g,'Google Drive'))}
   finally{if(b.isConnected){b.disabled=false;b.innerHTML=t0}}
 }
