@@ -3,7 +3,11 @@
 Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact oficial; devNN = versão correspondente da desenvolvimento). Datas em 2026.
 
 ## Em desenvolvimento (ainda não publicado na oficial)
-- (nada)
+- Emissões no sistema web: ligar os arquivos das emissões criadas pelo Revit (pasta pelo caminho do G:) e emitir nas subpastas por disciplina da pasta compartilhada (etapa 2, ver docs/emissoes.md).
+
+## oficial Firebase — 24/11, ~17h35 — commit 1e89aef
+- Extensão do Revit 2.38.0 (antes 2.37.0): **Pranchas › Exportar** com a opção **Registrar emissão no sistema** — escolhe emissão nova ou um Rascunho do projeto, disciplinas (já marcadas as das pranchas) e destinatários (envolvidos do projeto); depois de exportar, grava a emissão em Rascunho com a pasta e os arquivos, para completar e emitir em Projeto › Emissões. A pasta nova do Exportar passa a seguir o padrão `AA-MM-DD EMISSÃO - Descrição`. Na oficial, o Emitir dessas emissões ainda depende da etapa 2 no sistema web.
+- Documentação: decisões da integração das Emissões com o Revit (docs/emissoes.md).
 
 ## oficial Firebase — 24/11, ~16h15 — commit f5c6d30
 - **Emissões** (nova seção em cada projeto, ao lado de Relação de documentos, Atas e Croquis): registro de cada emissão com data, descrição, destinatários (opcionais) e arquivos. Ver docs/emissoes.md.
