@@ -5,6 +5,19 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 24/11, ~16h15 — commit f5c6d30
+- **Emissões** (nova seção em cada projeto, ao lado de Relação de documentos, Atas e Croquis): registro de cada emissão com data, descrição, destinatários (opcionais) e arquivos. Ver docs/emissoes.md.
+  - Arquivos enviados do computador (também arrastados do Explorer, direto do G:) para a subpasta **AA-MM-DD EMISSÃO - Descrição**, sem limite de tamanho (envio em partes, com progresso e retomada); mudar data ou descrição renomeia a pasta.
+  - **Emitir** mostra um resumo antes de confirmar, com aviso quando uma prancha da RD vai sem PDF ou sem DWG ("Emitir mesmo assim").
+  - **Pasta compartilhada** (opcional): copia os arquivos e move as revisões anteriores do mesmo documento, em qualquer extensão, para **SUBSTITUÍDOS**; se lá houver revisão maior, aquele documento não é copiado e a emissão fica "Conferir", com o botão "Copiar de novo".
+  - **Relação de documentos**: ao emitir, os documentos de mesmo nome recebem a data de emissão, o status EMITIDO e a revisão emitida. Um contador ao lado da revisão (e a seção "Revisões emitidas" na ficha) abre o histórico, que leva à pasta de cada emissão.
+  - **Destinatários**: escolhidos dos envolvidos do projeto; "+ Novo" cadastra só no projeto, e "↗" envia ao cadastro geral de Parceiros.
+  - **Disciplina**: detectada pelos arquivos (documento da RD de mesmo nome, ou o código depois do projeto no nome, inclusive pela sigla do projeto) e editável; editar desliga a detecção, e "Detectar pelos arquivos" religa. Coluna na lista, com filtro.
+- **Conexão com PC versão 7**: abre a pasta de uma emissão no Explorer com os arquivos da revisão já selecionados. Cada computador precisa instalar o pacote novo (Biblioteca › Ferramentas › Conexão com PC).
+- **Painel inicial**: quadro **Avisos** quando as Ferramentas FJA de algum computador da pessoa ou a Conexão com PC deste navegador estão desatualizadas.
+- Extensão do Revit 2.37.0 (antes 2.36.0): ao abrir o Revit, a suíte informa ao sistema a versão instalada em cada computador (usado pelos avisos do painel inicial).
+- **Relação de documentos**: item duplicado (Ctrl+D) começa sempre na revisão R00.
+
 ## oficial Firebase — 24/11, ~14h05 — commit b4c6764
 - **Atas de reunião**: ao excluir um item, um tópico, a ata ou a própria imagem, as imagens saem também dos arquivos. Elas são apagadas na próxima abertura do sistema, e só se nenhuma ata usar mais a imagem (assim o Ctrl+Z continua trazendo o item de volta com a imagem). Excluir item ou tópico com imagens pede confirmação.
 - **Atas de reunião (Google Doc)**: o item só com imagem também entra no documento; as imagens vão reduzidas na coluna "imagens", entre item e descrição. Se o Drive recusar o documento com imagens, ele sai sem elas, com o aviso "[N imagens no PDF]" no item. Ainda falta confirmar numa exportação real se o Google Docs mostra as imagens.
