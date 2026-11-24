@@ -4109,7 +4109,7 @@ async function duplicarRdLote(ids){
       const body=structuredClone(base); delete body.id;
       for(const k of ['origem','editadoLocal','sincronizadoEm','atualizadoPor','capa']) delete body[k];
       const ln=prox.get(base.projeto)??proxLinhaRd(base.projeto); prox.set(base.projeto,ln+1);
-      Object.assign(body,{linha:ln,item:proxItemRd(base,novos),emissao:hoje,status:'EMITIDO',criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})});
+      Object.assign(body,{linha:ln,item:proxItemRd(base,novos),revisao:'R00',emissao:hoje,status:'EMITIDO',criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})});
       const ref=rdColl().doc(); await ref.set(body); const n={...body,id:ref.id}; S.rdocs.set(ref.id,n); novos.push(n);
     }
   }catch(e){toast(e?.code==='quota_exceeded'?'O sistema atingiu o limite de itens.':'Não foi possível duplicar o documento.')}
