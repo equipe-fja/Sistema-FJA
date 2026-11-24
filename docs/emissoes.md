@@ -33,8 +33,8 @@ Registro das emissões de arquivos de cada projeto (Projeto › Emissões). Deci
 2. Lista (planilha com filtros) e ficha (tela dividida). ✔
 3. Emitir: pasta datada, envio dos arquivos, prévia com aviso PDF/DWG. ✔ (aviso vale para documentos da RD; memoriais sem DWG: preencher a Extensão na RD só com PDF)
 4. Pasta compartilhada e SUBSTITUÍDOS. ✔ (só na versão Firebase; na dev do Claude aparece o aviso)
-5. Envolvidos do projeto e "Enviar ao cadastro geral".
-6. RD: atualização ao emitir, histórico de revisões, Conexão com PC v7 (abrir pasta com arquivos selecionados).
+5. Envolvidos do projeto e "Enviar ao cadastro geral". ✔ (envolvidos do projeto também aparecem nas atas e pendências; parceiro novo = empresa, ou o nome quando não há empresa; se o parceiro já existe, a pessoa entra na equipe dele)
+6. RD: atualização ao emitir, histórico de revisões, Conexão com PC v7 (abrir pasta com arquivos selecionados). ✔ (contador verde ao lado da revisão na RD e seção na ficha do documento; a versão do vigia é marcada por navegador em Ferramentas › Conexão com PC)
 
 ## Pendências
 - GRD (guia de remessa) em PDF: fica para depois.

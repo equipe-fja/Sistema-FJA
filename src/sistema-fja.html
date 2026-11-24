@@ -671,7 +671,7 @@ body.rd-mod #eqTabela tr[data-act="rd-abrir"]{cursor:copy}
 .cq-ext{font:600 15px/1 var(--mono,monospace);color:#8a8a86;border:1px solid #d9d8d4;border-radius:6px;padding:10px 12px;background:#fff}
 .cq-inf{display:flex;flex-direction:column;gap:3px;padding:10px 12px 12px;font-size:13px}.cq-inf .st-cm{align-self:flex-start;margin-top:4px}.cq-d{font-size:11.5px;color:var(--muted)}
 .cq-drop{padding:12px 14px 14px;border-radius:0 0 10px 10px}.cq-drop.sobre{background:color-mix(in srgb,var(--accent,#8e1b1b) 6%,transparent);outline:2px dashed var(--accent,#8e1b1b);outline-offset:-6px}
-.em-dest{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0 6px}.em-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;background:var(--bg2,#f6f6f4)}.em-chip .lk{padding:0 2px;line-height:0}.em-chip svg{width:12px;height:12px}.em-prog{display:grid;grid-template-columns:minmax(0,1fr) 160px auto;gap:10px;align-items:center;padding:6px 2px;font-size:12.5px}.em-pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.em-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.em-bar i{display:block;height:100%;background:#1baf7a;transition:width .3s}.em-pct{font-size:11.5px;white-space:nowrap}.em-comp{display:flex;flex-direction:column;gap:6px;font-size:13px}.em-chk{display:flex;gap:8px;align-items:center;cursor:pointer}.banner.warn{background:#fdf3d6;border-color:#eda100}.em-dest-sel{width:auto;min-width:220px;max-width:100%}
+.em-dest{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0 6px}.em-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;background:var(--bg2,#f6f6f4)}.em-chip .lk{padding:0 2px;line-height:0}.em-chip svg{width:12px;height:12px}.em-prog{display:grid;grid-template-columns:minmax(0,1fr) 160px auto;gap:10px;align-items:center;padding:6px 2px;font-size:12.5px}.em-pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.em-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.em-bar i{display:block;height:100%;background:#1baf7a;transition:width .3s}.em-pct{font-size:11.5px;white-space:nowrap}.em-comp{display:flex;flex-direction:column;gap:6px;font-size:13px}.em-chk{display:flex;gap:8px;align-items:center;cursor:pointer}.banner.warn{background:#fdf3d6;border-color:#eda100}.em-geral{font-weight:700;color:#2a78d6}.rd-hist{margin-left:6px;font:600 10.5px/1 inherit;min-width:16px;padding:2px 4px;border-radius:8px;border:1px solid #1baf7a;color:#1baf7a;background:transparent;cursor:pointer;vertical-align:1px}.rd-hist:hover{background:#1baf7a;color:#fff}.rd-hist-cx{max-width:760px;width:min(760px,94vw)}.rd-hist-cx tr[data-act]{cursor:pointer}.em-dest-sel{width:auto;min-width:220px;max-width:100%}
 .cq-arqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .cq-a{display:flex;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px;align-items:center;min-width:0}
 .cq-ath{width:72px;height:56px;flex:none;border-radius:5px;overflow:hidden;background:#f4f3f1;display:flex;align-items:center;justify-content:center}.cq-ath img{width:100%;height:100%;object-fit:cover}.cq-ath .cq-ext{font-size:11px;padding:6px}
@@ -3854,7 +3854,7 @@ const RD_TCOLS=[
   ['codDisc','Cód. disc.',0,e=>celEdRd(e,'codDisc',esc(e.codDisc||'')),'mono'],
   ['bloco','Bloco',1,e=>celEdRd(e,'bloco',esc(blocoRd(e))),'mono'],
   ['item','Item',0,e=>celEdRd(e,'item',esc(e.item||'')),'mono'],
-  ['revisao','Revisão',1,e=>celEdRd(e,'revisao',esc(e.revisao||'')),'mono'],
+  ['revisao','Revisão',1,e=>celEdRd(e,'revisao',esc(e.revisao||''))+histRdBtn(e),'mono'],
   ['extensao','Extensão',0,e=>celEdRd(e,'extensao',esc(e.extensao||'')),'mono'],
   ['local','Local de envio',0,e=>celEdRd(e,'local',esc(e.local||'')),''],
   ['previsao','Previsão',1,e=>celEdRd(e,'previsao',atrasadoRd(e)?`<span class="atras" data-tipj="Previsão vencida">${esc(e.previsao)}</span>`:esc(e.previsao||'')),'mono'],
@@ -4058,6 +4058,7 @@ function telaRdItem(h,v){
     h+=`<section class="sheet"><div class="sheet-h"><h2>${esc(tit)}</h2>${tit==='Documento'?`<span class="hint mono">${esc(arquivoRd(e))}</span>`:''}</div><div class="grid">${g}</div></section>`;
   }
   h+=blocoRdCm(e);
+  {const n=base?histRd(base).length:0; if(n) h+=`<section class="sheet"><div class="sheet-h"><h2>Revisões emitidas</h2><span class="hint">${n}</span><span style="flex:1"></span><button class="btn sm" data-act="rd-hist" data-eid="${esc(base.id)}">Ver revisões</button></div></section>`}
   if(e.origem) h+=`<div class="banner pub eq-origem"><span class="sp">Importado da linha <b>${esc(e.origem.linha)}</b> da aba <b>${esc(e.origem.aba)}</b>.${e.editadoLocal?' Editado no sistema: uma nova importação não sobrescreve este item.':''}</span><a class="btn sm" href="https://docs.google.com/spreadsheets/d/${esc(e.origem.planilha)}/edit" target="_blank" rel="noopener">Abrir planilha</a></div>`;
   h+=`<div class="foot-meta">${base?.atualizadoEm?`Atualizado em ${fmtData(base.atualizadoEm)}`:''}</div></div>`;
   if(!S.ro) h+=`<div class="actions ${S.dirty?'dirty':''}" id="actbar"><span class="state" id="actstate">${S.dirty?'Alterações não salvas':'Tudo salvo'}</span><button class="btn ghost" data-act="descartar">Descartar</button><button class="btn danger" data-act="rd-del">${IC.trash}Excluir</button><button class="btn pri" data-act="rd-salvar">Salvar alterações</button></div>`;
@@ -4500,7 +4501,7 @@ function telaEm(h,v){
   h+=`<div class="page wide" id="emLista" data-pid="${esc(it.id)}"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><span>Emissões</span></div>
   <h1>Emissões</h1>${pastaProjLinha(it,'emisPasta','Pasta das emissões','em-pasta')}${pastaProjLinha(it,'emisCompart','Pasta compartilhada (padrão)','em-compart').replace('não definida — escolha ao salvar o primeiro arquivo','não definida (opcional)')}`;
   h+=`<div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="eqBusca" type="search" placeholder="Buscar por descrição, destinatário, arquivo…" aria-label="Buscar emissões" value="${esc(MS().busca||'')}"></div>
-    <span class="muted eq-count" id="eqCount">${(()=>{const n=eqFiltrados(it.id).length,t=todos.length;return n===t?t+' emissões':n+' de '+t+' emissões'})()}</span><button class="btn sm ghost" id="eqLimpar" data-act="eq-limpar" ${temFiltroEq()?'':'hidden'}>Limpar filtros</button>
+    <span class="muted eq-count" id="eqCount">${(()=>{const n=eqFiltrados(it.id).length,t=todos.length;const q=k=>k===1?'1 emissão':k+' emissões'; return n===t?q(t):n+' de '+q(t)})()}</span><button class="btn sm ghost" id="eqLimpar" data-act="eq-limpar" ${temFiltroEq()?'':'hidden'}>Limpar filtros</button>
     ${S.ro?'':`<button class="btn pri" data-act="em-novo" data-id="${esc(it.id)}">${IC.plus}Nova emissão</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
   return h+`<section class="sheet" id="eqTabela">${eqTabelaHTML(it.id)}</section></div>`;
 }
@@ -4531,8 +4532,8 @@ function telaEmItem(h,v){
     <label class="fl wide">Descrição<input class="fld" data-em="descricao" value="${esc(e.descricao||'')}" placeholder="Ex.: Projeto básico - entrega ao contratante" ${ro}></label>
     <label class="fl wide">Observações<textarea class="fld" rows="2" data-em="obs" ${ro}>${esc(e.obs||'')}</textarea></label></div></section>
   <section class="sheet"><div class="sheet-h"><h2>Destinatários</h2><span class="hint">${D.length||'opcional'}</span></div>
-    <div class="em-dest">${D.map((d,i)=>`<span class="em-chip" title="${esc([d.empresa,d.email].filter(Boolean).join(' · '))}">${esc(d.nome)}${S.ro?'':`<button class="lk" data-act="em-dest-rm" data-i="${i}" title="Tirar ${esc(d.nome)}" aria-label="Tirar ${esc(d.nome)}">${IC.x}</button>`}</span>`).join('')||(S.ro?'<span class="muted">Nenhum</span>':'')}
-    ${S.ro?'':`<select class="fld em-dest-sel" id="emDestSel" aria-label="Adicionar destinatário"><option value="">+ Adicionar destinatário…</option>${ops.map(d=>`<option value="${esc(d.nome)}">${esc(d.nome)}${d.empresa?' · '+esc(d.empresa):''}</option>`).join('')}</select>`}</div></section>
+    <div class="em-dest">${D.map((d,i)=>`<span class="em-chip" title="${esc([d.empresa,d.email].filter(Boolean).join(' · '))}">${esc(d.nome)}${S.ro||emNoGeral(e.projeto,d.nome)?'':`<button class="lk em-geral" data-act="em-dest-geral" data-n="${esc(d.nome)}" title="Cadastrado só neste projeto: enviar ao cadastro geral de Parceiros" aria-label="Enviar ao cadastro geral">↗</button>`}${S.ro?'':`<button class="lk" data-act="em-dest-rm" data-i="${i}" title="Tirar ${esc(d.nome)}" aria-label="Tirar ${esc(d.nome)}">${IC.x}</button>`}</span>`).join('')||(S.ro?'<span class="muted">Nenhum</span>':'')}
+    ${S.ro?'':`<select class="fld em-dest-sel" id="emDestSel" aria-label="Adicionar destinatário"><option value="">+ Adicionar destinatário…</option>${ops.map(d=>`<option value="${esc(d.nome)}">${esc(d.nome)}${d.empresa?' · '+esc(d.empresa):''}</option>`).join('')}</select><button class="btn sm ghost" data-act="em-dest-novo" title="Cadastrar um envolvido só neste projeto">${IC.plus}Novo</button>`}</div>${!S.ro&&D.some(d=>!emNoGeral(e.projeto,d.nome))?'<p class="cq-dica" style="text-align:left;margin:2px 0 6px">↗ = cadastrado só neste projeto; clique para enviar ao cadastro geral de Parceiros.</p>':''}</section>
   ${emArqsHTML(e)}
   ${emCompartHTML(e)}
   ${S.ro?'':`<div class="esp-bar"><span style="flex:1"></span><button class="btn danger sm" data-act="em-del">${IC.trash}Excluir emissão</button>${!e.status||e.status==='Rascunho'?`<button class="btn pri sm" data-act="em-emitir">Emitir</button>`:''}</div>`}
@@ -4557,6 +4558,8 @@ async function emAcao(a0,b){
   const e=emAtual(); if(!e||S.ro) return;
   if(a0==='em-dest-rm'){e.destinatarios.splice(+b.dataset.i,1); emMudou(true); return}
   if(a0==='em-emitir'){await emEmitir(e); return}
+  if(a0==='em-dest-novo'){await emDestNovo(e); return}
+  if(a0==='em-dest-geral'){await emDestGeral(e.projeto,b.dataset.n); return}
   if(a0==='em-recopiar'){await emRecopiar(e); return}
   if(a0==='em-compart-esta'){await emEscolherCompart(e); return}
   if(a0==='em-arq-rm'){const i=(e.arquivos||[]).findIndex(a=>a.nome===b.dataset.n), a=e.arquivos?.[i]; if(!a) return; const ras=!e.status||e.status==='Rascunho';
@@ -4637,7 +4640,7 @@ function emAvisosPdfDwg(e){
     const tem=['PDF','DWG'].filter(t=>x.ext.has(t)); if(tem.length!==1) continue;
     const d=rdEm(e.projeto,x.nome); if(!d) continue;
     const exts=String(d.extensao||'').toUpperCase(); if(exts&&!(exts.includes('PDF')&&exts.includes('DWG'))) continue;
-    out.push(`${arquivoRd(d)||x.nome.replace(/\.[^.]+$/,'')}: falta o ${tem[0]==='PDF'?'DWG':'PDF'}`);
+    out.push(`${x.nome.replace(/\.[^.]+$/,'')}: falta o ${tem[0]==='PDF'?'DWG':'PDF'}`);
   }
   return out;
 }
@@ -4705,15 +4708,17 @@ async function emEmitir(e){
   const A=e.arquivos||[], av=emAvisosPdfDwg(e), msg=t=>{const m=$('emMsg'); if(m) m.textContent=t};
   const usar=temMover()&&e.compart?.id&&e.compart.usar!==false&&A.length;
   let plano=null; if(usar){msg('Lendo a pasta compartilhada…'); try{plano=await emPlanoCompart(e)}catch(x){msg(''); toast('Não foi possível ler a pasta compartilhada: '+(x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive')));return} msg('')}
-  let txt=`Emitir ${numEm(e.num)} · ${e.data}\n${e.descricao}\n\n${A.length?A.length+' arquivo'+(A.length>1?'s':''):'Sem arquivos'}${destEm(e).length?'\nPara: '+destEm(e).join(', '):''}`+txtPlano(plano);
+  const P=emPlanoRd(e);
+  let txt=`Emitir ${numEm(e.num)} · ${e.data}\n${e.descricao}\n\n${A.length?A.length+' arquivo'+(A.length>1?'s':''):'Sem arquivos'}${destEm(e).length?'\nPara: '+destEm(e).join(', '):''}`+txtPlano(plano)+txtPlanoRd(e,P);
   if(av.length) txt+=`\n\nAtenção, pranchas sem PDF ou sem DWG:\n${av.map(x=>'• '+x).join('\n')}`;
   if(!await confirmar(txt,{ok:av.length?'Emitir mesmo assim':'Emitir'})) return;
   if(plano){
     try{const r=await emExecutarCompart(e,plano,msg); e.compart={...e.compart,em:Date.now(),...(me?{por:me}:{}),copiados:r.copiados,substituidos:r.substituidos,conferir:plano.conferir}}
     catch(x){console.error(x); msg(''); toast('A cópia para a pasta compartilhada parou: '+(x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive'))+'. A emissão continua como rascunho.'); return}
   }
+  const nRd=await emAtualizarRd(e,P);
   e.status=plano?.conferir.length?'Conferir':'Emitida'; e.emitidaEm=Date.now(); if(me) e.emitidaPor=me; emMudou(true);
-  toast(numEm(e.num)+(e.status==='Conferir'?' emitida: há documentos a conferir na pasta compartilhada':' emitida'));
+  toast(numEm(e.num)+(e.status==='Conferir'?' emitida: há documentos a conferir na pasta compartilhada':' emitida')+(nRd?' · '+nRd+' documento'+(nRd>1?'s':'')+' atualizado'+(nRd>1?'s':'')+' na RD':''));
 }
 async function emRecopiar(e){
   const c=e.compart; if(!c?.conferir?.length) return; const msg=t=>{const m=$('emMsg'); if(m) m.textContent=t};
@@ -4735,6 +4740,91 @@ async function emEscolherCompart(e){
   const info={id:res.id,caminho:res.caminho||'',url:res.url||`https://drive.google.com/drive/folders/${res.id}`};
   e.compart={...info,usar:true}; emMudou(true);
   if(it&&!it.emisCompart){try{await coll().doc(it.id).update({emisCompart:info}); it.emisCompart=info; toast('Também ficou como a pasta compartilhada padrão do projeto')}catch{}}
+}
+/* envolvidos cadastrados só no projeto (it.envolvidosProj) e envio ao cadastro geral de Parceiros */
+async function emDestNovo(e){
+  const nome=String(await pedirNome({titulo:'Novo destinatário',rotulo:'Nome (pessoa ou empresa)',ok:'Continuar',bruto:true})||'').trim(); if(!nome) return;
+  const empresa=String(await pedirNome({titulo:'Novo destinatário · '+nome,rotulo:'Empresa (opcional: deixe em branco se o nome já for a empresa)',ok:'Continuar',bruto:true})||'').trim();
+  const email=String(await pedirNome({titulo:'Novo destinatário · '+nome,rotulo:'E-mail (opcional)',ok:'Salvar',bruto:true})||'').trim().toLowerCase();
+  const it=S.itens.get(e.projeto); if(!it) return;
+  let d=envolvidosEm(e.projeto).find(x=>x.nome.toLowerCase()===nome.toLowerCase());
+  if(d&&!d.proj) toast(nome+' já está na lista de envolvidos do projeto');
+  else{const L=[...(it.envolvidosProj||[])].filter(x=>x.nome.toLowerCase()!==nome.toLowerCase()); d={nome,...(empresa?{empresa}:{}),...(email?{email}:{})}; L.push(d);
+    try{await coll().doc(it.id).update({envolvidosProj:L}); it.envolvidosProj=L}catch{toast('Não foi possível salvar no projeto');return}}
+  if(!(e.destinatarios||[]).some(x=>x.nome.toLowerCase()===nome.toLowerCase())) (e.destinatarios=e.destinatarios||[]).push({nome:d.nome,...(d.empresa?{empresa:d.empresa}:{}),...(d.email?{email:d.email}:{})});
+  emMudou(true); toast(nome+' cadastrado no projeto');
+}
+const emNoGeral=(pid,nome)=>{const d=(S.itens.get(pid)?.envolvidosProj||[]).find(x=>x.nome===nome); return !d||!!(d.geral&&S.itens.get(d.geral))};
+async function emDestGeral(pid,nome){
+  const it=S.itens.get(pid), L=[...(it?.envolvidosProj||[])], i=L.findIndex(x=>x.nome===nome); if(i<0) return; const d={...L[i]};
+  const alvo=(d.empresa||d.nome).trim(), pessoa=d.empresa?d.nome:'', ja=parceiros().find(p=>semAc(p.nome)===semAc(alvo));
+  try{
+    if(ja){
+      const eq=String(ja.campos?.equipe||'').split('\n').map(x=>x.trim()).filter(Boolean);
+      if(pessoa&&!eq.some(x=>semAc(x)===semAc(pessoa))){
+        if(!await confirmar(`${ja.nome} já está no cadastro de Parceiros.\n\nAcrescentar ${pessoa} à equipe desse parceiro?${d.email&&!ja.campos?.email?'\nE-mail: '+d.email:''}`,{ok:'Acrescentar'})) return;
+        const campos={...(ja.campos||{}),equipe:[...eq,pessoa].join('\n'),...(!ja.campos?.email&&d.email?{email:d.email}:{})};
+        await coll().doc(ja.id).update({campos,atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})}); ja.campos=campos; toast(pessoa+' acrescentado à equipe de '+ja.nome);
+      }else toast(`${ja.nome} já está no cadastro de Parceiros`);
+      d.geral=ja.id;
+    }else{
+      if(!await confirmar(`Criar "${alvo}" no cadastro de Parceiros?${pessoa?'\n\nContato: '+pessoa:''}${d.email?'\nE-mail: '+d.email:''}\n\nOs demais dados (papel, disciplinas, telefone…) podem ser completados depois na ficha do parceiro.`,{ok:'Criar parceiro'})) return;
+      const body={secao:'parceiros',nome:alvo,pasta:'',status:STATUS.parceiros[0],campos:{...(pessoa?{contato:pessoa,equipe:pessoa}:{}),...(d.email?{email:d.email}:{})},criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me,atualizadoPor:me}:{})};
+      const ref=coll().doc(); await ref.set(body); S.itens.set(ref.id,{...body,id:ref.id}); d.geral=ref.id; toast(alvo+' criado no cadastro de Parceiros');
+    }
+    L[i]=d; await coll().doc(it.id).update({envolvidosProj:L}); it.envolvidosProj=L; render();
+  }catch(x){console.error(x); toast('Não foi possível gravar no cadastro de Parceiros')}
+}
+
+/* Relação de documentos: ao emitir, data de emissão, status EMITIDO e a revisão emitida (uma linha por documento) */
+function emPlanoRd(e){
+  const m=new Map();
+  for(const a of e.arquivos||[]){const d=(a.rdoc&&S.rdocs.get(a.rdoc))||rdEm(e.projeto,a.nome); if(!d) continue;
+    const x=m.get(d.id)||{d,rev:''}; if(revNum(a.rev)>revNum(x.rev)) x.rev=a.rev; m.set(d.id,x)}
+  return [...m.values()].map(x=>({...x,menor:!!(x.rev&&x.d.revisao&&revNum(x.rev)<revNum(x.d.revisao))}));
+}
+const txtPlanoRd=(e,P)=>{if(!P.length) return ''; const ok=P.filter(x=>!x.menor), rv=ok.filter(x=>x.rev&&x.rev!==(x.d.revisao||'')), mn=P.filter(x=>x.menor);
+  const lst=(L,f)=>L.slice(0,10).map(f).join('\n')+(L.length>10?`\n   … e mais ${L.length-10}`:'');
+  return `\n\nRelação de documentos: ${ok.length} documento${ok.length===1?'':'s'} → EMITIDO em ${e.data}`+(rv.length?`\n${lst(rv,x=>`   – ${arquivoRd(x.d)} → ${x.rev}`)}`:'')+
+    (mn.length?`\n• Não alterados (a RD tem revisão maior):\n${lst(mn,x=>`   – ${arquivoRd(x.d)} (emitida ${x.rev})`)}`:'')};
+async function emAtualizarRd(e,P){
+  let n=0;
+  for(const x of P){if(x.menor) continue; const d=S.rdocs.get(x.d.id); if(!d) continue;
+    const up={emissao:e.data,status:'EMITIDO',...(x.rev&&x.rev!==d.revisao?{revisao:x.rev}:{}),...(d.origem?{editadoLocal:true}:{}),atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};
+    try{await rdColl().doc(d.id).update(up); Object.assign(d,up); n++}catch(err){console.warn('rd',d.id,err)}}
+  for(const a of e.arquivos||[]) if(!a.rdoc){const d=rdEm(e.projeto,a.nome); if(d) a.rdoc=d.id}
+  return n;
+}
+
+/* histórico de revisões de um documento da RD, a partir das emissões */
+function histRd(d){
+  const out=[];
+  for(const e of emisDe(d.projeto)){if(!e.status||e.status==='Rascunho') continue;
+    const A=(e.arquivos||[]).filter(a=>a.rdoc===d.id); if(!A.length) continue;
+    const rev=A.reduce((r,a)=>revNum(a.rev)>revNum(r)?a.rev:r,'');
+    out.push({e,rev,A})}
+  return out.sort((a,b)=>revNum(b.rev)-revNum(a.rev)||(dataNum(b.e.data)||0)-(dataNum(a.e.data)||0));
+}
+const histRdBtn=e=>{if(!S.emis.size) return ''; const n=histRd(e).length; return n?`<button class="rd-hist" data-act="rd-hist" data-eid="${esc(e.id)}" title="${n} revis${n>1?'ões emitidas':'ão emitida'}: clique para ver" aria-label="Revisões emitidas">${n}</button>`:''};
+function abrirHistRd(id){
+  const d=S.rdocs.get(id); if(!d) return; const H=histRd(d); $('rdHist')?.remove();
+  const x=document.createElement('div'); x.id='rdHist'; x.className='pc-modal';
+  x.innerHTML=`<div class="pc-caixa rd-hist-cx" role="dialog" aria-modal="true" aria-labelledby="rdHistT"><h2 id="rdHistT">Revisões emitidas</h2><p class="mono muted" style="margin-top:-4px">${esc(arquivoRd(d))}</p>
+  ${H.length?`<div class="tablewrap"><table class="list"><thead><tr><th>Rev.</th><th>Data</th><th>Emissão</th><th>Destinatários</th><th>Arquivos</th></tr></thead><tbody>${H.map(h=>`<tr data-act="rd-hist-abrir" data-em="${esc(h.e.id)}" data-doc="${esc(d.id)}" title="Abrir a pasta desta emissão${pcAtivo()&&pcVer()>=7?' no Explorer, com os arquivos selecionados':''}">
+    <td class="mono"><b>${esc(h.rev||'—')}</b></td><td class="mono">${esc(h.e.data||'')}</td><td>${esc(numEm(h.e.num))} ${esc(h.e.descricao||'')}</td><td class="muted">${esc(destEm(h.e).join(', '))}</td>
+    <td>${h.A.map(a=>a.driveId?`<a class="mono" href="https://drive.google.com/file/d/${esc(a.driveId)}/view" target="_blank" rel="noopener" title="${esc(a.nome)}">${esc(a.ext||extDe(a.nome))}</a>`:esc(a.ext||'')).join(' · ')}</td></tr>`).join('')}</tbody></table></div>
+    <p class="muted" style="font-size:12px">Clique numa linha para abrir a pasta da emissão${pcAtivo()?(pcVer()>=7?' no Explorer, com os arquivos selecionados':' (no Drive; com a Conexão com PC versão 7 abre no Explorer com os arquivos selecionados)'):' no Drive'}.</p>`:'<p class="muted">Nenhuma emissão registrada para este documento.</p>'}
+  <div class="pc-acts"><button class="btn ghost" data-act="rd-hist-x">Fechar</button></div></div>`;
+  document.body.appendChild(x);
+}
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&$('rdHist')){$('rdHist').remove();ev.stopPropagation()}},true);
+const pcVer=()=>{try{return +(localStorage.getItem('fja.conexaoPC.v')||(pcAtivo()?6:0))}catch{return 0}};
+async function emAbrirPasta(e,nomes){
+  const cam=e.pasta?.caminho||'';
+  if(pcAtivo()&&pcVer()>=7&&/^[A-Za-z]:\\/.test(cam)){
+    try{await navigator.clipboard.writeText('fja-selecionar:'+JSON.stringify({pasta:cam,arquivos:nomes||[]})); toast('Abrindo no Explorer… (caminho copiado)'); return}catch{}
+  }
+  if(e.pasta?.url) window.open(e.pasta.url,'_blank','noopener'); else toast('Esta emissão não tem pasta no Drive');
 }
 /* ---------- croquis do projeto ---------- */
 const croqColl=()=>db.collection('croq');
@@ -4934,6 +5024,7 @@ function envolvidos(pid){
   for(const l of discsProj(pid)) for(const id of [l.parceiro].filter(Boolean)) nomes.add(nomeParc(id));
   for(const p of parceiros()) if(p.campos?.papel==='Interno (FJA)'){nomes.add(p.nome);String(p.campos?.equipe||'').split('\n').map(x=>x.trim()).filter(Boolean).forEach(x=>nomes.add(`${p.nome} (${x})`))}
   for(const e of pdDe(pid)) if(e.responsavel) nomes.add(e.responsavel.trim());
+  for(const d of S.itens.get(pid)?.envolvidosProj||[]) if(d?.nome) nomes.add(d.nome);
   return [...nomes].filter(Boolean).sort((a,b)=>a.localeCompare(b,'pt'));
 }
 const SIT_DC=['A definir','Em contratação','Contratado','Em desenvolvimento','Entregue','Não se aplica'];
@@ -7583,6 +7674,9 @@ document.addEventListener('click',async ev=>{
   if(a.startsWith('ata-')){await ataAcao(a,b);return}
   if(a.startsWith('cq-')){await cqAcao(a,b);return}
   if(a.startsWith('em-')){await emAcao(a,b);return}
+  if(a==='rd-hist'){ev.stopPropagation(); abrirHistRd(b.dataset.eid);return}
+  if(a==='rd-hist-x'){$('rdHist')?.remove();return}
+  if(a==='rd-hist-abrir'){const e=S.emis.get(b.dataset.em); if(e) emAbrirPasta(e,(e.arquivos||[]).filter(x=>x.rdoc===b.dataset.doc).map(x=>x.nome)); return}
   if(a==='emis'){S.abertas.add('i:'+b.dataset.id);ir({t:'emis',id:b.dataset.id});return}
   if(a.startsWith('cp-')){await cpAcao(a,b);return}
   if(a==='rv-publicar'){await rvPublicar('tudo');return}
@@ -7598,7 +7692,8 @@ document.addEventListener('click',async ev=>{
   if(a==='pc-origem'){await pcTrocarOrigem(b.dataset.mod,b.dataset.id);return}
   if(a==='pc-nova-origem'){await pcNovaOrigem(b.dataset.mod,b.dataset.id);return}
   if(a==='pc-local-cm'){await pcLocalCm(b.dataset.eid);return}
-  if(a==='ferr-pc-ativo'){try{localStorage.setItem(PC_LS,b.checked?'1':'0')}catch{} render(); toast(b.checked?'Conexão com PC ativada neste navegador':'Conexão com PC desativada neste navegador');return}
+  if(a==='ferr-pc-v'){try{localStorage.setItem('fja.conexaoPC.v',PC_VERSAO)}catch{} render(); toast('Marcado: versão '+PC_VERSAO+' instalada neste computador');return}
+  if(a==='ferr-pc-ativo'){try{localStorage.setItem(PC_LS,b.checked?'1':'0'); if(b.checked) localStorage.setItem('fja.conexaoPC.v',PC_VERSAO)}catch{} render(); toast(b.checked?'Conexão com PC ativada neste navegador':'Conexão com PC desativada neste navegador');return}
   if(a==='ferr-pc-testar'){await copiarOuAbrir('G:\\');return}
   if((a==='forn-ord'||a==='forn-agrupar')&&fornAcao(a,b)) return;
   if(a==='pj-arq'){S.projArq=!S.projArq; lsSet('fja.pj.arq',S.projArq); renderMain(); return}
@@ -8986,7 +9081,7 @@ const FERRAMENTAS=[
   {id:'rvext',nome:'Extensão do Revit',resumo:'Baixa a aba Ferramentas FJA do pyRevit (Composições, Componentes, Copiar do link, Verificar alterações, Renomear tipos, Legendas).'},
   {id:'pc',nome:'Conexão com PC',resumo:'Abre no Windows Explorer as pastas e arquivos do G: quando você clica num caminho do sistema.'}
 ];
-const PC_LS='fja.conexaoPC', PC_PREFIXO='fja-abrir:', PC_VERSAO='6';
+const PC_LS='fja.conexaoPC', PC_PREFIXO='fja-abrir:', PC_VERSAO='7';
 const pcAtivo=()=>{try{return localStorage.getItem(PC_LS)==='1'}catch{return false}};
 /* Com a Conexão com PC: o sistema copia "fja-abrir:<caminho>"; o vigia instalado no Windows percebe,
    abre o Explorer e deixa na área de transferência só o caminho. (Links fja-abrir: são bloqueados dentro do claude.ai.) */
@@ -9113,7 +9208,37 @@ async function pcLocalCm(eid){
   else{render();toast('Local do arquivo trocado — salve para gravar junto com as outras alterações')}
 }
 const crlf=s=>s.replace(/\r?\n/g,'\r\n');
-const PC_FUNC=`function Abrir-FJA([string]$p) {
+const PC_FUNC=`function Selecionar-FJA([string]$json) {
+  # v7: abre a pasta no Explorer com os arquivos indicados ja selecionados (historico de revisoes da RD)
+  $o = $json | ConvertFrom-Json
+  $pasta = ([string]$o.pasta).Trim() -replace '/', '\\'
+  if ($pasta -notmatch '^[Gg]:\\\\' -or $pasta -match '\\.\\.') { return }
+  if (-not (Test-Path -LiteralPath $pasta -PathType Container)) { Abrir-FJA $pasta; return }
+  $nomes = @(@($o.arquivos) | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -notmatch '[\\\\/]' -and (Test-Path -LiteralPath (Join-Path $pasta $_)) })
+  if ($nomes.Count -eq 0) { Abrir-FJA $pasta; return }
+  Start-Process explorer.exe -ArgumentList ('/select,"' + (Join-Path $pasta $nomes[0]) + '"')
+  try {
+    $sh = New-Object -ComObject Shell.Application
+    for ($i = 0; $i -lt 40; $i++) {
+      Start-Sleep -Milliseconds 150
+      foreach ($w in @($sh.Windows())) {
+        try { $p2 = $w.Document.Folder.Self.Path } catch { $p2 = $null }
+        if ($p2 -and ($p2.TrimEnd([char]92) -ieq $pasta.TrimEnd([char]92))) {
+          Start-Sleep -Milliseconds 500
+          $k = 0
+          foreach ($n in $nomes) {
+            try {
+              $it = $w.Document.Folder.ParseName($n)
+              if ($it) { if ($k -eq 0) { $w.Document.SelectItem($it, 29) } else { $w.Document.SelectItem($it, 1) }; $k++ }
+            } catch {}
+          }
+          Trazer-Frente ([IntPtr]$w.HWND); return
+        }
+      }
+    }
+  } catch {}
+}
+function Abrir-FJA([string]$p) {
   $p = $p.Trim().Trim('"') -replace '/', '\\'
   # so aceita caminhos dentro do G: e sem subir pastas
   if ($p -notmatch '^[Gg]:\\\\' -or $p -match '\\.\\.') { return }
@@ -9287,6 +9412,12 @@ while ($true) {
         Start-Sleep -Milliseconds 350
         if ([FJA.Clip]::GetForegroundWindow() -eq $nav) { [System.Windows.Forms.SendKeys]::SendWait('^v') }
       }
+      continue
+    }
+    if ($t.StartsWith('fja-selecionar:')) {
+      try { $sj = $t.Substring(15) | ConvertFrom-Json; [System.Windows.Forms.Clipboard]::SetText([string]$sj.pasta) } catch {}
+      $ult = [FJA.Clip]::GetClipboardSequenceNumber()
+      Selecionar-FJA $t.Substring(15)
       continue
     }
     if (-not $t.StartsWith('fja-abrir:')) { continue }
@@ -9777,6 +9908,7 @@ function telaFerr(h,v){
   </div></section>
   <section class="sheet"><div class="sheet-h"><h2>2. Ativar e testar</h2></div><div class="pad ferr-pad">
     <label class="cro-ck"><input type="checkbox" data-act="ferr-pc-ativo"${on?' checked':''}> Já instalei neste computador</label>
+    ${on&&pcVer()<+PC_VERSAO?`<div class="banner pub"><span class="sp">Este navegador está marcado com a versão ${pcVer()}. A versão ${PC_VERSAO} abre a pasta de uma emissão no Explorer com os arquivos da revisão já selecionados. Baixe o pacote, rode o <span class="mono">instalar.cmd</span> e depois clique ao lado.</span><button class="btn sm" data-act="ferr-pc-v">Já instalei a versão ${PC_VERSAO}</button></div>`:''}
     <p class="muted">Esta marcação fica guardada só neste navegador. Com ela ligada, clicar num caminho do G: abre o Explorer e deixa o caminho copiado.</p>
     <div><button class="btn" data-act="ferr-pc-testar"${on?'':' disabled'}>Testar: abrir o G: no Explorer</button></div>
     <p class="muted">Se o teste não abrir nada, o vigia não está rodando: rode o <span class="mono">instalar.cmd</span> de novo. Se ao colar aparecer um texto começando com <span class="mono">fja-abrir:</span>, é o mesmo sinal.</p>
