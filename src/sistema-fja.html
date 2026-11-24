@@ -824,6 +824,7 @@ table.list.eq td .doc-lk:hover,.cam-win{flex-basis:100%;font-family:var(--f-mono
 .menu-linha{position:fixed;z-index:62;min-width:240px;background:var(--panel);border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:6px;display:flex;flex-direction:column}
 .ml-h{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);padding:4px 10px 6px}
 .ml-b{display:flex;align-items:center;gap:8px;text-align:left;padding:8px 10px;border-radius:5px;font-size:13.5px;color:var(--ink)}
+.ml-k{margin-left:auto;padding-left:16px;font-size:11.5px;color:var(--muted)}
 .ml-b:hover,.ml-b:focus-visible{background:var(--accent-weak);color:var(--accent-ink);outline:none}
 .cm-num{display:inline-block;min-width:1.6em;margin-right:12px;padding:0 10px;border-radius:6px;background:var(--accent-weak);color:var(--accent);font-family:var(--f-display);font-weight:700;font-size:1em;text-align:center}
 table.list.eq td.c-num .mono{font-family:var(--f-display);font-size:16px;font-weight:700;color:var(--ink)}
@@ -3902,7 +3903,7 @@ const RDSEL={ids:new Set(),ancora:null};
 const RD_ED={descricao:'text',codDisc:'code',bloco:'code',item:'code',revisao:'code',extensao:'text',local:'text',responsavel:'text',obs:'text',previsao:'date',emissao:'date',status:'status',fase:'fase',disciplina:'disc'};
 const celEdRd=(e,k,html)=>S.ro?html:`<span class="cel-ed" data-act="rd-cel" data-k="${k}" data-eid="${esc(e.id)}" title="Clique para editar${RDSEL.ids.size>1&&RDSEL.ids.has(e.id)?` os ${RDSEL.ids.size} selecionados`:''}">${html||'<span class="cel-vz">—</span>'}</span>`;
 function rdSelBar(){
-  const n=RDSEL.ids.size, b=$('rdSelBar'); const h=n?`<b>${n}</b> documento${n>1?'s':''} selecionado${n>1?'s':''} · clique numa célula de um deles para editar todos <button class="btn sm ghost" data-act="rd-sel-limpar">Limpar seleção</button>`:'<span class="muted">Shift + clique seleciona um intervalo · Ctrl + clique seleciona documentos avulsos</span>';
+  const n=RDSEL.ids.size, b=$('rdSelBar'); const h=n?`<b>${n}</b> documento${n>1?'s':''} selecionado${n>1?'s':''} · clique numa célula de um deles para editar todos <button class="btn sm ghost" data-act="rd-sel-limpar">Limpar seleção</button>`:'<span class="muted">Shift + clique seleciona um intervalo · Ctrl + clique seleciona documentos avulsos · Ctrl+D duplica</span>';
   if(b){b.innerHTML=h; b.classList.toggle('on',!!n)} return `<div class="rd-selbar${n?' on':''}" id="rdSelBar">${h}</div>`;
 }
 function rdSelPinta(){document.querySelectorAll('tr[data-act="rd-abrir"]').forEach(tr=>tr.classList.toggle('rd-sel',RDSEL.ids.has(tr.dataset.eid))); rdSelBar()}
@@ -4083,12 +4084,47 @@ async function duplicarRd(eid,revisao){
   try{const ref=rdColl().doc();await ref.set(body);S.rdocs.set(ref.id,{...body,id:ref.id});S.qdraft=null;toast(revisao?`Revisão ${body.revisao} criada`:'Documento criado a partir de '+arquivoRd(base));ir({t:'reli',id:base.projeto,eid:ref.id})}
   catch(e){toast(e?.code==='quota_exceeded'?'O sistema atingiu o limite de itens.':'Não foi possível criar o documento.')}
 }
+/* Ctrl+D: duplica os documentos selecionados (ou o último clicado / o da ficha aberta).
+   Cada cópia recebe o número de item seguinte do mesmo grupo (disciplina, fase e bloco) e a emissão na data de hoje. */
+const rdSelOrdem=()=>{const vis=[...document.querySelectorAll('#eqTabela tr[data-act="rd-abrir"]')].map(t=>t.dataset.eid); return [...RDSEL.ids].sort((a,b)=>(vis.indexOf(a)+1||1e9)-(vis.indexOf(b)+1||1e9))};
+function proxItemRd(base,novos){
+  const it=String(base.item||'').trim(), m=/^(.*?)(\d+)$/.exec(it), pre=m?m[1]:it, tam=m?m[2].length:3;
+  const chave=e=>[e.projeto,e.codDisc,e.fase,blocoRd(e)].map(x=>String(x||'').trim()).join('|'), k=chave(base);
+  let n=0; for(const e of [...rdDe(base.projeto),...novos]){if(chave(e)!==k) continue; const x=/^(.*?)(\d+)$/.exec(String(e.item||'').trim()); if(x&&x[1]===pre) n=Math.max(n,+x[2])}
+  return pre+String(n+1).padStart(tam,'0');
+}
+async function duplicarRdLote(ids){
+  const bases=ids.map(id=>S.rdocs.get(id)).filter(Boolean); if(!bases.length||S.ro) return;
+  if(S.dirty){toast('Salve ou descarte as alterações antes');return}
+  const hoje=new Date().toLocaleDateString('pt-BR'), novos=[], prox=new Map();
+  try{
+    for(const base of bases){
+      const body=structuredClone(base); delete body.id;
+      for(const k of ['origem','editadoLocal','sincronizadoEm','atualizadoPor','capa']) delete body[k];
+      const ln=prox.get(base.projeto)??proxLinhaRd(base.projeto); prox.set(base.projeto,ln+1);
+      Object.assign(body,{linha:ln,item:proxItemRd(base,novos),emissao:hoje,status:'EMITIDO',criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})});
+      const ref=rdColl().doc(); await ref.set(body); const n={...body,id:ref.id}; S.rdocs.set(ref.id,n); novos.push(n);
+    }
+  }catch(e){toast(e?.code==='quota_exceeded'?'O sistema atingiu o limite de itens.':'Não foi possível duplicar o documento.')}
+  if(!novos.length) return;
+  RDSEL.ids=new Set(novos.length>1?novos.map(n=>n.id):[]); RDSEL.ancora=novos[novos.length-1].id;
+  toast(novos.length>1?`${novos.length} documentos duplicados`:'Duplicado: '+arquivoRd(novos[0]));
+  if(S.view?.t==='reli'&&novos.length===1){S.qdraft=null; ir({t:'reli',id:novos[0].projeto,eid:novos[0].id})} else {renderMain(); rdSelPinta()}
+}
+document.addEventListener('keydown',ev=>{
+  if(!(ev.ctrlKey||ev.metaKey)||ev.altKey||ev.shiftKey||(ev.key||'').toLowerCase()!=='d') return;
+  const v=S.view; if(v?.t!=='rel'&&v?.t!=='reli') return;
+  ev.preventDefault(); if(S.ro||$('celPop')||document.querySelector('.pc-modal')) return;
+  const ids=RDSEL.ids.size?rdSelOrdem():v.t==='reli'&&v.eid?[v.eid]:RDSEL.ancora&&S.rdocs.has(RDSEL.ancora)?[RDSEL.ancora]:[];
+  if(!ids.length){toast('Clique num documento (ou selecione vários com Ctrl/Shift) e use Ctrl+D para duplicar');return}
+  duplicarRdLote(ids);
+});
 document.addEventListener('contextmenu',ev=>{
   const tr=ev.target.closest('tr[data-act="rd-abrir"]'); if(!tr||S.ro) return;
   ev.preventDefault(); fecharMenuLinha(); fecharColsCtx?.();
   const e=S.rdocs.get(tr.dataset.eid); if(!e) return;
   const p=document.createElement('div'); p.id='menuLinha'; p.className='menu-linha'; p.setAttribute('role','menu');
-  p.innerHTML=`<div class="ml-h mono">${esc(arquivoRd(e))}</div><button class="ml-b" role="menuitem" data-act="rd-rev" data-eid="${esc(e.id)}">${IC.plus}Nova revisão deste documento</button><button class="ml-b" role="menuitem" data-act="rd-dup" data-eid="${esc(e.id)}">${IC.plus}Novo documento a partir deste</button><button class="ml-b" role="menuitem" data-act="rd-abrir" data-id="${esc(e.projeto)}" data-eid="${esc(e.id)}">${IC.doc}Abrir ficha</button>`;
+  p.innerHTML=`<div class="ml-h mono">${esc(arquivoRd(e))}</div><button class="ml-b" role="menuitem" data-act="rd-rev" data-eid="${esc(e.id)}">${IC.plus}Nova revisão deste documento</button><button class="ml-b" role="menuitem" data-act="rd-dup" data-eid="${esc(e.id)}">${IC.plus}Novo documento a partir deste</button><button class="ml-b" role="menuitem" data-act="rd-dup-lote" data-eid="${esc(e.id)}">${IC.plus}Duplicar${RDSEL.ids.size>1&&RDSEL.ids.has(e.id)?` os ${RDSEL.ids.size} selecionados`:''}<span class="ml-k">Ctrl+D</span></button><button class="ml-b" role="menuitem" data-act="rd-abrir" data-id="${esc(e.projeto)}" data-eid="${esc(e.id)}">${IC.doc}Abrir ficha</button>`;
   document.body.appendChild(p);
   const w=p.offsetWidth,h=p.offsetHeight; p.style.left=Math.max(8,Math.min(ev.clientX,innerWidth-w-8))+'px'; p.style.top=Math.max(8,Math.min(ev.clientY,innerHeight-h-8))+'px';
   p.querySelector('button')?.focus();
@@ -7344,6 +7380,7 @@ document.addEventListener('click',async ev=>{
   else if(a==='rd-cel-ok'){salvarCelRd(valCelRd())}
   else if(a==='rd-sel-limpar'){rdSelLimpar()}
   else if(a==='rd-dup'){fecharMenuLinha();duplicarRd(b.dataset.eid,false)}
+  else if(a==='rd-dup-lote'){fecharMenuLinha();duplicarRdLote(RDSEL.ids.size>1&&RDSEL.ids.has(b.dataset.eid)?rdSelOrdem():[b.dataset.eid])}
   else if(a==='rd-rev'){fecharMenuLinha();duplicarRd(b.dataset.eid,true)}
   else if(a==='rd-salvar'){if(await salvarRd()) render()}
   else if(a==='rd-del'){if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
