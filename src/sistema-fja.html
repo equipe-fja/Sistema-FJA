@@ -2749,7 +2749,7 @@ const extMeta=meta=>(String(meta?.title||'').match(/\.([a-z0-9]{2,4})$/i)?.[1]||
 const DRIVE_LETRA='G:';
 const DRIVES_LOCAIS={'1CoFhdvDOREYiUR1ytgoOO4P1xzCuaFmaEn8':'PR-PROJETOS'};
 /* pasta-raiz de cada drive compartilhado (é o "parentId" das pastas do primeiro nível; difere do sharedDriveId) */
-const DRIVES_RAIZ={'PR-PROJETOS':'0AAq0Xc751WuPUk9PVA',...(lsGet('fja.drivesRaiz',{})||{})};
+const DRIVES_RAIZ={'PR-PROJETOS':'0AAq0Xc751WuPUk9PVA','BI-BIBLIOTECA':'0AGDy8xQxEIAtUk9PVA',...(lsGet('fja.drivesRaiz',{})||{})};
 const pastasDrive=new Map(Object.entries(lsGet('fja.pastasDrive',{})||{}));
 async function metaPasta(id){
   if(pastasDrive.has(id)) return pastasDrive.get(id);
