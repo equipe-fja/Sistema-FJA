@@ -5,6 +5,10 @@ Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact 
 ## Em desenvolvimento (ainda não publicado na oficial)
 - (nada)
 
+## oficial Firebase — 24/11, ~14h05 — commit b4c6764
+- **Atas de reunião**: ao excluir um item, um tópico, a ata ou a própria imagem, as imagens saem também dos arquivos. Elas são apagadas na próxima abertura do sistema, e só se nenhuma ata usar mais a imagem (assim o Ctrl+Z continua trazendo o item de volta com a imagem). Excluir item ou tópico com imagens pede confirmação.
+- **Atas de reunião (Google Doc)**: o item só com imagem também entra no documento; as imagens vão reduzidas na coluna "imagens", entre item e descrição. Se o Drive recusar o documento com imagens, ele sai sem elas, com o aviso "[N imagens no PDF]" no item. Ainda falta confirmar numa exportação real se o Google Docs mostra as imagens.
+
 ## oficial Firebase — 24/11, ~16h30 — commit 6ec6c59
 - **Cronograma**: um item pode **começar após o fim de outro** (campo "Começa após" na ficha, "Novo item após este" no botão direito da barra e "Item após este" na ficha). Quando o item anterior muda de data, os atrelados acompanham em cascata, sem mudar a duração. Arrastar o item atrelado define uma folga em dias, e no Detalhado uma seta liga os dois itens.
 - **Relação de documentos**: **Ctrl+D** duplica o documento selecionado (ou vários). Cada cópia recebe o próximo número de item do mesmo grupo (disciplina, fase e bloco) e a emissão na data do dia, com status Emitido. Também disponível no botão direito ("Duplicar").
