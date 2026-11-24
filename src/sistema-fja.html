@@ -671,6 +671,7 @@ body.rd-mod #eqTabela tr[data-act="rd-abrir"]{cursor:copy}
 .cq-ext{font:600 15px/1 var(--mono,monospace);color:#8a8a86;border:1px solid #d9d8d4;border-radius:6px;padding:10px 12px;background:#fff}
 .cq-inf{display:flex;flex-direction:column;gap:3px;padding:10px 12px 12px;font-size:13px}.cq-inf .st-cm{align-self:flex-start;margin-top:4px}.cq-d{font-size:11.5px;color:var(--muted)}
 .cq-drop{padding:12px 14px 14px;border-radius:0 0 10px 10px}.cq-drop.sobre{background:color-mix(in srgb,var(--accent,#8e1b1b) 6%,transparent);outline:2px dashed var(--accent,#8e1b1b);outline-offset:-6px}
+.em-dest{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0 6px}.em-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;background:var(--bg2,#f6f6f4)}.em-chip .lk{padding:0 2px;line-height:0}.em-chip svg{width:12px;height:12px}.em-dest-sel{width:auto;min-width:220px;max-width:100%}
 .cq-arqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .cq-a{display:flex;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px;align-items:center;min-width:0}
 .cq-ath{width:72px;height:56px;flex:none;border-radius:5px;overflow:hidden;background:#f4f3f1;display:flex;align-items:center;justify-content:center}.cq-ath img{width:100%;height:100%;object-fit:cover}.cq-ath .cq-ext{font-size:11px;padding:6px}
@@ -1490,6 +1491,8 @@ function renderTree(){
           h+=`<button class="row pasta ${sela?'sel':''}" style="padding-left:${50+ind}px" data-act="atas" data-id="${esc(i.id)}"><span class="chev"></span><span class="lbl">Atas de reunião</span><span class="cnt">${na||''}</span></button>`;
           const nq2=croqsDe(i.id).length, selq2=(S.view.t==='croqs'||S.view.t==='croqi')&&S.view.id===i.id;
           h+=`<button class="row pasta ${selq2?'sel':''}" style="padding-left:${50+ind}px" data-act="croqs" data-id="${esc(i.id)}"><span class="chev"></span><span class="lbl">Croquis</span><span class="cnt">${nq2||''}</span></button>`;
+          const nem=emisDe(i.id).length, selem=(S.view.t==='emis'||S.view.t==='emisi')&&S.view.id===i.id;
+          h+=`<button class="row pasta ${selem?'sel':''}" style="padding-left:${50+ind}px" data-act="emis" data-id="${esc(i.id)}"><span class="chev"></span><span class="lbl">Emissões</span><span class="cnt">${nem||''}</span></button>`;
           const nr=croDe(i.id).length, selr=S.view.t==='cro'&&S.view.id===i.id;
           h+=`<button class="row pasta ${selr?'sel':''}" style="padding-left:${50+ind}px" data-act="cro" data-id="${esc(i.id)}"><span class="chev"></span><span class="lbl">Calendário/Cronograma</span><span class="cnt">${nr||''}</span></button>`}
       }
@@ -1575,6 +1578,8 @@ function renderMain(){
   else if(v.t==='atas') h=telaAtas(h,v);
   else if(v.t==='croqs') h=telaCroqs(h,v);
   else if(v.t==='croqi') h=telaCroqItem(h,v);
+  else if(v.t==='emis') h=telaEm(h,v);
+  else if(v.t==='emisi') h=telaSplit(h,v,'emis',telaEm,telaEmItem);
   else if(v.t==='atai') h=telaAtaItem(h,v);
   else if(v.t==='cro') h=telaCro(h,v);
   else if(v.t==='sug') h=telaSug(h,v);
@@ -2401,7 +2406,7 @@ const ORD_NUM={item:e=>e.item,qtd:e=>e.qtd,peso:e=>e.peso,m2:e=>e.m2,kgm2:e=>e.k
   flags:e=>(e.duvida?8:0)+(e.semInfo?4:0)+(e.subtraido?2:0)+(e.noModelo?1:0)};
 /* ---------- tabelas de dados (equipamentos, comentários) ---------- */
 const MODS={};
-const M=()=>MODS[(S.view?.t==='com'||S.view?.t==='comi')?'cm':(S.view?.t==='pen'||S.view?.t==='peni')?'pd':(S.view?.t==='rfi'||S.view?.t==='rfii')?'rfi':(S.view?.t==='rel'||S.view?.t==='reli')?'rd':(S.view?.t==='esp'||S.view?.t==='espi')?'es':'eq'];
+const M=()=>MODS[(S.view?.t==='com'||S.view?.t==='comi')?'cm':(S.view?.t==='pen'||S.view?.t==='peni')?'pd':(S.view?.t==='rfi'||S.view?.t==='rfii')?'rfi':(S.view?.t==='rel'||S.view?.t==='reli')?'rd':(S.view?.t==='emis'||S.view?.t==='emisi')?'em':(S.view?.t==='esp'||S.view?.t==='espi')?'es':'eq'];
 const MS=()=>M().st;
 const lsGet=(k,d)=>{try{const r=localStorage.getItem(k);if(r==null)return d;try{return JSON.parse(r)}catch{return r}}catch{return d}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
@@ -2945,7 +2950,7 @@ function telaCm(h,v){
 }
 /* comentário aberto em painel à direita, com a planilha visível à esquerda */
 const SPLIT={w:(v=>Number.isFinite(v)&&v>=340?v:560)(lsGet('fja.splitW',lsGet('fja.cm.splitW',560))),top:0,x:0};
-const VISTA_LISTA={comi:'com',peni:'pen',rfii:'rfi',reli:'rel',eqi:'eq',espi:'esp'};
+const VISTA_LISTA={comi:'com',peni:'pen',rfii:'rfi',reli:'rel',emisi:'emis',eqi:'eq',espi:'esp'};
 const usaSplit=()=>($('main')?.clientWidth||innerWidth)>=900;
 function telaSplit(h,v,tLista,lista,ficha){
   if(!usaSplit()) return ficha(h,v);
@@ -4463,6 +4468,98 @@ const pastaEm=e=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(e.data||'');return 
 const partesArqEm=nome=>{const n=String(nome||''), mx=/\.([a-z0-9]{1,6})$/i.exec(n), ext=mx?mx[1].toUpperCase():'', sem=mx?n.slice(0,-mx[0].length):n;
   const mr=/^(.*?)[_\-\s]R(\d{1,3})$/i.exec(sem); return mr?{base:mr[1],rev:'R'+mr[2].padStart(2,'0'),ext}:{base:sem,rev:'',ext}};
 const revNum=r=>{const m=/^R(\d+)$/i.exec(r||''); return m?+m[1]:-1};
+const TOM_EM={'Rascunho':'off','Emitida':'at','Conferir':'warn'};
+const stEm=e=>{const s=e.status||'Rascunho'; return `<span class="st-cm st-${TOM_EM[s]||'off'}">${esc(s)}</span>`};
+const destEm=e=>(e.destinatarios||[]).map(d=>d.nome).filter(Boolean);
+const tiposEm=e=>[...new Set((e.arquivos||[]).map(a=>extDe(a.nome)).filter(Boolean))];
+const EM_TCOLS=[
+  ['num','Nº',2,e=>`<span class="mono">${esc(numEm(e.num))}</span>`,'mono'],
+  ['data','Data',1,e=>esc(e.data||''),'mono'],
+  ['descricao','Descrição',1,e=>`<b>${esc(e.descricao||'(sem descrição)')}</b>`,'wide'],
+  ['destinatarios','Destinatários',1,e=>esc(destEm(e).join(', ')),'muted'],
+  ['arquivos','Arquivos',1,e=>String((e.arquivos||[]).length||''),'r mono'],
+  ['tipos','Tipos',1,e=>esc(tiposEm(e).join(' · ')),'muted mono'],
+  ['status','Situação',1,e=>stEm(e)+(e.status==='Conferir'&&e.compart?.conferir?.length?` <span class="muted" style="font-size:11.5px">${e.compart.conferir.length} a conferir</span>`:''),''],
+  ['compart','Pasta compartilhada',0,e=>e.compart?.caminho?`<span class="mono" style="font-size:11.5px">${esc(e.compart.caminho)}</span>`:'','muted'],
+  ['obs','Observações',0,e=>`<span class="cm-txt">${esc(e.obs||'')}</span>`,'muted wide']
+];
+iniciarMod({id:'em',lk:'fja.em.',T:EM_TCOLS,padrao:EM_TCOLS.filter(c=>c[2]).map(c=>c[0]),de:id=>emisDe(id),mapa:()=>S.emis,coll:()=>emisColl(),
+  ord:(a,b)=>(dataNum(b.data)||0)-(dataNum(a.data)||0)||(+b.num||0)-(+a.num||0),
+  num:{num:e=>+e.num||null,data:e=>dataNum(e.data),arquivos:e=>(e.arquivos||[]).length||null},
+  val:{num:e=>numEm(e.num),destinatarios:e=>destEm(e).join(', '),arquivos:e=>String((e.arquivos||[]).length||''),tipos:e=>tiposEm(e).join(' · '),status:e=>e.status||'Rascunho',compart:e=>e.compart?.caminho||''},
+  semFiltro:new Set(['num','descricao','arquivos','obs']),grupos:{status:'situação',data:'data'},
+  ordGrupo:{status:v=>{const i=ST_EM.indexOf(v);return i<0?99:i}},
+  opc:{status:{ops:()=>ST_EM.map(o=>[o,o]),ok:(o,e)=>(e.status||'Rascunho')===o,rot:o=>o},
+    destinatarios:{ops:()=>{const u=[...new Set(emisDe(S.view.id).flatMap(destEm))].sort((a,b)=>a.localeCompare(b,'pt'));return [...u.map(n=>[n,n]),['∅','(sem destinatário)']]},ok:(o,e)=>o==='∅'?!destEm(e).length:destEm(e).includes(o),rot:o=>o==='∅'?'(sem destinatário)':o}},
+  busca:e=>[numEm(e.num),e.data,e.descricao,e.obs,...destEm(e),...(e.arquivos||[]).map(a=>a.nome)].join(' '),
+  abrir:'em-abrir',nenhum:'Nenhuma emissão corresponde aos filtros.',
+  vazio:pid=>`<div class="esp-vazio"><h2>Nenhuma emissão registrada</h2><p>Registre aqui cada emissão de arquivos do projeto: data, descrição, destinatários e os arquivos emitidos. Cada emissão ganha uma pasta com a data e a descrição, e pode ser duplicada para a pasta compartilhada com o cliente ou os parceiros, que fica só com a revisão vigente.</p>${S.ro?'':`<button class="btn pri" data-act="em-novo" data-id="${esc(pid)}">${IC.plus}Nova emissão</button>`}</div>`});
+function telaEm(h,v){
+  const it=S.itens.get(v.id); if(!it) return h+`<div class="page"><h1>Projeto não encontrado</h1></div>`;
+  const nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome, todos=emisDe(v.id);
+  h+=`<div class="page wide" id="emLista" data-pid="${esc(it.id)}"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><span>Emissões</span></div>
+  <h1>Emissões</h1>${pastaProjLinha(it,'emisPasta','Pasta das emissões','em-pasta')}${pastaProjLinha(it,'emisCompart','Pasta compartilhada (padrão)','em-compart').replace('não definida — escolha ao salvar o primeiro arquivo','não definida (opcional)')}`;
+  h+=`<div class="esp-bar"><div class="search" style="margin:0;flex:1;min-width:200px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="eqBusca" type="search" placeholder="Buscar por descrição, destinatário, arquivo…" aria-label="Buscar emissões" value="${esc(MS().busca||'')}"></div>
+    <span class="muted eq-count" id="eqCount">${(()=>{const n=eqFiltrados(it.id).length,t=todos.length;return n===t?t+' emissões':n+' de '+t+' emissões'})()}</span><button class="btn sm ghost" id="eqLimpar" data-act="eq-limpar" ${temFiltroEq()?'':'hidden'}>Limpar filtros</button>
+    ${S.ro?'':`<button class="btn pri" data-act="em-novo" data-id="${esc(it.id)}">${IC.plus}Nova emissão</button>`}</div><div id="colsWrap">${colsEqHTML()}</div>`;
+  return h+`<section class="sheet" id="eqTabela">${eqTabelaHTML(it.id)}</section></div>`;
+}
+async function novaEm(pid){
+  if(S.ro) return null;
+  const desc=await pedirNome({titulo:'Nova emissão',padrao:'',pasta:'',rotulo:'Descrição (vira o nome da pasta, com a data)',bruto:true}); if(desc==null) return null;
+  if(!String(desc).trim()){toast('A descrição é obrigatória.');return null}
+  let n=emisDe(pid).reduce((m,e)=>Math.max(m,+e.num||0),0)+1; while(S.emis.has(`${pid}__em${String(n).padStart(3,'0')}`)) n++;
+  const id=`${pid}__em${String(n).padStart(3,'0')}`, it=S.itens.get(pid);
+  const body={projeto:pid,num:n,data:new Date().toLocaleDateString('pt-BR'),descricao:String(desc).trim(),status:'Rascunho',destinatarios:[],obs:'',arquivos:[],
+    ...(it?.emisCompart?{compart:{...it.emisCompart,usar:true}}:{}),criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
+  try{await emisColl().doc(id).set(body); const e={...body,id}; S.emis.set(id,e); lembrarRolagemLista(); ir({t:'emisi',id:pid,eid:id}); return e}catch{toast('Não foi possível criar a emissão');return null}
+}
+// lista de quem pode receber: envolvidos do projeto (parceiros das disciplinas, equipe, responsáveis) + cadastrados só no projeto
+const envolvidosEm=pid=>{const it=S.itens.get(pid), m=new Map();
+  for(const n of envolvidos(pid)) m.set(n.toLowerCase(),{nome:n});
+  for(const d of it?.envolvidosProj||[]) if(d?.nome) m.set(d.nome.toLowerCase(),{...d,proj:true});
+  return [...m.values()].sort((a,b)=>a.nome.localeCompare(b.nome,'pt'))};
+function telaEmItem(h,v){
+  const it=S.itens.get(v.id), e=S.emis.get(v.eid); if(!it||!e) return h+`<div class="page"><h1>Emissão não encontrada</h1></div>`;
+  const nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome, ro=S.ro?'disabled':'', D=e.destinatarios||[], A=e.arquivos||[];
+  const ja=new Set(D.map(d=>d.nome.toLowerCase())), ops=envolvidosEm(it.id).filter(d=>!ja.has(d.nome.toLowerCase()));
+  h+=`<div class="page em-ed" id="emEd" data-eid="${esc(e.id)}"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><button data-act="emis" data-id="${esc(it.id)}">Emissões</button><span>/</span><span>${esc(numEm(e.num))}</span></div>
+  <div class="ata-top"><div><h1 style="margin-bottom:4px">${esc(e.descricao||'Emissão')}</h1><p class="lead mono" style="margin:0">${esc(numEm(e.num))} · ${esc(e.pasta?.caminho?e.pasta.caminho.split('\\').pop():pastaEm(e))} &nbsp;${stEm(e)}</p></div>
+  <div class="ata-acts"><span class="sync-msg" id="emMsg" aria-live="polite"></span>${e.pasta?.url?`<a class="btn sm ghost" href="${esc(e.pasta.url)}" target="_blank" rel="noopener">${IC.ext}Pasta no Drive</a>`:''}${e.pasta?.caminho?`<button class="btn sm ghost" data-act="copiar-ref" data-path="${esc(e.pasta.caminho)}">${IC.pasta}Copiar pasta no G:</button>`:''}</div></div>
+  <section class="sheet"><div class="sheet-h"><h2>Emissão</h2></div><div class="grid ata-g">
+    <label class="fl">Data<input class="fld" type="date" data-em="data" value="${dIso(e.data)}" ${ro}></label>
+    <label class="fl wide">Descrição<input class="fld" data-em="descricao" value="${esc(e.descricao||'')}" placeholder="Ex.: Projeto básico - entrega ao contratante" ${ro}></label>
+    <label class="fl wide">Observações<textarea class="fld" rows="2" data-em="obs" ${ro}>${esc(e.obs||'')}</textarea></label></div></section>
+  <section class="sheet"><div class="sheet-h"><h2>Destinatários</h2><span class="hint">${D.length||'opcional'}</span></div>
+    <div class="em-dest">${D.map((d,i)=>`<span class="em-chip" title="${esc([d.empresa,d.email].filter(Boolean).join(' · '))}">${esc(d.nome)}${S.ro?'':`<button class="lk" data-act="em-dest-rm" data-i="${i}" title="Tirar ${esc(d.nome)}" aria-label="Tirar ${esc(d.nome)}">${IC.x}</button>`}</span>`).join('')||(S.ro?'<span class="muted">Nenhum</span>':'')}
+    ${S.ro?'':`<select class="fld em-dest-sel" id="emDestSel" aria-label="Adicionar destinatário"><option value="">+ Adicionar destinatário…</option>${ops.map(d=>`<option value="${esc(d.nome)}">${esc(d.nome)}${d.empresa?' · '+esc(d.empresa):''}</option>`).join('')}</select>`}</div></section>
+  <section class="sheet"><div class="sheet-h"><h2>Arquivos</h2><span class="hint">${A.length}</span></div>
+    ${A.length?`<div class="tablewrap"><table class="list"><thead><tr><th>Arquivo</th><th>Rev.</th><th>Tipo</th><th class="r">Tamanho</th></tr></thead><tbody>${A.map(a=>`<tr><td class="mono">${a.driveId?`<a href="https://drive.google.com/file/d/${esc(a.driveId)}/view" target="_blank" rel="noopener">${esc(a.nome)}</a>`:esc(a.nome)}</td><td class="mono">${esc(a.rev||'')}</td><td class="mono muted">${esc(extDe(a.nome))}</td><td class="r mono muted">${esc(tamTxt(a.tamanho))}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted" style="margin:4px 0 8px">Nenhum arquivo.</p>'}</section>
+  ${S.ro?'':`<div class="esp-bar"><span style="flex:1"></span><button class="btn danger sm" data-act="em-del">${IC.trash}Excluir emissão</button></div>`}
+  <div class="foot-meta">${e.atualizadoEm?`Atualizado em ${fmtData(e.atualizadoEm)} · salvo automaticamente`:''}</div></div>`;
+  return h;
+}
+function emMudou(re){const e=emAtual(); if(!e||S.ro) return; e.atualizadoEm=Date.now(); EM.pend=e.id; clearTimeout(EM.timer); EM.timer=setTimeout(emGravar,700); if(re) renderMain()}
+async function emGravar(){const id=EM.pend; EM.pend=null; const e=S.emis.get(id); if(!e) return; const b={...e}; delete b.id; if(me) b.atualizadoPor=me;
+  try{await emisColl().doc(id).set(b)}catch(x){toast(x?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar a emissão')}}
+document.addEventListener('input',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||!t.dataset.em||S.ro) return; const e=emAtual(); if(!e) return;
+  e[t.dataset.em]=t.type==='date'?dBr(t.value):t.value; emMudou(false)});
+document.addEventListener('change',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||S.ro) return; const e=emAtual(); if(!e) return;
+  if(t.id==='emDestSel'){const n=t.value; if(!n) return; const d=envolvidosEm(e.projeto).find(x=>x.nome===n)||{nome:n}; (e.destinatarios=e.destinatarios||[]).push({nome:d.nome,...(d.empresa?{empresa:d.empresa}:{}),...(d.email?{email:d.email}:{})}); emMudou(true); return}
+  if(t.dataset.em==='data'||t.dataset.em==='descricao'){if(t.dataset.em==='descricao'&&!t.value.trim()){toast('A descrição é obrigatória.'); return} emMudou(true)}});
+async function emAcao(a0,b){
+  if(a0==='em-novo'){novaEm(b.dataset.id);return}
+  if(a0==='em-abrir'){fecharMenuLinha(); lembrarRolagemLista(); ir({t:'emisi',id:b.dataset.id,eid:b.dataset.eid});return}
+  if(a0==='em-pasta'){escolherPastaProj(b.dataset.id,'emisPasta','Escolha a pasta onde ficarão as emissões do projeto (cada emissão ganha uma subpasta datada)','');return}
+  if(a0==='em-compart'){escolherPastaProj(b.dataset.id,'emisCompart','Escolha a pasta compartilhada (a que o cliente ou os parceiros veem)','');return}
+  const e=emAtual(); if(!e||S.ro) return;
+  if(a0==='em-dest-rm'){e.destinatarios.splice(+b.dataset.i,1); emMudou(true); return}
+  if(a0==='em-del'){
+    if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir emissão'}},4000);return}
+    if(!podeExcluir(e)) return avisoExcluir();
+    try{clearTimeout(EM.timer); EM.pend=null; await emisColl().doc(e.id).delete(); S.emis.delete(e.id); toast('Emissão excluída'+(e.pasta?.id?' (os arquivos continuam no Drive)':'')); ir({t:'emis',id:e.projeto})}catch{toast('Não foi possível excluir')}
+  }
+}
 /* ---------- croquis do projeto ---------- */
 const croqColl=()=>db.collection('croq');
 const croqsDe=pid=>[...S.croqs.values()].filter(c=>c.projeto===pid).sort((a,b)=>(dataNum(b.data)||0)-(dataNum(a.data)||0)||(b.criadoEm||0)-(a.criadoEm||0));
@@ -7206,7 +7303,7 @@ function ir(view,op={}){
   if(view.t!=='eqi'&&view.t!=='comi'&&view.t!=='peni'&&view.t!=='rfii'&&view.t!=='reli'&&view.t!=='espi') S.qdraft=null;
   if(view.t==='espb'||view.t==='espbi'||view.t==='etsig') S.abertas.add('g:biblioteca');
   if(view.t==='disc'||view.t==='discd'){S.abertas.add('s:projetos');S.abertas.add('i:'+view.id)}
-  if(view.t==='pen'||view.t==='peni'||view.t==='rfi'||view.t==='rfii'||view.t==='rel'||view.t==='reli'||view.t==='atas'||view.t==='atai'||view.t==='croqs'||view.t==='croqi'||view.t==='cro'){S.abertas.add('s:projetos');S.abertas.add('i:'+view.id)}
+  if(view.t==='pen'||view.t==='peni'||view.t==='rfi'||view.t==='rfii'||view.t==='rel'||view.t==='reli'||view.t==='atas'||view.t==='atai'||view.t==='croqs'||view.t==='croqi'||view.t==='emis'||view.t==='emisi'||view.t==='cro'){S.abertas.add('s:projetos');S.abertas.add('i:'+view.id)}
   if(CRO.dr&&!(view.t==='cro'&&view.id===CRO.dr.projeto)){CRO.dr=null;croDrawer()}
   if(view.t==='pen'&&S.lastPd?.id!==view.id){MODS.pd.st.busca='';MODS.pd.st.filtros={}}
   if(view.t==='rfi'&&S.lastRfi?.id!==view.id){MODS.rfi.st.busca='';MODS.rfi.st.filtros={}}
@@ -7306,6 +7403,8 @@ document.addEventListener('click',async ev=>{
   if(a==='psel-sair'){PSEL.on=false; renderMain(); if(PSEL.ids.size) toast(`${PSEL.ids.size} ${PSEL.ids.size===1?'item ficou selecionado':'itens ficaram selecionados'} para o PDF`); return}
   if(a.startsWith('ata-')){await ataAcao(a,b);return}
   if(a.startsWith('cq-')){await cqAcao(a,b);return}
+  if(a.startsWith('em-')){await emAcao(a,b);return}
+  if(a==='emis'){S.abertas.add('i:'+b.dataset.id);ir({t:'emis',id:b.dataset.id});return}
   if(a.startsWith('cp-')){await cpAcao(a,b);return}
   if(a==='rv-publicar'){await rvPublicar('tudo');return}
   if(a==='rv-ext'){await baixarExtRevit();return}
