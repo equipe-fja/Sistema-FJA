@@ -36,6 +36,20 @@ Registro das emissões de arquivos de cada projeto (Projeto › Emissões). Deci
 5. Envolvidos do projeto e "Enviar ao cadastro geral". ✔ (envolvidos do projeto também aparecem nas atas e pendências; parceiro novo = empresa, ou o nome quando não há empresa; se o parceiro já existe, a pessoa entra na equipe dele)
 6. RD: atualização ao emitir, histórico de revisões, Conexão com PC v7 (abrir pasta com arquivos selecionados). ✔ (contador verde ao lado da revisão na RD e seção na ficha do documento; a versão do vigia é marcada por navegador em Ferramentas › Conexão com PC)
 
+## Integração com o Revit (Pranchas › Exportar) — em definição
+Decisões da FJA em 24/11/2026:
+- O **Exportar pranchas** da suíte do Revit passa a registrar a emissão no sistema, com **destinatários e disciplina escolhidos na própria janela do Revit**.
+- O Revit grava a emissão como **Rascunho** (nova ou uma em Rascunho do projeto). O **Emitir** (pasta compartilhada, SUBSTITUÍDOS, RD) continua no sistema.
+
+Como vai funcionar (proposta técnica):
+- Acesso direto ao Firestore pelo login da equipe que a suíte já guarda (`%APPDATA%\FJA\nuvem.json`; `Nucleo/Nuvem.cs`). As regras já permitem à equipe ler `itens`/`rdoc`/`pend` e criar/atualizar `emis`.
+- Projeto pelo `ProjetoDoModelo`. Pasta: `emisPasta.caminho` (G:) + `AA-MM-DD EMISSÃO - Descrição` (mesma regra de `pastaEm`); o Exportar passa a usar esse padrão.
+- Destinatários: a mesma composição de `envolvidos(pid)`/`envolvidosEm(pid)` (parceiros das disciplinas do projeto, equipe interna, responsáveis de pendências, envolvidos do projeto), reproduzida em C#. "+ Novo" fica para depois.
+- Disciplina: sugerida pela Disciplina das pranchas marcadas; grava `disciplinas` (códigos) e `discAuto:false` quando escolhida.
+- Arquivos: `arquivos[]` com nome, base, rev, ext e tamanho; **sem `driveId`** (o Revit grava no G:). O sistema completa os IDs pelo nome ao abrir a emissão (mudança no sistema web).
+- Número EM-NNN: o próximo livre, criado com trava (falha se o id já existir e tenta o seguinte).
+- Testes: chave escondida no `nuvem.json` para apontar o Revit para a homologação.
+
 ## Pendências
 - GRD (guia de remessa) em PDF: fica para depois.
 - Painel do projeto: incluir o resumo das emissões.
