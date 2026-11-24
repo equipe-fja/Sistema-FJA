@@ -3,7 +3,14 @@
 Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact oficial; devNN = versão correspondente da desenvolvimento). Datas em 2026.
 
 ## Em desenvolvimento (ainda não publicado na oficial)
-- Emissões no sistema web: ligar os arquivos das emissões criadas pelo Revit (pasta pelo caminho do G:) e emitir nas subpastas por disciplina da pasta compartilhada (etapa 2, ver docs/emissoes.md).
+- (nada)
+
+## oficial Firebase — 24/11, ~18h20 — commit 19488d9
+- Emissões vindas do Revit (Pranchas › Exportar, suíte 2.38.0): ao abrir a ficha e antes de emitir, o sistema localiza a pasta no Google Drive pelo caminho do G: e liga os arquivos pelo nome; arquivo que ainda não sincronizou é avisado no Emitir.
+- Pasta compartilhada **por disciplina**: ao emitir, cada arquivo vai para a subpasta com o nome completo da disciplina (ex.: ARQUITETURA, criada se não existir), com SUBSTITUÍDOS e a conferência de revisão dentro dela; arquivo sem disciplina fica na raiz, com aviso na prévia. Vale para todas as emissões.
+- **Emissões retroativas** (botão "Pastas existentes" em Emissões): a partir de pastas `AA-MM-DD …` (uma ou as subpastas datadas de uma pasta), registradas como Emitidas na data da pasta, com os arquivos já ligados ao Drive e às linhas da RD (histórico de revisões); sem cópia para a compartilhada; opção "Atualizar a RD" só onde a emissão for mais recente.
+- Pastas no drive compartilhado BI-BIBLIOTECA também são localizadas pelo caminho do G: (além do PR-PROJETOS).
+- GitHub Actions: a homologação passa a ser publicada só sob demanda (push na main não publica mais), para poupar a franquia de minutos.
 
 ## oficial Firebase — 24/11, ~17h35 — commit 1e89aef
 - Extensão do Revit 2.38.0 (antes 2.37.0): **Pranchas › Exportar** com a opção **Registrar emissão no sistema** — escolhe emissão nova ou um Rascunho do projeto, disciplinas (já marcadas as das pranchas) e destinatários (envolvidos do projeto); depois de exportar, grava a emissão em Rascunho com a pasta e os arquivos, para completar e emitir em Projeto › Emissões. A pasta nova do Exportar passa a seguir o padrão `AA-MM-DD EMISSÃO - Descrição`. Na oficial, o Emitir dessas emissões ainda depende da etapa 2 no sistema web.
