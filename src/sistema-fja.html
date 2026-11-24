@@ -4479,6 +4479,7 @@ const EM_TCOLS=[
   ['num','Nº',2,e=>`<span class="mono">${esc(numEm(e.num))}</span>`,'mono'],
   ['data','Data',1,e=>esc(e.data||''),'mono'],
   ['descricao','Descrição',1,e=>`<b>${esc(e.descricao||'(sem descrição)')}</b>`,'wide'],
+  ['disciplinas','Disciplina',1,e=>tagsCel(e.projeto,discsEm(e)),''],
   ['destinatarios','Destinatários',1,e=>esc(destEm(e).join(', ')),'muted'],
   ['arquivos','Arquivos',1,e=>String((e.arquivos||[]).length||''),'r mono'],
   ['tipos','Tipos',1,e=>esc(tiposEm(e).join(' · ')),'muted mono'],
@@ -4489,12 +4490,13 @@ const EM_TCOLS=[
 iniciarMod({id:'em',lk:'fja.em.',T:EM_TCOLS,padrao:EM_TCOLS.filter(c=>c[2]).map(c=>c[0]),de:id=>emisDe(id),mapa:()=>S.emis,coll:()=>emisColl(),
   ord:(a,b)=>(dataNum(b.data)||0)-(dataNum(a.data)||0)||(+b.num||0)-(+a.num||0),
   num:{num:e=>+e.num||null,data:e=>dataNum(e.data),arquivos:e=>(e.arquivos||[]).length||null},
-  val:{num:e=>numEm(e.num),destinatarios:e=>destEm(e).join(', '),arquivos:e=>String((e.arquivos||[]).length||''),tipos:e=>tiposEm(e).join(' · '),status:e=>e.status||'Rascunho',compart:e=>e.compart?.caminho||''},
+  val:{num:e=>numEm(e.num),disciplinas:e=>discsEm(e).map(c=>siglaP(e.projeto,c)+' · '+discNome(c)).join(', '),destinatarios:e=>destEm(e).join(', '),arquivos:e=>String((e.arquivos||[]).length||''),tipos:e=>tiposEm(e).join(' · '),status:e=>e.status||'Rascunho',compart:e=>e.compart?.caminho||''},
   semFiltro:new Set(['num','descricao','arquivos','obs']),grupos:{status:'situação',data:'data'},
   ordGrupo:{status:v=>{const i=ST_EM.indexOf(v);return i<0?99:i}},
   opc:{status:{ops:()=>ST_EM.map(o=>[o,o]),ok:(o,e)=>(e.status||'Rascunho')===o,rot:o=>o},
+    disciplinas:{ops:()=>{const u=[...new Set(emisDe(S.view.id).flatMap(discsEm))];return [...u.map(c=>[c,siglaP(S.view.id,c)+' · '+discNome(c)]).sort((a,b)=>a[1].localeCompare(b[1],'pt')),['∅','(sem disciplina)']]},ok:(o,e)=>o==='∅'?!discsEm(e).length:discsEm(e).includes(o),rot:o=>o==='∅'?'(sem disciplina)':siglaP(S.view.id,o)+' · '+discNome(o)},
     destinatarios:{ops:()=>{const u=[...new Set(emisDe(S.view.id).flatMap(destEm))].sort((a,b)=>a.localeCompare(b,'pt'));return [...u.map(n=>[n,n]),['∅','(sem destinatário)']]},ok:(o,e)=>o==='∅'?!destEm(e).length:destEm(e).includes(o),rot:o=>o==='∅'?'(sem destinatário)':o}},
-  busca:e=>[numEm(e.num),e.data,e.descricao,e.obs,...destEm(e),...(e.arquivos||[]).map(a=>a.nome)].join(' '),
+  busca:e=>[numEm(e.num),e.data,e.descricao,e.obs,...destEm(e),...discsEm(e).flatMap(c=>[siglaP(e.projeto,c),discNome(c)]),...(e.arquivos||[]).map(a=>a.nome)].join(' '),
   abrir:'em-abrir',nenhum:'Nenhuma emissão corresponde aos filtros.',
   vazio:pid=>`<div class="esp-vazio"><h2>Nenhuma emissão registrada</h2><p>Registre aqui cada emissão de arquivos do projeto: data, descrição, destinatários e os arquivos emitidos. Cada emissão ganha uma pasta com a data e a descrição, e pode ser duplicada para a pasta compartilhada com o cliente ou os parceiros, que fica só com a revisão vigente.</p>${S.ro?'':`<button class="btn pri" data-act="em-novo" data-id="${esc(pid)}">${IC.plus}Nova emissão</button>`}</div>`});
 function telaEm(h,v){
@@ -4533,6 +4535,7 @@ function telaEmItem(h,v){
     <label class="fl">Data<input class="fld" type="date" data-em="data" value="${dIso(e.data)}" ${ro}></label>
     <label class="fl wide">Descrição<input class="fld" data-em="descricao" value="${esc(e.descricao||'')}" placeholder="Ex.: Projeto básico - entrega ao contratante" ${ro}></label>
     <label class="fl wide">Observações<textarea class="fld" rows="2" data-em="obs" ${ro}>${esc(e.obs||'')}</textarea></label></div></section>
+  ${emDiscHTML(e)}
   <section class="sheet"><div class="sheet-h"><h2>Destinatários</h2><span class="hint">${D.length||'opcional'}</span></div>
     <div class="em-dest">${D.map((d,i)=>`<span class="em-chip" title="${esc([d.empresa,d.email].filter(Boolean).join(' · '))}">${esc(d.nome)}${S.ro||emNoGeral(e.projeto,d.nome)?'':`<button class="lk em-geral" data-act="em-dest-geral" data-n="${esc(d.nome)}" title="Cadastrado só neste projeto: enviar ao cadastro geral de Parceiros" aria-label="Enviar ao cadastro geral">↗</button>`}${S.ro?'':`<button class="lk" data-act="em-dest-rm" data-i="${i}" title="Tirar ${esc(d.nome)}" aria-label="Tirar ${esc(d.nome)}">${IC.x}</button>`}</span>`).join('')||(S.ro?'<span class="muted">Nenhum</span>':'')}
     ${S.ro?'':`<select class="fld em-dest-sel" id="emDestSel" aria-label="Adicionar destinatário"><option value="">+ Adicionar destinatário…</option>${ops.map(d=>`<option value="${esc(d.nome)}">${esc(d.nome)}${d.empresa?' · '+esc(d.empresa):''}</option>`).join('')}</select><button class="btn sm ghost" data-act="em-dest-novo" title="Cadastrar um envolvido só neste projeto">${IC.plus}Novo</button>`}</div>${!S.ro&&D.some(d=>!emNoGeral(e.projeto,d.nome))?'<p class="cq-dica" style="text-align:left;margin:2px 0 6px">↗ = cadastrado só neste projeto; clique para enviar ao cadastro geral de Parceiros.</p>':''}</section>
@@ -4549,6 +4552,7 @@ document.addEventListener('input',ev=>{const t=ev.target; if(!t.closest?.('#emEd
   e[t.dataset.em]=t.type==='date'?dBr(t.value):t.value; emMudou(false)});
 document.addEventListener('change',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||S.ro) return; const e=emAtual(); if(!e) return;
   if(t.id==='emCompUsar'){if(e.compart) e.compart.usar=t.checked; emMudou(false); return}
+  if(t.id==='emDiscIn'){const v=t.value; if(v&&!discsEm(e).includes(v)){e.disciplinas=[...discsEm(e),v]; e.discAuto=false; emMudou(true)} return}
   if(t.id==='emFile'){if(t.files?.length) emAdicionar(e,[...t.files]); t.value=''; return}
   if(t.id==='emDestSel'){const n=t.value; if(!n) return; const d=envolvidosEm(e.projeto).find(x=>x.nome===n)||{nome:n}; (e.destinatarios=e.destinatarios||[]).push({nome:d.nome,...(d.empresa?{empresa:d.empresa}:{}),...(d.email?{email:d.email}:{})}); emMudou(true); return}
   if(t.dataset.em==='data'||t.dataset.em==='descricao'){if(t.dataset.em==='descricao'&&!t.value.trim()){toast('A descrição é obrigatória.'); return} emMudou(true); emRenomearPasta(e)}});
@@ -4560,13 +4564,15 @@ async function emAcao(a0,b){
   const e=emAtual(); if(!e||S.ro) return;
   if(a0==='em-dest-rm'){e.destinatarios.splice(+b.dataset.i,1); emMudou(true); return}
   if(a0==='em-emitir'){await emEmitir(e); return}
+  if(a0==='em-disc-rm'){e.disciplinas=discsEm(e).filter((x,i)=>i!==+b.dataset.i); e.discAuto=false; emMudou(true); return}
+  if(a0==='em-disc-auto'){e.discAuto=true; emDiscAuto(e); emMudou(true); toast(discsEm(e).length?'Disciplinas detectadas pelos arquivos':'Nenhuma disciplina reconhecida nos nomes dos arquivos'); return}
   if(a0==='em-dest-novo'){await emDestNovo(e); return}
   if(a0==='em-dest-geral'){await emDestGeral(e.projeto,b.dataset.n); return}
   if(a0==='em-recopiar'){await emRecopiar(e); return}
   if(a0==='em-compart-esta'){await emEscolherCompart(e); return}
   if(a0==='em-arq-rm'){const i=(e.arquivos||[]).findIndex(a=>a.nome===b.dataset.n), a=e.arquivos?.[i]; if(!a) return; const ras=!e.status||e.status==='Rascunho';
     if(!await confirmar(`Remover "${a.nome}" da emissão?${a.driveId?(ras?'\n\nO arquivo vai para a lixeira do Drive.':'\n\nA emissão já foi feita: o arquivo continua na pasta do Drive.'):''}`,{ok:'Remover',perigo:true})) return;
-    e.arquivos.splice(i,1); emMudou(true); if(ras&&a.driveId&&mcp) mcp.callTool(GD,'trash_file',{fileId:a.driveId},{cache:false}).catch(()=>toast('Não foi possível mandar o arquivo para a lixeira do Drive')); return}
+    e.arquivos.splice(i,1); emDiscAuto(e); emMudou(true); if(ras&&a.driveId&&mcp) mcp.callTool(GD,'trash_file',{fileId:a.driveId},{cache:false}).catch(()=>toast('Não foi possível mandar o arquivo para a lixeira do Drive')); return}
   if(a0==='em-del'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir emissão'}},4000);return}
     if(!podeExcluir(e)) return avisoExcluir();
@@ -4614,7 +4620,7 @@ async function emAdicionar(e,files){
       const i=(e.arquivos||[]).findIndex(q=>q.nome.toLowerCase()===f.name.toLowerCase());
       if(i>=0){const old=e.arquivos[i]; e.arquivos[i]=a; if(old.driveId&&old.driveId!==id) mcp.callTool(GD,'trash_file',{fileId:old.driveId},{cache:false}).catch(()=>{})}
       else (e.arquivos=e.arquivos||[]).push(a);
-      ok++; emMudou(false);
+      ok++; emDiscAuto(e); emMudou(false);
     }catch(x){console.error(x); toast(`${f.name}: ${x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive')}`)}
     finally{EM.subindo--; EM.prog.delete(f.name); emPinta(e)}
   }
@@ -4827,6 +4833,25 @@ async function emAbrirPasta(e,nomes){
     try{await navigator.clipboard.writeText('fja-selecionar:'+JSON.stringify({pasta:cam,arquivos:nomes||[]})); toast('Abrindo no Explorer… (caminho copiado)'); return}catch{}
   }
   if(e.pasta?.url) window.open(e.pasta.url,'_blank','noopener'); else toast('Esta emissão não tem pasta no Drive');
+}
+/* disciplinas da emissão: detectadas pelos arquivos (documento da RD de mesmo nome, ou o código depois do projeto:
+   <projeto>_<disciplina>_<fase>_…) e editáveis. Editar desliga a detecção (discAuto=false); "Detectar pelos arquivos" religa. */
+const discsEm=e=>Array.isArray(e.disciplinas)?e.disciplinas:[];
+function discDeArq(pid,nome){
+  const d=rdEm(pid,nome); if(d){const c=discRd(d); if(c) return c}
+  const k=chaveDoc(nome,pid); if(!k.includes('_')) return '';
+  const tok=k.split('_')[0], t=nrm(tok); if(!t||t.length>8) return '';
+  const l=discsProj(pid).find(x=>x.sigla&&nrm(x.sigla)===t);
+  return l?.cod||discResolve(tok)||'';
+}
+const discsDetectadas=e=>[...new Set((e.arquivos||[]).map(a=>discDeArq(e.projeto,a.nome)).filter(Boolean))];
+function emDiscAuto(e){if(e.discAuto===false) return; e.disciplinas=discsDetectadas(e)}
+function emDiscHTML(e){
+  const ds=discsEm(e), ro=S.ro, auto=e.discAuto!==false, det=discsDetectadas(e);
+  const dif=!auto&&det.join()!==ds.join();
+  return `<section class="sheet"><div class="sheet-h"><h2>Disciplinas</h2><span class="hint">${ds.length?(auto?'detectadas pelos arquivos':'escolhidas'):(auto&&(e.arquivos||[]).length?'nenhuma detectada nos nomes dos arquivos':'opcional')}</span>${ro||auto||!(e.arquivos||[]).length?'':`<span style="flex:1"></span><button class="btn sm ghost" data-act="em-disc-auto" title="${dif?'Detectadas nos arquivos: '+esc(det.map(c=>siglaP(e.projeto,c)).join(', ')||'nenhuma'):''}">Detectar pelos arquivos</button>`}</div>
+  <div class="pad tags-ed">${ds.map((d,i)=>`<span class="chip chip-c"${pintaD(e.projeto,d)} title="${esc(discNome(d))}"><span class="mono">${esc(siglaP(e.projeto,d))}</span><span class="muted" style="font-size:12px">${esc(discNome(d))}</span>${ro?'':`<button data-act="em-disc-rm" data-i="${i}" aria-label="Remover ${esc(d)}">${IC.x}</button>`}</span>`).join('')}
+  ${ro?'':`<span class="tag-add"><select class="fld" id="emDiscIn" aria-label="Adicionar disciplina"><option value="">+ escolher disciplina</option>${optsDisc(e.projeto,ds)}</select></span>`}</div></section>`;
 }
 /* ---------- croquis do projeto ---------- */
 const croqColl=()=>db.collection('croq');
