@@ -671,7 +671,7 @@ body.rd-mod #eqTabela tr[data-act="rd-abrir"]{cursor:copy}
 .cq-ext{font:600 15px/1 var(--mono,monospace);color:#8a8a86;border:1px solid #d9d8d4;border-radius:6px;padding:10px 12px;background:#fff}
 .cq-inf{display:flex;flex-direction:column;gap:3px;padding:10px 12px 12px;font-size:13px}.cq-inf .st-cm{align-self:flex-start;margin-top:4px}.cq-d{font-size:11.5px;color:var(--muted)}
 .cq-drop{padding:12px 14px 14px;border-radius:0 0 10px 10px}.cq-drop.sobre{background:color-mix(in srgb,var(--accent,#8e1b1b) 6%,transparent);outline:2px dashed var(--accent,#8e1b1b);outline-offset:-6px}
-.em-dest{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0 6px}.em-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;background:var(--bg2,#f6f6f4)}.em-chip .lk{padding:0 2px;line-height:0}.em-chip svg{width:12px;height:12px}.em-dest-sel{width:auto;min-width:220px;max-width:100%}
+.em-dest{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0 6px}.em-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;background:var(--bg2,#f6f6f4)}.em-chip .lk{padding:0 2px;line-height:0}.em-chip svg{width:12px;height:12px}.em-prog{display:grid;grid-template-columns:minmax(0,1fr) 160px auto;gap:10px;align-items:center;padding:6px 2px;font-size:12.5px}.em-pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.em-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.em-bar i{display:block;height:100%;background:#1baf7a;transition:width .3s}.em-pct{font-size:11.5px;white-space:nowrap}.em-dest-sel{width:auto;min-width:220px;max-width:100%}
 .cq-arqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .cq-a{display:flex;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px;align-items:center;min-width:0}
 .cq-ath{width:72px;height:56px;flex:none;border-radius:5px;overflow:hidden;background:#f4f3f1;display:flex;align-items:center;justify-content:center}.cq-ath img{width:100%;height:100%;object-fit:cover}.cq-ath .cq-ext{font-size:11px;padding:6px}
@@ -4525,7 +4525,7 @@ function telaEmItem(h,v){
   const ja=new Set(D.map(d=>d.nome.toLowerCase())), ops=envolvidosEm(it.id).filter(d=>!ja.has(d.nome.toLowerCase()));
   h+=`<div class="page em-ed" id="emEd" data-eid="${esc(e.id)}"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><button data-act="emis" data-id="${esc(it.id)}">Emissões</button><span>/</span><span>${esc(numEm(e.num))}</span></div>
   <div class="ata-top"><div><h1 style="margin-bottom:4px">${esc(e.descricao||'Emissão')}</h1><p class="lead mono" style="margin:0">${esc(numEm(e.num))} · ${esc(e.pasta?.caminho?e.pasta.caminho.split('\\').pop():pastaEm(e))} &nbsp;${stEm(e)}</p></div>
-  <div class="ata-acts"><span class="sync-msg" id="emMsg" aria-live="polite"></span>${e.pasta?.url?`<a class="btn sm ghost" href="${esc(e.pasta.url)}" target="_blank" rel="noopener">${IC.ext}Pasta no Drive</a>`:''}${e.pasta?.caminho?`<button class="btn sm ghost" data-act="copiar-ref" data-path="${esc(e.pasta.caminho)}">${IC.pasta}Copiar pasta no G:</button>`:''}</div></div>
+  <div class="ata-acts"><span class="sync-msg" id="emMsg" aria-live="polite">${e.emitidaEm?`emitida em ${fmtData(e.emitidaEm)}`:''}</span>${e.pasta?.url?`<a class="btn sm ghost" href="${esc(e.pasta.url)}" target="_blank" rel="noopener">${IC.ext}Pasta no Drive</a>`:''}${e.pasta?.caminho?`<button class="btn sm ghost" data-act="copiar-ref" data-path="${esc(e.pasta.caminho)}">${IC.pasta}Copiar pasta no G:</button>`:''}</div></div>
   <section class="sheet"><div class="sheet-h"><h2>Emissão</h2></div><div class="grid ata-g">
     <label class="fl">Data<input class="fld" type="date" data-em="data" value="${dIso(e.data)}" ${ro}></label>
     <label class="fl wide">Descrição<input class="fld" data-em="descricao" value="${esc(e.descricao||'')}" placeholder="Ex.: Projeto básico - entrega ao contratante" ${ro}></label>
@@ -4533,9 +4533,8 @@ function telaEmItem(h,v){
   <section class="sheet"><div class="sheet-h"><h2>Destinatários</h2><span class="hint">${D.length||'opcional'}</span></div>
     <div class="em-dest">${D.map((d,i)=>`<span class="em-chip" title="${esc([d.empresa,d.email].filter(Boolean).join(' · '))}">${esc(d.nome)}${S.ro?'':`<button class="lk" data-act="em-dest-rm" data-i="${i}" title="Tirar ${esc(d.nome)}" aria-label="Tirar ${esc(d.nome)}">${IC.x}</button>`}</span>`).join('')||(S.ro?'<span class="muted">Nenhum</span>':'')}
     ${S.ro?'':`<select class="fld em-dest-sel" id="emDestSel" aria-label="Adicionar destinatário"><option value="">+ Adicionar destinatário…</option>${ops.map(d=>`<option value="${esc(d.nome)}">${esc(d.nome)}${d.empresa?' · '+esc(d.empresa):''}</option>`).join('')}</select>`}</div></section>
-  <section class="sheet"><div class="sheet-h"><h2>Arquivos</h2><span class="hint">${A.length}</span></div>
-    ${A.length?`<div class="tablewrap"><table class="list"><thead><tr><th>Arquivo</th><th>Rev.</th><th>Tipo</th><th class="r">Tamanho</th></tr></thead><tbody>${A.map(a=>`<tr><td class="mono">${a.driveId?`<a href="https://drive.google.com/file/d/${esc(a.driveId)}/view" target="_blank" rel="noopener">${esc(a.nome)}</a>`:esc(a.nome)}</td><td class="mono">${esc(a.rev||'')}</td><td class="mono muted">${esc(extDe(a.nome))}</td><td class="r mono muted">${esc(tamTxt(a.tamanho))}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted" style="margin:4px 0 8px">Nenhum arquivo.</p>'}</section>
-  ${S.ro?'':`<div class="esp-bar"><span style="flex:1"></span><button class="btn danger sm" data-act="em-del">${IC.trash}Excluir emissão</button></div>`}
+  ${emArqsHTML(e)}
+  ${S.ro?'':`<div class="esp-bar"><span style="flex:1"></span><button class="btn danger sm" data-act="em-del">${IC.trash}Excluir emissão</button>${!e.status||e.status==='Rascunho'?`<button class="btn pri sm" data-act="em-emitir">Emitir</button>`:''}</div>`}
   <div class="foot-meta">${e.atualizadoEm?`Atualizado em ${fmtData(e.atualizadoEm)} · salvo automaticamente`:''}</div></div>`;
   return h;
 }
@@ -4545,8 +4544,9 @@ async function emGravar(){const id=EM.pend; EM.pend=null; const e=S.emis.get(id)
 document.addEventListener('input',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||!t.dataset.em||S.ro) return; const e=emAtual(); if(!e) return;
   e[t.dataset.em]=t.type==='date'?dBr(t.value):t.value; emMudou(false)});
 document.addEventListener('change',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||S.ro) return; const e=emAtual(); if(!e) return;
+  if(t.id==='emFile'){if(t.files?.length) emAdicionar(e,[...t.files]); t.value=''; return}
   if(t.id==='emDestSel'){const n=t.value; if(!n) return; const d=envolvidosEm(e.projeto).find(x=>x.nome===n)||{nome:n}; (e.destinatarios=e.destinatarios||[]).push({nome:d.nome,...(d.empresa?{empresa:d.empresa}:{}),...(d.email?{email:d.email}:{})}); emMudou(true); return}
-  if(t.dataset.em==='data'||t.dataset.em==='descricao'){if(t.dataset.em==='descricao'&&!t.value.trim()){toast('A descrição é obrigatória.'); return} emMudou(true)}});
+  if(t.dataset.em==='data'||t.dataset.em==='descricao'){if(t.dataset.em==='descricao'&&!t.value.trim()){toast('A descrição é obrigatória.'); return} emMudou(true); emRenomearPasta(e)}});
 async function emAcao(a0,b){
   if(a0==='em-novo'){novaEm(b.dataset.id);return}
   if(a0==='em-abrir'){fecharMenuLinha(); lembrarRolagemLista(); ir({t:'emisi',id:b.dataset.id,eid:b.dataset.eid});return}
@@ -4554,11 +4554,97 @@ async function emAcao(a0,b){
   if(a0==='em-compart'){escolherPastaProj(b.dataset.id,'emisCompart','Escolha a pasta compartilhada (a que o cliente ou os parceiros veem)','');return}
   const e=emAtual(); if(!e||S.ro) return;
   if(a0==='em-dest-rm'){e.destinatarios.splice(+b.dataset.i,1); emMudou(true); return}
+  if(a0==='em-emitir'){await emEmitir(e); return}
+  if(a0==='em-arq-rm'){const i=(e.arquivos||[]).findIndex(a=>a.nome===b.dataset.n), a=e.arquivos?.[i]; if(!a) return; const ras=!e.status||e.status==='Rascunho';
+    if(!await confirmar(`Remover "${a.nome}" da emissão?${a.driveId?(ras?'\n\nO arquivo vai para a lixeira do Drive.':'\n\nA emissão já foi feita: o arquivo continua na pasta do Drive.'):''}`,{ok:'Remover',perigo:true})) return;
+    e.arquivos.splice(i,1); emMudou(true); if(ras&&a.driveId&&mcp) mcp.callTool(GD,'trash_file',{fileId:a.driveId},{cache:false}).catch(()=>toast('Não foi possível mandar o arquivo para a lixeira do Drive')); return}
   if(a0==='em-del'){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir emissão'}},4000);return}
     if(!podeExcluir(e)) return avisoExcluir();
     try{clearTimeout(EM.timer); EM.pend=null; await emisColl().doc(e.id).delete(); S.emis.delete(e.id); toast('Emissão excluída'+(e.pasta?.id?' (os arquivos continuam no Drive)':'')); ir({t:'emis',id:e.projeto})}catch{toast('Não foi possível excluir')}
   }
+}
+/* arquivos da emissão: enviados direto para a subpasta datada (versão Firebase: envio em partes, sem limite de tamanho) */
+const EM_MAX_CON=25*1048576; // limite do conector do Claude (dev)
+const rdEm=(pid,nome)=>{const idx=idxRdC(pid), k=chaveDoc(nome,pid); return idx.ex.get(k)||idx.sr.get(semRev(k))||null};
+async function emPastaDrive(e){
+  if(e.pasta?.id) return e.pasta; if(!mcp){toast('Sem conexão com o Google Drive.');return null}
+  const it=S.itens.get(e.projeto); let base=it?.emisPasta;
+  if(!base) base=await escolherPastaProj(e.projeto,'emisPasta','Escolha a pasta onde ficarão as emissões do projeto (cada emissão ganha uma subpasta datada)',''); if(!base) return null;
+  const nome=pastaEm(e); const r=await mcp.callTool(GD,'create_file',{title:nome,contentMimeType:'application/vnd.google-apps.folder',parentId:base.id},{cache:false});
+  const f=r?.payload||{}, id=f.id||f.file?.id; if(!id) throw {message:'O Drive não criou a pasta.'};
+  e.pasta={id,nome,url:`https://drive.google.com/drive/folders/${id}`,caminho:base.caminho?base.caminho+'\\'+nome:nome}; emMudou(false); return e.pasta;
+}
+// data ou descrição mudaram depois de a pasta existir: renomeia a subpasta no Drive
+async function emRenomearPasta(e){
+  if(!e.pasta?.id||!mcp) return; const novo=pastaEm(e); if(novo===e.pasta.nome) return;
+  try{await mcp.callTool(GD,'move_file',{fileId:e.pasta.id,title:novo},{cache:false});
+    e.pasta={...e.pasta,nome:novo,caminho:e.pasta.caminho?e.pasta.caminho.replace(/[^\\]*$/,novo):novo}; emMudou(true); toast('Pasta renomeada para '+novo)}
+  catch(x){console.warn('renomear',x); toast('Não foi possível renomear a pasta no Drive: renomeie-a para "'+novo+'"')}
+}
+const emPinta=e=>{if(emAtual()?.id===e.id) renderMain()};
+function emProg(n){const p=EM.prog.get(n), el=document.querySelector(`[data-prog="${CSS.escape(n)}"]`); if(!p||!el) return;
+  const pc=p.t?Math.floor(p.n/p.t*100):0; el.querySelector('i').style.width=pc+'%'; el.querySelector('.em-pct').textContent=pc+'% · '+tamTxt(p.n)+' de '+tamTxt(p.t)}
+async function emAdicionar(e,files){
+  if(S.ro||!files.length) return;
+  if(e.status&&e.status!=='Rascunho'&&!await confirmar(`${numEm(e.num)} já foi emitida. Acrescentar ${files.length>1?'os arquivos':'o arquivo'} mesmo assim?`,{ok:'Acrescentar'})) return;
+  let pasta=null; try{pasta=await emPastaDrive(e)}catch(x){toast(x?.message||'Não foi possível criar a pasta no Drive')} if(!pasta) return;
+  const grande=window.FJA_GOOGLE?.enviar; let ok=0;
+  for(const f of files){
+    const ex=(e.arquivos||[]).findIndex(a=>a.nome.toLowerCase()===f.name.toLowerCase());
+    if(ex>=0&&!await confirmar(`"${f.name}" já está nesta emissão. Substituir pelo arquivo novo?\n\nO anterior vai para a lixeira do Drive.`,{ok:'Substituir'})) continue;
+    if(!grande&&f.size>EM_MAX_CON){toast(`${f.name}: grande demais para esta versão (${tamTxt(f.size)}). Na homologação e na oficial não há limite.`);continue}
+    EM.subindo++; EM.prog.set(f.name,{n:0,t:f.size}); emPinta(e);
+    try{
+      let x;
+      if(grande) x=await grande(f,{parentId:pasta.id,title:f.name,mime:f.type||'application/octet-stream',progresso:(n,t)=>{EM.prog.set(f.name,{n,t}); emProg(f.name)}});
+      else{const r=await mcp.callTool(GD,'create_file',{title:f.name,contentMimeType:f.type||'application/octet-stream',base64Content:b64(await f.arrayBuffer()),disableConversionToGoogleType:true,parentId:pasta.id},{cache:false}); x=r?.payload||{}}
+      const id=x.id||x.file?.id; if(!id) throw {message:'O Drive não devolveu o arquivo.'};
+      const p=partesArqEm(f.name), d=rdEm(e.projeto,f.name);
+      const a={nome:f.name,base:p.base,rev:p.rev,ext:p.ext,tamanho:f.size,mime:x.mimeType||f.type||'',driveId:id,em:Date.now(),...(d?{rdoc:d.id}:{}),...(me?{por:me}:{})};
+      const i=(e.arquivos||[]).findIndex(q=>q.nome.toLowerCase()===f.name.toLowerCase());
+      if(i>=0){const old=e.arquivos[i]; e.arquivos[i]=a; if(old.driveId&&old.driveId!==id) mcp.callTool(GD,'trash_file',{fileId:old.driveId},{cache:false}).catch(()=>{})}
+      else (e.arquivos=e.arquivos||[]).push(a);
+      ok++; emMudou(false);
+    }catch(x){console.error(x); toast(`${f.name}: ${x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive')}`)}
+    finally{EM.subindo--; EM.prog.delete(f.name); emPinta(e)}
+  }
+  if(ok) toast(ok>1?`${ok} arquivos enviados`:'Arquivo enviado');
+}
+addEventListener('beforeunload',ev=>{if(EM.subindo){ev.preventDefault(); ev.returnValue=''}});
+function emArqsHTML(e){
+  const A=e.arquivos||[], P=[...EM.prog.entries()], ro=S.ro;
+  const lin=a=>{const d=a.rdoc&&S.rdocs.get(a.rdoc)||rdEm(e.projeto,a.nome);
+    return `<tr><td class="mono">${a.driveId?`<a href="https://drive.google.com/file/d/${esc(a.driveId)}/view" target="_blank" rel="noopener">${esc(a.nome)}</a>`:esc(a.nome)}</td><td class="mono">${esc(a.rev||'')}</td><td class="mono muted">${esc(a.ext||extDe(a.nome))}</td><td class="r mono muted">${esc(tamTxt(a.tamanho))}</td>
+    <td>${d?`<button class="lk mono" data-act="rd-abrir" data-id="${esc(e.projeto)}" data-eid="${esc(d.id)}" title="Abrir na Relação de documentos">${esc(arquivoRd(d))}</button>`:'<span class="muted">fora da RD</span>'}</td>
+    <td class="r">${ro?'':`<button class="lk del" data-act="em-arq-rm" data-n="${esc(a.nome)}">Remover</button>`}</td></tr>`};
+  return `<section class="sheet"><div class="sheet-h"><h2>Arquivos</h2><span class="hint">${A.length}</span>${ro?'':`<span style="flex:1"></span><label class="btn sm">${IC.plus}Adicionar arquivos<input type="file" multiple id="emFile" hidden></label>`}</div>
+  <div class="cq-drop${ro?'':' on'}" id="emDrop">
+  ${A.length?`<div class="tablewrap"><table class="list em-arqs"><thead><tr><th>Arquivo</th><th>Rev.</th><th>Tipo</th><th class="r">Tamanho</th><th>Relação de documentos</th><th></th></tr></thead><tbody>${A.map(lin).join('')}</tbody></table></div>`:''}
+  ${P.map(([n,p])=>{const pc=p.t?Math.floor(p.n/p.t*100):0; return `<div class="em-prog" data-prog="${esc(n)}"><span class="mono em-pn">${esc(n)}</span><span class="em-bar"><i style="width:${pc}%"></i></span><span class="em-pct muted">${pc}% · ${tamTxt(p.n)} de ${tamTxt(p.t)}</span></div>`}).join('')}
+  ${ro?(A.length?'':'<p class="muted">Nenhum arquivo.</p>'):`<p class="cq-dica">Arraste os arquivos para cá (também do Explorer, direto do G:). ${window.FJA_GOOGLE?.enviar?'Sem limite de tamanho.':'Limite de 25 MB por arquivo nesta versão.'} Os arquivos vão para a pasta <b class="mono">${esc(e.pasta?.nome||pastaEm(e))}</b>.</p>`}
+  </div></section>`;
+}
+// pranchas da RD emitidas sem PDF ou sem DWG (memoriais etc.: preencher a Extensão na RD sem DWG para não avisar)
+function emAvisosPdfDwg(e){
+  const g=new Map(); for(const a of e.arquivos||[]){const k=(a.base||partesArqEm(a.nome).base).toUpperCase()+'|'+(a.rev||''); if(!g.has(k)) g.set(k,{nome:a.nome,ext:new Set()}); g.get(k).ext.add((a.ext||extDe(a.nome)).toUpperCase())}
+  const out=[];
+  for(const x of g.values()){
+    const tem=['PDF','DWG'].filter(t=>x.ext.has(t)); if(tem.length!==1) continue;
+    const d=rdEm(e.projeto,x.nome); if(!d) continue;
+    const exts=String(d.extensao||'').toUpperCase(); if(exts&&!(exts.includes('PDF')&&exts.includes('DWG'))) continue;
+    out.push(`${arquivoRd(d)||x.nome.replace(/\.[^.]+$/,'')}: falta o ${tem[0]==='PDF'?'DWG':'PDF'}`);
+  }
+  return out;
+}
+async function emEmitir(e){
+  if(!String(e.descricao||'').trim()||!e.data){toast('Preencha a data e a descrição.');return}
+  if(EM.subindo){toast('Aguarde o fim dos envios.');return}
+  const A=e.arquivos||[], av=emAvisosPdfDwg(e);
+  let txt=`Emitir ${numEm(e.num)} · ${e.data}\n${e.descricao}\n\n${A.length?A.length+' arquivo'+(A.length>1?'s':''):'Sem arquivos'}${destEm(e).length?'\nPara: '+destEm(e).join(', '):''}`;
+  if(av.length) txt+=`\n\nAtenção, pranchas sem PDF ou sem DWG:\n${av.map(x=>'• '+x).join('\n')}`;
+  if(!await confirmar(txt,{ok:av.length?'Emitir mesmo assim':'Emitir'})) return;
+  e.status='Emitida'; e.emitidaEm=Date.now(); if(me) e.emitidaPor=me; emMudou(true); toast(numEm(e.num)+' emitida');
 }
 /* ---------- croquis do projeto ---------- */
 const croqColl=()=>db.collection('croq');
@@ -4642,6 +4728,9 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.closest?.('#cqEd')&&(t.dataset.cq==='status'||t.dataset.cq==='descricao'||t.dataset.cq==='data')){const c=cqAtual(); if(c&&t.dataset.cq==='status'&&c.status==='Enviado'&&!c.enviadoEm) c.enviadoEm=new Date().toLocaleDateString('pt-BR'); cqMudou(true)}});
 document.addEventListener('dragover',ev=>{const d=ev.target.closest?.('#cqDrop.on'); if(d){ev.preventDefault(); d.classList.add('sobre')}});
 document.addEventListener('dragleave',ev=>{ev.target.closest?.('#cqDrop')?.classList.remove('sobre')});
+document.addEventListener('dragover',ev=>{const d=ev.target.closest?.('#emDrop.on'); if(d){ev.preventDefault(); d.classList.add('sobre')}});
+document.addEventListener('dragleave',ev=>{ev.target.closest?.('#emDrop')?.classList.remove('sobre')});
+document.addEventListener('drop',ev=>{const d=ev.target.closest?.('#emDrop.on'); if(!d) return; ev.preventDefault(); d.classList.remove('sobre'); const e=emAtual(); const f=[...(ev.dataTransfer?.files||[])]; if(e&&f.length) emAdicionar(e,f)});
 document.addEventListener('drop',ev=>{const d=ev.target.closest?.('#cqDrop.on'); if(!d) return; ev.preventDefault(); d.classList.remove('sobre'); const c=cqAtual(); const f=[...(ev.dataTransfer?.files||[])]; if(c&&f.length) cqAdicionar(c,f)});
 // Ctrl+V com imagem (print) nas fichas com quadro de imagem (RI, pendências, comentários, documentos, equipamentos): vira a imagem do registro
 document.addEventListener('paste',ev=>{
