@@ -123,7 +123,7 @@ service cloud.firestore {
     // demais coleções: só a equipe (o curinga também casaria com as coleções acima, por isso a exclusão explícita).
     // O Gerente só exclui, nas coleções de conteúdo, o que ele mesmo criou (criadoPor = uid).
     function reservada(c) { return c in ['acessos', 'acessosPendentes', 'senhasProvisorias', 'rfi', 'projetosRfi', 'emailsEnviados', 'servidor'] || c.matches('fin_.*'); }
-    function rastreada(c) { return c in ['itens', 'coment', 'pend', 'rdoc', 'ata', 'croq', 'crono', 'agenda', 'materiais', 'equip', 'espb', 'sugest']; }
+    function rastreada(c) { return c in ['itens', 'coment', 'pend', 'rdoc', 'ata', 'croq', 'emis', 'crono', 'agenda', 'materiais', 'equip', 'espb', 'sugest']; }
     match /{colecao}/{resto=**} {
       allow read, create, update: if interno() && !reservada(colecao);
       allow delete: if interno() && !reservada(colecao)

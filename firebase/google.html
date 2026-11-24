@@ -97,6 +97,11 @@
       },
       download_file_content:async a=>paraB64(await (await api(D+'files/'+encodeURIComponent(a.fileId)+'?alt=media&'+TODOS)).arrayBuffer()),
       create_file:criar,
+      // cópia feita no próprio Drive (sem baixar): {fileId, parentId, title?}
+      copy_file:async a=>meta(await (await api(D+'files/'+encodeURIComponent(a.fileId)+'/copy?'+TODOS+'&fields='+CAMPOS,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...(a.title?{name:a.title}:{}),...(a.parentId?{parents:[a.parentId]}:{})})})).json()),
+      // muda de pasta e/ou renomeia: {fileId, addParents?, removeParents?, title?}
+      move_file:async a=>{const p=new URLSearchParams({supportsAllDrives:'true',fields:CAMPOS}); if(a.addParents) p.set('addParents',a.addParents); if(a.removeParents) p.set('removeParents',a.removeParents);
+        return meta(await (await api(D+'files/'+encodeURIComponent(a.fileId)+'?'+p,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(a.title?{name:a.title}:{})})).json())},
       trash_file:async a=>meta(await (await api(D+'files/'+encodeURIComponent(a.fileId)+'?'+TODOS+'&fields='+CAMPOS,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({trashed:true})})).json()),
     },
     'Google Sheets':{
@@ -106,6 +111,44 @@
       update_spreadsheet:async a=>(await api(S_+a.spreadsheetId+':batchUpdate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requests:a.requests})})).json(),
     }
   };
+  /* envio em partes (resumable upload do Drive): arquivos de qualquer tamanho, lidos em blocos de 8 MB direto do arquivo
+     (sem carregar tudo na memória). Se a conexão cair, pergunta ao Drive até onde recebeu e continua dali.
+     enviar(File|Blob, {parentId, title, mime, progresso(enviados,total)}) -> metadados no formato do conector */
+  const PARTE=8*1048576;
+  const espera=ms=>new Promise(s=>setTimeout(s,ms));
+  const fimRange=(r,padrao)=>{const g=r.headers.get('Range'); const m=g&&/-(\d+)$/.exec(g); return m?+m[1]+1:padrao};
+  async function enviar(arq,{parentId,title,mime,progresso}={}){
+    const tipo=mime||arq.type||'application/octet-stream', total=arq.size;
+    const expirou=()=>{tok=null; try{sessionStorage.removeItem(SS)}catch{}};
+    async function abrir(){
+      for(let i=0;;i++){
+        const t=await token();
+        const r=await fetch(U+'files?uploadType=resumable&'+TODOS+'&fields='+CAMPOS,{method:'POST',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json; charset=UTF-8','X-Upload-Content-Type':tipo,'X-Upload-Content-Length':String(total)},
+          body:JSON.stringify({name:title||arq.name,...(parentId?{parents:[parentId]}:{})})});
+        if(r.status===401&&i<2){expirou(); continue}
+        if((r.status===429||r.status>=500)&&i<4){await espera(1000*2**i); continue}
+        if(!r.ok){let m=''; try{m=(await r.json()).error?.message||''}catch{} throw {code:'tool_error',message:m||('HTTP '+r.status)}}
+        const loc=r.headers.get('Location'); if(!loc) throw {code:'tool_error',message:'O Drive não abriu o envio em partes.'}; return loc;
+      }
+    }
+    let url=await abrir(), pos=0, falhas=0; progresso?.(0,total);
+    for(;;){
+      const fim=Math.min(pos+PARTE,total); let r=null;
+      try{const t=await token(); r=await fetch(url,{method:'PUT',headers:{Authorization:'Bearer '+t,'Content-Range':total?`bytes ${pos}-${fim-1}/${total}`:'bytes */0'},body:total?arq.slice(pos,fim):''})}catch(e){r=null}
+      if(r&&(r.status===200||r.status===201)){progresso?.(total,total); return meta(await r.json())}
+      if(r&&r.status===308){pos=fimRange(r,fim); falhas=0; progresso?.(pos,total); continue}
+      if(r&&r.status===401){expirou(); if(++falhas>3) throw {code:'needs_reauth',message:'conexão expirada'}; continue}
+      if(r&&(r.status===404||r.status===410)){if(++falhas>3) throw {code:'tool_error',message:'O Drive encerrou o envio.'}; url=await abrir(); pos=0; continue}
+      if(r&&r.status>=400&&r.status<500&&r.status!==429){let m=''; try{m=(await r.json()).error?.message||''}catch{} throw {code:'tool_error',message:m||('HTTP '+r.status)}}
+      // queda de conexão, 429 ou 5xx: espera, pergunta ao Drive até onde recebeu e continua
+      if(++falhas>8) throw {code:'rate_limited',message:'A conexão caiu várias vezes durante o envio.'};
+      await espera(Math.min(30e3,1000*2**falhas));
+      try{const t=await token(); const q=await fetch(url,{method:'PUT',headers:{Authorization:'Bearer '+t,'Content-Range':`bytes */${total}`}});
+        if(q.status===200||q.status===201){progresso?.(total,total); return meta(await q.json())}
+        if(q.status===308){pos=fimRange(q,0); progresso?.(pos,total)}
+      }catch{}
+    }
+  }
   const mcpApi={callTool:async(servidor,ferramenta,args)=>{
     const f=FERR[servidor]?.[ferramenta]; if(!f) throw {code:'not_in_manifest',message:servidor+' › '+ferramenta};
     return {payload:await f(args||{})};
@@ -177,7 +220,7 @@
       c.requestCode();
     });
   }
-  window.FJA_GOOGLE={importarZip,conectar:()=>pedir(''),conectado:valido,mcp:mcpApi,assets:assetsApi,
+  window.FJA_GOOGLE={importarZip,enviar,conectar:()=>pedir(''),conectado:valido,mcp:mcpApi,assets:assetsApi,
     servidor:{estado:()=>chamar('googleEstado'),autorizar:autorizarServidor}};
   window.FJA_FIREBASE?.pronto?.then(()=>{if(window.FJA_DRIVE_SERVIDOR){if(window.FJA_FIREBASE.admin()) token().catch(e=>{console.warn('drive (servidor)',e); barra(true,'O servidor não liberou o Drive ('+(e?.message||e)+').')}); return}
     if(!valido()&&window.FJA_FIREBASE.perfil()?.nivel!=='usuario') barra(true)});

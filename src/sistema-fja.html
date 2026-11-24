@@ -1414,7 +1414,7 @@ const DEFAULT_SCHEMA = {
   ]
 };
 
-const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rfis:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), crono:new Map(), agenda:new Map(), materiais:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), etsig:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
+const S = {schema:structuredClone(DEFAULT_SCHEMA), itens:new Map(), coment:new Map(), pends:new Map(), rfis:new Map(), rdocs:new Map(), atas:new Map(), croqs:new Map(), emis:new Map(), crono:new Map(), agenda:new Map(), materiais:new Map(), sugest:new Map(), evAbertos:new Set(), espec:new Map(), espb:new Map(), etsig:new Map(), edraft:null, equip:new Map(), qdraft:null, carregado:false, estado:'carregando',
   view:{t:'home'}, fx:new Set(), fechadas:new Set((()=>{try{return JSON.parse(localStorage.getItem('fja.fechadas')||'[]')}catch{return []}})()), abertas:new Set((()=>{try{const v=JSON.parse(localStorage.getItem('fja.abertas')||'null'); if(Array.isArray(v)) return v}catch{} return ['s:projetos','g:biblioteca','s:familias','s:templates','s:representacao','s:disciplinas','s:parceiros','s:manuais']})()), busca:'', draft:null, dirty:false, schemaDraft:null, pend:null, ro:false};
 let db=null, user=null, me=null, assets=null, mcp=null, downloads=null;
 
@@ -4450,6 +4450,19 @@ async function rdAddDeCm(){
   const body={projeto:e.projeto,linha:proxLinhaRd(e.projeto),descricao:'',fase,codDisc,bloco,item,revisao:rev,status:'EMITIDO',emissao:e.emitido||'',disciplina:cod,discNome:cod?discNome(cod):'',criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
   try{const ref=rdColl().doc(); await ref.set(body); S.rdocs.set(ref.id,{...body,id:ref.id}); e.rdoc=ref.id; marcaSujo(); renderMain(); toast('Documento adicionado à Relação de documentos — salve o comentário')}catch{toast('Não foi possível adicionar')}
 }
+/* ---------- emissões do projeto (docs/emissoes.md) ---------- */
+const emisColl=()=>db.collection('emis');
+const emisDe=pid=>[...S.emis.values()].filter(e=>e.projeto===pid).sort((a,b)=>(dataNum(b.data)||0)-(dataNum(a.data)||0)||(b.criadoEm||0)-(a.criadoEm||0));
+const numEm=n=>'EM-'+String(+n||0).padStart(3,'0');
+const ST_EM=['Rascunho','Emitida','Conferir'];
+const EM={timer:null,pend:null,subindo:0,prog:new Map()};
+const emAtual=()=>{const id=$('emEd')?.dataset.eid; return id?S.emis.get(id):null};
+// subpasta da emissão: "AA-MM-DD Descrição" (decisão da FJA em 24/11/2026)
+const pastaEm=e=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(e.data||'');return `${m?m[3].slice(2)+'-'+m[2]+'-'+m[1]:'00-00-00'} ${slugPasta(e.descricao)||'emissao'}`};
+// nome do arquivo → {base (sem revisão e sem extensão), rev ('R02' ou ''), ext}
+const partesArqEm=nome=>{const n=String(nome||''), mx=/\.([a-z0-9]{1,6})$/i.exec(n), ext=mx?mx[1].toUpperCase():'', sem=mx?n.slice(0,-mx[0].length):n;
+  const mr=/^(.*?)[_\-\s]R(\d{1,3})$/i.exec(sem); return mr?{base:mr[1],rev:'R'+mr[2].padStart(2,'0'),ext}:{base:sem,rev:'',ext}};
+const revNum=r=>{const m=/^R(\d+)$/i.exec(r||''); return m?+m[1]:-1};
 /* ---------- croquis do projeto ---------- */
 const croqColl=()=>db.collection('croq');
 const croqsDe=pid=>[...S.croqs.values()].filter(c=>c.projeto===pid).sort((a,b)=>(dataNum(b.data)||0)-(dataNum(a.data)||0)||(b.criadoEm||0)-(a.criadoEm||0));
@@ -8594,10 +8607,10 @@ document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&MAT.dr&&!$('celPo
 
 /* ---------- desfazer (últimas ações desta sessão) ---------- */
 var DESF={pilha:[],refazer:[],grupo:null,t:0,rodando:false}; const SOMBRA={};
-const MAPA_COLL={sugest:()=>S.sugest,itens:()=>S.itens,coment:()=>S.coment,pend:()=>S.pends,rdoc:()=>S.rdocs,ata:()=>S.atas,croq:()=>S.croqs,equip:()=>S.equip,crono:()=>S.crono,agenda:()=>S.agenda,materiais:()=>S.materiais,espec:()=>S.espec,espb:()=>S.espb,etsig:()=>S.etsig};
+const MAPA_COLL={sugest:()=>S.sugest,itens:()=>S.itens,coment:()=>S.coment,pend:()=>S.pends,rdoc:()=>S.rdocs,ata:()=>S.atas,croq:()=>S.croqs,emis:()=>S.emis,equip:()=>S.equip,crono:()=>S.crono,agenda:()=>S.agenda,materiais:()=>S.materiais,espec:()=>S.espec,espb:()=>S.espb,etsig:()=>S.etsig};
 function sombraDe(n){return SOMBRA[n]||(SOMBRA[n]=new Map())}
 // campos de controle (vínculos e espelhos de planilhas) não entram no desfazer
-const SEM_DESF=new Set(['comEspelhoDev','pdEspelhoDev','equipEspelhoDev','comEspelhoOff','pdEspelhoOff','equipEspelhoOff','croEspelho','comEspelho','pdEspelho','rdEspelho','rdEspelhoDev','rdEspelhoOff','rdOrigem','rdExport','ataPasta','croqPasta','comOrigem','pdOrigem','equipOrigem','comExport','pdExport','equipExport']);
+const SEM_DESF=new Set(['comEspelhoDev','pdEspelhoDev','equipEspelhoDev','comEspelhoOff','pdEspelhoOff','equipEspelhoOff','croEspelho','comEspelho','pdEspelho','rdEspelho','rdEspelhoDev','rdEspelhoOff','rdOrigem','rdExport','ataPasta','croqPasta','emisPasta','emisCompart','comOrigem','pdOrigem','equipOrigem','comExport','pdExport','equipExport']);
 function registrarDesf(coll,id,antes){
   if(DESF.rodando||!id) return;
   if(!DESF.grupo){DESF.grupo={t:Date.now(),itens:[]}; }
@@ -9498,8 +9511,8 @@ function telaFerr(h,v){
 
 /* ---------- backup completo do banco (Drive) ---------- */
 const BKP={pasta:'1uRdXSx8JnBNegGSD4y59klSfSyLB9HuC',caminho:'G:\\Drives compartilhados\\BI-BIBLIOTECA\\SISTEMA FJA\\BACKUP',st:null,rodando:false};
-const BKP_ROT={itens:'Projetos e catálogos',espec:'Especificações',espb:'Especificações (biblioteca)',equip:'Equipamentos',coment:'Comentários',pend:'Pendências',rdoc:'Relação de documentos',ata:'Atas',croq:'Croquis',crono:'Cronograma',materiais:'Materiais (fornecedores)',agenda:'Calendário (eventos, feriados e aniversários)',sugest:'Sugestões',etsig:'Siglas de keynote',config:'Configurações'};
-const BKP_COLS=()=>[['itens',coll],['espec',espColl],['espb',espbColl],['equip',eqColl],['coment',comColl],['pend',pendColl],['rfi',rfiColl],['rdoc',rdColl],['ata',ataColl],['croq',croqColl],['crono',croColl],['agenda',agColl],['materiais',matColl],['sugest',sugColl],['etsig',etsigColl]];
+const BKP_ROT={itens:'Projetos e catálogos',espec:'Especificações',espb:'Especificações (biblioteca)',equip:'Equipamentos',coment:'Comentários',pend:'Pendências',rdoc:'Relação de documentos',ata:'Atas',croq:'Croquis',emis:'Emissões',crono:'Cronograma',materiais:'Materiais (fornecedores)',agenda:'Calendário (eventos, feriados e aniversários)',sugest:'Sugestões',etsig:'Siglas de keynote',config:'Configurações'};
+const BKP_COLS=()=>[['itens',coll],['espec',espColl],['espb',espbColl],['equip',eqColl],['coment',comColl],['pend',pendColl],['rfi',rfiColl],['rdoc',rdColl],['ata',ataColl],['croq',croqColl],['emis',emisColl],['crono',croColl],['agenda',agColl],['materiais',matColl],['sugest',sugColl],['etsig',etsigColl]];
 const bkpHoje=()=>new Date().toLocaleDateString('sv-SE');
 function bkpLer(ref){
   if(typeof ref.get==='function') return ref.get();
@@ -10030,6 +10043,7 @@ async function modoPublico(){
     S.rdocs=new Map(Object.entries(snap.rdoc||{}).map(([id,v])=>[id,{...v,id}]));
     S.atas=new Map(Object.entries(snap.ata||{}).map(([id,v])=>[id,{...v,id}]));
     S.croqs=new Map(Object.entries(snap.croq||{}).map(([id,v])=>[id,{...v,id}]));
+    S.emis=new Map(Object.entries(snap.emis||{}).map(([id,v])=>[id,{...v,id}]));
     S.crono=new Map(Object.entries(snap.crono||{}).map(([id,v])=>[id,{...v,id}]));
     S.agenda=new Map(Object.entries(snap.agenda||{}).map(([id,v])=>[id,{...v,id}]));
     S.materiais=new Map(Object.entries(snap.materiais||{}).map(([id,v])=>[id,{...v,id}]));
@@ -10094,6 +10108,13 @@ async function modoPublico(){
     if(CQ.pend&&S.croqs.get(CQ.pend)) m.set(CQ.pend,S.croqs.get(CQ.pend));
     if(CQ.subindo){const c=cqAtual(); if(c) m.set(c.id,c)}
     const ed=document.activeElement?.closest?.('#cqEd'); S.croqs=m;
+    if(S.carregado){if(ed||S.dirty) renderTree(); else render()}
+  },()=>{});
+  emisColl().onSnapshot(snap=>{
+    const m=new Map(); for(const d of snap.docs){const v=d.data(); if(v&&v.projeto) m.set(d.id,{...structuredClone(v),id:d.id})}
+    if(EM.pend&&S.emis.get(EM.pend)) m.set(EM.pend,S.emis.get(EM.pend)); // edição local ainda não gravada
+    if(EM.subindo){const e=emAtual(); if(e) m.set(e.id,e)}
+    const ed=document.activeElement?.closest?.('#emEd'); S.emis=m;
     if(S.carregado){if(ed||S.dirty) renderTree(); else render()}
   },()=>{});
   ataColl().onSnapshot(snap=>{
