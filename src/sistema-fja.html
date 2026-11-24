@@ -1073,6 +1073,8 @@ span.lt-l{cursor:default}
 .gt-s{justify-content:center;font-family:var(--f-mono);font-size:10px}
 .gt-s.fds{background:rgba(0,0,0,.035)}
 .gt-body{position:relative}
+.gt-setas{position:absolute;left:0;top:0;pointer-events:none;z-index:1;color:var(--muted);overflow:visible}
+.cro-apos-info{margin-top:-4px}
 .gt-grid{position:absolute;top:0;bottom:0;pointer-events:none;z-index:0}
 .gt-grid i{position:absolute;top:0;bottom:0}
 .gt-grid .gl{width:0;border-left:1px dotted var(--line)}
@@ -7766,11 +7768,47 @@ function telaCro(h,v){
   if(CRO.modo==='gantt'){
     const lg=CRO.cor==='disc'?[...new Set(L.map(t=>t.disciplina).filter(Boolean))].map(c=>`<span class="cro-lg"><i style="background:${corDP(it.id,c)}"></i>${esc(siglaP(it.id,c))} <span class="muted">${esc(discNome(c))}</span></span>`).join('')
       :cfg.resp.map(r=>`<span class="cro-lg"><i style="background:${r.cor}"></i>${esc(r.nome)}</span>`).join('');
-    h+=`<div class="cro-lgs">${lg}<span class="cro-lg"><i class="mk"></i>Marco</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span><span class="muted cro-dica">${S.ro?'':'Arraste as barras para mover; puxe as pontas para mudar a duração. '}Zoom: Ctrl + roda do mouse no gráfico, ou a roda sobre as datas.</span></div>`;
+    h+=`<div class="cro-lgs">${lg}<span class="cro-lg"><i class="mk"></i>Marco</span><span class="cro-lg"><i class="mk pr"></i>Marco principal</span><span class="muted cro-dica">${S.ro?'':'Arraste as barras para mover; puxe as pontas para mudar a duração. Botão direito numa barra: novo item após ela. '}Zoom: Ctrl + roda do mouse no gráfico, ou a roda sobre as datas.</span></div>`;
     if(CRO.sel.size&&!S.ro) h+=croLoteHTML(it,L);
-    h+=`<section class="sheet gt-sheet">${croGantt(it,L)}</section>`;
+    h+=`<section class="sheet gt-sheet">${croGantt(it,L)}</section>`; requestAnimationFrame(croSetas);
   } else h+=croLinha(it,L,{semRod:true,zoom:true,ano:CRO.ano});
   return h+`</div>`;
+}
+/* vínculo "começa após": t.apos={id:<item anterior>,folga:<dias>}. O item começa no dia seguinte ao fim do anterior (+ folga);
+   quando o anterior muda, os itens atrelados a ele (e os atrelados a esses) andam junto, sem mudar a duração. */
+const croFim=t=>extT(t)?.[1];
+const croPred=t=>t?.apos?.id?S.crono.get(t.apos.id)||null:null;
+const croFolga=t=>{const p=croPred(t), fp=p?croFim(p):null, ex=extT(t); return fp!=null&&ex?ex[0]-fp-1:0};
+const croDesloca=(t,d)=>({segs:(t.segs||[]).map(x=>{const o={...x},a=crN(x.ini),b=crN(x.fim); if(a!=null) o.ini=crS(a+d); if(b!=null) o.fim=crS(b+d); return o}),
+  marcos:(t.marcos||[]).map(m=>{const n=crN(m.data); return n==null?m:{...m,data:crS(n+d)}})});
+function croAlinhar(t,p){const fp=p?croFim(p):null, ex=extT(t); if(fp==null||!ex) return null; const d=fp+1+(+t.apos?.folga||0)-ex[0]; return d?croDesloca(t,d):null}
+const croDesc=id=>{const r=new Set(),fila=[id]; while(fila.length){const x=fila.pop(); for(const o of S.crono.values()) if(o.apos?.id===x&&!r.has(o.id)){r.add(o.id);fila.push(o.id)}} return r};
+async function croCascata(ids){
+  if(S.ro) return; const vistos=new Set(ids), fila=[...ids], nov=new Map(), lista=[], get=id=>nov.get(id)||S.crono.get(id);
+  while(fila.length){const id=fila.shift(), p=get(id); if(!p) continue;
+    for(const o of S.crono.values()){if(o.apos?.id!==id||vistos.has(o.id)) continue; vistos.add(o.id);
+      const u=croAlinhar(get(o.id),p); if(u){nov.set(o.id,{...get(o.id),...u}); lista.push([o.id,u])} fila.push(o.id)}}
+  if(lista.length&&await croGravarLote(lista)) toast(lista.length>1?lista.length+' itens atrelados acompanharam a mudança':'O item atrelado acompanhou a mudança');
+}
+function croNovoApos(t){
+  if(S.ro||!t) return; const L=croDe(t.projeto), cfg=croCfg(t.projeto), fim=croFim(t)??crHoje(), i=L.findIndex(x=>x.id===t.id), prox=L[i+1];
+  const o0=+t.ordem||0, ordem=prox&&prox.ordem!=null&&+prox.ordem>o0?(o0+(+prox.ordem))/2:o0+1;
+  CRO.dr={tipo:'item',novo:true,projeto:t.projeto,ordem,num:'',fase:t.fase||'',nome:'',disciplina:t.disciplina||'',apos:{id:t.id,folga:0},
+    segs:[{ini:crS(fim+1),fim:crS(fim+14),resp:(t.segs||[]).at(-1)?.resp||cfg.resp[0]?.nome||''}],marcos:[],obs:''};
+  croDrawer(); setTimeout(()=>$('croDr')?.querySelector('[data-crf="nome"]')?.focus(),0);
+}
+/* setas do vínculo no Detalhado: do fim do item anterior ao início do atrelado */
+function croSetas(){
+  const body=document.querySelector('#gtWrap .gt-body'); if(!body) return; body.querySelector('svg.gt-setas')?.remove();
+  const R=body.getBoundingClientRect(), caixa=id=>{const els=[...body.querySelectorAll('.gt-b,.gt-mk')].filter(e=>e.dataset.tid===id); if(!els.length) return null;
+    const rs=els.map(e=>e.getBoundingClientRect()); return {l:Math.min(...rs.map(r=>r.left))-R.left,r:Math.max(...rs.map(r=>r.right))-R.left,y:(rs[0].top+rs[0].bottom)/2-R.top}};
+  let p='';
+  for(const t of S.crono.values()){if(!t.apos?.id||t.projeto!==S.view.id) continue; const a=caixa(t.apos.id), b=caixa(t.id); if(!a||!b) continue;
+    const x1=a.r, y1=a.y, x2=b.l, y2=b.y, dn=y2>y1?1:-1, F=v=>v.toFixed(1);
+    p+=x2-x1>=12?`<path d="M${F(x1)} ${F(y1)}H${F(x1+6)}V${F(y2)}H${F(x2-1)}"/>`
+      :`<path d="M${F(x1)} ${F(y1)}H${F(x1+6)}V${F(y2-dn*15)}H${F(x2-8)}V${F(y2)}H${F(x2-1)}"/>`}
+  if(!p) return;
+  body.insertAdjacentHTML('beforeend',`<svg class="gt-setas" width="${body.scrollWidth}" height="${body.scrollHeight}" aria-hidden="true"><defs><marker id="croSeta" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="currentColor"/></marker></defs><g fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#croSeta)">${p}</g></svg>`);
 }
 /* ficha lateral */
 function croDrawer(){
@@ -7795,6 +7833,7 @@ function croFichaHTML(dr){
     <div class="cro-g2"><label class="fl">Nº<input class="fld" data-crf="num" value="${esc(dr.num||'')}" ${ro}></label><label class="fl">Etapa<input class="fld" data-crf="fase" list="croFases" value="${esc(dr.fase||'')}" ${ro}><datalist id="croFases">${fases.map(f=>`<option value="${esc(f)}">`).join('')}</datalist></label></div>
     <label class="fl">Item<input class="fld" data-crf="nome" value="${esc(dr.nome||'')}" placeholder="Serviço / disciplina / entrega" ${ro}></label>
     <label class="fl">Disciplina<select class="fld" data-crf="disciplina" ${ro}><option value="">—</option>${cods.map(c=>`<option value="${esc(c)}"${c===dr.disciplina?' selected':''}>${esc(siglaP(pid,c))} · ${esc(discNome(c))}</option>`).join('')}</select></label>
+    ${croAposHTML(dr)}
     <div class="cro-sec"><span>Períodos</span>${S.ro?'':`<button class="btn sm ghost" data-act="cro-add" data-l="segs">${IC.plus}Período</button>`}</div>
     ${(dr.segs||[]).length?`<div class="cro-hd"><span>Início</span><span>Fim</span><span>Responsável</span></div>`+(dr.segs||[]).map(seg).join(''):'<p class="muted cro-vz">Sem períodos — o item aparece só com seus marcos.</p>'}
     <div class="cro-sec"><span>Marcos</span>${S.ro?'':`<button class="btn sm ghost" data-act="cro-add" data-l="marcos">${IC.plus}Marco</button>`}</div>
@@ -7802,7 +7841,15 @@ function croFichaHTML(dr){
     <label class="fl">Observações<textarea class="fld" rows="3" data-crf="obs" ${ro}>${esc(dr.obs||'')}</textarea></label>
     ${dr.origem?`<p class="muted cro-vz">Importado de ${esc(dr.origem)}${dr.editadoLocal?' · editado no sistema':''}</p>`:''}
   </div>
-  ${S.ro?'':`<div class="cro-dr-f">${dr.novo?'':`<button class="btn danger sm" data-act="cro-excluir">${IC.trash}Excluir</button><button class="btn sm ghost" data-act="cro-arq1">${dr.arquivado?'Desarquivar':'Arquivar'}</button><button class="btn sm ghost" data-act="cro-dup">Duplicar</button>`}<span class="cro-sp"></span><button class="btn sm" data-act="cro-fechar">Cancelar</button><button class="btn pri sm" data-act="cro-salvar">Salvar</button></div>`}`;
+  ${S.ro?'':`<div class="cro-dr-f">${dr.novo?'':`<button class="btn danger sm" data-act="cro-excluir">${IC.trash}Excluir</button><button class="btn sm ghost" data-act="cro-arq1">${dr.arquivado?'Desarquivar':'Arquivar'}</button><button class="btn sm ghost" data-act="cro-dup">Duplicar</button><button class="btn sm ghost" data-act="cro-apos" data-tid="${esc(dr.id)}" title="Cria um item que começa no dia seguinte ao fim deste e acompanha as mudanças de data dele">${IC.plus}Item após este</button>`}<span class="cro-sp"></span><button class="btn sm" data-act="cro-fechar">Cancelar</button><button class="btn pri sm" data-act="cro-salvar">Salvar</button></div>`}`;
+}
+function croAposHTML(dr){
+  const pid=dr.projeto, ex=dr.id?croDesc(dr.id):new Set(), L=croDe(pid).filter(t=>t.id!==dr.id&&!ex.has(t.id)&&(!t.arquivado||t.id===dr.apos?.id));
+  const p=dr.apos?.id?S.crono.get(dr.apos.id):null, fp=p?croFim(p):null, e0=extT(dr)?.[0], fo=fp!=null&&e0!=null?e0-fp-1:null;
+  const nm=t=>(t.num?t.num+' · ':'')+(t.nome||'Sem nome'), pl=n=>n+' dia'+(n>1?'s':'');
+  const quando=fo===0?'no dia seguinte ao':fo>0?pl(fo)+' depois do':pl(-fo)+' antes do';
+  const info=!p?'':fp==null?'O item anterior ainda não tem datas.':`Começa ${quando} fim de “${esc(p.nome||'')}” (${crS(fp)}). Se esse item mudar de data, este acompanha.`;
+  return `<label class="fl">Começa após<select class="fld" data-cra="1" ${S.ro?'disabled':''}><option value="">— (não depende de outro item)</option>${L.map(t=>`<option value="${esc(t.id)}"${t.id===dr.apos?.id?' selected':''}>${esc(nm(t))}</option>`).join('')}</select></label>${info?`<p class="muted cro-vz cro-apos-info">${info}</p>`:''}`;
 }
 function croCfgHTML(dr){
   const ro=S.ro?'disabled':'';
@@ -7825,6 +7872,7 @@ function croLimpo(dr){
     segs:(dr.segs||[]).filter(s=>crN(s.ini)!=null).map(s=>{let a=crN(s.ini),e=crN(s.fim);if(e==null||e<a)e=a;return {ini:crS(a),fim:crS(e),resp:s.resp||''}}),
     marcos:(dr.marcos||[]).filter(m=>crN(m.data)!=null).map(m=>({data:m.data,texto:String(m.texto||'').trim()||nomeMarco(m),principal:principalM(dr.projeto,m)}))};
   for(const k of ['origem','criadoEm','criadoPor','editadoLocal']) if(dr[k]!=null) b[k]=dr[k];
+  if(dr.apos?.id&&S.crono.has(dr.apos.id)&&dr.apos.id!==dr.id){b.apos={id:dr.apos.id,folga:0}; b.apos.folga=croFolga(b)}
   return b;
 }
 async function croSalvar(){
@@ -7833,16 +7881,17 @@ async function croSalvar(){
   if(!dr.novo&&dr.origem) b.editadoLocal=true;
   b.atualizadoEm=Date.now(); if(me) b.atualizadoPor=me;
   try{
-    if(dr.novo){b.criadoEm=Date.now(); if(me) b.criadoPor=me; const ref=croColl().doc(); await ref.set(b); S.crono.set(ref.id,{...b,id:ref.id})}
+    let id=dr.id;
+    if(dr.novo){b.criadoEm=Date.now(); if(me) b.criadoPor=me; const ref=croColl().doc(); await ref.set(b); id=ref.id; S.crono.set(ref.id,{...b,id:ref.id})}
     else {await croColl().doc(dr.id).set(b); S.crono.set(dr.id,{...b,id:dr.id})}
-    CRO.dr=null; croDrawer(); render(); toast('Salvo');
+    CRO.dr=null; croDrawer(); render(); toast('Salvo'); croCascata([id]);
   }catch(err){toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
 }
 async function croGravar(id,upd){
   const t=S.crono.get(id); if(!t||S.ro) return;
   const ant=structuredClone(t), extra={atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{}),...(t.origem?{editadoLocal:true}:{})};
-  Object.assign(t,upd,extra); render();
-  try{await croColl().doc(id).update({...upd,...extra})}
+  Object.assign(t,upd,extra); if(croPred(t)){t.apos={id:t.apos.id,folga:croFolga(t)}; upd={...upd,apos:t.apos}} render();
+  try{await croColl().doc(id).update({...upd,...extra}); croCascata([id])}
   catch(err){S.crono.set(id,ant);render();toast(err?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar.')}
 }
 /* arrastar barras e marcos */
@@ -7885,7 +7934,19 @@ document.addEventListener('input',ev=>{
   else if(el.dataset.crr!=null) dr.resp[+el.dataset.crr][k]=v;
   else if(el.dataset.crl!=null) dr.legenda[+el.dataset.crl][k]=v;
 });
+document.addEventListener('change',ev=>{const el=ev.target, dr=CRO.dr; if(!dr||el.dataset?.cra==null||!el.closest?.('#croDr')) return;
+  const id=el.value; if(!id){dr.apos=null; croDrawer(); return}
+  dr.apos={id,folga:0}; const u=croAlinhar(dr,S.crono.get(id)); if(u) Object.assign(dr,u); croDrawer()});
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&CRO.dr&&!$('celPop')){CRO.dr=null;croDrawer()}});
+document.addEventListener('contextmenu',ev=>{
+  if(S.view?.t!=='cro'||S.ro) return; const el=ev.target.closest?.('#gtWrap .gt-b,#gtWrap .gt-mk,#gtWrap .gt-nm'); if(!el) return;
+  const t=S.crono.get(el.dataset.tid); if(!t) return; ev.preventDefault(); fecharMenuLinha();
+  const p=document.createElement('div'); p.id='menuLinha'; p.className='menu-linha'; p.setAttribute('role','menu');
+  p.innerHTML=`<div class="ml-h">${esc(t.nome||'Sem nome')}</div><button class="ml-b" role="menuitem" data-act="cro-apos" data-tid="${esc(t.id)}">${IC.plus}Novo item após este</button><button class="ml-b" role="menuitem" data-act="cro-abrir" data-tid="${esc(t.id)}">${IC.doc}Abrir ficha</button>`;
+  document.body.appendChild(p);
+  const w=p.offsetWidth,h=p.offsetHeight; p.style.left=Math.max(8,Math.min(ev.clientX,innerWidth-w-8))+'px'; p.style.top=Math.max(8,Math.min(ev.clientY,innerHeight-h-8))+'px';
+  p.querySelector('button')?.focus();
+});
 let croRsT=0; addEventListener('resize',()=>{clearTimeout(croRsT);croRsT=setTimeout(()=>{if(S.view.t==='cro'&&!crDrag) renderMain()},180)});
 /* zoom com a roda do mouse no gantt: Ctrl + roda em qualquer ponto (também o gesto de pinça do touchpad), ou a roda sobre a régua de datas.
    O dia sob o cursor fica parado; "Redefinir zoom" volta ao ajuste automático. */
@@ -7944,6 +8005,7 @@ async function croLoteAplicar(){
     if(d) u.marcos=(t.marcos||[]).map(m=>{const n=crN(m.data);return n==null?m:{...m,data:crS(n+d)}});
     return [t.id,u]});
   if(await croGravarLote(lista)) toast(`${lista.length} ite${lista.length>1?'ns':'m'} atualizado${lista.length>1?'s':''}`);
+  if(d){const fx=[...CRO.sel].map(id=>S.crono.get(id)).filter(t=>croPred(t)&&croFolga(t)!==(+t.apos.folga||0)).map(t=>[t.id,{apos:{id:t.apos.id,folga:croFolga(t)}}]); if(fx.length) await croGravarLote(fx); await croCascata([...CRO.sel])}
 }
 function croSelFaixa(id,marcar){
   const ids=[...document.querySelectorAll('.gt-ck[data-tid]')].map(e=>e.dataset.tid), i=ids.indexOf(id), j=ids.indexOf(CRO.ultSel);
@@ -7958,7 +8020,8 @@ async function croAcao(a,b,ev){
   else if(a==='cro-todos'){CRO.todos=b.checked;lsSet('fja.cro.todos',CRO.todos);renderMain()}
   else if(a==='cro-fase'){const f=b.dataset.f;CRO.fechadas.has(f)?CRO.fechadas.delete(f):CRO.fechadas.add(f);renderMain()}
   else if(a==='cro-abrir'&&!S.ro&&b.classList.contains('gt-nm')&&(ev?.shiftKey||ev?.ctrlKey||ev?.metaKey)){const id=b.dataset.tid; if(ev.shiftKey&&CRO.ultSel) croSelFaixa(id,true); else CRO.sel.has(id)?CRO.sel.delete(id):CRO.sel.add(id); CRO.ultSel=id; document.getSelection()?.removeAllRanges(); renderMain()}
-  else if(a==='cro-abrir'){const t=S.crono.get(b.dataset.tid); if(t){CRO.dr={tipo:'item',...structuredClone(t)};croDrawer()}}
+  else if(a==='cro-apos'){fecharMenuLinha(); croNovoApos(S.crono.get(b.dataset.tid))}
+  else if(a==='cro-abrir'){fecharMenuLinha(); const t=S.crono.get(b.dataset.tid); if(t){CRO.dr={tipo:'item',...structuredClone(t)};croDrawer()}}
   else if(a==='cro-novo'){if(!S.ro) croNovo(b.dataset.id,!!b.dataset.marco)}
   else if(a==='cro-cfg'){const c=croCfg(b.dataset.id);CRO.dr={tipo:'cfg',projeto:b.dataset.id,resp:structuredClone(c.resp),legenda:structuredClone(c.legenda)};croDrawer()}
   else if(a==='cro-fechar'){CRO.dr=null;croDrawer()}
@@ -7973,7 +8036,7 @@ async function croAcao(a,b,ev){
   else if(a==='cro-dup'&&dr&&!dr.novo){const c=structuredClone(dr);delete c.id;delete c.origem;delete c.editadoLocal;c.novo=true;c.ordem=(+dr.ordem||0)+1;c.nome=(dr.nome||'')+' (cópia)';CRO.dr=c;croDrawer()}
   else if(a==='cro-excluir'&&dr&&!dr.novo){
     if(!b.classList.contains('armed')){b.classList.add('armed');b.innerHTML=IC.trash+'Confirmar exclusão';setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.innerHTML=IC.trash+'Excluir'}},4000);return}
-    if(!podeExcluir(S.crono.get(dr.id))) return avisoExcluir();try{await croColl().doc(dr.id).delete();S.crono.delete(dr.id);CRO.dr=null;croDrawer();render();toast('Item excluído')}catch{toast('Não foi possível excluir.')}}
+    if(!podeExcluir(S.crono.get(dr.id))) return avisoExcluir();try{await croColl().doc(dr.id).delete();S.crono.delete(dr.id);CRO.dr=null;croDrawer();render();toast('Item excluído'); const suc=[...S.crono.values()].filter(o=>o.apos?.id===dr.id); if(suc.length) croGravarLote(suc.map(o=>[o.id,{apos:null}]))}catch{toast('Não foi possível excluir.')}}
   else if(a==='cro-cfg-salvar'&&dr){
     const it=S.itens.get(dr.projeto); if(!it||S.ro) return;
     const c={...(it.crono||{}),resp:dr.resp.filter(r=>String(r.nome).trim()).map(r=>({nome:String(r.nome).trim(),cor:HEX(r.cor)?r.cor:'#a3abb5'})),legenda:dr.legenda.filter(l=>String(l.cod).trim()).map(l=>({cod:String(l.cod).trim(),desc:String(l.desc||'').trim(),principal:!!l.principal}))};
