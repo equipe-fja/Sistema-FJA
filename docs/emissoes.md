@@ -43,6 +43,8 @@ Decisões da FJA em 24/11/2026:
 - O registro só acontece com a opção **"Registrar emissão no sistema"** marcada (o Exportar também serve para conferência e impressão interna).
 - **Pasta da emissão = a pasta usada naquela exportação** (a escolhida, com ou sem a pasta nova datada); varia caso a caso e cada emissão guarda a sua (`pasta.caminho` no G:). Não há pasta de emissões fixa para as exportações do Revit.
 - **Só a pasta compartilhada é fixa** no projeto (`emisCompart`), e ela tem **subpastas por disciplina**: ao emitir, cada arquivo vai para a subpasta da sua disciplina (SUBSTITUÍDOS e conferência de revisão dentro dela) — mudança no `emPlanoCompart`/`emExecutarCompart`.
+  - Nome da subpasta = **nome completo da disciplina** (ex.: `ARQUITETURA`; `discNome(cod)`). A subpasta existente é reconhecida sem diferenciar maiúsculas e acentos; se não existir, é criada com o nome da disciplina em maiúsculas.
+  - Arquivo sem disciplina identificada: fica na raiz da compartilhada e a emissão avisa na prévia.
 
 Como vai funcionar (proposta técnica):
 - Acesso direto ao Firestore pelo login da equipe que a suíte já guarda (`%APPDATA%\FJA\nuvem.json`; `Nucleo/Nuvem.cs`). As regras já permitem à equipe ler `itens`/`rdoc`/`pend` e criar/atualizar `emis`.
