@@ -5,7 +5,7 @@ Registro das emissões de arquivos de cada projeto (Projeto › Emissões). Deci
 ## Decisões
 - **Local:** dentro de cada projeto, ao lado de Relação de documentos, Atas e Croquis.
 - **Obrigatório:** só data e descrição. Destinatários e arquivos são opcionais.
-- **Subpasta da emissão:** criada dentro da pasta de emissões do projeto, com o nome `AA-MM-DD Descrição` (ano com 2 dígitos, espaço depois da data; caracteres inválidos no Windows viram espaço). Ex.: `26-11-24 Projeto básico - entrega ao contratante`.
+- **Subpasta da emissão:** criada dentro da pasta de emissões do projeto, com o nome `AA-MM-DD EMISSÃO - Descrição` (ano com 2 dígitos; "EMISSÃO -" incluído a pedido da FJA em 24/11/2026, sem repetir se a descrição já começar com ele; caracteres inválidos no Windows viram espaço). Ex.: `26-11-24 EMISSÃO - Projeto básico - entrega ao contratante`.
 - **Destinatários:** opcionais; escolhidos da lista de envolvidos do projeto (`envolvidos(pid)`). "+ Novo" cadastra um envolvido só no projeto (nome, empresa, e-mail), com o botão "Enviar ao cadastro geral" (cria o parceiro no catálogo, conferindo se já existe um com o mesmo nome).
 - **Arquivos:** enviados do computador (arrastar ou escolher). Na versão Firebase (homologação e oficial), envio em partes (resumable upload do Drive), sem limite prático de tamanho, com progresso e retomada. A dev do Claude fica com o limite do conector.
 - **Pasta compartilhada (opcional):** ao emitir, duplica os arquivos para a pasta escolhida. Os arquivos correspondentes com revisão anterior vão para a subpasta `SUBSTITUÍDOS` (criada se não existir).

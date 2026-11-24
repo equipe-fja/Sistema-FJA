@@ -4466,7 +4466,8 @@ const ST_EM=['Rascunho','Emitida','Conferir'];
 const EM={timer:null,pend:null,subindo:0,prog:new Map()};
 const emAtual=()=>{const id=$('emEd')?.dataset.eid; return id?S.emis.get(id):null};
 // subpasta da emissão: "AA-MM-DD Descrição" (decisão da FJA em 24/11/2026)
-const pastaEm=e=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(e.data||'');return `${m?m[3].slice(2)+'-'+m[2]+'-'+m[1]:'00-00-00'} ${slugPasta(e.descricao)||'emissao'}`};
+// "AA-MM-DD EMISSÃO - Descrição" (pedido da FJA em 24/11/2026); não repete o prefixo se a descrição já começar com ele
+const pastaEm=e=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(e.data||''), d=slugPasta(e.descricao).replace(/^EMISS[ÃA]O\s*-\s*/i,'');return `${m?m[3].slice(2)+'-'+m[2]+'-'+m[1]:'00-00-00'} EMISSÃO - ${d||'sem descrição'}`};
 // nome do arquivo → {base (sem revisão e sem extensão), rev ('R02' ou ''), ext}
 const partesArqEm=nome=>{const n=String(nome||''), mx=/\.([a-z0-9]{1,6})$/i.exec(n), ext=mx?mx[1].toUpperCase():'', sem=mx?n.slice(0,-mx[0].length):n;
   const mr=/^(.*?)[_\-\s]R(\d{1,3})$/i.exec(sem); return mr?{base:mr[1],rev:'R'+mr[2].padStart(2,'0'),ext}:{base:sem,rev:'',ext}};
