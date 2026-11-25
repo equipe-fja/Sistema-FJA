@@ -3,7 +3,8 @@
 Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact oficial; devNN = versão correspondente da desenvolvimento). Datas em 2026.
 
 ## Em desenvolvimento (ainda não publicado na oficial)
-- (nada)
+- Emissões: emissão emitida fica travada; "Voltar para rascunho" pede o motivo e grava no histórico; "Pastas existentes" entram como Rascunho (commit 4f5184d).
+- Extensão do Revit 2.39.0 (antes 2.38.0): Pranchas › Exportar, na regra do nome do arquivo, botão **+ texto** para acrescentar textos fixos além dos parâmetros (arrastáveis como as demais linhas; gravados com a regra no modelo).
 
 ## oficial Firebase — 24/11, ~18h40 — commit 83df833
 - Emissões: "Pastas existentes" abre sempre o Explorer (Conexão com PC), sem pedir link do Drive.

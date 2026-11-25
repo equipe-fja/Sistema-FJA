@@ -331,6 +331,8 @@ namespace FJA.Revit.Pranchas
         }
 
         const string FORMATO_PARTE = "FJA.ParteNome";
+        /// <summary>Texto fixo recém-acrescentado: recebe o foco quando a regra é remontada.</summary>
+        ParteNome focar;
 
         /// <summary>Editor da regra: uma linha por parâmetro (arrastar pela linha para reordenar, ✕ para tirar),
         /// "+ parâmetro", separador e padrão.</summary>
@@ -350,7 +352,20 @@ namespace FJA.Revit.Pranchas
                 var alca = new TextBlock { Text = "⋮⋮", Foreground = P("Fraco", 143, 143, 140), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
                 DockPanel.SetDock(alca, Dock.Left);
                 lin.Children.Add(alca);
-                lin.Children.Add(new TextBlock { Text = p.Param, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = p.Param });
+                if (p.Fixo)
+                {
+                    // texto fixo (2.39.0): digitado na própria linha; o nome das pranchas se atualiza a cada tecla
+                    var rot = new TextBlock { Text = "Texto", FontSize = 11, Foreground = P("Fraco", 143, 143, 140), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+                    DockPanel.SetDock(rot, Dock.Left);
+                    lin.Children.Add(rot);
+                    var tx = new TextBox { Text = p.Texto, Cursor = Cursors.IBeam, Margin = new Thickness(0, 0, 4, 0), VerticalContentAlignment = VerticalAlignment.Center,
+                                           ToolTip = "Texto fixo, igual em todas as pranchas (vazio = não entra no nome)" };
+                    tx.TextChanged += (s, a) => { p.Texto = tx.Text ?? ""; MudouRegra(false); };
+                    lin.Children.Add(tx);
+                    if (ReferenceEquals(p, focar)) { focar = null; Dispatcher.BeginInvoke(new Action(() => { tx.Focus(); Keyboard.Focus(tx); })); }
+                }
+                else
+                    lin.Children.Add(new TextBlock { Text = p.Param, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = p.Param });
 
                 // arrastar: começa depois de mover alguns pixels com o botão apertado (fora do ✕)
                 Point? ini = null;
@@ -389,6 +404,20 @@ namespace FJA.Revit.Pranchas
             txSep.TextChanged += (s, a) => { regra.Sep = txSep.Text ?? ""; MudouRegra(false); };
             DockPanel.SetDock(txSep, Dock.Left);
             rod.Children.Add(txSep);
+            var btTexto = Estilo.Botao(this, "+ texto", "Discreto");
+            btTexto.Padding = new Thickness(8, 2, 8, 2);
+            btTexto.Margin = new Thickness(0, 0, 6, 0);
+            btTexto.ToolTip = "Acrescentar um texto fixo ao nome (igual em todas as pranchas)";
+            btTexto.Click += (s, a) =>
+            {
+                var n = new ParteNome { Texto = "" };
+                int pos = regra.Partes.FindIndex(x => x.Param == NomeArquivo.SheetNumber);
+                regra.Partes.Insert(pos >= 0 ? pos : regra.Partes.Count, n);
+                focar = n;
+                MudouRegra();
+            };
+            DockPanel.SetDock(btTexto, Dock.Right);
+            rod.Children.Add(btTexto);
             var cbAdd = new ComboBox { ToolTip = "Acrescentar parâmetro (da folha ou das informações do projeto)" };
             cbAdd.Items.Add("+ parâmetro");
             foreach (var n in disponiveis.Where(n => !regra.Partes.Any(x => string.Equals(x.Param, n, StringComparison.OrdinalIgnoreCase)))) cbAdd.Items.Add(n);
@@ -409,7 +438,7 @@ namespace FJA.Revit.Pranchas
         static bool EmBotao(DependencyObject d)
         {
             for (; d != null; d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
-                if (d is Button) return true;
+                if (d is Button || d is TextBox) return true;   // clicar no ✕ ou digitar no texto fixo não arrasta
             return false;
         }
 

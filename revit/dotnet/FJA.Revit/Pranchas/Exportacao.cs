@@ -21,11 +21,14 @@ namespace FJA.Revit.Pranchas
         public bool Valida => !string.IsNullOrEmpty(Arquivo);
     }
 
-    /// <summary>Uma parte do nome: o parâmetro (em branco na folha = sai do nome).</summary>
+    /// <summary>Uma parte do nome: um parâmetro (em branco na folha = sai do nome) ou um texto fixo (2.39.0).</summary>
     public sealed class ParteNome
     {
         public string Param;
-        public ParteNome Copia() => new ParteNome { Param = Param };
+        /// <summary>Texto fixo digitado na regra; null = a parte é um parâmetro.</summary>
+        public string Texto;
+        public bool Fixo => Texto != null;
+        public ParteNome Copia() => new ParteNome { Param = Param, Texto = Texto };
     }
 
     /// <summary>
@@ -60,7 +63,8 @@ namespace FJA.Revit.Pranchas
             return Json.Gravar(new Dictionary<string, object>
             {
                 ["sep"] = Sep,
-                ["partes"] = Partes.Select(p => (object)new Dictionary<string, object> { ["p"] = p.Param }).ToList(),
+                ["partes"] = Partes.Select(p => (object)(p.Fixo ? new Dictionary<string, object> { ["t"] = p.Texto }
+                                                          : new Dictionary<string, object> { ["p"] = p.Param })).ToList(),
             });
         }
 
@@ -69,8 +73,11 @@ namespace FJA.Revit.Pranchas
             var d = Json.LerObjeto(s);
             var r = new RegraNome { Sep = d.Txt("sep") ?? "-" };
             foreach (var x in d.Lista("partes") ?? new List<object>())
-                if (x is Dictionary<string, object> pd && !string.IsNullOrWhiteSpace(pd.Txt("p")))
-                    r.Partes.Add(new ParteNome { Param = pd.Txt("p") });
+            {
+                if (!(x is Dictionary<string, object> pd)) continue;
+                if (pd.ContainsKey("t")) r.Partes.Add(new ParteNome { Texto = pd.Txt("t") ?? "" });
+                else if (!string.IsNullOrWhiteSpace(pd.Txt("p"))) r.Partes.Add(new ParteNome { Param = pd.Txt("p") });
+            }
             return r.Partes.Count > 0 ? r : null;
         }
 
@@ -151,6 +158,8 @@ namespace FJA.Revit.Pranchas
             var partes = new List<string>();
             foreach (var p in regra.Partes)
             {
+                // texto fixo: entra como digitado (vazio = ignorado, sem aviso)
+                if (p.Fixo) { if (!string.IsNullOrWhiteSpace(p.Texto)) partes.Add(p.Texto.Trim()); continue; }
                 string v = Valor(doc, l.Folha, p.Param);
                 // todos os parâmetros são opcionais (decisão da FJA, 23/11/2026): em branco sai do nome e é avisado ao exportar
                 if (!string.IsNullOrWhiteSpace(v)) partes.Add(v.Trim());
