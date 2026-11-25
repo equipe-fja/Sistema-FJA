@@ -4474,6 +4474,22 @@ const partesArqEm=nome=>{const n=String(nome||''), mx=/\.([a-z0-9]{1,6})$/i.exec
 const revNum=r=>{const m=/^R(\d+)$/i.exec(r||''); return m?+m[1]:-1};
 const TOM_EM={'Rascunho':'off','Emitida':'at','Conferir':'warn'};
 const stEm=e=>{const s=e.status||'Rascunho'; return `<span class="st-cm st-${TOM_EM[s]||'off'}">${esc(s)}</span>`};
+/* emissão emitida (Emitida ou Conferir) fica travada: para alterar, volta para rascunho, com registro no histórico
+   (decisão da FJA, 24/11/2026) */
+const emTravada=e=>S.ro||!!(e?.status&&e.status!=='Rascunho');
+const MSG_TRAVADA='Emissão emitida: para alterar, use "Voltar para rascunho".';
+function emHist(e,acao,extra={}){(e.historico=e.historico||[]).push({acao,em:Date.now(),...(me?{por:me}:{}),...(S.meuNome?{porNome:S.meuNome}:{}),...extra})}
+function emHistHTML(e){
+  const H=[...(e.historico||[])].reverse(); if(!H.length) return '';
+  const rot={emitida:'Emitida',rascunho:'Voltou para rascunho',conferir:'Emitida (a conferir)'};
+  return `<section class="sheet"><div class="sheet-h"><h2>Histórico</h2><span class="hint">${H.length}</span></div><div class="tablewrap"><table class="list"><tbody>${H.map(h=>`<tr style="cursor:default"><td class="mono num">${esc(new Date(h.em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}))}</td><td><b>${esc(rot[h.acao]||h.acao)}</b>${h.motivo?` · ${esc(h.motivo)}`:''}</td><td class="muted">${esc(h.porNome||'')}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+async function emVoltarRascunho(e){
+  if(S.ro||!emTravada(e)) return;
+  const m=await pedirNome({titulo:`Voltar ${numEm(e.num)} para rascunho`,padrao:'',pasta:'',rotulo:'Motivo (fica registrado no histórico da emissão)',ok:'Voltar para rascunho',bruto:true}); if(m==null) return;
+  if(!String(m).trim()){toast('Escreva o motivo.');return}
+  emHist(e,'rascunho',{de:e.status,motivo:String(m).trim()}); e.status='Rascunho'; emMudou(true); toast(numEm(e.num)+' voltou para rascunho');
+}
 const destEm=e=>(e.destinatarios||[]).map(d=>d.nome).filter(Boolean);
 const tiposEm=e=>[...new Set((e.arquivos||[]).map(a=>extDe(a.nome)).filter(Boolean))];
 const EM_TCOLS=[
@@ -4520,9 +4536,10 @@ async function novaEm(pid){
     ...(it?.emisCompart?{compart:{...it.emisCompart,usar:true}}:{}),criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
   try{await emisColl().doc(id).set(body); const e={...body,id}; S.emis.set(id,e); lembrarRolagemLista(); ir({t:'emisi',id:pid,eid:id}); return e}catch{toast('Não foi possível criar a emissão');return null}
 }
-/* emissões retroativas (decisão da FJA, 24/11/2026): a partir de pastas existentes "AA-MM-DD …". Entram como Emitidas na
-   data da pasta, sem copiar para a compartilhada; os arquivos da pasta (e das subpastas imediatas, como PDF/DWG, menos
-   SUBSTITUÍDOS) já ligados ao Drive. Opção "Atualizar a RD": só onde a emissão for mais recente que a RD. */
+/* emissões retroativas (decisões da FJA, 24 e 25/11/2026): a partir de pastas existentes "AA-MM-DD …". Entram como
+   Rascunho com a data da pasta; os arquivos da pasta (e das subpastas imediatas, como PDF/DWG, menos SUBSTITUÍDOS) já
+   ligados ao Drive. Ao emitir: sem pasta compartilhada (a não ser que se escolha uma) e a RD só muda onde a emissão for
+   mais recente que o que já está lá. */
 const RX_PASTA_EM=/^(\d{2})-(\d{2})-(\d{2})\s+(.+)$/;
 function partesPastaEm(nome){const m=RX_PASTA_EM.exec(String(nome||'').trim()); if(!m) return null;
   const desc=m[4].replace(/^EMISS[ÃA]O\s*-\s*/i,'').trim(); return {data:`${m[3]}/${m[2]}/20${m[1]}`,descricao:desc||m[4].trim()}}
@@ -4545,7 +4562,7 @@ async function emRetro(pid){
   const esc1=await emRetroEscolher(cands,ja); if(!esc1) return;
   let n=0;
   for(const c of esc1.pastas){
-    try{toast('Registrando '+c.title+'…'); const e=await emRetroCriar(pid,c,esc1.rd); if(e) n++}
+    try{toast('Registrando '+c.title+'…'); const e=await emRetroCriar(pid,c); if(e) n++}
     catch(x){console.error(x); toast('Não foi possível registrar '+c.title+': '+(x?.message||'erro'))}
   }
   if(n){toast(n+(n>1?' emissões retroativas registradas':' emissão retroativa registrada')); render()}
@@ -4558,7 +4575,6 @@ function emRetroEscolher(cands,ja){
     d.innerHTML=`<form class="pc-caixa" id="retroForm" role="dialog" aria-modal="true" aria-labelledby="retroT" style="max-width:640px"><h2 id="retroT">Emissões de pastas existentes</h2>
       <div style="max-height:46vh;overflow:auto;margin:6px 0 10px">${cands.map((c,i)=>{const p=partesPastaEm(c.title), j=ja.has(c.id);
         return `<label class="em-chk" style="display:flex;gap:8px;align-items:baseline;padding:3px 0"><input type="checkbox" data-i="${i}" ${j?'':'checked'}><span class="mono" style="font-size:12.5px">${esc(c.title)}</span>${j?'<span class="muted" style="font-size:12px">(já registrada)</span>':''}<span class="muted" style="font-size:12px;margin-left:auto">${esc(p.data)}</span></label>`}).join('')}</div>
-      <label class="em-chk"><input type="checkbox" id="retroRd"> Atualizar a RD (só onde esta emissão for mais recente)</label>
       <div class="pc-acts" style="gap:8px"><button type="button" class="btn ghost" id="retroNao">Cancelar</button><button type="submit" class="btn pri" id="retroSim">Registrar</button></div></form>`;
     document.body.appendChild(d);
     const fim=v=>{d.remove(); document.removeEventListener('keydown',tec,true); res(v)};
@@ -4566,28 +4582,23 @@ function emRetroEscolher(cands,ja){
     document.addEventListener('keydown',tec,true);
     $('retroNao').onclick=()=>fim(null);
     $('retroForm').onsubmit=ev=>{ev.preventDefault(); const p=[...d.querySelectorAll('input[data-i]:checked')].map(x=>cands[+x.dataset.i]);
-      if(!p.length){toast('Marque ao menos uma pasta.');return} fim({pastas:p,rd:$('retroRd').checked})};
+      if(!p.length){toast('Marque ao menos uma pasta.');return} fim({pastas:p})};
   });
 }
-async function emRetroCriar(pid,c,atualizarRd){
+async function emRetroCriar(pid,c){
   const pp=partesPastaEm(c.title); if(!pp) return null;
   // arquivos: os da pasta e os das subpastas imediatas (ex.: PDF, DWG), menos SUBSTITUÍDOS
   const fs=[...await listarPastaDrive(c.id,false)];
   for(const s of await listarPastaDrive(c.id,true)) if(nrm(s.title)!==nrm(SUBST)) fs.push(...await listarPastaDrive(s.id,false));
   const arquivos=fs.map(f=>{const p=partesArqEm(f.title); return {nome:f.title,base:p.base,rev:p.rev,ext:p.ext,tamanho:+(f.fileSize||f.size||0)||0,mime:f.mimeType||'',driveId:f.id}});
   let n=emisDe(pid).reduce((m,e)=>Math.max(m,+e.num||0),0)+1; while(S.emis.has(`${pid}__em${String(n).padStart(3,'0')}`)) n++;
-  const id=`${pid}__em${String(n).padStart(3,'0')}`, dn=dataNum(pp.data), quando=dn?new Date(Math.floor(dn/10000),Math.floor(dn/100)%100-1,dn%100,12).getTime():Date.now();
-  const e={projeto:pid,num:n,data:pp.data,descricao:pp.descricao,status:'Emitida',destinatarios:[],obs:'',arquivos,
+  const id=`${pid}__em${String(n).padStart(3,'0')}`;
+  const e={projeto:pid,num:n,data:pp.data,descricao:pp.descricao,status:'Rascunho',destinatarios:[],obs:'',arquivos,
     pasta:{id:c.id,nome:c.title,url:`https://drive.google.com/drive/folders/${c.id}`,...(c.caminho?{caminho:c.caminho}:{})},
-    retroativa:true,emitidaEm:quando,criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me,emitidaPor:me}:{})};
+    retroativa:true,criadoEm:Date.now(),atualizadoEm:Date.now(),...(me?{criadoPor:me}:{})};
   e.disciplinas=discsDetectadas(e);
-  // liga cada arquivo ao documento da RD (histórico); com a opção, atualiza a RD onde esta emissão é mais recente
+  // liga cada arquivo ao documento da RD (histórico de revisões, quando a emissão for emitida)
   for(const a of e.arquivos){const d=rdEm(pid,a.nome); if(d) a.rdoc=d.id}
-  if(atualizarRd){
-    const P=emPlanoRd(e).filter(x=>{const d=x.d, rr=revNum(x.rev), rd=revNum(d.revisao);
-      return rr>rd||(rr===rd&&(!dataNum(d.emissao)||dataNum(e.data)>dataNum(d.emissao)))});
-    await emAtualizarRd(e,P);
-  }
   await emisColl().doc(id).set(e); S.emis.set(id,{...e,id}); return e;
 }
 // lista de quem pode receber: envolvidos do projeto (parceiros das disciplinas, equipe, responsáveis) + cadastrados só no projeto
@@ -4598,7 +4609,7 @@ const envolvidosEm=pid=>{const it=S.itens.get(pid), m=new Map();
 function telaEmItem(h,v){
   const it=S.itens.get(v.id), e=S.emis.get(v.eid); if(!it||!e) return h+`<div class="page"><h1>Emissão não encontrada</h1></div>`;
   if(emPrecisaLigar(e)) setTimeout(()=>emLigarAoAbrir(e),0);
-  const nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome, ro=S.ro?'disabled':'', D=e.destinatarios||[], A=e.arquivos||[];
+  const nomeP=(it.campos?.codigo?it.campos.codigo+' ':'')+it.nome, trav=emTravada(e), ro=trav?'disabled':'', D=e.destinatarios||[], A=e.arquivos||[];
   const ja=new Set(D.map(d=>d.nome.toLowerCase())), ops=envolvidosEm(it.id).filter(d=>!ja.has(d.nome.toLowerCase()));
   h+=`<div class="page em-ed" id="emEd" data-eid="${esc(e.id)}"><div class="crumb"><button data-act="secao" data-sec="projetos">Projetos</button><span>/</span><button data-act="item" data-id="${esc(it.id)}">${esc(nomeP)}</button><span>/</span><button data-act="emis" data-id="${esc(it.id)}">Emissões</button><span>/</span><span>${esc(numEm(e.num))}</span></div>
   <div class="ata-top"><div><h1 style="margin-bottom:4px">${esc(e.descricao||'Emissão')}</h1><p class="lead mono" style="margin:0">${esc(numEm(e.num))} · ${esc(e.pasta?.caminho?e.pasta.caminho.split('\\').pop():pastaEm(e))} &nbsp;${stEm(e)}</p></div>
@@ -4609,20 +4620,21 @@ function telaEmItem(h,v){
     <label class="fl wide">Observações<textarea class="fld" rows="2" data-em="obs" ${ro}>${esc(e.obs||'')}</textarea></label></div></section>
   ${emDiscHTML(e)}
   <section class="sheet"><div class="sheet-h"><h2>Destinatários</h2><span class="hint">${D.length||'opcional'}</span></div>
-    <div class="em-dest">${D.map((d,i)=>`<span class="em-chip" title="${esc([d.empresa,d.email].filter(Boolean).join(' · '))}">${esc(d.nome)}${S.ro||emNoGeral(e.projeto,d.nome)?'':`<button class="lk em-geral" data-act="em-dest-geral" data-n="${esc(d.nome)}" title="Cadastrado só neste projeto: enviar ao cadastro geral de Parceiros" aria-label="Enviar ao cadastro geral">↗</button>`}${S.ro?'':`<button class="lk" data-act="em-dest-rm" data-i="${i}" title="Tirar ${esc(d.nome)}" aria-label="Tirar ${esc(d.nome)}">${IC.x}</button>`}</span>`).join('')||(S.ro?'<span class="muted">Nenhum</span>':'')}
-    ${S.ro?'':`<select class="fld em-dest-sel" id="emDestSel" aria-label="Adicionar destinatário"><option value="">+ Adicionar destinatário…</option>${ops.map(d=>`<option value="${esc(d.nome)}">${esc(d.nome)}${d.empresa?' · '+esc(d.empresa):''}</option>`).join('')}</select><button class="btn sm ghost" data-act="em-dest-novo" title="Cadastrar um envolvido só neste projeto">${IC.plus}Novo</button>`}</div>${!S.ro&&D.some(d=>!emNoGeral(e.projeto,d.nome))?'<p class="cq-dica" style="text-align:left;margin:2px 0 6px">↗ = cadastrado só neste projeto; clique para enviar ao cadastro geral de Parceiros.</p>':''}</section>
+    <div class="em-dest">${D.map((d,i)=>`<span class="em-chip" title="${esc([d.empresa,d.email].filter(Boolean).join(' · '))}">${esc(d.nome)}${S.ro||emNoGeral(e.projeto,d.nome)?'':`<button class="lk em-geral" data-act="em-dest-geral" data-n="${esc(d.nome)}" title="Cadastrado só neste projeto: enviar ao cadastro geral de Parceiros" aria-label="Enviar ao cadastro geral">↗</button>`}${trav?'':`<button class="lk" data-act="em-dest-rm" data-i="${i}" title="Tirar ${esc(d.nome)}" aria-label="Tirar ${esc(d.nome)}">${IC.x}</button>`}</span>`).join('')||(trav?'<span class="muted">Nenhum</span>':'')}
+    ${trav?'':`<select class="fld em-dest-sel" id="emDestSel" aria-label="Adicionar destinatário"><option value="">+ Adicionar destinatário…</option>${ops.map(d=>`<option value="${esc(d.nome)}">${esc(d.nome)}${d.empresa?' · '+esc(d.empresa):''}</option>`).join('')}</select><button class="btn sm ghost" data-act="em-dest-novo" title="Cadastrar um envolvido só neste projeto">${IC.plus}Novo</button>`}</div>${!trav&&D.some(d=>!emNoGeral(e.projeto,d.nome))?'<p class="cq-dica" style="text-align:left;margin:2px 0 6px">↗ = cadastrado só neste projeto; clique para enviar ao cadastro geral de Parceiros.</p>':''}</section>
   ${emArqsHTML(e)}
   ${emCompartHTML(e)}
-  ${S.ro?'':`<div class="esp-bar"><span style="flex:1"></span><button class="btn danger sm" data-act="em-del">${IC.trash}Excluir emissão</button>${!e.status||e.status==='Rascunho'?`<button class="btn pri sm" data-act="em-emitir">Emitir</button>`:''}</div>`}
+  ${emHistHTML(e)}${S.ro?'':`<div class="esp-bar"><span style="flex:1"></span>${trav?`<button class="btn sm" data-act="em-voltar" title="A emissão emitida não pode ser alterada; voltar para rascunho fica registrado no histórico">Voltar para rascunho</button>`:`<button class="btn danger sm" data-act="em-del">${IC.trash}Excluir emissão</button><button class="btn pri sm" data-act="em-emitir">Emitir</button>`}</div>`}
   <div class="foot-meta">${e.atualizadoEm?`Atualizado em ${fmtData(e.atualizadoEm)} · salvo automaticamente`:''}</div></div>`;
   return h;
 }
 function emMudou(re){const e=emAtual(); if(!e||S.ro) return; e.atualizadoEm=Date.now(); EM.pend=e.id; clearTimeout(EM.timer); EM.timer=setTimeout(emGravar,700); if(re) renderMain()}
 async function emGravar(){const id=EM.pend; EM.pend=null; const e=S.emis.get(id); if(!e) return; const b={...e}; delete b.id; if(me) b.atualizadoPor=me;
   try{await emisColl().doc(id).set(b)}catch(x){toast(x?.code==='invalid_argument'?'Você não tem permissão para editar':'Não foi possível salvar a emissão')}}
-document.addEventListener('input',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||!t.dataset.em||S.ro) return; const e=emAtual(); if(!e) return;
+document.addEventListener('input',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||!t.dataset.em||S.ro) return; const e=emAtual(); if(!e||emTravada(e)) return;
   e[t.dataset.em]=t.type==='date'?dBr(t.value):t.value; emMudou(false)});
 document.addEventListener('change',ev=>{const t=ev.target; if(!t.closest?.('#emEd')||S.ro) return; const e=emAtual(); if(!e) return;
+  if(emTravada(e)){if(t.id==='emFile') t.value=''; toast(MSG_TRAVADA); return}
   if(t.id==='emCompUsar'){if(e.compart) e.compart.usar=t.checked; emMudou(false); return}
   if(t.id==='emDiscIn'){const v=t.value; if(v&&!discsEm(e).includes(v)){e.disciplinas=[...discsEm(e),v]; e.discAuto=false; emMudou(true)} return}
   if(t.id==='emFile'){if(t.files?.length) emAdicionar(e,[...t.files]); t.value=''; return}
@@ -4635,6 +4647,9 @@ async function emAcao(a0,b){
   if(a0==='em-pasta'){escolherPastaProj(b.dataset.id,'emisPasta','Escolha a pasta onde ficarão as emissões do projeto (cada emissão ganha uma subpasta datada)','');return}
   if(a0==='em-compart'){escolherPastaProj(b.dataset.id,'emisCompart','Escolha a pasta compartilhada (a que o cliente ou os parceiros veem)','');return}
   const e=emAtual(); if(!e||S.ro) return;
+  if(a0==='em-voltar'){await emVoltarRascunho(e); return}
+  // emissão emitida: só o que não altera os dados (copiar de novo os pendentes, enviar envolvido ao cadastro geral)
+  if(emTravada(e)&&!['em-recopiar','em-dest-geral'].includes(a0)){toast(MSG_TRAVADA); return}
   if(a0==='em-dest-rm'){e.destinatarios.splice(+b.dataset.i,1); emMudou(true); return}
   if(a0==='em-emitir'){await emEmitir(e); return}
   if(a0==='em-disc-rm'){e.disciplinas=discsEm(e).filter((x,i)=>i!==+b.dataset.i); e.discAuto=false; emMudou(true); return}
@@ -4675,7 +4690,7 @@ function emProg(n){const p=EM.prog.get(n), el=document.querySelector(`[data-prog
   const pc=p.t?Math.floor(p.n/p.t*100):0; el.querySelector('i').style.width=pc+'%'; el.querySelector('.em-pct').textContent=pc+'% · '+(tamTxt(p.n)||'0 MB')+' de '+tamTxt(p.t)}
 async function emAdicionar(e,files){
   if(S.ro||!files.length) return;
-  if(e.status&&e.status!=='Rascunho'&&!await confirmar(`${numEm(e.num)} já foi emitida. Acrescentar ${files.length>1?'os arquivos':'o arquivo'} mesmo assim?`,{ok:'Acrescentar'})) return;
+  if(emTravada(e)){toast(MSG_TRAVADA); return}
   let pasta=null; try{pasta=await emPastaDrive(e)}catch(x){toast(x?.message||'Não foi possível criar a pasta no Drive')} if(!pasta) return;
   const grande=window.FJA_GOOGLE?.enviar; let ok=0;
   for(const f of files){
@@ -4701,7 +4716,7 @@ async function emAdicionar(e,files){
 }
 addEventListener('beforeunload',ev=>{if(EM.subindo){ev.preventDefault(); ev.returnValue=''}});
 function emArqsHTML(e){
-  const A=e.arquivos||[], P=[...EM.prog.entries()], ro=S.ro;
+  const A=e.arquivos||[], P=[...EM.prog.entries()], ro=emTravada(e);
   const lin=a=>{const d=a.rdoc&&S.rdocs.get(a.rdoc)||rdEm(e.projeto,a.nome);
     return `<tr><td class="mono">${a.driveId?`<a href="https://drive.google.com/file/d/${esc(a.driveId)}/view" target="_blank" rel="noopener">${esc(a.nome)}</a>`:esc(a.nome)}</td><td class="mono">${esc(a.rev||'')}</td><td class="mono muted">${esc(a.ext||extDe(a.nome))}</td><td class="r mono muted">${esc(tamTxt(a.tamanho))}</td>
     <td>${d?`<button class="lk mono" data-act="rd-abrir" data-id="${esc(e.projeto)}" data-eid="${esc(d.id)}" title="Abrir na Relação de documentos">${esc(arquivoRd(d))}</button>`:'<span class="muted">fora da RD</span>'}</td>
@@ -4832,7 +4847,9 @@ async function emEmitir(e){
   if(semDrive.length&&!await confirmar(`Ainda não estão no Google Drive (não vão para a pasta compartilhada):\n${semDrive.map(n=>'• '+n).join('\n')}\n\nContinuar mesmo assim?`,{ok:'Continuar'})) return;
   const usar=temMover()&&e.compart?.id&&e.compart.usar!==false&&A.length;
   let plano=null; if(usar){msg('Lendo a pasta compartilhada…'); try{plano=await emPlanoCompart(e)}catch(x){msg(''); toast('Não foi possível ler a pasta compartilhada: '+(x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive')));return} msg('')}
-  const P=emPlanoRd(e);
+  // emissão retroativa (de pasta existente): a RD só muda onde esta emissão é mais recente que o que já está lá
+  const P=e.retroativa?emPlanoRd(e).filter(x=>{const d=x.d, rr=revNum(x.rev), rd=revNum(d.revisao);
+    return rr>rd||(rr===rd&&(!dataNum(d.emissao)||dataNum(e.data)>dataNum(d.emissao)))}):emPlanoRd(e);
   let txt=`Emitir ${numEm(e.num)} · ${e.data}\n${e.descricao}\n\n${A.length?A.length+' arquivo'+(A.length>1?'s':''):'Sem arquivos'}${destEm(e).length?'\nPara: '+destEm(e).join(', '):''}`+txtPlano(plano)+txtPlanoRd(e,P);
   if(av.length) txt+=`\n\nAtenção, pranchas sem PDF ou sem DWG:\n${av.map(x=>'• '+x).join('\n')}`;
   if(!await confirmar(txt,{ok:av.length?'Emitir mesmo assim':'Emitir'})) return;
@@ -4841,7 +4858,8 @@ async function emEmitir(e){
     catch(x){console.error(x); msg(''); toast('A cópia para a pasta compartilhada parou: '+(x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive'))+'. A emissão continua como rascunho.'); return}
   }
   const nRd=await emAtualizarRd(e,P);
-  e.status=plano?.conferir.length?'Conferir':'Emitida'; e.emitidaEm=Date.now(); if(me) e.emitidaPor=me; emMudou(true);
+  e.status=plano?.conferir.length?'Conferir':'Emitida'; e.emitidaEm=Date.now(); if(me) e.emitidaPor=me;
+  emHist(e,e.status==='Conferir'?'conferir':'emitida',nRd?{rd:nRd}:{}); emMudou(true);
   toast(numEm(e.num)+(e.status==='Conferir'?' emitida: há documentos a conferir na pasta compartilhada':' emitida')+(nRd?' · '+nRd+' documento'+(nRd>1?'s':'')+' atualizado'+(nRd>1?'s':'')+' na RD':''));
 }
 async function emRecopiar(e){
@@ -4963,7 +4981,7 @@ function discDeArq(pid,nome){
 const discsDetectadas=e=>[...new Set((e.arquivos||[]).map(a=>discDeArq(e.projeto,a.nome)).filter(Boolean))];
 function emDiscAuto(e){if(e.discAuto===false) return; e.disciplinas=discsDetectadas(e)}
 function emDiscHTML(e){
-  const ds=discsEm(e), ro=S.ro, auto=e.discAuto!==false, det=discsDetectadas(e);
+  const ds=discsEm(e), ro=emTravada(e), auto=e.discAuto!==false, det=discsDetectadas(e);
   const dif=!auto&&det.join()!==ds.join();
   return `<section class="sheet"><div class="sheet-h"><h2>Disciplinas</h2><span class="hint">${ds.length?(auto?'detectadas pelos arquivos':'escolhidas'):(auto&&(e.arquivos||[]).length?'nenhuma detectada nos nomes dos arquivos':'opcional')}</span>${ro||auto||!(e.arquivos||[]).length?'':`<span style="flex:1"></span><button class="btn sm ghost" data-act="em-disc-auto" title="${dif?'Detectadas nos arquivos: '+esc(det.map(c=>siglaP(e.projeto,c)).join(', ')||'nenhuma'):''}">Detectar pelos arquivos</button>`}</div>
   <div class="pad tags-ed">${ds.map((d,i)=>`<span class="chip chip-c"${pintaD(e.projeto,d)} title="${esc(discNome(d))}"><span class="mono">${esc(siglaP(e.projeto,d))}</span><span class="muted" style="font-size:12px">${esc(discNome(d))}</span>${ro?'':`<button data-act="em-disc-rm" data-i="${i}" aria-label="Remover ${esc(d)}">${IC.x}</button>`}</span>`).join('')}
