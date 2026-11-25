@@ -57,16 +57,23 @@ namespace FJA.Revit.Comandos
                 () => DadosEmissao.Carregar(doc));
             new System.Windows.Interop.WindowInteropHelper(j) { Owner = app.MainWindowHandle };
             j.ShowDialog();
-            if (!j.Confirmado) return Result.Cancelled;
-            o.Gravar();
 
-            // a regra mudou: grava no modelo, para a equipe toda exportar com os mesmos nomes
+            // a regra mudou: grava no modelo (também ao fechar sem exportar), para o projeto seguir sempre a última
+            // configuração e a equipe toda exportar com os mesmos nomes
             string avisoRegra = null;
             if (!regra.Igual(regraModelo ?? RegraNome.Padrao()))
             {
                 try { regra.Gravar(doc); avisoRegra = "Regra do nome gravada no modelo."; }
                 catch (Exception e) { avisoRegra = "A regra do nome não foi gravada no modelo (" + e.Message + "); vale só para esta exportação."; }
             }
+            if (!j.Confirmado)
+            {
+                bool gravou = avisoRegra != null && avisoRegra.StartsWith("Regra");
+                if (avisoRegra != null && !gravou) TaskDialog.Show(Titulo, avisoRegra.Replace("; vale só para esta exportação", ""));
+                // Cancelled faria o Revit desfazer a regra recém-gravada
+                return gravou ? Result.Succeeded : Result.Cancelled;
+            }
+            o.Gravar();
 
             var sel = linhas.Where(l => l.Incluir && l.Valida).ToList();
             var res = new ResultadoExportar { AvisoRegra = avisoRegra };

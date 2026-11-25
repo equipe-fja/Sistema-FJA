@@ -334,8 +334,8 @@ namespace FJA.Revit.Pranchas
         /// <summary>Texto fixo recém-acrescentado: recebe o foco quando a regra é remontada.</summary>
         ParteNome focar;
 
-        /// <summary>Editor da regra: uma linha por parâmetro (arrastar pela linha para reordenar, ✕ para tirar),
-        /// "+ parâmetro", separador e padrão.</summary>
+        /// <summary>Editor da regra (2.40.0): uma linha por parte (parâmetro ou texto fixo; arrastar pela linha para
+        /// reordenar), com o separador que vem depois dela e o ✕ para tirar; o "+" abaixo da última acrescenta.</summary>
         void MontarRegra()
         {
             spRegra.Children.Clear();
@@ -349,12 +349,20 @@ namespace FJA.Revit.Pranchas
                 bx.Click += (s, a) => { regra.Partes.RemoveAt(k); MudouRegra(); };
                 DockPanel.SetDock(bx, Dock.Right);
                 lin.Children.Add(bx);
+
+                // separador depois desta parte (na última não há o que separar: fica oculto, mantendo o alinhamento)
+                var cbSep = SeletorSep(regra.SepDe(p));
+                cbSep.Visibility = k < regra.Partes.Count - 1 ? Visibility.Visible : Visibility.Hidden;
+                cbSep.SelectionChanged += (s, a) => { if (cbSep.SelectedItem is ComboBoxItem it) { p.Sep = it.Tag as string ?? ""; MudouRegra(false); } };
+                DockPanel.SetDock(cbSep, Dock.Right);
+                lin.Children.Add(cbSep);
+
                 var alca = new TextBlock { Text = "⋮⋮", Foreground = P("Fraco", 143, 143, 140), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
                 DockPanel.SetDock(alca, Dock.Left);
                 lin.Children.Add(alca);
                 if (p.Fixo)
                 {
-                    // texto fixo (2.39.0): digitado na própria linha; o nome das pranchas se atualiza a cada tecla
+                    // texto fixo: digitado na própria linha; o nome das pranchas se atualiza a cada tecla
                     var rot = new TextBlock { Text = "Texto", FontSize = 11, Foreground = P("Fraco", 143, 143, 140), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
                     DockPanel.SetDock(rot, Dock.Left);
                     lin.Children.Add(rot);
@@ -367,7 +375,7 @@ namespace FJA.Revit.Pranchas
                 else
                     lin.Children.Add(new TextBlock { Text = p.Param, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = p.Param });
 
-                // arrastar: começa depois de mover alguns pixels com o botão apertado (fora do ✕)
+                // arrastar: começa depois de mover alguns pixels com o botão apertado (fora do ✕, do separador e do texto)
                 Point? ini = null;
                 lin.PreviewMouseLeftButtonDown += (s, a) => { ini = a.OriginalSource is DependencyObject d && EmBotao(d) ? (Point?)null : a.GetPosition(spRegra); };
                 lin.PreviewMouseMove += (s, a) =>
@@ -393,52 +401,54 @@ namespace FJA.Revit.Pranchas
                 spRegra.Children.Add(lin);
             }
 
-            var rod = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
-            var btPadrao = Estilo.Botao(this, "Padrão", "Discreto");
-            btPadrao.Padding = new Thickness(8, 2, 8, 2);
-            btPadrao.ToolTip = "Padrão FJA: Project Number - Etapa - Disciplina - Tipo de documento - Trecho - Sheet Number - Current Revision";
-            btPadrao.Click += (s, a) => { var pd = RegraNome.Padrao(); regra.Partes = pd.Partes; regra.Sep = pd.Sep; MudouRegra(); };
-            DockPanel.SetDock(btPadrao, Dock.Right);
-            rod.Children.Add(btPadrao);
-            var txSep = new TextBox { Text = regra.Sep, Width = 30, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Separador", HorizontalContentAlignment = HorizontalAlignment.Center };
-            txSep.TextChanged += (s, a) => { regra.Sep = txSep.Text ?? ""; MudouRegra(false); };
-            DockPanel.SetDock(txSep, Dock.Left);
-            rod.Children.Add(txSep);
-            var btTexto = Estilo.Botao(this, "+ texto", "Discreto");
-            btTexto.Padding = new Thickness(8, 2, 8, 2);
-            btTexto.Margin = new Thickness(0, 0, 6, 0);
-            btTexto.ToolTip = "Acrescentar um texto fixo ao nome (igual em todas as pranchas)";
-            btTexto.Click += (s, a) =>
+            // "+" sempre abaixo da última parte: menu com o texto fixo e os parâmetros que ainda não estão no nome
+            var btMais = new Button { Content = "+", Width = 26, Height = 22, Padding = new Thickness(0), FontSize = 14, Margin = new Thickness(0, 4, 0, 0),
+                                      HorizontalAlignment = HorizontalAlignment.Left, ToolTip = "Acrescentar parâmetro ou texto fixo" };
+            if (TryFindResource("Discreto") is Style st2) btMais.Style = st2;
+            btMais.Click += (s, a) =>
             {
-                var n = new ParteNome { Texto = "" };
-                int pos = regra.Partes.FindIndex(x => x.Param == NomeArquivo.SheetNumber);
-                regra.Partes.Insert(pos >= 0 ? pos : regra.Partes.Count, n);
-                focar = n;
-                MudouRegra();
+                var menu = new ContextMenu { PlacementTarget = btMais, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom, MaxHeight = 420 };
+                var miTexto = new MenuItem { Header = "Texto fixo", FontWeight = FontWeights.SemiBold };
+                miTexto.Click += (s2, a2) => { var n = new ParteNome { Texto = "" }; regra.Partes.Add(n); focar = n; MudouRegra(); };
+                menu.Items.Add(miTexto);
+                var livres = disponiveis.Where(n => !regra.Partes.Any(x => !x.Fixo && string.Equals(x.Param, n, StringComparison.OrdinalIgnoreCase))).ToList();
+                if (livres.Count > 0) menu.Items.Add(new Separator());
+                foreach (var n in livres)
+                {
+                    var mi = new MenuItem { Header = n.Replace("_", "__") };   // "_" sozinho viraria tecla de atalho
+                    mi.Click += (s2, a2) => { regra.Partes.Add(new ParteNome { Param = n }); MudouRegra(); };
+                    menu.Items.Add(mi);
+                }
+                menu.IsOpen = true;
             };
-            DockPanel.SetDock(btTexto, Dock.Right);
-            rod.Children.Add(btTexto);
-            var cbAdd = new ComboBox { ToolTip = "Acrescentar parâmetro (da folha ou das informações do projeto)" };
-            cbAdd.Items.Add("+ parâmetro");
-            foreach (var n in disponiveis.Where(n => !regra.Partes.Any(x => string.Equals(x.Param, n, StringComparison.OrdinalIgnoreCase)))) cbAdd.Items.Add(n);
-            cbAdd.SelectedIndex = 0;
-            cbAdd.SelectionChanged += (s, a) =>
+            spRegra.Children.Add(btMais);
+        }
+
+        /// <summary>Opções de separador entre uma parte e a seguinte (valor, rótulo).</summary>
+        static readonly KeyValuePair<string, string>[] SEPARADORES =
+        {
+            new KeyValuePair<string, string>("-", "-"), new KeyValuePair<string, string>("_", "_"), new KeyValuePair<string, string>(".", "."),
+            new KeyValuePair<string, string>(" ", "espaço"), new KeyValuePair<string, string>("", "nenhum"),
+        };
+
+        ComboBox SeletorSep(string atual)
+        {
+            var cb = new ComboBox { Width = 76, Height = 22, Margin = new Thickness(4, 0, 4, 0), Cursor = Cursors.Arrow, ToolTip = "Separador depois desta parte", VerticalContentAlignment = VerticalAlignment.Center };
+            var ops = SEPARADORES.ToList();
+            if (!ops.Any(o => o.Key == atual)) ops.Add(new KeyValuePair<string, string>(atual, "\"" + atual + "\""));   // separador antigo fora da lista
+            foreach (var o in ops)
             {
-                if (cbAdd.SelectedIndex <= 0) return;
-                string n = cbAdd.SelectedItem as string;
-                // entra antes do Sheet Number (onde costumam ficar os parâmetros extras, como Trecho), senão no fim
-                int pos = regra.Partes.FindIndex(x => x.Param == NomeArquivo.SheetNumber);
-                regra.Partes.Insert(pos >= 0 ? pos : regra.Partes.Count, new ParteNome { Param = n });
-                Dispatcher.BeginInvoke(new Action(() => MudouRegra()));
-            };
-            rod.Children.Add(cbAdd);
-            spRegra.Children.Add(rod);
+                var it = new ComboBoxItem { Content = o.Value, Tag = o.Key };
+                cb.Items.Add(it);
+                if (o.Key == atual) cb.SelectedItem = it;
+            }
+            return cb;
         }
 
         static bool EmBotao(DependencyObject d)
         {
             for (; d != null; d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
-                if (d is Button || d is TextBox) return true;   // clicar no ✕ ou digitar no texto fixo não arrasta
+                if (d is Button || d is TextBox || d is ComboBox) return true;   // clicar no ✕ ou digitar no texto fixo não arrasta
             return false;
         }
 

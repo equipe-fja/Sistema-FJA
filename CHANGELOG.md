@@ -3,7 +3,7 @@
 Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact oficial; devNN = versão correspondente da desenvolvimento). Datas em 2026.
 
 ## Em desenvolvimento (ainda não publicado na oficial)
-- (nada)
+- Extensão do Revit 2.40.0 (antes 2.39.0): Pranchas › Exportar, editor da regra do nome refeito — um **+** abaixo da última linha abre o menu com "Texto fixo" e os parâmetros; **separador por parte**, ao lado do ✕; sem o botão Padrão; a regra é gravada no modelo sempre que muda, também ao fechar sem exportar.
 
 ## oficial Firebase — 25/11, ~16h12 — commit 37d9083
 - Emissões: emissão emitida fica travada; "Voltar para rascunho" pede o motivo e grava no histórico; "Pastas existentes" entram como Rascunho (commit 4f5184d). Voltar para rascunho também desfaz na RD o que a emissão gravou (só nos documentos que ninguém mudou depois) e tira o "emitida em"; emissão retroativa fica com a data da pasta como data de emissão.

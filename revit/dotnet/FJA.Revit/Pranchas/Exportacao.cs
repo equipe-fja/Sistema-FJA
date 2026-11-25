@@ -28,7 +28,9 @@ namespace FJA.Revit.Pranchas
         /// <summary>Texto fixo digitado na regra; null = a parte é um parâmetro.</summary>
         public string Texto;
         public bool Fixo => Texto != null;
-        public ParteNome Copia() => new ParteNome { Param = Param, Texto = Texto };
+        /// <summary>Separador que vem depois desta parte (2.40.0); null = o separador geral da regra.</summary>
+        public string Sep;
+        public ParteNome Copia() => new ParteNome { Param = Param, Texto = Texto, Sep = Sep };
     }
 
     /// <summary>
@@ -65,7 +67,13 @@ namespace FJA.Revit.Pranchas
                 ["sep"] = Sep,
                 // texto fixo vai em "p" com o prefixo: a 2.38 (que só lê "p") mantém a parte ao gravar a regra,
                 // em vez de apagá-la; lá ela só aparece como parâmetro inexistente (fica fora do nome, com aviso)
-                ["partes"] = Partes.Select(p => (object)new Dictionary<string, object> { ["p"] = p.Fixo ? PREFIXO_TEXTO + p.Texto : p.Param }).ToList(),
+                // "s": separador depois da parte (2.40.0; a 2.39 ignora e usa o geral)
+                ["partes"] = Partes.Select(p =>
+                {
+                    var d = new Dictionary<string, object> { ["p"] = p.Fixo ? PREFIXO_TEXTO + p.Texto : p.Param };
+                    if (p.Sep != null) d["s"] = p.Sep;
+                    return (object)d;
+                }).ToList(),
             });
         }
 
@@ -80,12 +88,19 @@ namespace FJA.Revit.Pranchas
             {
                 if (!(x is Dictionary<string, object> pd)) continue;
                 string pp = pd.Txt("p");
-                if (pd.ContainsKey("t")) r.Partes.Add(new ParteNome { Texto = pd.Txt("t") ?? "" });   // formato provisório da 2.39.0
-                else if (pp != null && pp.StartsWith(PREFIXO_TEXTO, StringComparison.Ordinal)) r.Partes.Add(new ParteNome { Texto = pp.Substring(PREFIXO_TEXTO.Length) });
-                else if (!string.IsNullOrWhiteSpace(pp)) r.Partes.Add(new ParteNome { Param = pp });
+                ParteNome parte = null;
+                if (pd.ContainsKey("t")) parte = new ParteNome { Texto = pd.Txt("t") ?? "" };   // formato provisório da 2.39.0
+                else if (pp != null && pp.StartsWith(PREFIXO_TEXTO, StringComparison.Ordinal)) parte = new ParteNome { Texto = pp.Substring(PREFIXO_TEXTO.Length) };
+                else if (!string.IsNullOrWhiteSpace(pp)) parte = new ParteNome { Param = pp };
+                if (parte == null) continue;
+                if (pd.ContainsKey("s")) parte.Sep = pd.Txt("s") ?? "";
+                r.Partes.Add(parte);
             }
             return r.Partes.Count > 0 ? r : null;
         }
+
+        /// <summary>Separador depois de uma parte (o dela ou, sem um, o geral).</summary>
+        public string SepDe(ParteNome p) => p.Sep ?? Sep ?? "";
 
         public bool Igual(RegraNome o) => o != null && o.ParaJson() == ParaJson();
 
@@ -161,17 +176,26 @@ namespace FJA.Revit.Pranchas
         public static void Aplicar(Document doc, LinhaPrancha l, RegraNome regra)
         {
             l.Faltam.Clear();
-            var partes = new List<string>();
+            // cada parte que entra traz o separador que vem depois dela; parte que fica de fora leva junto o seu
+            var sb = new StringBuilder();
+            string sepPendente = null;
             foreach (var p in regra.Partes)
             {
+                string v;
                 // texto fixo: entra como digitado (vazio = ignorado, sem aviso)
-                if (p.Fixo) { if (!string.IsNullOrWhiteSpace(p.Texto)) partes.Add(p.Texto.Trim()); continue; }
-                string v = Valor(doc, l.Folha, p.Param);
-                // todos os parâmetros são opcionais (decisão da FJA, 23/11/2026): em branco sai do nome e é avisado ao exportar
-                if (!string.IsNullOrWhiteSpace(v)) partes.Add(v.Trim());
-                else l.Faltam.Add(p.Param);
+                if (p.Fixo) v = p.Texto;
+                else
+                {
+                    v = Valor(doc, l.Folha, p.Param);
+                    // todos os parâmetros são opcionais (decisão da FJA, 23/11/2026): em branco sai do nome e é avisado ao exportar
+                    if (string.IsNullOrWhiteSpace(v)) l.Faltam.Add(p.Param);
+                }
+                if (string.IsNullOrWhiteSpace(v)) continue;
+                if (sepPendente != null) sb.Append(sepPendente);
+                sb.Append(v.Trim());
+                sepPendente = regra.SepDe(p);
             }
-            l.Arquivo = Limpar(string.Join(regra.Sep ?? "", partes));
+            l.Arquivo = Limpar(sb.ToString());
         }
 
         public static string Valor(Document doc, ViewSheet f, string nome)
