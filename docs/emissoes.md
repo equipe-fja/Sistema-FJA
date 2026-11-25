@@ -36,6 +36,12 @@ Registro das emissões de arquivos de cada projeto (Projeto › Emissões). Deci
 5. Envolvidos do projeto e "Enviar ao cadastro geral". ✔ (envolvidos do projeto também aparecem nas atas e pendências; parceiro novo = empresa, ou o nome quando não há empresa; se o parceiro já existe, a pessoa entra na equipe dele)
 6. RD: atualização ao emitir, histórico de revisões, Conexão com PC v7 (abrir pasta com arquivos selecionados). ✔ (contador verde ao lado da revisão na RD e seção na ficha do documento; a versão do vigia é marcada por navegador em Ferramentas › Conexão com PC)
 
+## Emissão emitida fica travada (25/11/2026)
+Decisão da FJA: emitida (status Emitida ou Conferir), a emissão não pode ser alterada; para alterar, volta-se para rascunho, e isso fica registrado.
+- `emTravada(e)`: ficha toda desabilitada (data, descrição, observações, disciplinas, destinatários, arquivos — adicionar, remover, arrastar) e as ações que alteram dados recusadas também no código (`emAcao`, ouvintes de input/change, `emAdicionar`). Continua permitido: "Copiar de novo" (pendentes da compartilhada) e "Enviar ao cadastro geral" (não altera a emissão). Excluir só em rascunho.
+- Botão **Voltar para rascunho** (`emVoltarRascunho`): pede o motivo (obrigatório) e grava em `historico[]` `{acao:'rascunho', de, motivo, em, por, porNome}`. O Emitir grava `{acao:'emitida'|'conferir', em, por, porNome, rd}`. A ficha mostra a seção **Histórico** (mais recente primeiro).
+- **Pastas existentes** passam a entrar como **Rascunho** (não mais Emitidas), sem a opção "Atualizar a RD" na janela: ao emitir uma emissão retroativa, a RD só muda onde ela for mais recente que o que já está lá; sem pasta compartilhada, a não ser que se escolha uma.
+
 ## Emissões retroativas (24/11/2026, na homologação)
 Decisão da FJA: registrar emissões antigas a partir de pastas existentes, com as duas opções (só registrar, ou registrar e atualizar a RD).
 - Botão **Pastas existentes** na lista de Emissões (`emRetro`). Escolhe-se a pasta pela Conexão com PC ou pelo link do Drive: se o nome for `AA-MM-DD …`, ela é a emissão; senão, as subpastas datadas dela aparecem numa janela para marcar (`emRetroEscolher`; as já ligadas a uma emissão vêm desmarcadas, "(já registrada)").
