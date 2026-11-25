@@ -4488,7 +4488,18 @@ async function emVoltarRascunho(e){
   if(S.ro||!emTravada(e)) return;
   const m=await pedirNome({titulo:`Voltar ${numEm(e.num)} para rascunho`,padrao:'',pasta:'',rotulo:'Motivo (fica registrado no histórico da emissão)',ok:'Voltar para rascunho',bruto:true}); if(m==null) return;
   if(!String(m).trim()){toast('Escreva o motivo.');return}
-  emHist(e,'rascunho',{de:e.status,motivo:String(m).trim()}); e.status='Rascunho'; emMudou(true); toast(numEm(e.num)+' voltou para rascunho');
+  const nRd=await emDesfazerRd(e);
+  emHist(e,'rascunho',{de:e.status,motivo:String(m).trim(),...(nRd?{rd:nRd}:{})}); e.status='Rascunho'; delete e.emitidaEm; delete e.emitidaPor; emMudou(true);
+  toast(numEm(e.num)+' voltou para rascunho'+(nRd?' · '+nRd+' documento'+(nRd>1?'s':'')+' da RD voltaram ao que eram':''));
+}
+/* desfaz na RD o que a emissão gravou, só nos documentos que continuam como ela deixou (se alguém mudou depois, fica) */
+async function emDesfazerRd(e){
+  let n=0;
+  for(const a of e.rdAntes||[]){const d=S.rdocs.get(a.id), p=a.posto; if(!d||!p) continue;
+    if((d.emissao||'')!==p.emissao||(d.status||'')!==p.status||(d.revisao||'')!==(p.revisao||'')) continue;
+    const up={emissao:a.emissao,status:a.status,revisao:a.revisao,...(d.origem?{editadoLocal:true}:{}),atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};
+    try{await rdColl().doc(d.id).update(up); Object.assign(d,up); n++}catch(err){console.warn('rd',d.id,err)}}
+  e.rdAntes=[]; return n;
 }
 const destEm=e=>(e.destinatarios||[]).map(d=>d.nome).filter(Boolean);
 const tiposEm=e=>[...new Set((e.arquivos||[]).map(a=>extDe(a.nome)).filter(Boolean))];
@@ -4858,7 +4869,9 @@ async function emEmitir(e){
     catch(x){console.error(x); msg(''); toast('A cópia para a pasta compartilhada parou: '+(x?.message&&!x.code?x.message:msgMcp(x).replace(/Google Sheets/g,'Google Drive'))+'. A emissão continua como rascunho.'); return}
   }
   const nRd=await emAtualizarRd(e,P);
-  e.status=plano?.conferir.length?'Conferir':'Emitida'; e.emitidaEm=Date.now(); if(me) e.emitidaPor=me;
+  // retroativa: a data de emissão é a da pasta (meio-dia, para não virar o dia no fuso)
+  const dn=e.retroativa?dataNum(e.data):null;
+  e.status=plano?.conferir.length?'Conferir':'Emitida'; e.emitidaEm=dn?new Date(Math.floor(dn/10000),Math.floor(dn/100)%100-1,dn%100,12).getTime():Date.now(); if(me) e.emitidaPor=me;
   emHist(e,e.status==='Conferir'?'conferir':'emitida',nRd?{rd:nRd}:{}); emMudou(true);
   toast(numEm(e.num)+(e.status==='Conferir'?' emitida: há documentos a conferir na pasta compartilhada':' emitida')+(nRd?' · '+nRd+' documento'+(nRd>1?'s':'')+' atualizado'+(nRd>1?'s':'')+' na RD':''));
 }
@@ -4930,10 +4943,13 @@ const txtPlanoRd=(e,P)=>{if(!P.length) return ''; const ok=P.filter(x=>!x.menor)
   return `\n\nRelação de documentos: ${ok.length} documento${ok.length===1?'':'s'} → EMITIDO em ${e.data}`+(rv.length?`\n${lst(rv,x=>`   – ${arquivoRd(x.d)} → ${x.rev}`)}`:'')+
     (mn.length?`\n• Não alterados (a RD tem revisão maior):\n${lst(mn,x=>`   – ${arquivoRd(x.d)} (emitida ${x.rev})`)}`:'')};
 async function emAtualizarRd(e,P){
-  let n=0;
+  let n=0; const antes=[];
   for(const x of P){if(x.menor) continue; const d=S.rdocs.get(x.d.id); if(!d) continue;
     const up={emissao:e.data,status:'EMITIDO',...(x.rev&&x.rev!==d.revisao?{revisao:x.rev}:{}),...(d.origem?{editadoLocal:true}:{}),atualizadoEm:Date.now(),...(me?{atualizadoPor:me}:{})};
-    try{await rdColl().doc(d.id).update(up); Object.assign(d,up); n++}catch(err){console.warn('rd',d.id,err)}}
+    const ant={id:d.id,emissao:d.emissao||'',status:d.status||'',revisao:d.revisao||'',posto:{emissao:up.emissao,status:up.status,revisao:up.revisao??d.revisao??''}};
+    try{await rdColl().doc(d.id).update(up); Object.assign(d,up); antes.push(ant); n++}catch(err){console.warn('rd',d.id,err)}}
+  // guarda o que a RD tinha antes, para "Voltar para rascunho" poder desfazer
+  e.rdAntes=antes;
   for(const a of e.arquivos||[]) if(!a.rdoc){const d=rdEm(e.projeto,a.nome); if(d) a.rdoc=d.id}
   return n;
 }

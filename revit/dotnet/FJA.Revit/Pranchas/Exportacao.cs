@@ -63,10 +63,14 @@ namespace FJA.Revit.Pranchas
             return Json.Gravar(new Dictionary<string, object>
             {
                 ["sep"] = Sep,
-                ["partes"] = Partes.Select(p => (object)(p.Fixo ? new Dictionary<string, object> { ["t"] = p.Texto }
-                                                          : new Dictionary<string, object> { ["p"] = p.Param })).ToList(),
+                // texto fixo vai em "p" com o prefixo: a 2.38 (que só lê "p") mantém a parte ao gravar a regra,
+                // em vez de apagá-la; lá ela só aparece como parâmetro inexistente (fica fora do nome, com aviso)
+                ["partes"] = Partes.Select(p => (object)new Dictionary<string, object> { ["p"] = p.Fixo ? PREFIXO_TEXTO + p.Texto : p.Param }).ToList(),
             });
         }
+
+        /// <summary>Marca, em "p", de uma parte de texto fixo (2.39.0).</summary>
+        public const string PREFIXO_TEXTO = "#texto:";
 
         public static RegraNome DeJson(string s)
         {
@@ -75,8 +79,10 @@ namespace FJA.Revit.Pranchas
             foreach (var x in d.Lista("partes") ?? new List<object>())
             {
                 if (!(x is Dictionary<string, object> pd)) continue;
-                if (pd.ContainsKey("t")) r.Partes.Add(new ParteNome { Texto = pd.Txt("t") ?? "" });
-                else if (!string.IsNullOrWhiteSpace(pd.Txt("p"))) r.Partes.Add(new ParteNome { Param = pd.Txt("p") });
+                string pp = pd.Txt("p");
+                if (pd.ContainsKey("t")) r.Partes.Add(new ParteNome { Texto = pd.Txt("t") ?? "" });   // formato provisório da 2.39.0
+                else if (pp != null && pp.StartsWith(PREFIXO_TEXTO, StringComparison.Ordinal)) r.Partes.Add(new ParteNome { Texto = pp.Substring(PREFIXO_TEXTO.Length) });
+                else if (!string.IsNullOrWhiteSpace(pp)) r.Partes.Add(new ParteNome { Param = pp });
             }
             return r.Partes.Count > 0 ? r : null;
         }
