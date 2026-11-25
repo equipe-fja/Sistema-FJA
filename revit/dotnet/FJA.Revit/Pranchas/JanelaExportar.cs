@@ -351,9 +351,8 @@ namespace FJA.Revit.Pranchas
                 lin.Children.Add(bx);
 
                 // separador depois desta parte (na última não há o que separar: fica oculto, mantendo o alinhamento)
-                var cbSep = SeletorSep(regra.SepDe(p));
+                var cbSep = SeletorSep(regra.SepDe(p), v => { p.Sep = v; MudouRegra(false); });
                 cbSep.Visibility = k < regra.Partes.Count - 1 ? Visibility.Visible : Visibility.Hidden;
-                cbSep.SelectionChanged += (s, a) => { if (cbSep.SelectedItem is ComboBoxItem it) { p.Sep = it.Tag as string ?? ""; MudouRegra(false); } };
                 DockPanel.SetDock(cbSep, Dock.Right);
                 lin.Children.Add(cbSep);
 
@@ -431,17 +430,22 @@ namespace FJA.Revit.Pranchas
             new KeyValuePair<string, string>(" ", "espaço"), new KeyValuePair<string, string>("", "nenhum"),
         };
 
-        ComboBox SeletorSep(string atual)
+        /// <summary>Separador depois de uma parte (2.41.0: digitável; a lista só sugere). Escolher "espaço" ou "nenhum"
+        /// na lista põe o valor de verdade na caixa.</summary>
+        ComboBox SeletorSep(string atual, Action<string> mudou)
         {
-            var cb = new ComboBox { Width = 76, Height = 22, Margin = new Thickness(4, 0, 4, 0), Cursor = Cursors.Arrow, ToolTip = "Separador depois desta parte", VerticalContentAlignment = VerticalAlignment.Center };
-            var ops = SEPARADORES.ToList();
-            if (!ops.Any(o => o.Key == atual)) ops.Add(new KeyValuePair<string, string>(atual, "\"" + atual + "\""));   // separador antigo fora da lista
-            foreach (var o in ops)
+            var cb = new ComboBox { Width = 76, Height = 22, Margin = new Thickness(4, 0, 4, 0), IsEditable = true, IsTextSearchEnabled = false,
+                                    ToolTip = "Separador depois desta parte: digite ou escolha (-, _, ., espaço, nenhum)", VerticalContentAlignment = VerticalAlignment.Center };
+            foreach (var o in SEPARADORES) cb.Items.Add(o.Value);
+            cb.Text = atual ?? "";
+            cb.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler((s, a) =>
             {
-                var it = new ComboBoxItem { Content = o.Value, Tag = o.Key };
-                cb.Items.Add(it);
-                if (o.Key == atual) cb.SelectedItem = it;
-            }
+                string t = cb.Text ?? "";
+                // rótulo escolhido na lista ("espaço", "nenhum"): troca pelo valor; o TextChanged seguinte grava
+                var rot = SEPARADORES.FirstOrDefault(o => o.Value == t && o.Key != o.Value);
+                if (rot.Value != null) { Dispatcher.BeginInvoke(new Action(() => cb.Text = rot.Key)); return; }
+                mudou(t);
+            }));
             return cb;
         }
 
