@@ -3,6 +3,9 @@
 Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact oficial; devNN = versão correspondente da desenvolvimento). Datas em 2026.
 
 ## Em desenvolvimento (ainda não publicado na oficial)
+- (nada)
+
+## oficial Firebase — 25/11, ~18h31 — commit 7abbd0e
 - Extensão do Revit 2.40.0 (antes 2.39.0): Pranchas › Exportar, editor da regra do nome refeito — um **+** abaixo da última linha abre o menu com "Texto fixo" e os parâmetros; **separador por parte**, ao lado do ✕; sem o botão Padrão; a regra é gravada no modelo sempre que muda, também ao fechar sem exportar.
 
 ## oficial Firebase — 25/11, ~16h12 — commit 37d9083
