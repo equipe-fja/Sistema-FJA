@@ -3,6 +3,9 @@
 Cada entrada é uma publicação no artifact oficial (vNN = versão do artifact oficial; devNN = versão correspondente da desenvolvimento). Datas em 2026.
 
 ## Em desenvolvimento (ainda não publicado na oficial)
+- (nada)
+
+## oficial Firebase — 25/11, ~18h40 — commit 3ecbdcb
 - Extensão do Revit 2.41.0 (antes 2.40.0): Pranchas › Exportar, o separador de cada parte da regra do nome pode ser digitado (a lista só sugere -, _, ., espaço e nenhum).
 
 ## oficial Firebase — 25/11, ~18h31 — commit 7abbd0e
